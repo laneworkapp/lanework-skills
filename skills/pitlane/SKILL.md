@@ -18,6 +18,7 @@ On a pipeline, agents **shape** Shaping cards into proposals that meet the board
 | writing a card body, a record, or an ask | `references/writing.md` |
 | sweeping and triaging a board, farming work | `references/sweep.md` |
 | picking a model tier | `references/tiers.md` |
+| who's on a build team, how they talk, review stance | `references/team.md` |
 | a multi-card build campaign (lead) | `references/lead.md` |
 | fixing one card in a worktree (fixer) | `references/fixer.md` |
 | reviewing a card's branch (reviewer) | `references/reviewer.md` |

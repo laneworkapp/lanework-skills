@@ -1,8 +1,10 @@
 # Reviewer
 
-One card's branch, read-only. Verdict: **APPROVE** or **REQUEST-CHANGES**.
+One card's branch, read-only. Verdict: **APPROVE** or **REQUEST-CHANGES**. Stance (standard or adversarial), what may block, round cap: `team.md` § Review stance, § Bounding review.
 
 **Read the head off the branch** (`git -C <repo> rev-parse <branch>`), never the hand-off. Branches move during review; an old sha re-files fixed findings.
+
+**Adversarial**: read the card and the diff (items 1–3) and write down how you'd expect it to break **before** opening the phase reports.
 
 ## Checklist
 
@@ -10,14 +12,15 @@ One card's branch, read-only. Verdict: **APPROVE** or **REQUEST-CHANGES**.
 2. **Diff from the pinned merge-base**: `git -C <repo> diff $(git -C <repo> merge-base main <branch>) <branch>`. Never `main..<branch>` (`traps.md`).
 3. **Correctness vs done-when**: does the diff produce the card's stated observation, checked against its example, not just "it builds"?
 4. **Project conduct**: the repo `CLAUDE.md` bars. Flag any "couldn't resolve X, so assume Y".
-5. **Both paths**: behavior on >1 path → each handled, or the gap flagged in UNCERTAINTY. An unflagged gap = REQUEST-CHANGES, not a nitpick.
-6. **Test adequacy**: would it fail before the fix? Named and located like its neighbours? Say verified (ran at merge-base) or reasoned.
-7. **Blast radius**: Phase-2 actual vs Phase-1 expected. Unexplained churn = red flag, even when verification passed.
-8. **Population**: every reported zero has its denominator (E1).
+5. **Both paths**: behavior on >1 path → each handled, or the gap flagged in UNCERTAINTY. An unflagged gap = BLOCKING.
+6. **Fail-before**: the fixer's FAIL-BEFORE run is at the merge-base and fails with the card's observable, not a compile error. Would the assertion still fail if the fix were wrong? Adversarial: also check out the branch's test files into the scratch worktree (`git -C <scratch> checkout <branch> -- <test paths>`) and run that one suite. Mark FIXER RUN, OWN RUN, or REASONED (only when the fixer said it can't run there).
+7. **Test adequacy**: named and located like its neighbours?
+8. **Blast radius**: Phase-2 actual vs Phase-1 expected. Unexplained churn = red flag, even when verification passed.
+9. **Population**: every reported zero has its denominator (E1).
 
 ## Verdict
 
 - Fill `templates/review-verdict.md`. **Post it on the card thread** (stamp `reviewer`), then send the same text to the lead. The thread is the durable copy; a message-only verdict dies at teardown.
-- A record: never mentions the human. Owner-only questions go under UNRESOLVED, for the lead to ask.
-- **Anchor findings** `file:line @ <short sha> "<quoted fragment>"`. Line numbers drift; sha + fragment stay checkable. Never cite a line below an insertion point you're asking for; name the site.
-- REQUEST-CHANGES → the lead resumes the same fixer. On re-review: read the **new** head and re-check each finding by its quoted text.
+- A record (`writing.md`). Owner-only questions go under UNRESOLVED, for the lead to ask.
+- **Anchor findings** `file:line @ <short sha> "<quoted fragment>"`. Line numbers drift; sha + fragment stay checkable (E9).
+- Re-review: read the **new** head, re-check each open BLOCKING finding by its quoted text, review only the diff since your last sha.

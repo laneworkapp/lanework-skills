@@ -36,7 +36,7 @@ Always before, or alongside, farming. Per board: what waits on the human (gates,
 - Execution leaves the main session. Synthesis, review of agent output, and every judgment-call board write stay.
 - Tier: `tiers.md`. Prompt: `templates/farmed-prompt.md`.
 - Workflow-scale orchestration needs the user's explicit opt-in. A handful of Agent-tool subagents doesn't. Enough parallel work for a workflow → say so and ask.
-- Substantial coding (≥2 independent Approved cards, or review independence matters) → the build cycle, `lead.md`. Below that, work the card directly.
+- Substantial coding (≥2 independent Approved cards, or review independence matters) → a build team, `team.md`. Below that, work the card directly.
 
 ## 5. Close
 
