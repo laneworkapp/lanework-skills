@@ -34,4 +34,4 @@ A board is a folder of plain dirs + Markdown that the Lanework app renders live.
 
 ## Versioning
 
-Written against `lanework-agent-guide v67` and `lanework-schema v1`. Checking versions: `references/authority.md`.
+Target guide and schema versions, for every skill in the set: `references/authority.md` § Versions.

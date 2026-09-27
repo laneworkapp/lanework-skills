@@ -75,5 +75,12 @@ fi
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 
+# versions: one stamp in authority.md, echoed in README.md
+stamp() { { grep -o -E 'lanework-(agent-guide|schema) v[0-9]+' "$1" || true; } | head -2 | tr '\n' ' '; }
+S=$(stamp "$SK/lanework-boards/references/authority.md"); R=$(stamp "$ROOT/README.md")
+[ -n "$S" ] && [ "$S" = "$R" ] || { echo "version stamp: authority.md '$S' vs README.md '$R'"; exit 1; }
+[ "$({ grep -r -l -E 'lanework-agent-guide v[0-9]+' "$SK" || true; } | wc -l | tr -d ' ')" -eq 1 ] || { grep -r -n -E 'lanework-agent-guide v[0-9]+' "$SK"; echo "a second version stamp under skills/"; exit 1; }
+ok "one version stamp under skills/, and README.md matches it ($S)"
+
 echo "smoke: $pass passed"
 [ -n "${1:-}" ] || rm -rf "$T"

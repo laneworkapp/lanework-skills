@@ -16,6 +16,99 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 - `/discovery <topic>` starts or resumes a discovery session.
 - `/pitwall <board> [<board>...]` watches one or more boards, by name or path, until you say stop. With no board named, it watches the project's only board, or asks which.
 
+### Sizes
+
+`SKILL.md` is what loads when a skill starts. The rest of its files are read only when a task needs them.
+
+| skill | files | `SKILL.md` words | all Markdown words |
+|---|---|---|---|
+| `lanework-boards` | 16 | 319 | 3,139 |
+| `pitlane` | 17 | 338 | 5,793 |
+| `pitwall` | 5 | 145 | 989 |
+| `discovery` | 18 | 432 | 2,767 |
+
+Measured with `wc -w` over each folder under `skills/` on 2026-09-27. The per-skill tables below count every file, scripts included.
+
+#### `lanework-boards`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 319 |
+| `references/authority.md` | 164 |
+| `references/board-kinds.md` | 439 |
+| `references/finding.md` | 101 |
+| `references/format.md` | 137 |
+| `references/founding.md` | 388 |
+| `references/reading.md` | 142 |
+| `references/writes.md` | 560 |
+| `scripts/found-board.sh` | 391 |
+| `scripts/lib.sh` | 514 |
+| `scripts/read-board.sh` | 166 |
+| `templates/datapoint-lanes.md` | 166 |
+| `templates/design-loop-lanes.md` | 202 |
+| `templates/index.md` | 76 |
+| `templates/pipeline-index.md` | 215 |
+| `templates/pipeline-lanes.md` | 230 |
+| **total** | **4,210** |
+
+#### `pitlane`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 338 |
+| `references/companions.md` | 148 |
+| `references/evidence.md` | 419 |
+| `references/fixer.md` | 391 |
+| `references/lead.md` | 971 |
+| `references/reviewer.md` | 376 |
+| `references/sweep.md` | 479 |
+| `references/team.md` | 528 |
+| `references/tiers.md` | 97 |
+| `references/traps.md` | 377 |
+| `references/writing.md` | 764 |
+| `scripts/lint-ask.sh` | 472 |
+| `templates/ask.md` | 244 |
+| `templates/farmed-prompt.md` | 116 |
+| `templates/fixer-phase1-report.md` | 236 |
+| `templates/fixer-phase2-report.md` | 136 |
+| `templates/review-verdict.md` | 173 |
+| **total** | **6,265** |
+
+#### `pitwall`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 145 |
+| `references/arming.md` | 270 |
+| `references/events.md` | 309 |
+| `references/responding.md` | 265 |
+| `scripts/watch-boards.sh` | 397 |
+| **total** | **1,386** |
+
+#### `discovery`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 432 |
+| `references/board.md` | 271 |
+| `references/conduct.md` | 126 |
+| `references/corners.md` | 171 |
+| `references/records.md` | 398 |
+| `references/rounds.md` | 262 |
+| `scripts/file-question.sh` | 672 |
+| `scripts/found-discovery-board.sh` | 92 |
+| `scripts/settle-question.sh` | 463 |
+| `templates/board.md` | 369 |
+| `templates/fact-card.md` | 48 |
+| `templates/glossary.md` | 46 |
+| `templates/lanes.md` | 300 |
+| `templates/map-card.md` | 92 |
+| `templates/question-card.md` | 66 |
+| `templates/record.md` | 63 |
+| `templates/ruling.md` | 58 |
+| `templates/topic-card.md` | 65 |
+| **total** | **3,994** |
+
 ## Install
 
 Clone this repo, then symlink or copy each folder under `skills/` into `~/.claude/skills/<name>`, for example:
@@ -46,9 +139,16 @@ A board's actual folder layout, and each lane's own `index.md` body, always win 
 
 ## Versioning
 
-This skill set was written against `lanework-agent-guide v67` and `lanework-schema v1`.
+This skill set is written against `lanework-agent-guide v70` and `lanework-schema v1`. The skills keep that stamp in one place, `skills/lanework-boards/references/authority.md`, and `tests/smoke.sh` fails if this line disagrees with it.
 
 Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUDE.md`, app-maintained and rewritten by Lanework on upgrades), the guide wins.
+
+## Names
+
+`pitlane` and `pitwall` are borrowed from motor racing.
+
+- **Pit lane**: the road beside the track where cars come in and crews work on them. The `pitlane` skill is where the work happens. It files and moves cards, sweeps a board, and sends the work to a crew of subagents. Boards live in a `Pitlane/` folder for the same reason.
+- **Pit wall**: the stand between the pit lane and the track. Engineers sit there watching the race live on their screens, and they call the driver in when something changes. The `pitwall` skill watches one or more boards and responds as changes arrive.
 
 ## Credits
 
