@@ -1,0 +1,62 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "lanework:///schema/1/config-document.json",
+  "title" : "Lanework global config",
+  "description" : "The machine's own `Config/index.md` — one level up from every board, and never synced.",
+  "type" : "object",
+  "properties" : {
+    "schema" : {
+      "$ref" : "common.json#/$defs/schema-version",
+      "description" : "Always 1, written at the seed and never bumped by this document."
+    },
+    "kind" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "`config`. Written at the seed and backfilled on the next seeded-body upgrade; believed outright and read by nothing."
+    },
+    "config" : {
+      "type" : "object",
+      "properties" : {
+        "handle" : {
+          "$ref" : "common.json#/$defs/lenient-text",
+          "description" : "The mention-handle override, ahead of the host username. An empty string is not an override."
+        },
+        "due-soon" : {
+          "$ref" : "common.json#/$defs/lenient-integer",
+          "description" : "The due-soon horizon's global level: a board's own subkey overrides it, and both absent falls to 1."
+        },
+        "priorities" : {
+          "$ref" : "common.json#/$defs/legacy-priority-roster",
+          "deprecated" : true,
+          "description" : "Retired 2026-09-01: still read and converted into the `priority` label kind at this level. This document has no fold of its own."
+        },
+        "default-labels" : {
+          "$ref" : "common.json#/$defs/label-kinds",
+          "description" : "The machine-wide label-kind vocabulary. Deliberately not spelled `labels`: a board unions into this rather than replacing it."
+        },
+        "thumb-sizes" : {
+          "$ref" : "common.json#/$defs/thumb-sizes",
+          "description" : "The picker's size roster at the cascade's global level; a board's own overrides it."
+        },
+        "foreground-colors" : {
+          "$ref" : "common.json#/$defs/palette-colors",
+          "description" : "The machine's icon-tint palette, unioned over the built-in table with per-name shadowing."
+        },
+        "background-colors" : {
+          "$ref" : "common.json#/$defs/palette-colors",
+          "description" : "The machine's background palette. Independent of the foreground table by design."
+        },
+        "restore-open-boards" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Whether the app reopens the previously open boards at launch. Absent means true."
+        },
+        "logging" : {
+          "$ref" : "common.json#/$defs/logging",
+          "description" : "The board log's global default level and retention."
+        }
+      },
+      "additionalProperties" : true,
+      "description" : "The machine's settings block. Absent means every subkey takes its default."
+    }
+  },
+  "additionalProperties" : true
+}

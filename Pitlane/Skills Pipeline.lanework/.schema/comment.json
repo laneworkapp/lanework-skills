@@ -1,0 +1,49 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "lanework:///schema/1/comment.json",
+  "title" : "Lanework comment",
+  "description" : "A comment's `index.md` under a card's `comments/`. No `title` and no `order`: the thread sorts by `created`.",
+  "type" : "object",
+  "properties" : {
+    "schema" : {
+      "$ref" : "common.json#/$defs/schema-version",
+      "description" : "Always 1."
+    },
+    "kind" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "`comment`. Written at creation; the only discriminator inside `comments/.trash/`."
+    },
+    "created" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "When the comment was posted, and by whom. Load-bearing: the thread sorts by this, ascending."
+    },
+    "modified" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "The last write to the comment's content. Differing from `created` is the whole of the edited indicator."
+    },
+    "reactions" : {
+      "$ref" : "common.json#/$defs/reactions",
+      "description" : "The comment's emoji reactions. A comments feature firmly: no other level carries this key."
+    },
+    "in-reply-to" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "The uuid of a sibling comment. Identity-shaped or no reading at all; a value naming no sibling is legal and renders a quiet hint."
+    },
+    "modified-by" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Retired: folds into `modified.by`. The map wins where both are present."
+    },
+    "author" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Retired: the comment's original attribution key, folded into `created.by` as `{name: …}` by a scheduled heal."
+    },
+    "deleted" : {
+      "$ref" : "common.json#/$defs/timestamp",
+      "deprecated" : true,
+      "description" : "Retired: the tombstone model. A deleted comment moves into `comments/.trash/`."
+    }
+  },
+  "additionalProperties" : true
+}
