@@ -139,7 +139,7 @@ A board's actual folder layout, and each lane's own `index.md` body, always win 
 
 ## Versioning
 
-This skill set is written against `lanework-agent-guide v70` and `lanework-schema v1`. The skills keep that stamp in one place, `skills/lanework-boards/references/authority.md`, and `tests/smoke.sh` fails if this line disagrees with it.
+The guide and schema versions this skill set is written against are stamped in one place: `skills/lanework-boards/references/authority.md`, under Versions.
 
 Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUDE.md`, app-maintained and rewritten by Lanework on upgrades), the guide wins.
 

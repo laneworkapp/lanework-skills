@@ -75,12 +75,13 @@ fi
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 
-# versions: one stamp in authority.md, echoed in README.md
-stamp() { { grep -o -E 'lanework-(agent-guide|schema) v[0-9]+' "$1" || true; } | head -2 | tr '\n' ' '; }
-S=$(stamp "$SK/lanework-boards/references/authority.md"); R=$(stamp "$ROOT/README.md")
-[ -n "$S" ] && [ "$S" = "$R" ] || { echo "version stamp: authority.md '$S' vs README.md '$R'"; exit 1; }
-[ "$({ grep -r -l -E 'lanework-agent-guide v[0-9]+' "$SK" || true; } | wc -l | tr -d ' ')" -eq 1 ] || { grep -r -n -E 'lanework-agent-guide v[0-9]+' "$SK"; echo "a second version stamp under skills/"; exit 1; }
-ok "one version stamp under skills/, and README.md matches it ($S)"
+# versions: stamped only in authority.md
+A="$SK/lanework-boards/references/authority.md"
+S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$A" || true; } | head -1)
+[ -n "$S" ] || { echo "no version stamp in $A"; exit 1; }
+H=$({ grep -r -l -E 'lanework-agent-guide v[0-9]+' "$SK" "$ROOT/README.md" "$ROOT/CLAUDE.md" || true; } | grep -v -x -F "$A" || true)
+[ -z "$H" ] || { echo "a second version stamp in: $H"; exit 1; }
+ok "one version stamp ($S), in authority.md only"
 
 echo "smoke: $pass passed"
 [ -n "${1:-}" ] || rm -rf "$T"
