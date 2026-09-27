@@ -27,6 +27,10 @@ The repo is also a Claude Code plugin named `lanework` (`.claude-plugin/plugin.j
 
 `SKILL.md` is the Agent Skills format Claude Code reads; other harnesses that read `SKILL.md` files work the same way.
 
+## Repository layout
+
+The skills live under `skills/`, one folder each, and that folder is all that ships. `Pitlane/Skills Pipeline.lanework` is the Lanework board where work on the skills is tracked, from ideas and issues to shipped changes. `CLAUDE.md` has the conventions for working in the repo.
+
 ## Defaults, not rules
 
 The `Pitlane/` folder convention (`<repo root>/Pitlane/<Board>.lanework`, and `~/Pitlane/` for machine-level boards) and the pipeline lane set (Ideas → Shaping → Proposed → Approved → Active → Done, plus Issues) are the defaults these skills ship with, not requirements.
