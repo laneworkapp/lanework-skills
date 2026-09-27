@@ -6,7 +6,7 @@
     "name": "laneworkapp",
     "url": "https://github.com/laneworkapp"
   },
-  "repository": "https://github.com/laneworkapp/skills",
+  "repository": "https://github.com/laneworkapp/lanework-skills",
   "license": "MIT",
   "keywords": ["lanework", "kanban", "skills", "discovery", "adr", "pdr", "pitlane"],
   "skills": [
