@@ -18,7 +18,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 Clone this repo, then symlink or copy each folder under `skills/` into `~/.claude/skills/<name>`, for example:
 
 ```bash
-git clone https://github.com/laneworkapp/skills.git lanework-skills
+git clone https://github.com/laneworkapp/lanework-skills.git lanework-skills
 ln -s "$(pwd)/lanework-skills/skills/lanework-boards" ~/.claude/skills/lanework-boards
 ln -s "$(pwd)/lanework-skills/skills/pitlane" ~/.claude/skills/pitlane
 ln -s "$(pwd)/lanework-skills/skills/pitwall" ~/.claude/skills/pitwall
