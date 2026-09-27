@@ -23,7 +23,7 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 - **Cite files as `<skill>/<dir>/<file>`** from another skill, and `<dir>/<file>` within one. Scripts reach siblings by relative path (`../../lanework-boards/scripts/lib.sh`, which every script sources), because users symlink each folder into `~/.claude/skills/<name>`. Keep the skills side by side under `skills/`, and install them together.
 - **Entries replace; they don't append.** Extend an existing entry first, then merge several into one, and only then add. Project facts (gate commands, what green means, blast radius) never move into a skill: they belong in a board's instruction sheet or a repo's `CLAUDE.md`.
 - **Scripts target macOS bash and BSD tools** (`date -v`, `uuidgen`). **Verified** = `tests/smoke.sh` passing (it runs `bash -n`, every script on throwaway boards, the schema validator, and `check-refs.sh`), plus a new smoke case for any new script behavior. Never test against the Skills Pipeline board.
-- **The in-board agent guide wins.** The skills target one `lanework-agent-guide` version, stamped once in `skills/lanework-boards/references/authority.md` § Versions and echoed in `README.md` (smoke checks they match). When the guide moves on, read every skill against it, fix the drift, then bump both.
+- **The in-board agent guide wins.** The skills target one `lanework-agent-guide` version, stamped only in `skills/lanework-boards/references/authority.md` § Versions (smoke fails on a second stamp anywhere else). When the guide moves on, read every skill against it, fix the drift, then bump the stamp.
 
 ## Git
 
