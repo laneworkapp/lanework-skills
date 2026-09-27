@@ -8,6 +8,11 @@ BRANCH: <branch, worktree absolute path>
 FILES:  <changed source files>
 TEST:   <new/modified suite + method>
 
+FAIL-BEFORE:
+  <the scoped command, the sha it ran at (the merge-base), and the test's own
+  failure line: the card's observable, not a compile error. Where the raw run is
+  attached on the thread. "CAN'T RUN AT MERGE-BASE: <why>" if the harness is new.>
+
 LINKED CONTEXT:
   <what the card's and linked cards' threads say that bears on the fix: a duplicate,
   a one-fix-many sibling to bundle, a corrected root-cause guess, related work

@@ -8,3 +8,5 @@ Cheapest tier that fits. Several in parallel when the work splits.
 | **sonnet** | routine, and the fixer default: shaping a well-understood card, building a tightly specified card, tests against a stated spec, docs |
 | **opus** | complex: tricky debugging, concurrency, migrations, a spec that still leaves hard calls |
 | **inherit** | only when the agent itself makes architectural judgment calls |
+
+Reviewer tier: `team.md` § Review stance.
