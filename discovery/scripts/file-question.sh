@@ -1,5 +1,5 @@
 #!/bin/bash
-# file-question.sh: file a question card into a grill board's Asked lane.
+# file-question.sh: file a question card into a discovery board's Asked lane.
 # usage: file-question.sh <board>.lanework "<title without the Q-number>" \
 #          --round <n> --body <file> [--ask <file>] [--depends <lanework-link>...] \
 #          [--why <text>] [--model <model>] [--name <name>] [--session <text>]
@@ -171,7 +171,7 @@ CARD_ID=$(uuidgen | tr 'A-Z' 'a-z')
 FOUND_ID=$(uuidgen | tr 'A-Z' 'a-z')
 ASK_ID=$(uuidgen | tr 'A-Z' 'a-z')
 
-STAGE=$(mktemp -d "${TMPDIR:-/tmp}/grill-ask.XXXXXX")
+STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-ask.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/$CARD_ID/comments/$FOUND_ID" "$STAGE/$CARD_ID/comments/$ASK_ID"
 

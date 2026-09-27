@@ -1,6 +1,6 @@
-# The grill board
+# The discovery board
 
-The shape of a `<Topic> Grill.lanework` board: its lanes, its three kinds of card, and the literal templates. The board's own guide (`CLAUDE.md`, app-maintained) is the authority on the file format; this page only fixes what this board kind means.
+The shape of a `<Topic> Discovery.lanework` board (a `<Topic> Grill.lanework` board from `grill-me` has the same shape): its lanes, its three kinds of card, and the literal templates. The board's own guide (`CLAUDE.md`, app-maintained) is the authority on the file format; this page only fixes what this board kind means.
 
 ## Lanes
 
@@ -8,7 +8,7 @@ Five lanes, on the plain 1024 ladder. `Parked` is collapsed from the start.
 
 | lane | order | entry | exit |
 |---|---|---|---|
-| Brief | 1024 | the Topic card and the Design tree card, written at framing | never; both are rewritten in place |
+| Brief | 1024 | the Topic card and the Discovery map card, written at framing | never; both are rewritten in place |
 | Facts | 2048 | a fact found by the agent or a subagent, with evidence | never; a superseded fact gets a dated correction in its thread |
 | Asked | 3072 | a question on the current frontier, filed by the agent | the owner answers, and the agent moves it |
 | Settled | 4096 | an Asked card whose ruling is written into its body | never; a re-ruled question is a new card that links the old |
@@ -24,16 +24,16 @@ The founding script writes this. The `config.labels` entry declares the `round` 
 ---
 schema: 1
 kind: board
-title: Tracker Grill
+title: Tracker Discovery
 id: <lowercase uuid>
-icon: {glyph: questionmark.bubble}
+icon: {glyph: binoculars}
 config: {show-card-body: 3, labels: [{type: round, text: Round}]}
 created:  {at: <now>, by: {name: claude, kind: agent, model: <model>}}
 modified: {at: <now>, by: {name: claude, kind: agent, model: <model>}}
 ---
-# Tracker Grill
+# Tracker Discovery
 
-A design interview on <topic>, one question per card. The agent asks in rounds; the owner rules; the ruling is written into the card in the owner's words. Brief holds the topic and the design tree, Facts what was looked up, and Settled is the record a later session resumes from.
+Discovery on <topic>: its problem and domain space, examined one question per card. The agent asks in rounds, the owner rules, and the ruling is written into the card in the owner's words. Brief holds the topic and the discovery map, Facts holds what was looked up, and Settled is the record a later session resumes from. Rulings that clear the bar also become ADRs and PDRs in the repo.
 
 ## How this board works
 
@@ -42,6 +42,7 @@ A design interview on <topic>, one question per card. The agent asks in rounds; 
 - **A ruling is the owner's words**, dated. "As recommended" is a ruling. A deferral or a refusal is a ruling too, and parks the card with the reason.
 - **One question, one decision.** A round is every question whose prerequisites are settled. Questions number globally in the order asked; the round is the `Round` label.
 - **Facts are cited.** A Facts card names its source and attaches the report; a question that leans on one links it under Depends on.
+- **Records follow rulings.** At the close of each round, rulings that settle how the system is built become ADRs (`docs/adr/`), rulings that settle what the product does become PDRs (`docs/pdr/`), and pinned terms go into `CONTEXT.md`. The Settled card links each one.
 - **Nothing is built from this board.** When the frontier is empty and the owner confirms the understanding, work cards are filed on the project's pipeline board and link back here.
 - **Git**: this board lives in the project repo. Stage only your own paths, plain commit messages, board writes separate from code changes.
 ```
@@ -49,7 +50,7 @@ A design interview on <topic>, one question per card. The agent asks in rounds; 
 ## Lane bodies
 
 ```
-Brief    | The two standing references. The Topic card states the scope and what a shared understanding must cover. The Design tree card is the outline of every decision, rewritten by the agent at the close of each round, and is the first thing a resuming session reads.
+Brief    | The two standing references. The Topic card states the scope and what a shared understanding must cover. The Discovery map card is the outline of every decision, grouped by corner of the space, rewritten by the agent at the close of each round, and is the first thing a resuming session reads.
 Facts    | One card per fact the agent established: from the code, the docs, the filesystem, a tool, or the web. The body is the fact and its source; the raw report is an attachment. A fact found wrong gets a dated correction comment, never an edit that hides the first reading.
 Asked    | One card per open question, filed by the agent, waiting on the owner. The body is the question, the options and the recommendation. Answer by commenting on the card or by replying in chat. Only the agent moves a card out, and only once the ruling is written into the body.
 Settled  | Answered questions. The body ends with a dated ruling in the owner's words. This lane is the design record: read it in order to see what was decided and why. A settled question is never edited; a change of mind is a new question in a later round that links this one.
@@ -64,25 +65,29 @@ One per board, in Brief, written at framing and rewritten only when the owner ch
 ---
 schema: 1
 kind: card
-title: "Topic: <the thing being grilled>"
+title: "Topic: <the thing being discovered>"
 order: 1024
 icon: {glyph: scope}
 created:  {at: <now>, by: {name: claude, kind: agent, model: <model>}}
 modified: {at: <now>, by: {name: claude, kind: agent, model: <model>}}
 ---
-<One paragraph: what is being designed, and where the request came from.>
+<One paragraph: what is being examined, and where the request came from.>
 
 ## A shared understanding covers
 
-- <area one>
-- <area two>
+- <corner>: <what it must settle for this topic>
+- <corner>: <what it must settle for this topic>
+
+## Out of scope
+
+- <corner or area>: <why>
 
 ## Sources read
 
 - <doc or file>, <what it settled before this session started>
 ```
 
-## The Design tree card
+## The Discovery map card
 
 One per board, in Brief, below the Topic card. Rewritten in place at the close of every round; the thread carries one comment per rewrite saying which round closed.
 
@@ -90,20 +95,24 @@ One per board, in Brief, below the Topic card. Rewritten in place at the close o
 ---
 schema: 1
 kind: card
-title: "Design tree"
+title: "Discovery map"
 order: 2048
 icon: {glyph: point.3.connected.trianglepath.dotted}
 created:  {at: <now>, by: {name: claude, kind: agent, model: <model>}}
 modified: {at: <now>, by: {name: claude, kind: agent, model: <model>}}
 ---
-Every decision in the design, as a tree. ✅ settled, with the ruling in one line and the card linked. ❓ on the frontier now, card linked. ◦ not yet askable, and what it waits on.
+Every decision in the problem and domain space, as a tree grouped by corner (see the corners table in SKILL.md). ✅ settled, with the ruling in one line and the card linked. ❓ on the frontier now, card linked. ◦ not yet askable, and what it waits on.
 
-- ✅ Scope: two-way lifecycle sync is the MVP [Q3](lanework://<board>/<card>)
-  - ❓ Lane to state mapping [Q11](lanework://<board>/<card>)
-    - ◦ Auto-create lanes for unmapped states (waits on Q11)
-  - ◦ Conflict policy (waits on Q11)
-- ✅ Engine runs in the app [Q4](lanework://<board>/<card>)
-  - ❓ Polling cadence [Q12](lanework://<board>/<card>)
+- **Scope**
+  - ✅ Two-way lifecycle sync is the MVP [Q3](lanework://<board>/<card>)
+    - ❓ Lane to state mapping [Q11](lanework://<board>/<card>)
+      - ◦ Auto-create lanes for unmapped states (waits on Q11)
+    - ◦ Conflict policy (waits on Q11)
+- **Architecture**
+  - ✅ Engine runs in the app [Q4](lanework://<board>/<card>)
+    - ❓ Polling cadence [Q12](lanework://<board>/<card>)
+- **Risks**
+  - ◦ No branches yet: covered next round
 ```
 
 ## A question card
@@ -195,7 +204,7 @@ modified: {at: <now>, by: {name: claude, kind: agent, model: <model>}}
 **Owner answered in chat.** "C. Design it edition-agnostic and note in the editions doc that Teams placement is reopened."
 ```
 
-A ruling that produced a glossary entry or an ADR says so on its own line under the ruling: `Glossary: **Tracker**, **Remote** in CONTEXT.md` or `ADR: docs/adr/0003-engine-in-app.md`.
+A ruling that produced a glossary entry, an ADR or a PDR says so under the ruling, one line each: `Glossary: **Tracker**, **Remote** in CONTEXT.md`, `ADR: docs/adr/0003-engine-in-app.md`, `PDR: docs/pdr/0002-sync-is-free.md`.
 
 A deferral parks the card with the same section: `**2026-09-22** — Parked. "Not until the sync service exists."`
 
@@ -229,4 +238,4 @@ Its founding comment names what asked for the fact and attaches the report under
 
 ## Ordering inside lanes
 
-Asked and Settled read top to bottom in question order, which is filing order, so every new card goes to the bottom: `max existing order + 1024`, or `1024` in an empty lane. A card moving from Asked to Settled takes the bottom of Settled, so Settled reads as the sequence of rulings. Brief is fixed: Topic at 1024, Design tree at 2048.
+Asked and Settled read top to bottom in question order, which is filing order, so every new card goes to the bottom: `max existing order + 1024`, or `1024` in an empty lane. A card moving from Asked to Settled takes the bottom of Settled, so Settled reads as the sequence of rulings. Brief is fixed: Topic at 1024, Discovery map at 2048.

@@ -9,7 +9,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `lanework-boards` | what a board is, reading one in one pass, and founding a new board by hand |
 | `pitlane` | sweeping and working a board: triage, and farming work out to model-tiered subagents |
 | `pitwall` | a standing watch on one board, responding to changes as they arrive |
-| `grill-me` | a design interview run in rounds on a grill board: questions as cards, rulings in the owner's words, plus the glossary and decision records the rulings produce |
+| `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce |
 
 ## Install
 
@@ -20,7 +20,7 @@ git clone https://github.com/laneworkapp/skills.git lanework-skills
 ln -s "$(pwd)/lanework-skills/lanework-boards" ~/.claude/skills/lanework-boards
 ln -s "$(pwd)/lanework-skills/pitlane" ~/.claude/skills/pitlane
 ln -s "$(pwd)/lanework-skills/pitwall" ~/.claude/skills/pitwall
-ln -s "$(pwd)/lanework-skills/grill-me" ~/.claude/skills/grill-me
+ln -s "$(pwd)/lanework-skills/discovery" ~/.claude/skills/discovery
 ```
 
 The repo is also a Claude Code plugin named `lanework` (`.claude-plugin/plugin.json`), so it can be installed as one unit instead of skill by skill.
@@ -41,7 +41,7 @@ Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUD
 
 ## Credits
 
-The interview protocol in `grill-me` (design tree, frontier, rounds with a recommended answer per question) and its glossary and ADR discipline are adapted from Matt Pocock's `grilling` and `domain-modeling` skills (MIT), reworked to run on a Lanework board.
+The interview protocol in `discovery` (a decision tree, a frontier, and rounds with a recommended answer per question) and its glossary and ADR discipline are adapted from Matt Pocock's `grilling` and `domain-modeling` skills (MIT), reworked to run on a Lanework board.
 
 ## License
 
