@@ -1,28 +1,17 @@
 #!/bin/bash
-# found-discovery-board.sh: cold-start a discovery board (references/board.md).
-# usage: found-discovery-board.sh "<path>/<Topic> Discovery.lanework" ["Board Title"] \
-#          [--model <model>] [--name <agent name>]
-# Writes the board's index.md (schema 1, kind board, minted lowercase uuid
-# id, the binoculars icon, the round label kind in config) and the
-# five lanes (Brief, Facts, Asked, Settled, Parked) with the exact orders
-# and bodies from board.md's "Lane bodies" table; Parked is collapsed. The
-# board body is board.md's description and instruction sheet, with <topic>
-# taken from the title minus a trailing " Discovery". Writes nothing else — no
-# CLAUDE.md, .schema, .gitignore; the app installs those on first open.
-# Refuses if the board folder already exists and is non-empty.
+# found-discovery-board.sh: cold-start a discovery board.
+# usage: found-discovery-board.sh "<path>/<Topic> Discovery.lanework" ["Title"] [--model m] [--name n]
+# Writes index.md from templates/board.md and one lane per row of templates/lanes.md.
+# Nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
+# Refuses a non-empty folder.
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 BOARD="${1:?usage: found-discovery-board.sh <path>/<Topic> Discovery.lanework [title] [--model m] [--name n]}"
 shift
-
 TITLE=""
-if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
-  TITLE="$1"
-  shift
-fi
-
-MODEL="${CLAUDE_MODEL:-unknown}"
-NAME="claude"
+if [ $# -gt 0 ] && [[ "$1" != --* ]]; then TITLE="$1"; shift; fi
+MODEL="${CLAUDE_MODEL:-unknown}"; NAME="claude"
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) MODEL="${2:?--model needs a value}"; shift 2 ;;
@@ -30,90 +19,41 @@ while [ $# -gt 0 ]; do
     *) echo "found-discovery-board.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
-
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
-
-TOPIC="$TITLE"
-case "$TOPIC" in
-  *" Discovery") TOPIC="${TOPIC% Discovery}" ;;
-esac
+TOPIC="${TITLE% Discovery}"
 
 if [ -d "$BOARD" ] && [ -n "$(ls -A "$BOARD" 2>/dev/null)" ]; then
-  echo "found-discovery-board.sh: refusing — $BOARD already exists and is not empty" >&2
-  exit 1
+  echo "found-discovery-board.sh: refusing, $BOARD exists and is not empty" >&2; exit 1
 fi
 
-qtitle() {  # quote a scalar only when the guide says a bare one would break
-  local s="$1"
-  case "$s" in
-    *": "*|"#"*|"["*|"{"*|"'"*|'"'*) printf '"%s"' "${s//\"/\\\"}" ;;
-    *) printf '%s' "$s" ;;
-  esac
-}
+case "$TITLE" in   # quote a title a bare YAML scalar would break on
+  *": "*|"#"*|"["*|"{"*|"'"*|'"'*) TITLE_YAML="\"${TITLE//\"/\\\"}\"" ;;
+  *) TITLE_YAML="$TITLE" ;;
+esac
 
-NOW=$(date -u +%FT%TZ)
-BY="{name: $NAME, kind: agent, model: $MODEL}"
-
-STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-found.XXXXXX")
-trap 'rm -rf "$STAGE"' EXIT
-
+NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL"); BOARD_ID=$(uuid)
+STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-found.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$BOARD"
-BOARD_ID=$(uuidgen | tr 'A-Z' 'a-z')
 
-# ---- the board's own index.md ------------------------------------------------
-{
-  printf '%s\n' '---'
-  printf '%s\n' 'schema: 1'
-  printf '%s\n' 'kind: board'
-  printf 'title: %s\n' "$(qtitle "$TITLE")"
-  printf 'id: %s\n' "$BOARD_ID"
-  printf '%s\n' 'icon: {glyph: binoculars}'
-  printf '%s\n' 'config: {show-card-body: 3, labels: [{type: round, text: Round}]}'
-  printf 'created:  {at: %s, by: %s}\n' "$NOW" "$BY"
-  printf 'modified: {at: %s, by: %s}\n' "$NOW" "$BY"
-  printf '%s\n' '---'
-  printf '# %s\n\n' "$TITLE"
-  printf "Discovery on %s: its problem and domain space, examined one question per card. The agent asks in rounds, the owner rules, and the ruling is written into the card in the owner's words. Brief holds the topic and the discovery map, Facts holds what was looked up, and Settled is the record a later session resumes from. Rulings that clear the bar also become ADRs and PDRs in the repo.\n\n" "$TOPIC"
-  cat <<'BODY'
-## How this board works
-
-- **The body holds the question; the ask comment is where it is answered.** Every question card carries one ask in its thread, the handle on its first line, restating the question, its options and the recommendation. Reply to that comment. No other comment on the card mentions the handle.
-- **Answer anywhere.** A comment on the card, or a reply in chat. The agent records a chat answer as a comment quoting it, then writes the ruling into the body under `## Ruling` and moves the card.
-- **A ruling is the owner's words**, dated. "As recommended" is a ruling. A deferral or a refusal is a ruling too, and parks the card with the reason.
-- **One question, one decision.** A round is every question whose prerequisites are settled. Questions number globally in the order asked; the round is the `Round` label.
-- **Facts are cited.** A Facts card names its source and attaches the report; a question that leans on one links it under Depends on.
-- **Records follow rulings.** At the close of each round, rulings that settle how the system is built become ADRs (`docs/adr/`), rulings that settle what the product does become PDRs (`docs/pdr/`), and pinned terms go into `CONTEXT.md`. The Settled card links each one.
-- **Nothing is built from this board.** When the frontier is empty and the owner confirms the understanding, work cards are filed on the project's pipeline board and link back here.
-- **Git**: this board lives in the project repo. Stage only your own paths, plain commit messages, board writes separate from code changes.
-BODY
-} > "$STAGE/index.md"
+render "$TEMPLATES/board.md" title "$TITLE" title_yaml "$TITLE_YAML" id "$BOARD_ID" \
+  topic "$TOPIC" stamp "{at: $NOW, by: $BY}" > "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
-# ---- one folder and one index.md per lane -----------------------------------
-while IFS='|' read -r ORDER LANE COLLAPSED LBODY; do
-  [ -n "${ORDER:-}" ] || continue
-  LANE_ID=$(uuidgen | tr 'A-Z' 'a-z')
-  mkdir -p "$BOARD/$LANE_ID"
+# lanes.md rows: | order | title | collapsed | body |
+awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 5; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\t" $3 "\t" $4 "\t" $5 }' \
+  "$TEMPLATES/lanes.md" |
+while IFS=$'\t' read -r ORDER LANE COLLAPSED LBODY; do
+  LANE_ID=$(uuid); mkdir -p "$BOARD/$LANE_ID"
   {
-    printf '%s\n' '---'
-    printf '%s\n' 'schema: 1'
-    printf '%s\n' 'kind: lane'
+    printf '%s\n' '---' 'schema: 1' 'kind: lane'
     printf 'title: %s\n' "$LANE"
     printf 'order: %s\n' "$ORDER"
-    [ "$COLLAPSED" = "1" ] && printf '%s\n' 'collapsed: true'
+    [ "$COLLAPSED" = yes ] && printf '%s\n' 'collapsed: true'
     printf 'created:  {at: %s, by: %s}\n' "$NOW" "$BY"
     printf 'modified: {at: %s, by: %s}\n' "$NOW" "$BY"
-    printf '%s\n' '---'
-    printf '%s\n' "$LBODY"
+    printf '%s\n' '---' "$LBODY"
   } > "$STAGE/lane.md"
   mv "$STAGE/lane.md" "$BOARD/$LANE_ID/index.md"
-done <<'LANES'
-1024|Brief|0|The two standing references. The Topic card states the scope and what a shared understanding must cover. The Discovery map card is the outline of every decision, grouped by corner of the space, rewritten by the agent at the close of each round, and is the first thing a resuming session reads.
-2048|Facts|0|One card per fact the agent established: from the code, the docs, the filesystem, a tool, or the web. The body is the fact and its source; the raw report is an attachment. A fact found wrong gets a dated correction comment, never an edit that hides the first reading.
-3072|Asked|0|One card per open question, filed by the agent, waiting on the owner. The body is the question, the options and the recommendation. Answer by commenting on the card or by replying in chat. Only the agent moves a card out, and only once the ruling is written into the body.
-4096|Settled|0|Answered questions. The body ends with a dated ruling in the owner's words. This lane is the design record: read it in order to see what was decided and why. A settled question is never edited; a change of mind is a new question in a later round that links this one.
-5120|Parked|1|Questions the owner deferred or declined, with the reason as the ruling. Collapsed because it is read least; reopen one by asking it again as a new card that links this one.
-LANES
+done
 
-printf 'founded %s\n' "$BOARD"
-printf 'board id %s\n' "$BOARD_ID"
+printf 'founded %s\nboard id %s\n' "$BOARD" "$BOARD_ID"

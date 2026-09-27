@@ -65,4 +65,4 @@ Lanes on this kind of board are worth grouping: `group: {by: component, directio
 
 ## Discovery board
 
-A guided examination of a project's problem and domain space: one question per card, with the owner's ruling written into the card and the facts and the discovery map kept beside them. Its rulings become the project's ADRs and PDRs. Its lane set (Brief, Facts, Asked, Settled, Parked) and templates live with the skill that runs it, `discovery`, in its `references/board.md`. A `<Topic> Grill.lanework` board from the predecessor skill, `grill-me`, has the same shape.
+A project's problem and domain space, one question per card, the owner's rulings becoming ADRs and PDRs. Owned by the `discovery` skill: shape in its `references/board.md`, lanes and card templates in its `templates/`.
