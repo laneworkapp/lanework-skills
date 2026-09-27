@@ -1,8 +1,11 @@
 #!/bin/bash
-# lib.sh: helpers shared by the discovery scripts. Source it; never run it.
+# lib.sh: board helpers shared by every skill's scripts. Source it; never run it.
+# From a sibling skill: . "$(dirname "${BASH_SOURCE[0]}")/../../lanework-boards/scripts/lib.sh"
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATES="$LIB_DIR/../templates"
+
+# yaml_str <s>: a double-quoted YAML scalar (always quote strings: see references/writes.md).
+yaml_str() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
 
 # fm_value <file> <key>: raw scalar of a top-level frontmatter key.
 fm_value() {
@@ -39,11 +42,11 @@ next_order() {
   if [ -z "$max" ]; then echo 1024; else awk -v m="$max" 'BEGIN{print m+1024}'; fi
 }
 
-# owner_handle <board>: from the guide's "human answers to `@handle`" line, else "human".
+# owner_handle <board>: from the guide's "human answers to `@handle`" line; empty + exit 1 if none.
 owner_handle() {
   local h=""
   [ -r "$1/CLAUDE.md" ] && h=$(grep -o 'human answers to `@[^`]*`' "$1/CLAUDE.md" | head -1 | sed 's/.*`@\([^`]*\)`/\1/')
-  printf '%s' "${h:-human}"
+  printf '%s' "$h"; [ -n "$h" ]
 }
 
 # by_of <name> <model> [session]: the stamp's `by` mapping.

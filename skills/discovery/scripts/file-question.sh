@@ -8,7 +8,8 @@
 # No --ask: built from --body (first paragraph, Options bullets, first sentence of Recommended,
 # matching "If no answer"), then linted with pitlane's lint-ask.sh (warns, never aborts).
 set -euo pipefail
-. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../../lanework-boards/scripts/lib.sh"
+TEMPLATES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)"
 LINT_SCRIPT="$LIB_DIR/../../pitlane/scripts/lint-ask.sh"
 
 BOARD="${1:?usage: file-question.sh <board> <title> --round N --body F [...]}"
@@ -36,7 +37,7 @@ done
 
 ASKED=$(lane_by_title "$BOARD" Asked) || { echo "file-question.sh: no Asked lane on $BOARD" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
-HANDLE=$(owner_handle "$BOARD")
+HANDLE=$(owner_handle "$BOARD" || true); HANDLE="${HANDLE:-human}"
 
 # ---- next global Q number, every lane, dot-folders excluded ----
 MAXQ=0

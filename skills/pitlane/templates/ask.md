@@ -1,6 +1,6 @@
-# Ask — the one comment that mentions the human
+# Ask
 
-Fill and post; nothing else goes in this comment. Under 80 words. Keep the blank line after the options: Markdown folds the line after a list item into that item, so without it `Why now:` renders as the tail of the last option. `@owner` below is a placeholder — the real handle is the board owner's, as stated in the board's CLAUDE.md under Mentions. Lint before the `mv`: `scripts/lint-ask.sh <file> <board>`.
+The one comment that mentions the human. Rules: `references/writing.md` § The ask. `@<handle>` = the owner's handle from the guide's Mentions section.
 
 ```markdown
 @<handle> <the ask in one sentence: a question, or an imperative>
@@ -26,8 +26,6 @@ Context: the comment above.
 
 ## Not this
 
-The same request as it was actually posted, as the tail of a 160-word record:
-
 > @owner this is live in your running build: cards you dragged today are changing lanes on their own each time the board reloads. Worth a quit-and-relaunch to see whether it clears, and a note here of whether you dragged 572e3b41 / 7259cd45 to Issues on purpose at 17:30 (and back at 17:31) or only once.
 
-Two asks in one sentence, both hedged, the handle mid-thread, the evidence restated, the cards named bare. It becomes three comments: the record, the ask above, and a second ask for the relaunch with `If no answer: I assume it did not clear`.
+Tail of a 160-word record: two hedged asks in one sentence, handle mid-thread, evidence restated, cards bare. It should have been three comments: the record, the ask above, and a second ask for the relaunch (`If no answer: I assume it did not clear`).
