@@ -24,8 +24,8 @@ A question for the owner is an ask of its own (`writing.md` § The ask), posted 
 
 ## Commit
 
-Each handled comment's writes (card body + your reply) → one semantic commit, then push. Staging rules: `writes.md` § Git.
+Each handled comment's writes (card body + your reply) → one semantic commit in **that board's repo** (boards may live in different repos), then push. Staging rules: `writes.md` § Git.
 
 ## Report to the user
 
-After each handled event, the turn's last message: what arrived, what you did (reply, ruling folded, agents dispatched, commit hash), what sits at a human gate. Skipped self-writes and no-ops: no message.
+After each handled event, the turn's last message: which board, what arrived, what you did (reply, ruling folded, agents dispatched, commit hash), what sits at a human gate. Skipped self-writes and no-ops: no message.

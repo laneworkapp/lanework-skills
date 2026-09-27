@@ -14,7 +14,7 @@ validate() {
   grep -o 'documents   [0-9]*' <<<"$out"
 }
 
-for s in "$SK"/*/scripts/*.sh; do bash -n "$s"; done; ok "bash -n on every script"
+for s in "$SK"/*/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;; *) bash -n "$s" ;; esac; done; ok "syntax check on every script, by its shebang"
 
 # lanework-boards: pipeline founding + reading
 P="$T/Acme Pipeline.lanework"
@@ -58,6 +58,20 @@ printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the commen
 printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/bad.md"
 "$SK/pitlane/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes a clean ask"
 if "$SK/pitlane/scripts/lint-ask.sh" "$T/bad.md" >/dev/null; then exit 1; fi; ok "lint-ask fails a hedged, chained ask"
+
+# pitwall: two boards, one watcher; a comment posted by renaming .draft/ is reported with its board
+if command -v fswatch >/dev/null; then
+  C=$(ls -d "$D"/*/"$C1"); W="$T/watch.log"
+  "$SK/pitwall/scripts/watch-boards.sh" "$T/snap" "$P" "$D" > "$W" 2>&1 & WP=$!
+  sleep 2; mkdir -p "$C/comments/.draft"; printf -- '---\nkind: comment\n---\nx\n' > "$C/comments/.draft/index.md"; sleep 1.5
+  mv "$C/comments/.draft" "$C/comments/dddd0000-0000-4000-8000-000000000004"; sleep 1.5
+  pkill -P "$WP" 2>/dev/null || true; kill "$WP" 2>/dev/null || true; wait "$WP" 2>/dev/null || true
+  grep -q "^CHANGED Sync: v2 Discovery.lanework/.*/comments/dddd0000-0000-4000-8000-000000000004/index.md$" "$W" && ! grep -q "\.draft" "$W" || { cat "$W"; exit 1; }
+  ok "watch-boards: comment post on the 2nd board reported with its board, draft not reported"
+  if "$SK/pitwall/scripts/watch-boards.sh" "$T/snap2" "$P" "$P/" 2>/dev/null; then exit 1; fi; ok "watch-boards refuses two boards with one folder name"
+else
+  echo "skip - fswatch not installed"
+fi
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 
