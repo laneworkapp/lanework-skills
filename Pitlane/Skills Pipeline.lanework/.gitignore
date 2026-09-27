@@ -1,0 +1,7 @@
+# lanework-gitignore v3
+# Managed by Lanework: this file is rewritten to the current seed every time
+# the board opens. A board is not a repository root — put your own exclusions
+# in a .gitignore above this folder.
+.DS_Store
+.*.lanework-*
+.log/

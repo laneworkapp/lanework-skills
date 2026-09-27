@@ -1,0 +1,35 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "lanework:///schema/1/attachment.json",
+  "title" : "Lanework attachment",
+  "description" : "An attachment's `index.md` under an `attachments/<uuid>/`, beside its `blob.<extension>`.",
+  "type" : "object",
+  "properties" : {
+    "schema" : {
+      "$ref" : "common.json#/$defs/schema-version",
+      "description" : "Always 1."
+    },
+    "kind" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "`attachment`. Written at creation."
+    },
+    "created" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "When the attachment was materialized, and by whom."
+    },
+    "modified" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "The last write to this attachment's metadata — a rename touches this file and no other."
+    },
+    "title" : {
+      "type" : "string",
+      "description" : "The original filename's stem, extensionless: surfaces recompose `<title>.<extension>`. Not unique — the uuid is the identity.",
+      "pattern" : "^[^\\r\\n]*$"
+    },
+    "extension" : {
+      "type" : "string",
+      "description" : "The blob's extension, bare and with no leading dot. A promise: a reader constructs `blob.<extension>` without listing the directory, and a mismatch is reported broken."
+    }
+  },
+  "additionalProperties" : true
+}
