@@ -57,4 +57,4 @@ Owner wants to answer on the board while you wait → suggest `/pitwall <board>`
 
 ## Versioning
 
-Written against `lanework-agent-guide v70` and `lanework-schema v1`. Checking versions: `lanework-boards/references/authority.md`.
+Target guide and schema versions: `lanework-boards/references/authority.md` § Versions.

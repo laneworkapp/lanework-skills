@@ -10,4 +10,8 @@ Lower layers refine, never override. Skills sit below all three: board files win
 
 Exception: a new board has no guide until its first open. Until then `founding.md` is the authority.
 
-Versions: `lanework-agent-guide vN` on line 1 of `CLAUDE.md`, `lanework-schema vN` on line 1 of `.schema/VERSION`. Guide newer than a skill → guide right, skill out of date.
+## Versions
+
+**Target: `lanework-agent-guide v70`, `lanework-schema v1`.** The only copy of this stamp: every skill in the set is written against it.
+
+A board's own: line 1 of `CLAUDE.md`, line 1 of `.schema/VERSION`. Board newer than the target → the guide is right and the skills are out of date.

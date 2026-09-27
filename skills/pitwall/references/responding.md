@@ -4,10 +4,10 @@ Only **new owner comments** get replies. Prose: `pitlane/references/writing.md`.
 
 ## Ruling or discussion
 
-Answers a question, picks an option, gives an opinion. Handle it in the main session:
+Answers a question, picks an option (a button click arrives as `<label>: <option text>`), gives an opinion. Handle it in the main session:
 
 - Fold the ruling into the body (`writing.md` § Card bodies), restamping `modified` whole.
-- Reply with a three-line record: what was recorded, the card's state now, who acts next. No handle.
+- Reply with a three-line record, `in-reply-to` the owner's comment: what was recorded, the card's state now, who acts next. No handle.
 
 ## Action-calling
 

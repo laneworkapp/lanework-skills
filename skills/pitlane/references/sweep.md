@@ -19,7 +19,7 @@ Per board, after the authority chain:
 
 | workload | shows up | who acts |
 |---|---|---|
-| **Unanswered question** | any lane: thread ends in a question. Mentions the human → waits on them; addressed to an agent → on you | answer, or surface |
+| **Unanswered question** | any lane: `waiting` in the frontmatter, or a thread ending in a question. `waiting.for` / the mention names the human → on them; addressed to an agent → on you | answer, or surface |
 | **Approved, unstarted** | Approved | farm: build |
 | **Active, stalled** | Active, no thread movement | resume, or report why stuck |
 | **Shaping to advance** | Shaping, below the board's proposal bar | farm: shape |
