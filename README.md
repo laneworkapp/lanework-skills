@@ -6,10 +6,12 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | what it's for |
 |---|---|
-| `lanework-boards` | what a board is, reading one in one pass, and founding a new board by hand |
-| `pitlane` | sweeping and working a board: triage, and farming work out to model-tiered subagents |
+| `lanework-boards` | the base the others build on: what a board is, reading one, the write rules every board shares, the default lane sets, and founding a new board |
+| `pitlane` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `pitwall` | a standing watch on one board, responding to changes as they arrive |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce |
+
+`discovery` never starts on its own. Run it as `/discovery <topic>`, with the command first in your message, to start a session or resume one.
 
 ## Install
 
@@ -22,6 +24,8 @@ ln -s "$(pwd)/lanework-skills/skills/pitlane" ~/.claude/skills/pitlane
 ln -s "$(pwd)/lanework-skills/skills/pitwall" ~/.claude/skills/pitwall
 ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
 ```
+
+The skills cite and call each other by relative path, so install all four side by side.
 
 The repo is also a Claude Code plugin named `lanework` (`.claude-plugin/plugin.json`), so it can be installed as one unit instead of skill by skill.
 

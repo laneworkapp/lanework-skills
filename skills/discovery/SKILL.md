@@ -1,6 +1,7 @@
 ---
 name: discovery
-description: "Discovery: a guided, question-by-question examination of a project's problem and domain space on a Lanework board, until no corner (problem, people, domain, scope, behavior, constraints, architecture, integrations, data, risks, success) is silently assumed. Questions are cards, rulings are the owner's words on them, facts are cited cards, and a later session resumes from the board (`<Topic> Discovery.lanework`, founded when missing). Produces a glossary plus ADRs (how it's built) and PDRs (what the product does). Use when the user says 'discovery', 'run discovery on X', 'discovery session', 'explore the problem space', 'map out the domain', 'grill me', 'interview me about', 'sharpen this plan', 'let's think X through properly', 'design session for X', or wants a project, plan or feature examined question by question before building. Not for founding general boards (lanework-boards), sweeping a pipeline board (pitlane), or watching one (pitwall)."
+description: "Question-by-question examination of a project's problem and domain space on a Lanework discovery board, producing a glossary, ADRs and PDRs. Run as /discovery <topic>."
+disable-model-invocation: true
 ---
 
 # Discovery
@@ -12,7 +13,7 @@ Agent asks, owner rules, until every corner of the problem/domain space is settl
 
 ## Authority
 
-Builds on **lanework-boards**. Before any write, read: board guide (`CLAUDE.md`) → board `index.md` → lane bodies. The guide owns the file format. Board files beat this skill.
+Builds on **lanework-boards**: read `lanework-boards/references/authority.md` before any write. Board files beat this skill.
 
 ## Topics
 
@@ -38,7 +39,7 @@ Builds on **lanework-boards**. Before any write, read: board guide (`CLAUDE.md`)
 
 From the board, never memory:
 
-1. Read the board in one pass (lanework-boards recipe), then the map card.
+1. `lanework-boards/scripts/read-board.sh`, then the map card.
 2. Each Asked thread: owner comment newer than `waiting.since` = unrecorded answer → record it first.
 3. Continue at Flow 5.
 
@@ -46,14 +47,14 @@ Owner answering on the board while you wait → arm **pitwall** on it.
 
 ## Scripts
 
-`scripts/`, all sourcing `lib.sh`. Full usage in each header.
+`scripts/`, built on `lanework-boards/scripts/`. Full usage in each header.
 
 | script | does |
 |---|---|
-| `found-discovery-board.sh <path> [title]` | founds the board from `templates/board.md` + `templates/lanes.md` |
+| `found-discovery-board.sh <path> [title]` | founds the board: `found-board.sh` with `templates/board.md` + `templates/lanes.md` |
 | `file-question.sh <board> <title> --round N --body F` | files the next Q into Asked, with founding + ask comments |
 | `settle-question.sh <board> <card-uuid> --ruling F` | appends the ruling, clears `waiting`, moves to Settled (or `--to parked`) |
 
 ## Versioning
 
-Written against `lanework-agent-guide v70` and `lanework-schema v1` (line 1 of the board's `CLAUDE.md` / `.schema/VERSION`). A later guide wins; this skill is then out of date.
+Written against `lanework-agent-guide v70` and `lanework-schema v1`. Checking versions: `lanework-boards/references/authority.md`.

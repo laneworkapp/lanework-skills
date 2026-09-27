@@ -4,19 +4,18 @@
 #   <board>  the .lanework folder; its CLAUDE.md names the human's handle. Without it, the
 #            first @token in the body is taken as the handle.
 # A body that mentions nobody is a record and passes untouched. A body that mentions the
-# human is an ask and must fit the budget in references/writing.md: handle on the first
+# human is an ask and must fit references/writing.md § The ask: handle on the first
 # line, under 80 words, one question, one clause per sentence (no em-dash, no semicolon),
-# no hedging, a blank line after any list (the next line folds into the last item otherwise), every card it names linked (`lanework://<board-id>/<card-id>` somewhere in the
+# no hedging, a blank line after any list, every card it names linked (`lanework://<board-id>/<card-id>` somewhere in the
 # body for each bare eight-hex id). One line per violation on stdout and exit 1; silent exit 0
 # when clean.
 set -u
+. "$(dirname "$0")/../../lanework-boards/scripts/lib.sh"
 f=${1:?usage: lint-ask.sh <file> [<board dir>]}; board=${2:-}
 [ -r "$f" ] || { echo "no such file: $f"; exit 2; }
 body=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {fm=0; next} !fm' "$f")
 handle=""
-if [ -n "$board" ] && [ -r "$board/CLAUDE.md" ]; then
-  handle=$(grep -o 'human answers to `@[^`]*`' "$board/CLAUDE.md" | head -1 | sed 's/.*`@\([^`]*\)`/\1/')
-fi
+[ -n "$board" ] && handle=$(owner_handle "$board" || true)
 [ -n "$handle" ] || handle=$(printf '%s\n' "$body" | grep -o -E '(^|[^[:alnum:]_])@[[:alnum:]_-]+' | head -1 | sed 's/.*@//')
 [ -n "$handle" ] || exit 0                                   # no mention anywhere: a record
 mention="(^|[^[:alnum:]_])@$handle([^[:alnum:]_-]|$)"
