@@ -13,14 +13,14 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 ## Install
 
-Clone this repo, then symlink or copy each skill folder into `~/.claude/skills/<name>`, for example:
+Clone this repo, then symlink or copy each folder under `skills/` into `~/.claude/skills/<name>`, for example:
 
 ```bash
 git clone https://github.com/laneworkapp/skills.git lanework-skills
-ln -s "$(pwd)/lanework-skills/lanework-boards" ~/.claude/skills/lanework-boards
-ln -s "$(pwd)/lanework-skills/pitlane" ~/.claude/skills/pitlane
-ln -s "$(pwd)/lanework-skills/pitwall" ~/.claude/skills/pitwall
-ln -s "$(pwd)/lanework-skills/discovery" ~/.claude/skills/discovery
+ln -s "$(pwd)/lanework-skills/skills/lanework-boards" ~/.claude/skills/lanework-boards
+ln -s "$(pwd)/lanework-skills/skills/pitlane" ~/.claude/skills/pitlane
+ln -s "$(pwd)/lanework-skills/skills/pitwall" ~/.claude/skills/pitwall
+ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
 ```
 
 The repo is also a Claude Code plugin named `lanework` (`.claude-plugin/plugin.json`), so it can be installed as one unit instead of skill by skill.

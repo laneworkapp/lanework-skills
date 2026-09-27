@@ -10,9 +10,9 @@
   "license": "MIT",
   "keywords": ["lanework", "kanban", "skills", "discovery", "adr", "pdr", "pitlane"],
   "skills": [
-    "./lanework-boards",
-    "./pitlane",
-    "./pitwall",
-    "./discovery"
+    "./skills/lanework-boards",
+    "./skills/pitlane",
+    "./skills/pitwall",
+    "./skills/discovery"
   ]
 }
