@@ -63,6 +63,6 @@ Optional beside those five, for the release steps around the values rather than 
 
 Lanes on this kind of board are worth grouping: `group: {by: component, direction: descending}` on Filed and Pushed sections the values by whatever scope they belong to.
 
-## Grill board
+## Discovery board
 
-A design interview: one question per card, the owner's ruling written into the card, the facts and the design tree kept beside them. Its lane set (Brief, Facts, Asked, Settled, Parked) and templates live with the skill that runs it, `grill-me`, in its `references/board.md`.
+A guided examination of a project's problem and domain space: one question per card, with the owner's ruling written into the card and the facts and the discovery map kept beside them. Its rulings become the project's ADRs and PDRs. Its lane set (Brief, Facts, Asked, Settled, Parked) and templates live with the skill that runs it, `discovery`, in its `references/board.md`. A `<Topic> Grill.lanework` board from the predecessor skill, `grill-me`, has the same shape.

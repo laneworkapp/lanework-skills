@@ -1,5 +1,5 @@
 #!/bin/bash
-# settle-question.sh: record a ruling on a grill board question card and move it.
+# settle-question.sh: record a ruling on a discovery board question card and move it.
 # usage: settle-question.sh <board>.lanework <card-uuid> --ruling <file> \
 #          [--to settled|parked] [--reply <comment-uuid>] [--record <file>] \
 #          [--model <model>] [--name <name>] [--session <text>]
@@ -35,7 +35,7 @@ lane_by_title() { local l; for l in "$BOARD"/*/; do [ -f "$l/index.md" ] || cont
 DEST=$(lane_by_title "$LANE_TITLE") || { echo "no lane titled $LANE_TITLE" >&2; exit 1; }
 
 if [ -n "$SESSION" ]; then BY="{name: $NAME, kind: agent, model: $MODEL, session: \"$SESSION\"}"; else BY="{name: $NAME, kind: agent, model: $MODEL}"; fi
-STAGE=$(mktemp -d "${TMPDIR:-/tmp}/grill-settle.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
+STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-settle.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 
 # ---- the card: resolve now, rewrite body, restamp ----------------------------
 CARD=$(ls -d "$BOARD"/*/"$CID" 2>/dev/null | head -1)
