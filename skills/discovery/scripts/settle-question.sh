@@ -6,7 +6,7 @@
 # posts --record as a comment (in reply to --reply), moves the card to the bottom of Settled
 # or Parked. Staged outside the board; the card path is re-resolved just before landing.
 set -euo pipefail
-. "$(dirname "${BASH_SOURCE[0]}")/../../lanework-boards/scripts/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 
 BOARD="${1:?usage: settle-question.sh <board> <card-uuid> --ruling F [...]}"
 CID="${2:?usage: settle-question.sh <board> <card-uuid> --ruling F [...]}"

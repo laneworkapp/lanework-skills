@@ -5,7 +5,7 @@ Bounded, user-requested pass over one or more boards. Ends in a **triage report*
 ## 1. Scope
 
 - "Sweep the boards" = the pipeline boards. "Sweep Acme Pipeline" = that one.
-- No board named → the current project's `Pitlane/` + `~/Pitlane/` (`lanework-boards/references/finding.md`). Skip archive and schema boards unless asked.
+- No board named → the current project's `Pitlane/` + `~/Pitlane/` (`lanework/references/finding.md`). Skip archive and schema boards unless asked.
 - A board's instruction sheet may narrow or widen this. Guidance, not a gate.
 
 ## 2. Inventory
@@ -13,7 +13,7 @@ Bounded, user-requested pass over one or more boards. Ends in a **triage report*
 Per board, after the authority chain:
 
 - **Skip** `.trash/`, Done, and any lane whose body marks itself out of scope, unless the owner asks (archive sweep, "what shipped?").
-- List lanes in order with card counts (`lanework-boards/scripts/read-board.sh`).
+- List lanes in order with card counts (`lanework/scripts/read-board.sh`).
 - Read every card's frontmatter; skim bodies; full threads only for cards that look actionable.
 - The lane says who acts next: that's the primary classifier.
 
@@ -42,5 +42,5 @@ Always before, or alongside, farming. Per board: what waits on the human (gates,
 
 - **An unfiled finding is lost.** Anything uncovered but not worked gets a card before the sweep ends, after a duplicate search on the **mechanism**, not your title phrasing. Grep Done too.
 - Every touched card: thread updated, stamps correct.
-- Board commits per the board's git rules (`lanework-boards/references/writes.md`).
+- Board commits per the board's git rules (`lanework/references/writes.md`).
 - Final report: what moved, what shipped, what waits on the user, cost (agents, tiers).

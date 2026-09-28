@@ -4,7 +4,7 @@ One card, one lead-provided worktree with its branch checked out. Team and chann
 
 ## 1. Pick up
 
-- Read the guide, the board sheet, and the card's body and **whole thread**, plus every linked card's (`lanework-boards/references/reading.md`).
+- Read the guide, the board sheet, and the card's body and **whole thread**, plus every linked card's (`lanework/references/reading.md`).
 - **Post START before coding**: the journal entry and the claim (`companions.md`). A record (`writing.md`): conclusion first, one line per settled decision.
 
 ## 2. Code
@@ -35,4 +35,4 @@ One card, one lead-provided worktree with its branch checked out. Team and chann
 - Never `git worktree`, `git submodule`, or anything touching a worktree's lifecycle.
 - Target the worktree explicitly on every command (`git -C`, absolute paths). A `cd` is convenience, not the safeguard.
 - A question only the owner can settle → the lead.
-- Board writes: `lanework-boards/references/writes.md`.
+- Board writes: `lanework/references/writes.md`.

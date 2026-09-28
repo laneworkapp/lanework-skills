@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 The race-engineering post: this session stays up, watches one or more boards, and acts on what the owner writes until told to stop. Runs only as `/pitwall <board> [<board>...]`: names or paths, none → `references/arming.md` § Boards.
 
-Builds on **pitlane** (working a board) and **lanework-boards** (reading and writing one). Pitwall adds only the watch loop and the response policy.
+Builds on **pitlane** (working a board) and **lanework** (reading and writing one). Pitwall adds only the watch loop and the response policy.
 
 | step | file |
 |---|---|

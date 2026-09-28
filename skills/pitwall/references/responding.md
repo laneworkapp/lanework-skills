@@ -1,6 +1,6 @@
 # Responding
 
-Only **new owner comments** get replies. Prose: `pitlane/references/writing.md`. Writes: `lanework-boards/references/writes.md`, stamped `session: "board watch"`.
+Only **new owner comments** get replies. Prose: `pitlane/references/writing.md`. Writes: `lanework/references/writes.md`, stamped `session: "board watch"`.
 
 ## Ruling or discussion
 

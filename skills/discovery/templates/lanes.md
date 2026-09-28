@@ -1,6 +1,6 @@
 # Lanes
 
-Read by `scripts/found-discovery-board.sh` (format: `lanework-boards/templates/pipeline-lanes.md`). `collapsed`: `yes` starts collapsed. `body`: owner-facing lane policy, no `|`.
+Read by `scripts/found-discovery-board.sh` (format: `lanework/templates/pipeline-lanes.md`). `collapsed`: `yes` starts collapsed. `body`: owner-facing lane policy, no `|`.
 
 | order | title | collapsed | body |
 |---|---|---|---|

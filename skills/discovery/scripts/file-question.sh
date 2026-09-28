@@ -8,7 +8,7 @@
 # No --ask: built from --body (first paragraph, Options bullets, first sentence of Recommended,
 # matching "If no answer"), then linted with pitlane's lint-ask.sh (warns, never aborts).
 set -euo pipefail
-. "$(dirname "${BASH_SOURCE[0]}")/../../lanework-boards/scripts/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 TEMPLATES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)"
 LINT_SCRIPT="$LIB_DIR/../../pitlane/scripts/lint-ask.sh"
 

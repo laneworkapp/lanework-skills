@@ -1,13 +1,13 @@
 ---
 name: pitlane
-description: "Pitlane: working Lanework boards. Filing and moving cards, writing card bodies and comments (records vs asks to the human), answering board questions, sweeping a pipeline board for workloads, triaging them, and farming the work out to model-tiered subagents, with a lead/fixer/reviewer build cycle for coding cards. Use whenever the user mentions Lanework, Pitlane, or a pipeline board (e.g. 'Acme Pipeline'), or says 'sweep the pipeline board', 'check the lab board', 'file a card on X', 'any open questions on the boards?', 'triage Ideas', 'work the approved cards'. Board fundamentals come from lanework-boards. Not for generic kanban advice unrelated to Lanework."
+description: "Pitlane: working Lanework boards. Filing and moving cards, writing card bodies and comments (records vs asks to the human), answering board questions, sweeping a pipeline board for workloads, triaging them, and farming the work out to model-tiered subagents, with a lead/fixer/reviewer build cycle for coding cards. Use whenever the user mentions Lanework, Pitlane, or a pipeline board (e.g. 'Acme Pipeline'), or says 'sweep the pipeline board', 'check the lab board', 'file a card on X', 'any open questions on the boards?', 'triage Ideas', 'work the approved cards'. Board fundamentals come from the lanework skill. Not for generic kanban advice unrelated to Lanework."
 ---
 
 # Pitlane
 
 Working a board: cards are specs, threads are journals, and on a pipeline **a card's lane says who acts next**.
 
-**Base**: `lanework-boards`, for the authority chain, reading and write rules. Read `lanework-boards/references/authority.md` before touching any board. Pipeline lanes and gates: `lanework-boards/references/board-kinds.md`.
+**Base**: `lanework`, for the authority chain, reading and write rules. Read `lanework/references/authority.md` before touching any board. Pipeline lanes and gates: `lanework/references/board-kinds.md`.
 
 On a pipeline, agents **shape** Shaping cards into proposals that meet the board's bar, **build** Approved → Active → Done with evidence in the closing comment, **answer** questions on any card, and **report** what sits at a human gate: surface it, never push through it.
 

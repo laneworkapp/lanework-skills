@@ -1,6 +1,6 @@
 #!/bin/bash
 # lib.sh: board helpers shared by every skill's scripts. Source it; never run it.
-# From a sibling skill: . "$(dirname "${BASH_SOURCE[0]}")/../../lanework-boards/scripts/lib.sh"
+# From a sibling skill: . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
