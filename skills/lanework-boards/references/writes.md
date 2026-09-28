@@ -4,7 +4,7 @@ The guide has the full rules. These hold on every board and cost most when misse
 
 ## Every write
 
-- **Stamp it.** `created` / `modified` = `{at, by}`; `by: {name: <you or your role>, kind: agent, model: <model>[, session: "<name>"]}`. **Missing `by` claims the owner wrote it.** Move `at` + `by` together. Never sign `shortcuts` or `healer`: app-reserved.
+- **Stamp it.** `created` / `modified` = `{at, by}`; `by: {name: <you or your role>, kind: agent, model: <model>[, session: "<name>"]}`. **Missing `by` claims the owner wrote it.** Move `at` + `by` together. Never sign `shortcuts`, `healer` or `tracker`: app-reserved.
 - **Stage outside the board, then `mv` in.** App reloads on every fs event and can read a half-written file. A temp left beside a card's `index.md` is relocated into its `attachments/`, not deleted (2026-09-08). After an aborted write, check `attachments/` for strays.
 - **Double-quote every string value**: `title: "…"`. A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`. Every scalar on one line; a title never carries a line break.
 - **Validate before committing**: `python3 "$BOARD/.schema/bin/lanework-validate.py" <file or board>` → exit 0 **and** no `DEPRECATED` line. No `.schema/` yet: `founding.md` § Validate.
@@ -37,6 +37,14 @@ The guide has the full rules. These hold on every board and cost most when misse
 - Answering a specific comment → `in-reply-to: <its uuid>`.
 - A posted comment is fixed at most for a typo. Otherwise post a follow-up; never rewrite, remove, or move it into `comments/.trash`.
 - Prose (record vs ask, handles, links): `pitlane/references/writing.md`.
+
+## Tracker boards
+
+Board with a `remote` = bound to an issue tracker. Shapes and engine behaviour: the guide, § Frontmatter (`remote`, `remote-state`).
+
+- **Engine's alone: never write, edit or copy** a card's `remote`, its `state` label, any comment's `remote`, or `.tracker.nosync/`. Absent `remote` = unpublished: hand-writing or copying one claims a ticket that isn't the card's. Yours to hand-write: the board's `remote` (incl. `cadence`) and a lane's `remote-state`.
+- **Your writes push, like anyone's.** Filing a card publishes an issue. A move into a lane with a `remote-state`, or trash, changes the issue's state. A body or title edit edits the issue.
+- **Every comment on a published card is posted to the issue verbatim, as the token's user, and emails the repo's watchers.** `@handle` mentions that tracker user. Deleting it here leaves it there. Write each one as public.
 
 ## Git
 
