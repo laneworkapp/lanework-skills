@@ -20,14 +20,14 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 `SKILL.md` is what loads when a skill starts. The rest of its files are read only when a task needs them.
 
-| skill | files | `SKILL.md` words | all Markdown words |
+| skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework-boards` | 16 | 319 | 3,139 |
-| `pitlane` | 17 | 338 | 5,793 |
-| `pitwall` | 5 | 145 | 989 |
-| `discovery` | 18 | 432 | 2,767 |
+| `lanework-boards` | 9 | 319 | 2,326 |
+| `pitlane` | 16 | 338 | 5,794 |
+| `pitwall` | 4 | 145 | 989 |
+| `discovery` | 14 | 432 | 2,398 |
 
-Measured with `wc -w` over each folder under `skills/` on 2026-09-27. The per-skill tables below count every file, scripts included.
+Measured with `wc -w` on 2026-09-27, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework-boards`
 
@@ -41,15 +41,8 @@ Measured with `wc -w` over each folder under `skills/` on 2026-09-27. The per-sk
 | `references/founding.md` | 388 |
 | `references/reading.md` | 142 |
 | `references/writes.md` | 560 |
-| `scripts/found-board.sh` | 391 |
-| `scripts/lib.sh` | 514 |
-| `scripts/read-board.sh` | 166 |
-| `templates/datapoint-lanes.md` | 166 |
-| `templates/design-loop-lanes.md` | 202 |
 | `templates/index.md` | 76 |
-| `templates/pipeline-index.md` | 215 |
-| `templates/pipeline-lanes.md` | 230 |
-| **total** | **4,210** |
+| **total** | **2,326** |
 
 #### `pitlane`
 
@@ -59,20 +52,19 @@ Measured with `wc -w` over each folder under `skills/` on 2026-09-27. The per-sk
 | `references/companions.md` | 148 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
-| `references/lead.md` | 971 |
+| `references/lead.md` | 972 |
 | `references/reviewer.md` | 376 |
 | `references/sweep.md` | 479 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
 | `references/writing.md` | 764 |
-| `scripts/lint-ask.sh` | 472 |
 | `templates/ask.md` | 244 |
 | `templates/farmed-prompt.md` | 116 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,265** |
+| **total** | **5,794** |
 
 #### `pitwall`
 
@@ -82,8 +74,7 @@ Measured with `wc -w` over each folder under `skills/` on 2026-09-27. The per-sk
 | `references/arming.md` | 270 |
 | `references/events.md` | 309 |
 | `references/responding.md` | 265 |
-| `scripts/watch-boards.sh` | 397 |
-| **total** | **1,386** |
+| **total** | **989** |
 
 #### `discovery`
 
@@ -95,10 +86,6 @@ Measured with `wc -w` over each folder under `skills/` on 2026-09-27. The per-sk
 | `references/corners.md` | 171 |
 | `references/records.md` | 398 |
 | `references/rounds.md` | 262 |
-| `scripts/file-question.sh` | 672 |
-| `scripts/found-discovery-board.sh` | 92 |
-| `scripts/settle-question.sh` | 463 |
-| `templates/board.md` | 369 |
 | `templates/fact-card.md` | 48 |
 | `templates/glossary.md` | 46 |
 | `templates/lanes.md` | 300 |
@@ -107,7 +94,7 @@ Measured with `wc -w` over each folder under `skills/` on 2026-09-27. The per-sk
 | `templates/record.md` | 63 |
 | `templates/ruling.md` | 58 |
 | `templates/topic-card.md` | 65 |
-| **total** | **3,994** |
+| **total** | **2,398** |
 
 ## Install
 
