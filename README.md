@@ -22,12 +22,12 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework-boards` | 9 | 319 | 2,326 |
-| `pitlane` | 16 | 338 | 5,794 |
-| `pitwall` | 4 | 145 | 989 |
+| `lanework-boards` | 9 | 319 | 2,474 |
+| `pitlane` | 16 | 338 | 5,817 |
+| `pitwall` | 4 | 145 | 1,040 |
 | `discovery` | 14 | 432 | 2,398 |
 
-Measured with `wc -w` on 2026-09-27, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-09-28, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework-boards`
 
@@ -37,12 +37,12 @@ Measured with `wc -w` on 2026-09-27, over the Markdown an agent reads: `SKILL.md
 | `references/authority.md` | 164 |
 | `references/board-kinds.md` | 439 |
 | `references/finding.md` | 101 |
-| `references/format.md` | 137 |
+| `references/format.md` | 143 |
 | `references/founding.md` | 388 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 560 |
+| `references/writes.md` | 702 |
 | `templates/index.md` | 76 |
-| **total** | **2,326** |
+| **total** | **2,474** |
 
 #### `pitlane`
 
@@ -58,13 +58,13 @@ Measured with `wc -w` on 2026-09-27, over the Markdown an agent reads: `SKILL.md
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
-| `references/writing.md` | 764 |
+| `references/writing.md` | 787 |
 | `templates/ask.md` | 244 |
 | `templates/farmed-prompt.md` | 116 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **5,794** |
+| **total** | **5,817** |
 
 #### `pitwall`
 
@@ -72,9 +72,9 @@ Measured with `wc -w` on 2026-09-27, over the Markdown an agent reads: `SKILL.md
 |---|---|
 | `SKILL.md` | 145 |
 | `references/arming.md` | 270 |
-| `references/events.md` | 309 |
+| `references/events.md` | 360 |
 | `references/responding.md` | 265 |
-| **total** | **989** |
+| **total** | **1,040** |
 
 #### `discovery`
 
