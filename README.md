@@ -6,7 +6,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | what it's for |
 |---|---|
-| `lanework-boards` | the base the others build on: what a board is, reading one, the write rules every board shares, the default lane sets, and founding a new board |
+| `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, the default lane sets, and founding a new board |
 | `pitlane` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `pitwall` | a standing watch on one or more boards, responding to changes as they arrive |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce |
@@ -22,14 +22,14 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework-boards` | 9 | 319 | 2,474 |
-| `pitlane` | 16 | 338 | 5,817 |
+| `lanework` | 9 | 319 | 2,474 |
+| `pitlane` | 16 | 340 | 5,819 |
 | `pitwall` | 4 | 145 | 1,040 |
 | `discovery` | 14 | 432 | 2,398 |
 
 Measured with `wc -w` on 2026-09-28, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
-#### `lanework-boards`
+#### `lanework`
 
 | file | words |
 |---|---|
@@ -48,7 +48,7 @@ Measured with `wc -w` on 2026-09-28, over the Markdown an agent reads: `SKILL.md
 
 | file | words |
 |---|---|
-| `SKILL.md` | 338 |
+| `SKILL.md` | 340 |
 | `references/companions.md` | 148 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
@@ -64,7 +64,7 @@ Measured with `wc -w` on 2026-09-28, over the Markdown an agent reads: `SKILL.md
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **5,817** |
+| **total** | **5,819** |
 
 #### `pitwall`
 
@@ -102,7 +102,7 @@ Clone this repo, then symlink or copy each folder under `skills/` into `~/.claud
 
 ```bash
 git clone https://github.com/laneworkapp/lanework-skills.git lanework-skills
-ln -s "$(pwd)/lanework-skills/skills/lanework-boards" ~/.claude/skills/lanework-boards
+ln -s "$(pwd)/lanework-skills/skills/lanework" ~/.claude/skills/lanework
 ln -s "$(pwd)/lanework-skills/skills/pitlane" ~/.claude/skills/pitlane
 ln -s "$(pwd)/lanework-skills/skills/pitwall" ~/.claude/skills/pitwall
 ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
@@ -126,7 +126,7 @@ A board's actual folder layout, and each lane's own `index.md` body, always win 
 
 ## Versioning
 
-The guide and schema versions this skill set is written against are stamped in one place: `skills/lanework-boards/references/authority.md`, under Versions.
+The guide and schema versions this skill set is written against are stamped in one place: `skills/lanework/references/authority.md`, under Versions.
 
 Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUDE.md`, app-maintained and rewritten by Lanework on upgrades), the guide wins.
 

@@ -13,7 +13,7 @@ Agent asks, owner rules, until every corner of the problem/domain space is settl
 
 ## Authority
 
-Builds on **lanework-boards**: read `lanework-boards/references/authority.md` before any write. Board files beat this skill.
+Builds on **lanework**: read `lanework/references/authority.md` before any write. Board files beat this skill.
 
 ## Topics
 
@@ -39,7 +39,7 @@ Builds on **lanework-boards**: read `lanework-boards/references/authority.md` be
 
 From the board, never memory:
 
-1. `lanework-boards/scripts/read-board.sh`, then the map card.
+1. `lanework/scripts/read-board.sh`, then the map card.
 2. Each Asked thread: owner comment newer than `waiting.since` = unrecorded answer → record it first.
 3. Continue at Flow 5.
 
@@ -47,7 +47,7 @@ Owner wants to answer on the board while you wait → suggest `/pitwall <board>`
 
 ## Scripts
 
-`scripts/`, built on `lanework-boards/scripts/`. Full usage in each header.
+`scripts/`, built on `lanework/scripts/`. Full usage in each header.
 
 | script | does |
 |---|---|
@@ -57,4 +57,4 @@ Owner wants to answer on the board while you wait → suggest `/pitwall <board>`
 
 ## Versioning
 
-Target guide and schema versions: `lanework-boards/references/authority.md` § Versions.
+Target guide and schema versions: `lanework/references/authority.md` § Versions.

@@ -1,6 +1,6 @@
 # Traps
 
-Commands that return a **plausible answer to a different question**: mostly a false zero or a silent success. Board-write traps: `lanework-boards/references/writes.md`.
+Commands that return a **plausible answer to a different question**: mostly a false zero or a silent success. Board-write traps: `lanework/references/writes.md`.
 
 ## Shell
 

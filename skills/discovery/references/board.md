@@ -2,7 +2,7 @@
 
 ## Find or found
 
-- Name `<Topic> Discovery.lanework`, where the project's boards live (`lanework-boards/references/finding.md`).
+- Name `<Topic> Discovery.lanework`, where the project's boards live (`lanework/references/finding.md`).
 - Look first: board the user names, or the topic's existing board → resume. Never duplicate.
 - `<Topic> Grill.lanework` (from `grill-me`) = same shape. Resume as-is, don't rename. Its map card is titled "Design tree".
 - None fits → `scripts/found-discovery-board.sh`, then open once in the app (installs guide + schema) before filing.
@@ -21,7 +21,7 @@ Brief · Facts · Asked · Settled · Parked. Order, collapse, and each lane's e
 | Fact | Facts | `templates/fact-card.md` |
 | Question | Asked → Settled / Parked | `templates/question-card.md` |
 
-Ruling + chat record: `templates/ruling.md`. Templates: `{{key}}` script-filled (fill yourself when writing by hand), `<hint>` hand-filled, stamps per `lanework-boards/references/writes.md`.
+Ruling + chat record: `templates/ruling.md`. Templates: `{{key}}` script-filled (fill yourself when writing by hand), `<hint>` hand-filled, stamps per `lanework/references/writes.md`.
 
 ## Moves
 
@@ -31,5 +31,5 @@ Ruling + chat record: `templates/ruling.md`. Templates: `{{key}}` script-filled 
 
 ## Order
 
-- Placing: `lanework-boards/references/writes.md` § Placing. A moved card goes to the bottom of its destination, so Settled reads as the sequence of rulings.
+- Placing: `lanework/references/writes.md` § Placing. A moved card goes to the bottom of its destination, so Settled reads as the sequence of rulings.
 - Q numbers: global, in filing order. Mint from the highest `Q<n>` across all lanes (`file-question.sh` does).

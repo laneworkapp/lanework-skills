@@ -4,14 +4,14 @@ Once, at start.
 
 ## Rules
 
-Read `pitlane/SKILL.md` and, through it, `lanework-boards/references/authority.md`, by path. Pitwall can't rely on the model loading either skill.
+Read `pitlane/SKILL.md` and, through it, `lanework/references/authority.md`, by path. Pitwall can't rely on the model loading either skill.
 
 ## Boards
 
 Each `/pitwall` argument is a board name or path:
 
 - Path → that board.
-- Name → match `<Name>.lanework` in the project's `Pitlane/`, then `~/Pitlane/` (`lanework-boards/references/finding.md`). No match or several → ask.
+- Name → match `<Name>.lanework` in the project's `Pitlane/`, then `~/Pitlane/` (`lanework/references/finding.md`). No match or several → ask.
 - No arguments → the one board in the project's `Pitlane/`. More than one, or none → ask which.
 
 Then, **per board, now**: read the guide, the board body and **every lane body**, so later wake-ups act without re-reading. A lane body is the only place a lane says it's out of scope for agents.

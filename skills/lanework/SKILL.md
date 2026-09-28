@@ -1,5 +1,5 @@
 ---
-name: lanework-boards
+name: lanework
 description: "Lanework board fundamentals: what a board is (a `<Name>.lanework` folder of plain dirs + Markdown that the Lanework macOS app renders live; the files ARE the board, no API), the authority chain to read before any write, where boards live, reading a board in one pass, the write rules every board shares, the default lane sets (pipeline, design loop, datapoint), and founding a new board. The base the pitlane, pitwall and discovery skills build on. Use when the user wants a new board ('create/found/start a board', 'set up a lanework board for X', 'a board for tracking X'), or asks what a Lanework board is or how boards work. Not for sweeping or working a board (pitlane)."
 ---
 

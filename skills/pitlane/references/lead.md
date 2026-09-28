@@ -21,7 +21,7 @@ Project specifics (gate command, what green means, blast radius, remote/PR) come
 
 ## Order the work
 
-Read every candidate card whole (`lanework-boards/references/reading.md`). Then:
+Read every candidate card whole (`lanework/references/reading.md`). Then:
 
 1. **Build-blockers first**: a red gate on main blocks every branch's evidence.
 2. Then the board's priority field, then lane order.
