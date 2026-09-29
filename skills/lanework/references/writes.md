@@ -40,11 +40,12 @@ The guide has the full rules. These hold on every board and cost most when misse
 
 ## Tracker boards
 
-Board with a `remote` = bound to an issue tracker. Shapes and engine behaviour: the guide, § Frontmatter (`remote`, `remote-state`).
+Tracker keys: the board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`, a lane's `remote-state`, a `labels` entry of kind `state`, `.tracker.nosync/`. Whether an engine runs: the board's guide says.
 
-- **Engine's alone: never write, edit or copy** a card's `remote`, its `state` label, any comment's `remote`, or `.tracker.nosync/`. Absent `remote` = unpublished: hand-writing or copying one claims a ticket that isn't the card's. Yours to hand-write: the board's `remote` (incl. `cadence`) and a lane's `remote-state`.
-- **Your writes push, like anyone's.** Filing a card publishes an issue. A move into a lane with a `remote-state`, or trash, changes the issue's state. A body or title edit edits the issue.
-- **Every comment on a published card is posted to the issue verbatim, as the token's user, and emails the repo's watchers.** `@handle` mentions that tracker user. Deleting it here leaves it there. Write each one as public.
+- **Engine off** (guide: "This build runs no tracker engine", the release build): every tracker key is reserved. **Never write, edit or copy one**; don't add a `remote` to bind a board. Keys a board already carries stay byte for byte.
+- **Engine on** (guide describes two-way sync): the engine's alone, never written, edited or copied: a card's `remote`, its `state` label, any comment's `remote`, `.tracker.nosync/`. Absent card `remote` = unpublished: hand-writing or copying one claims a ticket that isn't the card's. Yours to hand-write: the board's `remote` and a lane's `remote-state`.
+  - **Your writes push, like anyone's.** Filing a card publishes an issue. A move into a lane with a `remote-state`, or trash, changes the issue's state. A body or title edit edits the issue.
+  - **Every comment on a published card is posted to the issue verbatim, as the token's user, and emails the repo's watchers.** `@handle` mentions that tracker user. Deleting it here leaves it there. Write each one as public.
 
 ## Git
 

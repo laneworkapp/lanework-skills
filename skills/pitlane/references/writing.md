@@ -17,7 +17,7 @@ Pasted verbatim into every farmed prompt (`templates/farmed-prompt.md`):
 
 - Belong together → two comments, the ask 1s after, so it's last in the thread and the bell opens on it.
 - **The handle is a bell, not a cc.** Only in an ask: never a founding comment, START, closing report, or felt check inside a landing note. Measured: 167 of 618 agent comments mentioned the owner, typically 250–700 words with the request last, and the bell stopped meaning anything.
-- **Tracker board**: every comment on a published card is public, and an ask's handle mentions a tracker user. `lanework/references/writes.md` § Tracker boards.
+- **Tracker board, engine on**: every comment on a published card is public, and an ask's handle mentions a tracker user. `lanework/references/writes.md` § Tracker boards.
 - A record ending in a question for the human renders without option buttons (the app draws them only on a real ask, 2026-09-26). Split it.
 
 ## The ask
