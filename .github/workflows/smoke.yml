@@ -1,0 +1,17 @@
+name: smoke
+
+on:
+  push:
+    branches: [main, stable]
+  pull_request:
+
+jobs:
+  smoke:
+    # The scripts target macOS bash and BSD tools.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install fswatch for the pitwall case
+        run: brew install fswatch
+      - name: Run tests/smoke.sh
+        run: tests/smoke.sh

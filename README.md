@@ -98,7 +98,16 @@ Measured with `wc -w` on 2026-10-01, over the Markdown an agent reads: `SKILL.md
 
 ## Install
 
-Clone this repo, then symlink or copy each folder under `skills/` into `~/.claude/skills/<name>`, for example:
+As a Claude Code plugin, which installs all four skills and updates with each release:
+
+```
+/plugin marketplace add laneworkapp/lanework-skills
+/plugin install lanework@lanework
+```
+
+The plugin tracks the `stable` branch, which only moves when a release ships. `/plugin marketplace update lanework` picks up a new one.
+
+By hand, to follow `main` instead: clone this repo, then symlink or copy each folder under `skills/` into `~/.claude/skills/<name>`, for example:
 
 ```bash
 git clone https://github.com/laneworkapp/lanework-skills.git lanework-skills
@@ -110,13 +119,11 @@ ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
 
 The skills cite and call each other by relative path, so install all four side by side.
 
-The repo is also a Claude Code plugin named `lanework` (`.claude-plugin/plugin.json`), so it can be installed as one unit instead of skill by skill.
-
 `SKILL.md` is the Agent Skills format Claude Code reads; other harnesses that read `SKILL.md` files work the same way.
 
 ## Repository layout
 
-The skills live under `skills/`, one folder each, and that folder is all that ships. `Pitlane/Skills Pipeline.lanework` is the Lanework board where work on the skills is tracked, from ideas and issues to shipped changes. `CLAUDE.md` has the conventions for working in the repo.
+The skills live under `skills/`, one folder each, and that folder is all that ships. `Pitlane/Skills Pipeline.lanework` is the Lanework board where work on the skills is tracked, from ideas and issues to shipped changes. `CLAUDE.md` has the conventions for working in the repo, `CHANGELOG.md` what each release changed, and `scripts/release.sh` cuts a release.
 
 ## Defaults, not rules
 
@@ -125,6 +132,8 @@ The `Pitlane/` folder convention (`<repo root>/Pitlane/<Board>.lanework`, and `~
 A board's actual folder layout, and each lane's own `index.md` body, always win over the defaults described here — the skills are written to defer to what a board's own files say.
 
 ## Versioning
+
+Releases are numbered `vX.Y.Z`, tagged, and listed on the repo's GitHub releases page with their notes from `CHANGELOG.md`. The version lives in `.claude-plugin/plugin.json` alone.
 
 The guide and schema versions this skill set is written against are stamped in one place: `skills/lanework/references/authority.md`, under Versions.
 

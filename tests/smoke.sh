@@ -14,7 +14,7 @@ validate() {
   grep -o 'documents   [0-9]*' <<<"$out"
 }
 
-for s in "$SK"/*/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;; *) bash -n "$s" ;; esac; done; ok "syntax check on every script, by its shebang"
+for s in "$SK"/*/scripts/*.sh "$ROOT"/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;; *) bash -n "$s" ;; esac; done; ok "syntax check on every script, by its shebang"
 
 # lanework: pipeline founding + reading
 P="$T/Acme Pipeline.lanework"
@@ -82,6 +82,18 @@ S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$A" || true; } | head -1)
 H=$({ grep -r -l -E 'lanework-agent-guide v[0-9]+' "$SK" "$ROOT/README.md" "$ROOT/CLAUDE.md" || true; } | grep -v -x -F "$A" || true)
 [ -z "$H" ] || { echo "a second version stamp in: $H"; exit 1; }
 ok "one version stamp ($S), in authority.md only"
+
+# plugin: manifests agree with the skills folders; one version, in plugin.json
+python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
+import json, os, sys
+d, sk = sys.argv[1:]; p = json.load(open(f"{d}/plugin.json")); m = json.load(open(f"{d}/marketplace.json"))
+want = sorted(f"./skills/{n}" for n in os.listdir(sk) if os.path.isfile(f"{sk}/{n}/SKILL.md"))
+assert sorted(p["skills"]) == want, f"plugin.json skills {p['skills']} != folders {want}"
+assert [e["name"] for e in m["plugins"]] == [p["name"]], "marketplace.json must list exactly the plugin in plugin.json"
+assert "version" not in m["plugins"][0], "version lives only in plugin.json"
+EOF
+if command -v claude >/dev/null; then claude plugin validate "$ROOT" --strict >/dev/null; fi
+ok "plugin manifests match the skills folders and validate"
 
 echo "smoke: $pass passed"
 [ -n "${1:-}" ] || rm -rf "$T"

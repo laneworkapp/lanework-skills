@@ -7,7 +7,10 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 | path | what it is |
 |---|---|
 | `skills/<name>/` | one skill per folder: `SKILL.md`, plus `references/`, `templates/` and `scripts/` as needed. This is what ships, so nothing about this repo's own process goes in here. |
-| `.claude-plugin/plugin.json` | the plugin manifest. Its `skills` list names every folder under `skills/`. |
+| `.claude-plugin/plugin.json` | the plugin manifest. Its `skills` list names every folder under `skills/`. Its `version` is the only version. |
+| `.claude-plugin/marketplace.json` | lists the plugin, sourced from the `stable` branch, so plugin installs only see releases |
+| `CHANGELOG.md` | user-facing release notes, in the `app-changelog` format |
+| `scripts/release.sh` | cuts a release; `.github/workflows/smoke.yml` runs smoke on every push and pull request |
 | `Pitlane/Skills Pipeline.lanework/` | the development pipeline board: ideas, issues and work on the skills |
 | `tests/` | `smoke.sh` runs every script on throwaway boards and validates them; `check-refs.sh` checks every cited skill file exists |
 | `README.md` | the user-facing page: what each skill is for, and how to install it |
@@ -24,6 +27,12 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 - **Entries replace; they don't append.** Extend an existing entry first, then merge several into one, and only then add. Project facts (gate commands, what green means, blast radius) never move into a skill: they belong in a board's instruction sheet or a repo's `CLAUDE.md`.
 - **Scripts target macOS bash and BSD tools** (`date -v`, `uuidgen`). **Verified** = `tests/smoke.sh` passing (it runs `bash -n`, every script on throwaway boards, the schema validator, and `check-refs.sh`), plus a new smoke case for any new script behavior. Never test against the Skills Pipeline board.
 - **The in-board agent guide wins.** The skills target one `lanework-agent-guide` version, stamped only in `skills/lanework/references/authority.md` § Versions (smoke fails on a second stamp anywhere else). When the guide moves on, read every skill against it, fix the drift, then bump the stamp.
+
+## Releasing
+
+- `main` is work in progress; `stable` is what plugin users get. Only `scripts/release.sh` moves `stable`.
+- Release = add the user-facing entries to `CHANGELOG.md`, one starting `Version X.Y.Z: `, commit and push, then `scripts/release.sh X.Y.Z --dry-run`, then without `--dry-run`. Cutting a release publishes it: the owner's call.
+- Bump: patch for fixes and wording, minor for new behavior or a guide-version move, major for a renamed or removed skill.
 
 ## Git
 
