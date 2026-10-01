@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Turn every open owner choice into an ask on the card"
-order: 1024
+order: 14336
 labels: [{text: pitlane, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-01T11:04:34Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-01T11:04:34Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-01T11:07:26Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 The skills explain how to write an ask, but never say when a choice must become one, so a choice that only the owner can make gets left in a card body or asked in the terminal, and is never ruled on the card.
 
