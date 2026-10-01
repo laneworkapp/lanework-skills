@@ -9,7 +9,7 @@ Working a board: cards are specs, threads are journals, and on a pipeline **a ca
 
 **Base**: `lanework`, for the authority chain, reading and write rules. Read `lanework/references/authority.md` before touching any board. Pipeline lanes and gates: `lanework/references/board-kinds.md`.
 
-On a pipeline, agents **shape** Shaping cards into proposals that meet the board's bar, **build** Approved or Tasks → Active → Done with evidence in the closing comment, **answer** questions on any card, and **report** what sits at a human gate: surface it, never push through it.
+On a pipeline, agents **shape** Shaping cards into proposals that meet the board's bar, with every open call left to the owner as an ask on the card (`references/writing.md` § When to ask), **build** Approved or Tasks → Active → Done with evidence in the closing comment, **answer** questions on any card, and **report** what sits at a human gate: surface it, never push through it.
 
 ## Topics
 

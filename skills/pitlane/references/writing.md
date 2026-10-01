@@ -6,7 +6,7 @@ Two readers: the owner, who decides, and the next agent, who resumes cold. Both 
 
 Pasted verbatim into every farmed prompt (`templates/farmed-prompt.md`):
 
-> A comment is a **record** or an **ask**, never both. A record carries context and evidence and never mentions the human. An ask is one request for the human: their handle on the first line, under 80 words, the shape in `pitlane/templates/ask.md`, linted with `pitlane/scripts/lint-ask.sh <file> <board>` before the `mv`, posted one second after the record it depends on, with the card's `waiting` set in the same pass. In a lead/fixer cycle, the question goes to the lead instead.
+> A comment is a **record** or an **ask**, never both. A record carries context and evidence and never mentions the human. An ask is one request for the human: their handle on the first line, under 80 words, the shape in `pitlane/templates/ask.md`, linted with `pitlane/scripts/lint-ask.sh <file> <board>` before the `mv`, posted one second after the record it depends on, with the card's `waiting` set in the same pass. A choice only the human can make is always an ask: never left in the body or a record alone. In a lead/fixer cycle, the question goes to the lead instead.
 
 ## Record vs ask
 
@@ -19,6 +19,18 @@ Pasted verbatim into every farmed prompt (`templates/farmed-prompt.md`):
 - **The handle is a bell, not a cc.** Only in an ask: never a founding comment, START, closing report, or felt check inside a landing note. Measured: 167 of 618 agent comments mentioned the owner, typically 250–700 words with the request last, and the bell stopped meaning anything.
 - **Tracker board, engine on**: every comment on a published card is public, and an ask's handle mentions a tracker user. `lanework/references/writes.md` § Tracker boards.
 - A record ending in a question for the human renders without option buttons (the app draws them only on a real ask, 2026-09-26). Split it.
+
+## When to ask
+
+A call only the owner can make (between options, taste, scope, anything a done-when hangs on) = an **open call**. It is ruled only on the card:
+
+1. Body: the options under an open-call line, the recommendation marked.
+2. Record laying out the options, then the ask 1s later: options as buttons, recommendation in the default line, `waiting` set.
+3. The ruling edits the open-call line in place (§ Card bodies).
+
+- **Approval rules nothing.** Approving a card moves it; its open calls stay open (`lanework/references/board-kinds.md`). No build until each one has a ruling comment.
+- **Owner in a live chat**: the ask still goes on the card, where the ruling is recorded. The chat only links to it ("asked on [<short id>](lanework://…)"). Never ask in chat instead.
+- Open call found later (in Approved, Active, a review) → post the ask then, and stop work that depends on it.
 
 ## The ask
 
