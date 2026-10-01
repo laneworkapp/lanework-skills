@@ -29,7 +29,8 @@ A call only the owner can make (between options, taste, scope, anything a done-w
 3. The ruling edits the open-call line in place (§ Card bodies).
 
 - **Approval rules nothing.** Approving a card moves it; its open calls stay open (`lanework/references/board-kinds.md`). No build until each one has a ruling comment.
-- **Owner in a live chat**: the ask still goes on the card, where the ruling is recorded. The chat only links to it ("asked on [<short id>](lanework://…)"). Never ask in chat instead.
+- **Owner in a live chat**: the ask still goes on the card, where the ruling is recorded. The chat only links to it ("asked on [<short id>](lanework://…)"). Never ask in chat instead. Before sending a reply, scan it for questions on a card's options, scope or next step: each is an ask on that card first. A question with no card yet → file the card, then ask on it.
+- **Filing a card with an open call** → its asks go out in the same pass as the founding record. An open-call list in a fresh body with no asks under it is the miss.
 - Open call found later (in Approved, Active, a review) → post the ask then, and stop work that depends on it.
 
 ## The ask
