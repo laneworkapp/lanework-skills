@@ -22,12 +22,12 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 9 | 319 | 2,531 |
-| `pitlane` | 16 | 340 | 5,820 |
+| `lanework` | 9 | 319 | 2,542 |
+| `pitlane` | 16 | 342 | 5,826 |
 | `pitwall` | 4 | 145 | 1,042 |
 | `discovery` | 14 | 432 | 2,398 |
 
-Measured with `wc -w` on 2026-09-29, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-01, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -35,26 +35,26 @@ Measured with `wc -w` on 2026-09-29, over the Markdown an agent reads: `SKILL.md
 |---|---|
 | `SKILL.md` | 319 |
 | `references/authority.md` | 164 |
-| `references/board-kinds.md` | 439 |
+| `references/board-kinds.md` | 450 |
 | `references/finding.md` | 101 |
 | `references/format.md` | 143 |
 | `references/founding.md` | 388 |
 | `references/reading.md` | 142 |
 | `references/writes.md` | 759 |
 | `templates/index.md` | 76 |
-| **total** | **2,531** |
+| **total** | **2,542** |
 
 #### `pitlane`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 340 |
+| `SKILL.md` | 342 |
 | `references/companions.md` | 148 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
-| `references/lead.md` | 971 |
+| `references/lead.md` | 972 |
 | `references/reviewer.md` | 376 |
-| `references/sweep.md` | 479 |
+| `references/sweep.md` | 482 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
@@ -64,7 +64,7 @@ Measured with `wc -w` on 2026-09-29, over the Markdown an agent reads: `SKILL.md
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **5,820** |
+| **total** | **5,826** |
 
 #### `pitwall`
 
@@ -120,7 +120,7 @@ The skills live under `skills/`, one folder each, and that folder is all that sh
 
 ## Defaults, not rules
 
-The `Pitlane/` folder convention (`<repo root>/Pitlane/<Board>.lanework`, and `~/Pitlane/` for machine-level boards) and the pipeline lane set (Ideas → Shaping → Proposed → Approved → Active → Done, plus Issues) are the defaults these skills ship with, not requirements.
+The `Pitlane/` folder convention (`<repo root>/Pitlane/<Board>.lanework`, and `~/Pitlane/` for machine-level boards) and the pipeline lane set (Ideas → Shaping → Proposed → Approved → Active → Done, plus Issues and Tasks) are the defaults these skills ship with, not requirements.
 
 A board's actual folder layout, and each lane's own `index.md` body, always win over the defaults described here — the skills are written to defer to what a board's own files say.
 

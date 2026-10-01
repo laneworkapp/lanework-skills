@@ -4,11 +4,11 @@ Defaults to copy and change. The app knows nothing about lane names: meaning = l
 
 ## Pipeline
 
-Work from raw idea to built. **Lanes = stages of commitment; a card's lane says who acts next.** Ideas → Shaping → Proposed → Approved → Active → Done, with Issues as the side entrance.
+Work from raw idea to built. **Lanes = stages of commitment; a card's lane says who acts next.** Ideas → Shaping → Proposed → Approved → Active → Done, with Issues and Tasks as side entrances.
 
 - **Card** = one piece of work (feature, fix, chore). Body = spec, growing from a one-liner in Ideas to a brief in Approved an agent can pick up cold. Thread = journal: why, plan, decisions, evidence.
-- **Moves**: agents shape, build, answer, report, and move cards between the lanes on either side of their own work. **Humans hold two gates**: triage (out of Ideas) and review (out of Proposed: approve, bounce to Shaping, reject). Agents surface a card at a gate and stop.
-- **Common additions**: `Rejected` (collapsed, terminal, one line why), `Deferred` (collapsed), `Tasks` (chores that skip shaping). A busy Done: `filter: [{by: modified, op: newer, value: 2d}]` + `group: {by: modified, direction: descending}`.
+- **Moves**: agents shape, build, answer, report, and move cards between the lanes on either side of their own work. **Humans hold two gates**: triage (out of Ideas) and review (out of Proposed: approve, bounce to Shaping, reject). Agents surface a card at a gate and stop. **Tasks** = owner-filed chores, pre-approved → build via Active. Agent-found chores → Ideas, never Tasks.
+- **Common additions**: `Rejected` (collapsed, terminal, one line why), `Deferred` (collapsed). A busy Done: `filter: [{by: modified, op: newer, value: 2d}]` + `group: {by: modified, direction: descending}`.
 
 ## Design loop
 

@@ -20,7 +20,7 @@ for s in "$SK"/*/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;
 P="$T/Acme Pipeline.lanework"
 "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
   --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified='`make check`' >/dev/null
-[ "$("$SK/lanework/scripts/read-board.sh" "$P" | grep -c '^== ')" -eq 7 ]; ok "pipeline founded, 7 lanes read"
+[ "$("$SK/lanework/scripts/read-board.sh" "$P" | grep -c '^== ')" -eq 8 ]; ok "pipeline founded, 8 lanes read"
 grep -q 'Verified means\*\* `make check`, run on the current head' "$P/index.md"; ok "pipeline vars rendered"
 validate "$P" >/dev/null; ok "pipeline board validates"
 for k in design-loop:6 datapoint:5; do
