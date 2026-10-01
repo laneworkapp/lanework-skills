@@ -13,4 +13,4 @@ Journal on the card's thread: plan when you start, decisions as you make them, v
 Task: <the work, with its done-when>
 ```
 
-Shapers are the usual offenders: they end a long record with the question for the human.
+Shapers are the usual offenders: they end a long record with the question for the human. A shaping task's line therefore ends: "Any choice only the owner can make → a record of the options, then an ask (`pitlane/references/writing.md` § When to ask). Never only in the body."
