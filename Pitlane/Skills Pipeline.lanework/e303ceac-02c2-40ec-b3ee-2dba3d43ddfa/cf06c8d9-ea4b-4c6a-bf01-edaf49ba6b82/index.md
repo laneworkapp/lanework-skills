@@ -3,9 +3,21 @@ schema: 1
 kind: card
 title: "Skills target agent guide v75: tracker sync"
 order: 10240
-labels: [{text: lanework-boards, kind: {type: skill, text: Skill}}, {text: pitlane, kind: {type: skill, text: Skill}}, {text: pitwall, kind: {type: skill, text: Skill}}]
+labels:
+  - text: "pitlane"
+    kind:
+      type: "skill"
+      text: "Skill"
+  - text: "pitwall"
+    kind:
+      type: "skill"
+      text: "Skill"
+  - text: "lanework"
+    kind:
+      type: "skill"
+      text: "Skill"
 created:  {at: 2026-09-28T09:57:53Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-09-28T09:59:21Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-09-28T20:21:33Z}
 ---
 Bring the skills from guide v70 to v75, where the guide gained tracker sync (v71 to v74) and the skills repo's new home (v75).
 

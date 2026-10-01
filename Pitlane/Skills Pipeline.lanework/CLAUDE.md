@@ -1,4 +1,4 @@
-<!-- lanework-agent-guide v70 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
+<!-- lanework-agent-guide v77 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
 
 # This folder is a Lanework kanban board
 
@@ -12,7 +12,7 @@ below its first `##` heading is the owner's instruction sheet for agents on
 this board; above it is the board's description. A body with no `##`
 heading at all is entirely description.
 
-**Ready-made skills.** Three agent skills for working boards are published at https://github.com/laneworkapp/skills: `lanework-boards` (what a board is, reading one, founding a new one by hand), `pitlane` (sweeping a board and farming its work to subagents) and `pitwall` (a standing watch on one board). Install by cloning the repo and linking each skill folder into `~/.claude/skills/<name>`. The skills are written against this guide's version line; wherever a skill and this guide disagree, this guide wins.
+**Ready-made skills.** Four agent skills for working boards are published at https://github.com/laneworkapp/lanework-skills: `lanework` (what a board is, reading one, founding a new one by hand), `pitlane` (sweeping a board and farming its work to subagents), `pitwall` (a standing watch on one or more boards) and `discovery` (a guided examination of a project's problem and domain space, run on its own board). Install by cloning the repo and linking each folder under its `skills/` into `~/.claude/skills/<name>`, or install the whole repo as the Claude Code plugin `lanework`. The skills are written against this guide's version line; wherever a skill and this guide disagree, this guide wins.
 
 ## Layout
 
@@ -262,7 +262,7 @@ read**: `priorities` is retired and is no longer read anywhere. Any other
 subkey in there is preserved and ignored like any key the app does not know.
 
 This machine also has its own global config file, one level above every
-board, at `/Users/rzenetl/Library/Containers/dev.rzen.indie.Lanework/Data/Library/Application Support/Lanework/Config/index.md` — its own `config:` block sets
+board, at `/Users/rzen/Library/Containers/dev.rzen.indie.Lanework/Data/Library/Application Support/Lanework/Config/index.md` — its own `config:` block sets
 an app-wide default some of these same subkeys fall back to (`due-soon`,
 `priorities`, `thumb-sizes` and `logging` do, today — `logging` per subkey,
 so a board can set only `level` and still inherit the machine's `retain`),
@@ -575,13 +575,25 @@ card window's Component row writes it, and so does the card menu's
 Labels ▸ submenu once the board's own `config.labels` defines the
 `component` kind.
 
+**This build runs no tracker engine.** Lanework's tracker sync is
+built but switched off in this release, so nothing is pulled from
+a tracker, pushed to one or posted to one. The names it uses stay
+reserved, and all of them are the engine's alone: a board's
+`remote` and the `cadence` inside it, a card's `remote`, a
+comment's `remote`, a lane's `remote-state`, a `labels` entry of
+kind `state`, and the `.tracker.nosync/` folder at the board root.
+**Never write, edit or copy any of them**, and don't add a `remote`
+to bind a board: nothing in this build would act on it. A board
+that already carries them, from a build that runs the engine,
+keeps them untouched: the app preserves every one byte for byte
+on every rewrite and draws nothing from them.
+
 Unknown keys are preserved verbatim by the app and invisible in its UI —
 custom metadata (`project:`, `tags:`, `claimed-by:` …) is safe to add and
-survives every app rewrite. Reserved for Lanework's upcoming tracker sync —
-preserved but not rendered, don't repurpose them: the card key `assignees`,
-the `remote` key (cards and board), and `remote-state` (lanes).
-`comments/` is **not** on this list — it's a shipped feature with its own
-section below, not a reserved name.
+survives every app rewrite. Reserved for Lanework's upcoming tracker
+sync — preserved but not rendered, don't repurpose it: the card key
+`assignees`. `comments/` is **not** on this list — it's a shipped
+feature with its own section below, not a reserved name.
 
 **`author` is reserved too, and unlike those it is not preserved.** It's a
 retired spelling of `created.by` (Stamping below), and the app migrates it
@@ -655,6 +667,13 @@ It is a record, not a request: nothing is owed in
 reply, and the card's own `modified` is deliberately untouched, because a
 heal is upkeep rather than an edit. Like `shortcuts`, this is a name for
 you to read and never to write.
+
+**A third name the app reserves: `tracker`.** It signs the writes
+of Lanework's tracker sync, which this build does not run, so
+nothing here writes it; a card or comment already signed `by:
+{name: tracker, kind: agent}` came from a build that does. It is
+a record, not a request. Like `shortcuts` and `healer`,
+this is a name for you to read and never to write.
 
 On a board that lives in a git repository of the user's own, committing
 your changes yourself (see Git below) records exact authorship as well.
@@ -893,7 +912,7 @@ handle stitched into a longer word (`foo@bar`) or an email address
 (`user@example.com`) is not a mention at all — the `@` has to sit at a
 word boundary, not glued to the character before it.
 
-**This board's human answers to `@rzenetl` right now** —
+**This board's human answers to `@rzen` right now** —
 the handle is per-machine and configurable, so a comment synced to
 another human's computer notifies *them* by *their* own handle, never
 this one. There is no reserved `@owner`-style handle: it is an ordinary
@@ -907,7 +926,7 @@ known to the board renders as plain text and notifies nobody; that is
 not an error, it is just an unusually short sentence.
 
 **A card that is blocked on a human's reply says so in its frontmatter:
-`waiting: {for: rzenetl, since: 2026-09-13T01:29:48Z, comment: 973cda84-…}`.**
+`waiting: {for: rzen, since: 2026-09-13T01:29:48Z, comment: 973cda84-…}`.**
 Write it in the same pass as the ask it points at — `for` is the handle
 you addressed, or the word `human` (or `operator`) for any human, and
 an absent `for` means any human too; `since` is when you set it, in the
@@ -1064,7 +1083,7 @@ anything not here, and would they skip anything that is?
   else, in this shape:
 
   ```markdown
-  @rzenetl <the ask in one sentence: a question, or an imperative>
+  @rzen <the ask in one sentence: a question, or an imperative>
 
   Options, only when choosing:
   - A: <one line>
@@ -1092,7 +1111,7 @@ anything not here, and would they skip anything that is?
   its own. When a record and an ask both belong on a card, post the
   record first and the ask a second later, so the ask closes the
   thread. **The handle is an ask, not a cc**: mention
-  `@rzenetl` only in an ask — the card
+  `@rzen` only in an ask — the card
   is blocked on the human, or a gate is theirs — never in a record,
   a founding comment, or a closing report. Answers come back as later
   comments — **re-read the whole thread before resuming any card**,

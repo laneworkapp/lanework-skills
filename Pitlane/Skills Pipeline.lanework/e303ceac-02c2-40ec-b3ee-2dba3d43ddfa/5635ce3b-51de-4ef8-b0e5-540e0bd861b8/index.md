@@ -3,9 +3,25 @@ schema: 1
 kind: card
 title: "DRY, telegraphic restructure of lanework-boards, pitlane, pitwall"
 order: 5120
-labels: [{text: lanework-boards, kind: {type: skill, text: Skill}}, {text: pitlane, kind: {type: skill, text: Skill}}, {text: pitwall, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
+labels:
+  - text: "pitlane"
+    kind:
+      type: "skill"
+      text: "Skill"
+  - text: "pitwall"
+    kind:
+      type: "skill"
+      text: "Skill"
+  - text: "repo"
+    kind:
+      type: "skill"
+      text: "Skill"
+  - text: "lanework"
+    kind:
+      type: "skill"
+      text: "Skill"
 created:  {at: 2026-09-27T21:18:24Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-09-27T21:18:24Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-09-28T20:22:00Z}
 ---
 Apply the discovery treatment to the other three skills: telegraphic agent-facing text, and one topic per file, across skills as well as within them.
 
