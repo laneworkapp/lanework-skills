@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Set up a release workflow: marketplace, versioned releases, CI, stable channel"
-order: 1024
+order: 16384
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-01T16:11:13Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-01T16:15:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-02T22:34:15Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 Today every push to main is the release: no tags, no changelog, no CI, and plugin.json has said 0.1.0 since packaging. Users who install the plugin should get tested, versioned releases instead of whatever main holds.
 
