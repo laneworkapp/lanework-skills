@@ -2,6 +2,8 @@
 
 Version 0.1.0: the skills install as one Claude Code plugin and update only when a tested release ships.
 
+Skills follow version 78 of Lanework's agent guide.
+
 New pipeline boards include a Tasks lane, where chores you file are built straight away without shaping or review.
 
 Any choice only you can make now arrives on its card as a question with options, and nothing that depends on it is built until you answer.
