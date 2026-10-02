@@ -1,4 +1,4 @@
-<!-- lanework-agent-guide v77 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
+<!-- lanework-agent-guide v78 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
 
 # This folder is a Lanework kanban board
 
@@ -999,21 +999,24 @@ settles, not forever.
   `carnation`, `rich-grapefruit`, `smokey-tangerine`, `rich-lime`,
   `fern`, `light-jade`, `light-teal`, `deep-sky-blue`, `rich-indigo`,
   `pale-violet`, `rich-magenta`, `deep-cool-granite`.
-- Background palette: `obsidian`, `shale`, `aluminum`, `chalk`,
-  `light-cayenne`, `light-mocha`, `smokey-mocha`, `smokey-lime`,
-  `smokey-fern`, `dark-jade`, `dark-teal`, `smokey-ocean`,
-  `smokey-indigo`, `smokey-rich-eggplant`, `smokey-magenta`,
-  `intense-cool-shale`.
+- Background palette: `shale`, `fog`, `coral`, `salmon`, `apricot`,
+  `straw`, `pear`, `clover`, `seafoam`, `mint`, `aqua`, `cornflower`,
+  `periwinkle`, `lavender`, `orchid`, `slate`.
 
-**Neither list is closed.** Both can be redefined or extended on this
-machine, through the `foreground-colors` and `background-colors` settings
-(set on this machine, alongside the other app-wide defaults) — entries of
-`{name, rgb, alpha}`, where `rgb` is a `#RRGGBB` hex and `alpha` is
-optional. A name matching a built-in replaces that one; any other name
-extends the palette; the two palettes are independent. Names are still
-matched **exactly**, and a name nobody has defined still draws nothing at
-all — so a board that travels to another machine keeps its bytes and
-simply loses the tint.
+**The lists are fixed.** Every name carries one value for light mode and
+one for dark mode, and the app draws whichever fits; a hex draws exactly
+as written in both, and nothing on this machine redefines or extends
+either list. A name from either list works in either field. Names are
+matched **exactly**, and a name nobody has defined draws nothing at all —
+the bytes stay as written. Older boards may
+carry a retired background name — `light-cayenne` (now `coral`),
+`light-mocha` (`salmon`), `smokey-mocha` (`apricot`), `smokey-lime`
+(`pear`), `smokey-fern` (`clover`), `dark-jade` (`seafoam`), `dark-teal`
+(`aqua`), `smokey-ocean` (`cornflower`), `smokey-indigo` (`periwinkle`),
+`smokey-rich-eggplant` (`lavender`), `smokey-magenta` (`orchid`),
+`intense-cool-shale` (`slate`). It still draws, as the colour in
+brackets; leave it as written, and write the new name when you set a
+colour yourself.
 
 ## Git
 
