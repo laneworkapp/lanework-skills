@@ -6,7 +6,6 @@ order: 1024
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-01T16:11:13Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 modified: {at: 2026-10-01T16:15:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-waiting: {for: rzen, since: 2026-10-01T16:15:16Z, comment: f215d56f-ff24-46f0-b8ae-2def2f7ec70c}
 ---
 Today every push to main is the release: no tags, no changelog, no CI, and plugin.json has said 0.1.0 since packaging. Users who install the plugin should get tested, versioned releases instead of whatever main holds.
 
