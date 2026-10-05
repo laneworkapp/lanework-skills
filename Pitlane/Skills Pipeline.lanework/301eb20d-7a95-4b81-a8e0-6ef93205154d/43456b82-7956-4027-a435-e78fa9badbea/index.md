@@ -5,7 +5,7 @@ title: "Skills point at the board's own guide and schema for specifics, starting
 order: 1024
 labels: [{text: lanework, kind: {type: skill, text: Skill}}, {text: pitlane, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-05T22:59:48Z, by: {name: claude, kind: agent, model: opus-5.5, session: "Lanework Labels"}}
-modified: {at: 2026-10-05T22:59:48Z, by: {name: claude, kind: agent, model: opus-5.5, session: "Lanework Labels"}}
+modified: {at: 2026-10-05T23:08:56Z, by: {name: claude, kind: agent, model: opus-5.5, session: "Lanework Labels"}}
 ---
 The skills restate format rules that the board's own guide and schema already state, and each restatement goes stale when the app changes. Replace each one with a pointer to where the board states it, and keep only procedure and judgement in the skills.
 
