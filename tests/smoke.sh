@@ -85,13 +85,22 @@ H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top
 [ -z "$H" ] || { echo "a skill prescribes priority/component as a card key (they are labels entries, see the guide): $H"; exit 1; }
 ok "no skill prescribes priority: or component: as a card key"
 
-# versions: stamped only in authority.md
-A="$SK/lanework/references/authority.md"
-S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$A" || true; } | head -1)
-[ -n "$S" ] || { echo "no version stamp in $A"; exit 1; }
-H=$({ grep -r -l -E 'lanework-agent-guide v[0-9]+' "$SK" "$ROOT/README.md" "$ROOT/CLAUDE.md" || true; } | grep -v -x -F "$A" || true)
-[ -z "$H" ] || { echo "a second version stamp in: $H"; exit 1; }
-ok "one version stamp ($S), in authority.md only"
+# versions: no skill names a guide version; the one stamp lives in the repo's CLAUDE.md
+H=$({ grep -r -l -E 'lanework-agent-guide v[0-9]+' "$SK" || true; })
+[ -z "$H" ] || { echo "a skill names a guide version (the stamp lives only in CLAUDE.md): $H"; exit 1; }
+S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$ROOT/CLAUDE.md" || true; })
+[ "$(printf '%s\n' "$S" | grep -c .)" -eq 1 ] || { echo "CLAUDE.md must carry exactly one guide stamp, found: ${S:-none}"; exit 1; }
+SV=$({ grep -o -E 'lanework-schema v[0-9]+' "$ROOT/CLAUDE.md" || true; })
+[ "$(printf '%s\n' "$SV" | grep -c .)" -eq 1 ] || { echo "CLAUDE.md must carry exactly one schema stamp, found: ${SV:-none}"; exit 1; }
+ok "no skill names a guide version; one stamp ($S, $SV), in CLAUDE.md"
+
+# release gate: the Skills Pipeline board's guide and schema must not be newer than the stamp
+BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
+BS=$(head -1 "$VAL/VERSION" | grep -o -E '[0-9]+$' || true)
+[ -n "$BG" ] && [ -n "$BS" ] || { echo "can't read the board's guide or schema version"; exit 1; }
+[ "$BG" -le "${S##*v}" ] || { echo "board guide v$BG is newer than the stamp ($S): read every skill against it, fix the drift, then bump the stamp in CLAUDE.md"; exit 1; }
+[ "$BS" -le "${SV##*v}" ] || { echo "board schema v$BS is newer than the stamp ($SV): read every skill against it, fix the drift, then bump the stamp in CLAUDE.md"; exit 1; }
+ok "the stamp ($S, $SV) is not behind the board's guide v$BG and schema v$BS"
 
 # plugin: manifests agree with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
