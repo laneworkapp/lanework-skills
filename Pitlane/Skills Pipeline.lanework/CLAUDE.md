@@ -1,4 +1,4 @@
-<!-- lanework-agent-guide v78 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
+<!-- lanework-agent-guide v82 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
 
 # This folder is a Lanework kanban board
 
@@ -116,7 +116,8 @@ optional below it — a lane or card without one is read as schema 1), `title`
 (optional — an item without one renders as untitled, so give cards real
 titles), `created` and `modified` (**mappings** — see Stamping your work
 below), and `icon` (**a mapping** — the symbol and its tint; see Colors and
-icons below). Lanes and cards may additionally set `background` (color) — an edge
+icons below). Lanes and cards may additionally set `background` (**a mapping**,
+`{color: …}` — see Colors and icons below) — an edge
 accent, a band along a lane's top and a stripe down a card's left side. **Not
 the board's**: a `background` at the board root has no reading at all, so
 writing one there paints nothing (one already in a file is left exactly as
@@ -135,13 +136,16 @@ modified, direction: descending}`. `by` is `modified`, `created`,
 `due`, `priority` or `component`. The first three read as day buckets
 and draw newest section first (`due`'s undated cards fall into a
 trailing "No due date" section). `priority` instead sections on the
-card's own stamped `rank` (below the card-key paragraph) — every
-rank-1 card in the topmost section, rank 2 next — labelling each
-section with the `priority.text` of its own first card. A priority
-with no readable rank makes a section of its own text, after the
-ranked ones and alphabetical; a card with none at all falls into a
-trailing "No priority" section. `component` sections by the card's own
-`component` key instead — freeform, so there is no roster to order by;
+stamped `rank` of the card's own `labels` entry of kind `priority`
+(below the card-key paragraph), the lowest rank where a card carries
+several — every rank-1 card in the topmost section, rank 2 next —
+labelling each section with the `text` of its own first card's
+priority. A priority with no readable rank has no section of its
+own: it falls, with a card that has no priority at all, into a
+trailing "No priority" section. No definition is consulted, so this
+works on a board that defines no `priority` kind. `component`
+sections by the card's `labels` entry of kind `component`
+instead — freeform, so there is no roster to order by;
 sections are the distinct component values that actually occur,
 ordered **alphabetical case-insensitive**, labelled with the
 **first-seen spelling** of each case-insensitive group (the first card,
@@ -160,11 +164,11 @@ and `created` this is presentation only — nothing about a card's
 own file changes because a lane groups, and a drag only ever
 changes a card's `order`, exactly as an ungrouped lane's does. Under
 `priority`, `component` and `due` **a drop into a section assigns
-that section's value to the card**: it writes the flattened
-`priority` or `component` key, or the bare `due` day, exactly as
-the card window's own rows do, and a drop under the trailing
-no-value section removes the key; one undo puts the rank and the
-value back together. Direction only reorders sections
+that section's value to the card**: it writes the flattened `labels`
+entry of that kind in place of any the card had, or the bare `due`
+day, exactly as the card window's own rows do, and a drop under the
+trailing no-value section removes the card's entries of that kind (or
+its `due`); one undo puts the rank and the value back together. Direction only reorders sections
 against each other; the rank order cards keep within one section
 never changes, and the undated/no-priority/no-component tail stays
 last either way. Full words are canonical for `direction`;
@@ -206,12 +210,13 @@ way, and an undated `due` matches neither `older` nor `newer`.
 Label clauses: `by: label`, `op` is `equal` or `not-equal`, `value` is
 a label name, matched case-insensitively; `not-equal` also matches a
 card with no labels at all. Priority clauses: `by: priority`, the
-identical `equal`/`not-equal` grammar. Component clauses: `by:
-component`, that grammar once more. **All three match the card's own
-stamped `text`** and consult no vocabulary at all: there is nothing
-for a value to be "unrecognized" against, so `not-equal` matches any
-card that carries no such value — an absent key, an empty one, or a
-value this build can make no reading of.
+identical `equal`/`not-equal` grammar, matching the card's `labels`
+entry of kind `priority` (its lowest-ranked, where it carries
+several). Component clauses: `by: component`, that grammar once more,
+against its entry of kind `component`. **All three match the stamped
+`text`** and consult no vocabulary at all: there is nothing for a
+value to be "unrecognized" against, so `not-equal` matches any card
+that carries no such value.
 Waiting clauses: `by: waiting`, `op` is `equal` or `not-equal`,
 `value` is `me` or a literal handle. `me` means this machine's own
 human; `human`, `operator` and an absent `for` all count as that same
@@ -234,7 +239,10 @@ four date presets onto it, and View ▸ Waiting on Me applies a transient
 Every other clause shape, and a `waiting` clause you want saved on a
 lane rather than toggled, remains hand- or agent-written.
 A `by: label` clause reads a label entry's own `text` and never its
-kind, so a clause cannot name the kind an entry belongs to.
+kind, so a clause cannot name the kind an entry belongs to: `{by:
+label, value: High}` matches a card whose priority is High as well
+as one carrying a free label spelled `High`. Use `by: priority` to
+mean the priority alone.
 
 Lanes may also set `card-defaults` — a mapping of what a fresh card born
 into that lane starts with, one subkey today: `card-defaults: {labels:
@@ -270,8 +278,8 @@ and its body documents the rest of what it holds.
 The document's own `default-labels` key is the machine-wide
 label-kind vocabulary a board's `config.labels` unions into rather
 than replaces (see `labels` in the list below), and absent it is
-just the three built-in kinds, `default`, `priority` and
-`component`. Every definition at either level is a **write-time
+just the one built-in kind, `text`; a `priority` or `component`
+kind defined here reaches every board on this machine. Every definition at either level is a **write-time
 palette** — what a writer picks from and stamps in full onto the
 card — and never something a reader consults.
 
@@ -305,9 +313,8 @@ card — and never something a reader consults.
   bytes exactly as they stand, unread and inert, until the one-time
   migration converts them; a roster you write here today changes
   nothing at all. Priorities are a label kind now: write a `priority`
-  kind under `labels`, just below, and write each card's own value on
-  the card itself (`priority`, further down), which is the only place
-  anything reading a card looks.
+  kind under `labels`, just below, and write each card's own value as
+  a `labels` entry of that kind on the card itself (further down).
 - `labels` — this board's own additions to the label-kind vocabulary,
   an array of kind entries (`labels: [{type: epic, text: Epic, color:
   tan, icon: {glyph: mountain.2}}, {type: status, text: Status, single:
@@ -332,18 +339,24 @@ card — and never something a reader consults.
   the effective vocabulary is this machine's own `default-labels` (set
   on this machine, below) plus this board's own `labels`, a board kind
   naming one the global vocabulary already has overriding that kind's
-  whole definition. **Three kinds are built in and always present** —
-  `default` (`{type: default, text: Label, icon: {glyph: tag}}`), the
-  open kind every entry with no stamped `kind` belongs to; `priority`
-  (`{type: priority, text: Priority, icon: {glyph: flag}, single:
-  true}`), the closed Urgent/High/Medium/Low scale the card key
-  `priority:` is sugar for — Urgent and High carry a colour of their
-  own, the other two carry none, and the kind itself carries none
-  either, so a value stating no colour stamps none; and `component` (`{type: component, text:
+  whole definition. **One kind is built in and always present** —
+  `text` (`{type: text, text: Text, icon: {glyph: tag}}`), the open,
+  multi-valued kind free labels belong to, stamped on every one of
+  them like any other kind's and offered as the card menu's Labels ▸
+  Text submenu on every board; it can be recoloured or given another
+  icon or name by naming it here, and never removed.
+  **`priority` and `component` are ordinary kinds**, present only
+  where this board or this machine defines them — a board usually
+  gets them from its template. The suggested definitions are
+  `{type: priority, text: Priority, icon: {glyph: flag}, single: true,
+  values: [{text: Urgent, rank: 0, color: "#C8283C", icon: {glyph:
+  exclamationmark.2}}, {text: High, rank: 1, color: "#E07A1F", icon:
+  {glyph: exclamationmark}}, {text: Medium, rank: 2}, {text: Low, rank:
+  3, icon: {glyph: arrow.down}}]}` — Urgent and High carry a colour of
+  their own, the other two none — and `{type: component, text:
   Component, color: aluminum, icon: {glyph: puzzlepiece}, single:
-  true}`), the open kind the card key `component:` is sugar for. Any of
-  the three can be recoloured or reshaped by naming it here — that is
-  how a board changes its own priority scale — and none can be removed.
+  true}`, an open kind. Reshaping the `priority` definition here is how
+  a board changes its own priority scale.
   **A definition is a write-time palette, never a read-time authority**:
   it is what a writer picks from and stamps in full onto the card, and
   nothing that draws, sorts, filters or groups a card ever consults it,
@@ -472,7 +485,7 @@ bottom of the card's face and editable in the app.
 as a file keeps its meaning with no config present at either end: every
 property an entry is drawn, sorted, filtered or grouped by is in the
 entry itself, and nothing reading a card consults a definition to find
-one. An entry is `{text, rank?, color?, icon?, kind?}`:
+one. An entry is `{text, rank?, color?, icon?, kind}`:
 
 - `text` — **the identity within its kind**, compared
   case-insensitively, display spelling preserved. A map with no
@@ -488,19 +501,31 @@ one. An entry is `{text, rank?, color?, icon?, kind?}`:
 - `kind` — **the kind object, stamped whole and inline**: `{type,
   text?, color?, icon?}`, repeated on every entry of that kind. The
   redundancy is deliberate and is what makes each entry readable and
-  removable on its own. A **built-in** kind is never stamped —
-  `default` by an absent `kind`, and `priority` and `component` by
-  their own keys, below.
+  removable on its own. **Every entry stamps its kind**, the built-in
+  `text` kind — free labels — included: `{text: bug, kind: {type:
+  text, text: Text, icon: {glyph: tag}}}`, and `priority` and
+  `component` like any other.
+
+**A card's priority and component are `labels` entries, never root
+keys.** A priority is an entry of kind `priority`, stamping its kind
+like any other: `labels: [{text: High, rank: 1, color: "#E07A1F",
+icon: {glyph: exclamationmark}, kind: {type: priority, text: Priority,
+icon: {glyph: flag}}}]`, and a component one of kind `component`.
+**`priority:` and `component:` at a card's root are reserved**: never
+write either. One still found there is not read; the one-time
+migration moves it into `labels`, and an entry already in the list
+wins over it.
 
 **Flatten as you write.** Resolve each property against the effective
 definitions (`config.labels`, above) and stamp the answer: the value's
 own colour where the definition states one, else its kind's; the value's
 own icon, else **none**, because a value never inherits its kind's
 glyph. Write the keys in the order `text`, `rank`, `color`, `icon`,
-`kind` — `{text: bug}` is a plain label on a board that configures
-nothing, `{text: Open, rank: 1, color: fern, kind: {type: status, text:
-Status}}` a value of a board-defined kind — and re-stamp the whole list
-on the card's next labels write, never on a read. Two entries are the
+`kind` — `{text: bug, kind: {type: text, text: Text, icon: {glyph:
+tag}}}` is a free label on a board that configures nothing, `{text:
+Open, rank: 1, color: fern, kind: {type: status, text: Status}}` a
+value of a board-defined kind — and re-stamp the whole list on the
+card's next labels write, never on a read. Two entries are the
 same label when their kind and their text match case-insensitively — a
 card carries `Bug` or `bug`, never both — and a list with nothing left
 in it should have the key removed rather than written as `labels: []`.
@@ -508,8 +533,12 @@ in it should have the key removed rather than written as `labels: []`.
 **These spellings are not read at all any more**, and migrate once
 rather than living on as a tolerance: a bare string entry, a bare
 scalar at `labels:`, a `value:` key standing in for `text`, a bare
-`kind: epic` string where the kind object belongs, and a bare `glyph:`
-on a label or a kind where the `icon` mapping does. Nothing is refused
+`kind: epic` string where the kind object belongs, a bare `glyph:`
+on a label or a kind where the `icon` mapping does, a root
+`priority:` or `component:` key where a `labels` entry belongs, and
+an entry with no `kind` at all — a free label written before
+2026-10-05, when `text` replaced `default` as the built-in kind.
+Nothing is refused
 for carrying one: a value with no reading is **preserved and
 invisible**, which is this format's posture for every value it cannot
 read.
@@ -524,56 +553,48 @@ The chip turns amber as the day approaches and red once it has passed.
 The card window's Due row writes it, and so does a drop under a day
 section in a lane grouped by `due` (`group`, above).
 
-Cards may set `priority` — **one label, not a name**. It is the
-permanent sugar key for the built-in `priority` kind (`labels`,
-above), so the key names the kind and the value stamps no `kind` of
-its own: write the flattened value, `priority: {text: Urgent, rank:
-0, color: "#C8283C", icon: {glyph: exclamationmark.2}}`, resolved
-against the effective `priority` kind exactly as a `labels` entry is.
-**A bare `priority: High` is not read at all any more** — the scalar
-spelling migrates once and buys nothing in the meantime — and neither
-is a `labels` entry standing in for the key, which migrates the same
-way. Remove the key rather than writing an empty value. It draws
-the same two-segment capsule every chip does — the kind's glyph in
-the leading segment, the value on the theme's own fill — so an
-untinted priority reads exactly like a label; only a stamped
-`color` tints it, Urgent and High alone in the built-in scale.
-**Grouping sections on the exact `rank`** — every
-rank-1 card in the topmost section, rank 2 next, each section labelled
-with the `priority.text` of its own first card — and filtering matches
-the stamped `text`, case-insensitively; a scale this board never
-heard of sorts and draws exactly as one it defines, because nothing
-at read asks a definition anything. Unconfigured, the scale is four
-steps — Urgent rank 0, High 1, Medium 2, Low 3 — of which only the
-top two carry a colour, so a colour on this chip means "this one
-interrupts" rather than "this one has a priority"; a lower rank is a
-higher priority, which is why Urgent joined the scale at 0 rather
-than renumbering the three below it out from under every card
-already stamped. A board reshapes it by writing a `priority`
-kind under `config.labels`, which changes what a *writer* stamps and
-never what an already-written card says. The card window's Priority
-row writes it, and so does the card menu's Labels ▸ submenu once
-the board's own `config.labels` defines the `priority` kind.
+A card's **priority** is its `labels` entry of kind `priority` —
+write the flattened value, resolved against the effective `priority`
+kind exactly as any entry is, and give a card one: a picker replaces
+the kind's entry rather than adding one, and a card carrying several
+is read by its lowest rank. On a card's face a priority with a
+stamped `color` draws as a tinted capsule, Urgent and High alone in
+the suggested scale; one with no colour draws as a bare mark, its own
+glyph beside its text (Low's arrow); and the suggested Medium draws
+nothing. It sits at a fixed place beside the other labels rather
+than among them, and in a lane grouped by `priority` it is hidden,
+because the section header already says it. The card window draws
+every value as the two-segment capsule, the kind's glyph leading.
+**Grouping sections on the exact `rank`** — every rank-1 card in the
+topmost section, rank 2 next, each section labelled with the priority
+`text` of its own first card — and filtering matches the stamped
+`text`, case-insensitively; a scale this board never heard of sorts
+and draws exactly as one it defines, because nothing at read asks a
+definition anything, and both work on a board that defines no
+`priority` kind at all. In the suggested scale a colour on this chip
+means "this one interrupts" rather than "this one has a priority"; a
+lower rank is a higher priority, which is why Urgent sits at 0. A
+board reshapes the scale by writing a `priority` kind under
+`config.labels`, which changes what a *writer* stamps and never what
+an already-written card says. Where the board's vocabulary defines
+the kind, the card window has a Priority row for it and the card
+menu's Labels ▸ a Priority submenu, both in the vocabulary's own
+order; Create Card refuses a priority on a board that defines none.
 
-Cards may set `component` — the other sugar key, and `priority`'s
-rules one key over: **one label** of the built-in `component` kind,
-the kind named by the key and stamped nowhere. The kind is **open**
-by default, so a flattened value normally carries its own `text` plus
-the kind's colour and no `rank` — `component: {text: Storage, color:
-aluminum}` — and a board that gives `component` a `values` list under
-`config.labels` closes it, after which its values stamp `rank` like
-priority's. **A bare `component: Storage` is not read at all any
-more**, the same one-time migration the other sugar key gets. An
-empty value reads as absent — remove the key rather than writing
-one. It draws the same two-segment capsule as priority, sitting
-adjacent to it and sharing its exact chrome — but always
-**untinted**: "no color semantics" is this key's own standing
-ruling, so the stamped `color` travels with the value and the chip
-draws it in the ordinary ink regardless. Grouping and filtering
-both work off the stamped `text` alone, case-insensitively. The
-card window's Component row writes it, and so does the card menu's
-Labels ▸ submenu once the board's own `config.labels` defines the
-`component` kind.
+A card's **component** is its `labels` entry of kind `component`,
+`priority`'s rules for the other kind. The suggested kind is **open**,
+so a flattened value normally carries its own `text` plus the kind's
+colour and no `rank`, and a board that gives `component` a `values`
+list closes it, after which its values stamp `rank` like priority's.
+It draws the same two-segment capsule as priority, sitting adjacent
+to it and sharing its exact chrome — but always **untinted**: "no
+color semantics" is this kind's own standing ruling, so the stamped
+`color` travels with the value and the chip draws it in the ordinary
+ink regardless, on a card's face and in the card window alike. In a
+lane grouped by `component` the chip is hidden. Grouping and
+filtering both work off the stamped `text` alone, case-insensitively.
+The card window's Component row and the card menu's Labels ▸ write
+it where the board's vocabulary defines the kind.
 
 **This build runs no tracker engine.** Lanework's tracker sync is
 built but switched off in this release, so nothing is pulled from
@@ -957,8 +978,15 @@ the app already has.
 
 ## Colors and icons
 
-`background` — on a lane or a card, never the board — takes a palette name
-(preferred) or `#RRGGBB[AA]` hex.
+`background` is a **mapping** too, on a lane or a card, never the board:
+
+```yaml
+background: {color: coral}
+```
+
+`color` is its one subkey — a palette name from the background list
+(preferred) or `#RRGGBB[AA]` hex. A bare `background: coral` is not a
+reading: it fails validation and paints nothing.
 
 `icon` is a **mapping**, at every level:
 
