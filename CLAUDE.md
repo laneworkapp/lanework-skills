@@ -11,7 +11,7 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 | `.claude-plugin/marketplace.json` | lists the plugin, sourced from the `stable` branch, so plugin installs only see releases |
 | `CHANGELOG.md` | user-facing release notes, in the `app-changelog` format |
 | `scripts/release.sh` | cuts a release; `.github/workflows/smoke.yml` runs smoke on every push and pull request |
-| `Pitlane/Skills Pipeline.lanework/` | the development pipeline board: ideas, issues and work on the skills |
+| `Lanework/Skills Pipeline.lanework/` | the development pipeline board: ideas, issues and work on the skills |
 | `tests/` | `smoke.sh` runs every script on throwaway boards and validates them; `check-refs.sh` checks every cited skill file exists |
 | `README.md` | the user-facing page: what each skill is for, and how to install it |
 
@@ -19,7 +19,7 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 
 ## Working on a skill
 
-- **Track the work on the board.** Read `Pitlane/Skills Pipeline.lanework/index.md` (its guide, `CLAUDE.md` inside the board, comes first once the app has opened it) and work cards as the `work` skill describes. A change without a card starts as a card in Ideas, or in Issues if something is broken.
+- **Track the work on the board.** Read `Lanework/Skills Pipeline.lanework/index.md` (its guide, `CLAUDE.md` inside the board, comes first once the app has opened it) and work cards as the `work` skill describes. A change without a card starts as a card in Ideas, or in Issues if something is broken.
 - **Adding, renaming or removing a skill** touches three places together: the folder under `skills/`, the `skills` list in `plugin.json`, and the skills table and install commands in `README.md`. Then add or rename the board's `Skill` label value to match.
 - **One topic, one file.** `SKILL.md` is a hub: a short flow and a table of topic files. Each rule lives in exactly one file, and every other place links to it. Board fundamentals (authority, reading, writes, founding) live in `lanework`; prose rules (records, asks) in `work/references/writing.md`. The exception is owner-facing board text in templates (board and lane bodies), which stays readable prose even where it restates a rule.
 - **Agent-facing text is telegraphic**: fragments, arrows and tables over full sentences, as long as nothing becomes ambiguous.

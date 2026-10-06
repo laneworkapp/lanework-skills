@@ -6,6 +6,8 @@ Usually not: a program card with child cards on an existing board carries weeks 
 
 ## Found
 
+Path: `<repo root>/<folder>/<Name>.lanework` (machine-level: `~/<folder>/`), folder per `finding.md` (new board).
+
 ```bash
 scripts/found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes> [--var key=value]...
 ```

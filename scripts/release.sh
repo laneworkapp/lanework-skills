@@ -1,7 +1,7 @@
 #!/bin/bash
 # release.sh: cut a release of the lanework plugin from main.
 # usage: scripts/release.sh <version> [--dry-run]
-# Checks: on main, in sync with origin, no tracked changes outside Pitlane/, tag unused,
+# Checks: on main, in sync with origin, no tracked changes outside the board folder (Lanework/, or legacy Pitlane/), tag unused,
 # version not below plugin.json's, CHANGELOG.md carries a "Version <version>:" entry, smoke green.
 # Then: version bump in plugin.json (a release commit, if it moved), annotated tag v<version>,
 # push main + tag, fast-forward the stable branch to the tag, GitHub release whose notes are the
@@ -15,7 +15,7 @@ die() { echo "release.sh: $*" >&2; exit 1; }
 TAG="v$V"; M=.claude-plugin/plugin.json
 
 [ "$(git symbolic-ref --short HEAD)" = main ] || die "not on main"
-[ -z "$(git status --porcelain --untracked-files=no -- . ':!Pitlane')" ] || die "tracked changes outside Pitlane/; commit or drop them first"
+[ -z "$(git status --porcelain --untracked-files=no -- . ':!Lanework' ':!Pitlane')" ] || die "tracked changes outside Lanework/ and Pitlane/; commit or drop them first"
 git fetch -q origin main
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || die "main and origin/main differ; pull or push first"
 ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || die "$TAG already exists"
