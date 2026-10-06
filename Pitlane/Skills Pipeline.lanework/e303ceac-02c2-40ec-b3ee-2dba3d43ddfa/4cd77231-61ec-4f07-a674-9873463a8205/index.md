@@ -2,7 +2,7 @@
 schema: 1
 kind: card
 title: "Smoke fails on main: plugin validate --strict rejects the repo's own CLAUDE.md"
-order: 0
+order: 18432
 labels:
   - text: "repo"
     kind:
@@ -19,7 +19,7 @@ labels:
       icon:
         glyph: "flag"
 created:  {at: 2026-10-06T22:41:55Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-06T22:42:09Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-06T22:46:22Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 `tests/smoke.sh` exits 1 on main at its last step, so every branch's gate is red.
 
