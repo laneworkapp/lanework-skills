@@ -23,11 +23,11 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 9 | 328 | 2,774 |
+| `lanework` | 9 | 328 | 2,790 |
 | `work` | 16 | 374 | 6,201 |
 | `watch` | 4 | 146 | 1,044 |
 | `discovery` | 14 | 422 | 2,388 |
-| `merge` | 2 | 301 | 1,241 |
+| `merge` | 2 | 336 | 1,420 |
 
 Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
@@ -42,9 +42,9 @@ Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md
 | `references/format.md` | 143 |
 | `references/founding.md` | 379 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 1,002 |
+| `references/writes.md` | 1,018 |
 | `templates/index.md` | 76 |
-| **total** | **2,774** |
+| **total** | **2,790** |
 
 #### `work`
 
@@ -102,9 +102,9 @@ Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md
 
 | file | words |
 |---|---|
-| `SKILL.md` | 301 |
-| `references/rules.md` | 940 |
-| **total** | **1,241** |
+| `SKILL.md` | 336 |
+| `references/rules.md` | 1,084 |
+| **total** | **1,420** |
 
 ## Install
 
@@ -152,7 +152,7 @@ Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUD
 
 ## Names
 
-The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, and `discovery` examines a problem space. The `Pitlane/` folder, where a project keeps its boards, is a separate convention with its own name; it is unchanged.
+The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, `discovery` examines a problem space, and `merge` resolves git conflicts on a board. The `Pitlane/` folder, where a project keeps its boards, is a separate convention with its own name; it is unchanged.
 
 ## Credits
 
