@@ -14,7 +14,9 @@ validate() {
   grep -o 'documents   [0-9]*' <<<"$out"
 }
 
-for s in "$SK"/*/scripts/*.sh "$ROOT"/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;; *) bash -n "$s" ;; esac; done; ok "syntax check on every script, by its shebang"
+for s in "$SK"/*/scripts/*.sh "$ROOT"/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;; *) bash -n "$s" ;; esac; done
+for s in "$SK"/*/scripts/*.py; do [ -e "$s" ] || continue; python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])' "$s"; done
+ok "syntax check on every script, by its shebang"
 
 # lanework: pipeline founding + reading
 P="$T/Acme Pipeline.lanework"
@@ -38,6 +40,177 @@ if validate "$X" >/dev/null 2>&1; then echo "validator passed a broken board"; e
 if "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
   --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x 2>/dev/null; then exit 1; fi
 ok "refuses a non-empty board folder"
+
+# lanework: heal-board, one card per kind of damage, on a board with no .schema/
+H="$T/Damaged.lanework"; HL="$H/aaaa0000-0000-4000-8000-000000000001"; HEAL="$SK/lanework/scripts/heal-board.py"
+STAMP='{at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}'
+mkdir -p "$HL"
+cat > "$H/index.md" <<EOF
+---
+schema: 1
+kind: board
+title: "Damaged"
+id: aaaa0000-0000-4000-8000-000000000000
+config:
+  show-card-body: 3
+  labels:
+    - kind: status
+      text: Status
+      glyph: circle
+      single: true
+      values: [{text: Open, rank: 1, color: fern}, {value: Closed, rank: 2}]
+    - {type: default, text: Label, icon: {glyph: tag}}
+    - {type: priority, text: Priority, icon: {glyph: flag}, single: true, values: [{text: Urgent, rank: 0, color: "#C8283C"}, {text: High, rank: 1, color: "#E07A1F", icon: {glyph: exclamationmark}}, {text: Medium, rank: 2}, {text: Low, rank: 3}]}
+created:  $STAMP
+modified: $STAMP
+---
+Board body.
+EOF
+printf -- '---\nschema: 1\nkind: lane\ntitle: "Ideas"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane body.\n' "$STAMP" "$STAMP" > "$HL/index.md"
+hcard() { mkdir -p "$HL/$1"; { printf -- '---\nschema: 1\nkind: card\n'; cat; printf -- '---\nBody of %s.\n' "$1"; } > "$HL/$1/index.md"; }
+hcard c0000000-0000-4000-8000-000000000001 <<EOF
+title: "Stale stamp"
+labels: [{text: open, rank: 5, color: red, kind: {type: status, text: Status}}]
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000002 <<EOF
+title: "Two of a single kind"
+labels: [{text: Open, rank: 1, color: fern, kind: {type: status, text: Status, icon: {glyph: circle}}}, {text: Closed, rank: 2, kind: {type: status, text: Status, icon: {glyph: circle}}}]
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000003 <<EOF
+title: "Bare scalar labels"
+labels: bug
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000004 <<EOF
+title: "String kind"
+labels: [{text: closed, kind: status}]
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000005 <<EOF
+title: "Root keys"
+priority: High
+component: {text: Sync}
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000006 <<EOF
+title: "Root key under an entry"
+labels: [{text: Low, rank: 3, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]
+priority: {text: Urgent, rank: 0}
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000007 <<EOF
+title: "Free labels"
+labels: [{text: bug}, {text: ux, kind: {type: default, text: Label}}, {text: star, glyph: star, kind: {type: text}}]
+created:  $STAMP
+modified: $STAMP
+modified-by: someone
+EOF
+hcard c0000000-0000-4000-8000-000000000008 <<EOF
+title: Fix: the thing
+icon: star
+iconColor: fern
+created:  {at: 2026-10-01T00:00:00Z, by: claude}
+modified: 2026-10-01T00:00:00Z
+modified-by: claude
+EOF
+mkdir -p "$HL/c0000000-0000-4000-8000-000000000008/comments/d0000000-0000-4000-8000-000000000001"
+printf -- '---\nschema: 1\nkind: comment\ncreated:  %s\nmodified: %s\n---\nA clean comment.\n' "$STAMP" "$STAMP" \
+  > "$HL/c0000000-0000-4000-8000-000000000008/comments/d0000000-0000-4000-8000-000000000001/index.md"
+hcard c0000000-0000-4000-8000-00000000000a <<EOF
+title: "A long title
+  over two lines"
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-00000000000c <<EOF
+title: Plain title
+# a yaml comment the owner left
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-00000000000d <<EOF
+title: Fix #12 bug
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000009 <<EOF
+title: "Clean, with a foreign entry"
+labels: [{text: Weird, rank: 9, kind: {type: alien, text: Alien}}, {text: bug, kind: {type: text, text: Text, icon: {glyph: tag}}}]
+project: x
+created:  $STAMP
+modified: $STAMP
+EOF
+cp -R "$H" "$T/heal-seed"
+sum() { find "$1" -type f -print0 | sort -z | xargs -0 shasum | shasum; }
+if validate "$H" >/dev/null 2>&1; then echo "seeded damage passed the validator"; exit 1; fi
+S0=$(sum "$H"); O=$("$HEAL" "$H")
+for k in stale-label single-kind bare-labels string-kind root-key root-key-dropped text-kind bare-glyph bare-stamp title-quote definition added-definition bare-icon retired-key; do
+  grep -q " $k " <<<"$O" || { echo "dry run did not list $k:"; echo "$O"; exit 1; }
+done
+[ "$S0" = "$(sum "$H")" ]; ok "heal dry run lists every kind of damage and writes nothing"
+"$HEAL" "$H" --apply --name fixer --model test >/dev/null; validate "$H" >/dev/null
+hfail() { echo "heal check failed: $1"; exit 1; }
+c() { sed -n '2,/^---$/p' "$HL/c0000000-0000-4000-8000-00000000000$1/index.md"; }
+c 1 | grep -qF 'labels: [{text: "Open", rank: 1, color: "fern", kind: {type: "status", text: "Status", icon: {glyph: "circle"}}}]' || hfail stale-label
+c 2 | grep -q '^labels: \[{text: "Open"' && ! c 2 | grep -q Closed && grep -q 'Kept `Open`; dropped `Closed`' "$HL"/c*02/comments/*/index.md || hfail single-kind
+c 3 | grep -qF 'labels: [{text: "bug", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]' || hfail bare-labels
+c 4 | grep -qF '{text: "Closed", rank: 2, kind: {type: "status"' || hfail string-kind
+for p in 'text: "High"' 'rank: 1' 'color: "#E07A1F"' 'glyph: "exclamationmark"' 'type: "priority"' 'text: "Sync"' 'color: "aluminum"' 'type: "component"'; do
+  c 5 | grep -qF "$p" || hfail "root-key ($p)"; done
+! c 5 | grep -q '^priority:' && ! c 6 | grep -q '^priority:' && c 6 | grep -q 'text: "Low"' && ! c 6 | grep -q Urgent \
+  && grep -q 'because `labels` already carries a `priority` entry, `Low`' "$HL"/c*06/comments/*/index.md || hfail root-key-dropped
+c 7 | grep -qF '{text: "ux", kind: {type: "text"' && c 7 | grep -qF '{text: "star", icon: {glyph: "star"}, kind:' && ! c 7 | grep -q default || hfail text-kind/bare-glyph
+c 8 | grep -qxF 'title: "Fix: the thing"' && c 8 | grep -qF 'created:  {at: 2026-10-01T00:00:00Z, by: {name: claude}}' || hfail title-quote/bare-stamp
+c 8 | grep -qxF 'modified: {at: 2026-10-01T00:00:00Z, by: {name: claude}}' || hfail retired-key-fold
+c 8 | grep -qxF 'icon: {glyph: "star", color: "fern"}' && ! c 8 | grep -q 'iconColor\|modified-by' || hfail bare-icon/retired-key
+! c 7 | grep -q modified-by && grep -q 'modified-by: someone' "$HL"/c*07/comments/*/index.md || hfail retired-key-record
+for n in 1 2 3 4 5 6 7 a; do c $n | grep -qxF "modified: $STAMP" || hfail "no restamp on card $n"; done
+c c | grep -qxF 'title: "Plain title"' && c c | grep -qxF '# a yaml comment the owner left' || hfail comment-line
+for n in 1 5; do f="${HL##*/}/c0000000-0000-4000-8000-00000000000$n/index.md"
+  [ "$(awk 'n>=2{print} /^---$/{n++}' "$H/$f")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/heal-seed/$f")" ] || hfail "body of card $n"; done
+c a | grep -qxF 'title: "A long title over two lines"' || hfail title-fold
+sed -n '/^config:/,/^created:/p' "$H/index.md" | grep -q 'type: "component"' && ! grep -q 'default\|glyph: circle$\|value:' "$H/index.md" || hfail definition
+ok "heal --apply repairs each one and the board validates with no DEPRECATED line"
+grep -q "^modified: $STAMP$" "$HL"/c*08/comments/d*/index.md && grep -q 'type: alien' "$HL"/c*09/index.md && grep -q '^project: x$' "$HL"/c*09/index.md && grep -q "^modified: $STAMP$" "$HL"/c*09/index.md \
+  && grep -q "^modified: $STAMP$" "$HL/index.md" && grep -q "^modified: $STAMP$" "$H/index.md" \
+  && cmp -s "$HL"/c*0d/index.md "$T/heal-seed/${HL##*/}"/c*0d/index.md && grep -q '^skip .*c0000000-0000-4000-8000-00000000000d.* #' <<<"$O" || hfail untouched
+ok "heal leaves a clean card, a foreign entry, an unknown key, a \` #\` title and every stamp as written"
+S1=$(sum "$H"); O=$("$HEAL" "$H" --apply --name fixer --model test); [ "$S1" = "$(sum "$H")" ] && grep -q '^0 repairs' <<<"$O" || { echo "$O"; exit 1; }
+ok "a second heal --apply changes nothing"
+# a block scalar holding an indented `---` (outside the validator's dialect, so a board of its own)
+H3="$T/Block.lanework"; HL3="$H3/aaaa0000-0000-4000-8000-000000000001"; mkdir -p "$HL3"
+cp "$H/index.md" "$H3/index.md"; cp "$HL/index.md" "$HL3/index.md"; HLs="$HL"; HL="$HL3"
+hcard c0000000-0000-4000-8000-00000000000b <<EOF
+title: Block scalar, damage below it
+notes: |
+  line one
+  ---
+  more
+labels: bug
+created:  $STAMP
+modified: $STAMP
+EOF
+HL="$HLs"; cp "$HL3"/c*0b/index.md "$T/block-seed.md"
+"$HEAL" "$H3" --apply --name fixer --model test >/dev/null; F3=$(ls "$HL3"/c*0b/index.md)
+grep -qxF 'title: "Block scalar, damage below it"' "$F3" && grep -qF 'labels: [{text: "bug"' "$F3" && [ "$(grep -c '^modified:' "$F3")" = 1 ] \
+  && [ "$(sed -n '/^notes: |$/,/^  more$/p' "$F3")" = "$(printf 'notes: |\n  line one\n  ---\n  more')" ] \
+  && [ "$(awk 'n>=2{print} /^---$/{n++}' "$F3")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/block-seed.md")" ] || hfail block-scalar
+ok "an indented --- inside a block scalar does not end the frontmatter; the labels below it heal"
+H2="$T/Damaged copy.lanework"; cp -R "$T/heal-seed" "$H2"; cp -R "$VAL" "$H2/.schema"
+"$HEAL" "$H2" --apply --name fixer --model test >/dev/null
+V=$(python3 "$H2/.schema/bin/lanework-validate.py" "$H2"); grep -q '^failures    0 ' <<<"$V" && ! grep -q DEPRECATED <<<"$V" || { echo "$V"; exit 1; }
+ok "a board with its own .schema/ heals the same, against its own validator"
+cp -R "$VAL" "$H/.schema"; touch "$H/.schema/bin/lanework-heal.py"
+if "$HEAL" "$H" 2>/dev/null; then echo "skill copy ran where the board ships its own"; exit 1; fi
+ok "heal defers to the board's own .schema/bin/lanework-heal.py"
 
 # discovery: found, file, settle, park
 D="$T/Sync: v2 Discovery.lanework"
