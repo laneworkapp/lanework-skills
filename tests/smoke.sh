@@ -111,6 +111,7 @@ title: "Free labels"
 labels: [{text: bug}, {text: ux, kind: {type: default, text: Label}}, {text: star, glyph: star, kind: {type: text}}]
 created:  $STAMP
 modified: $STAMP
+modified-by: someone
 EOF
 hcard c0000000-0000-4000-8000-000000000008 <<EOF
 title: Fix: the thing
@@ -126,6 +127,17 @@ printf -- '---\nschema: 1\nkind: comment\ncreated:  %s\nmodified: %s\n---\nA cle
 hcard c0000000-0000-4000-8000-00000000000a <<EOF
 title: "A long title
   over two lines"
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-00000000000c <<EOF
+title: Plain title
+# a yaml comment the owner left
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-00000000000d <<EOF
+title: Fix #12 bug
 created:  $STAMP
 modified: $STAMP
 EOF
@@ -157,16 +169,41 @@ for p in 'text: "High"' 'rank: 1' 'color: "#E07A1F"' 'glyph: "exclamationmark"' 
   && grep -q 'because `labels` already carries a `priority` entry, `Low`' "$HL"/c*06/comments/*/index.md || hfail root-key-dropped
 c 7 | grep -qF '{text: "ux", kind: {type: "text"' && c 7 | grep -qF '{text: "star", icon: {glyph: "star"}, kind:' && ! c 7 | grep -q default || hfail text-kind/bare-glyph
 c 8 | grep -qxF 'title: "Fix: the thing"' && c 8 | grep -qF 'created:  {at: 2026-10-01T00:00:00Z, by: {name: claude}}' || hfail title-quote/bare-stamp
-c 8 | grep -q '^modified: {at: [0-9T:-]*Z, by: {name: fixer, kind: agent, model: test}}$' || hfail restamp
+c 8 | grep -qxF 'modified: {at: 2026-10-01T00:00:00Z, by: {name: claude}}' || hfail retired-key-fold
 c 8 | grep -qxF 'icon: {glyph: "star", color: "fern"}' && ! c 8 | grep -q 'iconColor\|modified-by' || hfail bare-icon/retired-key
+! c 7 | grep -q modified-by && grep -q 'modified-by: someone' "$HL"/c*07/comments/*/index.md || hfail retired-key-record
+for n in 1 2 3 4 5 6 7 a; do c $n | grep -qxF "modified: $STAMP" || hfail "no restamp on card $n"; done
+c c | grep -qxF 'title: "Plain title"' && c c | grep -qxF '# a yaml comment the owner left' || hfail comment-line
+for n in 1 5; do f="${HL##*/}/c0000000-0000-4000-8000-00000000000$n/index.md"
+  [ "$(awk 'n>=2{print} /^---$/{n++}' "$H/$f")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/heal-seed/$f")" ] || hfail "body of card $n"; done
 c a | grep -qxF 'title: "A long title over two lines"' || hfail title-fold
 sed -n '/^config:/,/^created:/p' "$H/index.md" | grep -q 'type: "component"' && ! grep -q 'default\|glyph: circle$\|value:' "$H/index.md" || hfail definition
 ok "heal --apply repairs each one and the board validates with no DEPRECATED line"
 grep -q "^modified: $STAMP$" "$HL"/c*08/comments/d*/index.md && grep -q 'type: alien' "$HL"/c*09/index.md && grep -q '^project: x$' "$HL"/c*09/index.md && grep -q "^modified: $STAMP$" "$HL"/c*09/index.md \
-  && grep -q "^modified: $STAMP$" "$HL/index.md" && ! grep -q "^modified: $STAMP$" "$H/index.md" || hfail untouched
-ok "heal leaves a clean card, its foreign entry and its unknown key byte for byte, and its lane unstamped"
+  && grep -q "^modified: $STAMP$" "$HL/index.md" && grep -q "^modified: $STAMP$" "$H/index.md" \
+  && cmp -s "$HL"/c*0d/index.md "$T/heal-seed/${HL##*/}"/c*0d/index.md && grep -q '^skip .*c0000000-0000-4000-8000-00000000000d.* #' <<<"$O" || hfail untouched
+ok "heal leaves a clean card, a foreign entry, an unknown key, a \` #\` title and every stamp as written"
 S1=$(sum "$H"); O=$("$HEAL" "$H" --apply --name fixer --model test); [ "$S1" = "$(sum "$H")" ] && grep -q '^0 repairs' <<<"$O" || { echo "$O"; exit 1; }
 ok "a second heal --apply changes nothing"
+# a block scalar holding an indented `---` (outside the validator's dialect, so a board of its own)
+H3="$T/Block.lanework"; HL3="$H3/aaaa0000-0000-4000-8000-000000000001"; mkdir -p "$HL3"
+cp "$H/index.md" "$H3/index.md"; cp "$HL/index.md" "$HL3/index.md"; HLs="$HL"; HL="$HL3"
+hcard c0000000-0000-4000-8000-00000000000b <<EOF
+title: Block scalar, damage below it
+notes: |
+  line one
+  ---
+  more
+labels: bug
+created:  $STAMP
+modified: $STAMP
+EOF
+HL="$HLs"; cp "$HL3"/c*0b/index.md "$T/block-seed.md"
+"$HEAL" "$H3" --apply --name fixer --model test >/dev/null; F3=$(ls "$HL3"/c*0b/index.md)
+grep -qxF 'title: "Block scalar, damage below it"' "$F3" && grep -qF 'labels: [{text: "bug"' "$F3" && [ "$(grep -c '^modified:' "$F3")" = 1 ] \
+  && [ "$(sed -n '/^notes: |$/,/^  more$/p' "$F3")" = "$(printf 'notes: |\n  line one\n  ---\n  more')" ] \
+  && [ "$(awk 'n>=2{print} /^---$/{n++}' "$F3")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/block-seed.md")" ] || hfail block-scalar
+ok "an indented --- inside a block scalar does not end the frontmatter; the labels below it heal"
 H2="$T/Damaged copy.lanework"; cp -R "$T/heal-seed" "$H2"; cp -R "$VAL" "$H2/.schema"
 "$HEAL" "$H2" --apply --name fixer --model test >/dev/null
 V=$(python3 "$H2/.schema/bin/lanework-validate.py" "$H2"); grep -q '^failures    0 ' <<<"$V" && ! grep -q DEPRECATED <<<"$V" || { echo "$V"; exit 1; }

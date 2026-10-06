@@ -5,8 +5,9 @@
     heal-board.py <board> [--apply --model M [--name N] [--session S]] [--global FILE] [--ignore-board-copy]
 
 Dry run by default: one line per repair, `<file>: <code> <what>`, nothing written.
-`--apply` writes each repaired file (staged outside the board, then moved in) and
-restamps its `modified` as the agent running it. Idempotent: a second run finds nothing.
+`--apply` writes each repaired file (staged outside the board, then moved in). No `modified`
+is restamped: a heal is upkeep, not an edit (the app's own heal rule). `--name`/`--model`
+sign the records a heal posts. Idempotent: a second run finds nothing.
 
 Definitions healed against: the built-in `text` kind, plus the board's own
 `config.labels`, plus `--global FILE`'s `config.default-labels` when given. The
@@ -27,14 +28,23 @@ Repairs (the board's agent guide, then the app's LabelHealing / lanework-migrate
   single-kind       several entries of a `single` kind: the first in file order stays
   bare-stamp        `created`/`modified` as a bare timestamp, or `by` as a bare name
   bare-icon         `icon: <glyph>` and `iconColor:` folded into the `icon` mapping (the mapping wins)
-  retired-key       `modified-by`: superseded by the restamp the heal writes
+  retired-key       `modified-by`: folded into `modified.by` when that has none; dropped when it
+                    names the same; else dropped with the name kept in a record on the card
   title-quote       a `title` that is not double-quoted, or that carries a line break
 
-Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, a foreign entry (a kind the
-definitions don't name, or a closed kind's unlisted value), any key or entry not named above.
+Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, any key or entry not named
+above, and a foreign entry's stamps (a kind the definitions don't name, or a closed kind's
+unlisted value). The single-kind reduction counts every entry of a defined single kind,
+an unlisted value included, as the app's does.
 A missing `by` is not damage: it says the owner wrote the file, so no heal invents one.
-A repair that drops a fact (single-kind, root-key-dropped) posts a comment on the card,
-signed as the running agent, quoting what was dropped.
+A repair that drops a fact (single-kind, root-key-dropped, retired-key) posts a comment on
+the card, signed as the running agent, quoting what was dropped; it posts before the file
+is rewritten. Listed as `skip`, never rewritten: a file that can't be read or parsed, a title
+carrying ` #` (YAML reads the rest as a comment: quote it by hand), a title that isn't a scalar.
+
+Known limitations: a rewritten `labels` list or `config` comes back with every string
+double-quoted and in the guide's flow-or-block length rule, untouched entries included; a
+whole-number float in it comes back as an integer (`2.0` as `2`), as the app's emitter does.
 """
 
 import os
@@ -347,9 +357,10 @@ class Doc:
         text = raw.decode("utf-8")
         self.nl = "\r\n" if "\r\n" in text.split("\n", 1)[0] + "\n" else "\n"
         lines = text.split(self.nl)
-        if not lines or lines[0].strip() != "---":
+        if not lines or lines[0].rstrip() != "---":      # column 0, as the app and the validator read it
             raise ParseError("no frontmatter")
-        end = next((k for k in range(1, len(lines)) if lines[k].strip() == "---"), None)
+        self.head = lines[0]
+        end = next((k for k in range(1, len(lines)) if lines[k].rstrip() == "---"), None)
         if end is None:
             raise ParseError("frontmatter never closes")
         self.fm = lines[1:end]
@@ -363,6 +374,16 @@ class Doc:
                 self.spans[-1][1].append(line)
             else:
                 self.spans.append([None, [line]])
+        # a column-0 comment (and blank) run that ends a span is a span of its own, never a value's
+        split = []
+        for k, ls in self.spans:
+            n = len(ls)
+            while n > 1 and (ls[n - 1][:1] == "#" or not ls[n - 1].strip()):
+                n -= 1
+            split.append([k, ls[:n]])
+            if n < len(ls):
+                split.append([None, ls[n:]])
+        self.spans = split
 
     def has(self, key):
         return any(k == key for k, _ in self.spans)
@@ -390,7 +411,7 @@ class Doc:
 
     def text(self):
         fm = [l for _, ls in self.spans for l in ls]
-        return self.nl.join(["---"] + fm + self.rest)
+        return self.nl.join([self.head] + fm + self.rest)
 
 
 # ---------------------------------------------------------------- labels: the model
@@ -629,6 +650,9 @@ class Heal:
         elif rest[0] in "{[|>":
             self.skips.append((self.rel(doc.path), "title is not a scalar: fix by hand"))
             return False
+        elif re.search(r"\s#", rest):
+            self.skips.append((self.rel(doc.path), "title carries ` #`, which YAML reads as a comment: quote it by hand"))
+            return False
         else:
             new, why = rest, "unquoted"
         doc.set("title", ["title: " + emit_str(new)])
@@ -655,9 +679,9 @@ class Heal:
                 changed = True
         return changed
 
-    def heal_retired_keys(self, doc):
+    def heal_retired_keys(self, doc, facts):
         """The flat `icon: <glyph>` / `iconColor:` pair into the mapping (the mapping wins per property),
-        and `modified-by`, which the restamp this write carries supersedes."""
+        and `modified-by` folded into `modified.by` (the map wins where both say something)."""
         changed = False
         icon = doc.get("icon") if doc.has("icon") else None
         color = doc.get("iconColor") if doc.has("iconColor") else None
@@ -673,8 +697,28 @@ class Heal:
             self.note(doc.path, "bare-icon", "icon written as the mapping %s" % flow(new))
             changed = True
         if doc.has("modified-by"):
+            who = doc.get("modified-by")
+            mod = doc.get("modified") if doc.has("modified") else None
+            by = mod.get("by") if isinstance(mod, dict) else None
+            if not is_text(who):
+                self.skips.append((self.rel(doc.path), "modified-by has no reading: left as written"))
+                return changed
+            if mod is not None and not isinstance(mod, dict):
+                return changed                     # a bare stamp: the next run, after bare-stamp, folds it
+            if by is None:
+                new = dict(mod or {}); new["by"] = {"name": who}
+                doc.set("modified", [emit_stamp("modified", new)])
+                self.note(doc.path, "retired-key", "modified-by %s folded into modified.by" % emit_str(who))
+            elif isinstance(by, dict) and by.get("name") == who:
+                self.note(doc.path, "retired-key", "modified-by dropped: modified.by already names %s" % emit_str(who))
+            else:
+                if card_of(self.board, doc.path) is None:
+                    self.skips.append((self.rel(doc.path), "modified-by differs from modified.by, and no card holds a record: left as written"))
+                    return changed
+                self.note(doc.path, "retired-key", "modified-by %s dropped, kept in a record: modified.by names someone else" % emit_str(who))
+                facts.append("`modified-by: %s` in `%s`, because its `modified.by` already names %s, and the map wins." % (
+                    who, self.rel(doc.path), flow(by, plain_ok=True)))
             doc.remove("modified-by")
-            self.note(doc.path, "retired-key", "modified-by dropped: the restamp names who modified")
             changed = True
         return changed
 
@@ -811,36 +855,42 @@ class Heal:
                 doc.remove("labels")
         return changed, dropped_facts
 
-    def heal_file(self, path, role, added=(), stamp=None):
+    def heal_file(self, path, role, added=()):
         try:
             doc = Doc(path)
-        except (ParseError, UnicodeDecodeError) as e:
+        except (ParseError, UnicodeDecodeError, OSError) as e:
             self.skips.append((self.rel(path), "unreadable: %s" % e)); return
         mark = len(self.repairs)
         changed = self.heal_title(doc)
         try:
             changed = self.heal_stamps(doc) or changed
-            changed = self.heal_retired_keys(doc) or changed
             facts = []
+            changed = self.heal_retired_keys(doc, facts) or changed
             if role == "board":
                 changed = self.heal_config(doc, added) or changed
             if role == "card":
-                c, facts = self.heal_labels(doc, os.path.dirname(path))
+                c, more = self.heal_labels(doc, os.path.dirname(path))
                 changed = c or changed
+                facts += more
         except ParseError as e:
             del self.repairs[mark:]
             self.skips.append((self.rel(path), "frontmatter does not parse (%s): left as written" % e)); return
         if not changed:
             return
-        doc.set("modified", [emit_stamp("modified", {"at": stamp["at"], "by": stamp["by"]})])
         self.writes.append((path, doc.text()))
         if facts:
-            self.records.append((os.path.dirname(path), facts))
+            self.records.append((card_of(self.board, path), facts))
 
 
 # ---------------------------------------------------------------- the board walk
 
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def card_of(board, path):
+    """The card folder a document belongs to (a card, its comments, their attachments), or None."""
+    parts = os.path.relpath(os.path.dirname(path), board).split(os.sep)
+    return os.path.join(board, parts[0], parts[1]) if len(parts) >= 2 and UUID.fullmatch(parts[1]) else None
 
 
 def uuid_dirs(d):
@@ -886,13 +936,26 @@ def used_root_kinds(paths):
                 if doc.has(k) and doc.get(k) is not None:
                     used.add(k)
             items = doc.get("labels") if doc.has("labels") else None
-        except (ParseError, UnicodeDecodeError):
+        except (ParseError, UnicodeDecodeError, OSError):
             continue
         for i in items if isinstance(items, list) else []:
             n = normalize_entry(i)[0]
             if entry_of(n) and canon(n["kind"]["type"]) in RESERVED_KINDS:
                 used.add(canon(n["kind"]["type"]))
     return used
+
+
+def move_in(src, dst, board):
+    """Rename a staged file or folder into the board; across volumes, restage beside the board (still outside it) first."""
+    try:
+        os.replace(src, dst)
+    except OSError:
+        near = tempfile.mkdtemp(prefix=".lanework-heal-", dir=os.path.dirname(os.path.abspath(board)))
+        try:
+            shutil.move(src, os.path.join(near, "x"))
+            os.replace(os.path.join(near, "x"), dst)
+        finally:
+            shutil.rmtree(near, ignore_errors=True)
 
 
 def stage_and_move(board, files):
@@ -903,16 +966,7 @@ def stage_and_move(board, files):
             tmp = os.path.join(stage, str(n))
             with open(tmp, "w", encoding="utf-8", newline="") as f:
                 f.write(text)
-            try:
-                os.replace(tmp, path)
-            except OSError:
-                # another volume: restage beside the board, still outside it
-                near = tempfile.mkdtemp(prefix=".lanework-heal-", dir=os.path.dirname(os.path.abspath(board)))
-                try:
-                    shutil.move(tmp, os.path.join(near, "x"))
-                    os.replace(os.path.join(near, "x"), path)
-                finally:
-                    shutil.rmtree(near, ignore_errors=True)
+            move_in(tmp, path, board)
     finally:
         shutil.rmtree(stage, ignore_errors=True)
 
@@ -924,10 +978,10 @@ def new_id():
         return str(uuid.uuid4())
 
 
-def post_record(card_dir, facts, at, by):
+def post_record(board, card_dir, facts, at, by):
     cid = new_id()
-    body = "**Healed this card's labels: a repair dropped what is quoted below.**\n\n" + "\n\n".join(facts) + \
-        "\n\nRun by `heal-board.py`; the card's `modified` carries the same stamp.\n"
+    body = "**Healed this card: a repair dropped what is quoted below.**\n\n" + "\n\n".join(facts) + \
+        "\n\nRun by `heal-board.py`. Nothing else changed and no `modified` was stamped: a heal is upkeep, not an edit.\n"
     text = "---\nschema: 1\nkind: comment\n" + emit_stamp("created", {"at": at, "by": by}) + "\n" + \
         emit_stamp("modified", {"at": at, "by": by}) + "\n---\n" + body
     stage = tempfile.mkdtemp(prefix="lanework-heal-")
@@ -938,7 +992,7 @@ def post_record(card_dir, facts, at, by):
         if not os.path.isfile(os.path.join(card_dir, "index.md")):
             raise SystemExit("card moved during the heal: %s" % card_dir)
         os.makedirs(os.path.join(card_dir, "comments"), exist_ok=True)
-        shutil.move(os.path.join(stage, cid), os.path.join(card_dir, "comments", cid))
+        move_in(os.path.join(stage, cid), os.path.join(card_dir, "comments", cid), board)
     finally:
         shutil.rmtree(stage, ignore_errors=True)
 
@@ -974,15 +1028,16 @@ def main(argv):
         if canon(args["name"] or "") in RESERVED_NAMES or not args["name"]:
             print("heal-board: %s is reserved for the app; sign as yourself" % args["name"], file=sys.stderr); return 64
 
-    glob_defs = definitions_of(config_labels(args["global"], "default-labels")) if args["global"] else {}
+    glob_entries = config_labels(args["global"], "default-labels") if args["global"] else []
+    glob_defs = definitions_of(glob_entries)
     board_index = os.path.join(board, "index.md")
     board_defs = definitions_of(config_labels(board_index, "labels"))
     docs = list(documents(board))
     used = used_root_kinds(p for p, r in docs if r == "card")
     added = []
-    for s in SUGGESTED:
-        if s["type"] in used and s["type"] not in board_defs and s["type"] not in glob_defs:
-            added.append(s)
+    for s in SUGGESTED:                      # the machine's definition where --global has one, else the suggested
+        if s["type"] in used and s["type"] not in board_defs:
+            added.append(next((e for e in glob_entries if isinstance(e, dict) and canon(e.get("type", "")) == s["type"]), s))
     defs = {}
     defs.update(glob_defs)
     defs.update(board_defs)
@@ -994,7 +1049,7 @@ def main(argv):
         by["session"] = args["session"]
     h = Heal(board, defs)
     for path, role in docs:
-        h.heal_file(path, role, added if role == "board" else (), {"at": at, "by": by})
+        h.heal_file(path, role, added if role == "board" else ())
 
     for rel, code, detail in h.repairs:
         print("%s: %s %s" % (rel, code, detail))
@@ -1002,9 +1057,12 @@ def main(argv):
         print("skip %s: %s" % (rel, why))
     files = len({p for p, _ in h.writes})
     if args["apply"] and h.writes:
+        merged = {}
+        for card_dir, facts in h.records:        # one record per card, posted before the files it explains
+            merged.setdefault(card_dir, []).extend(facts)
+        for card_dir, facts in merged.items():
+            post_record(board, card_dir, facts, at, by)
         stage_and_move(board, h.writes)
-        for card_dir, facts in h.records:
-            post_record(card_dir, facts, at, by)
     print("%d repairs in %d files%s" % (len(h.repairs), files,
           "" if args["apply"] else (" (dry run: --apply to write)" if h.repairs else "")))
     return 0
