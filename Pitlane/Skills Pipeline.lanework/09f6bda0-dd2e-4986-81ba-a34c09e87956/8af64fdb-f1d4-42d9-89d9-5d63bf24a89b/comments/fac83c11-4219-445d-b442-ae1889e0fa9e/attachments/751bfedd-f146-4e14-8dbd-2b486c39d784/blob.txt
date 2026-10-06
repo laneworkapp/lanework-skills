@@ -1,0 +1,29 @@
+$ cd .claude/worktrees/merge-skill && bash tests/smoke.sh; echo $?   (at 62568b728291a48263bd993adbc57aee52981bee)
+ok 1 - syntax check on every script, by its shebang
+ok 2 - every python script compiles
+ok 3 - pipeline founded, 8 lanes read
+ok 4 - pipeline vars rendered
+ok 5 - pipeline board validates
+ok 6 - empty collapsed cell keeps the lane body in place
+ok 7 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 8 - collapsed: yes lane starts collapsed with its body
+ok 9 - validator control: a bare-colon title fails
+ok 10 - refuses a non-empty board folder
+ok 11 - discovery founded; colon title quoted; topic rendered
+ok 12 - Q1, Q2 filed, numbered, asks lint clean
+ok 13 - settled with chat record in reply to the ask; parked
+ok 14 - discovery board validates
+ok 15 - lint-ask passes a clean ask
+ok 16 - lint-ask fails a hedged, chained ask
+ok 17 - watch-boards: comment post on the 2nd board reported with its board, draft not reported
+ok 18 - watch-boards refuses two boards with one folder name
+ok 19 - merge case: every row resolves with no prompt, as a merge
+ok 20 - merge case: every row resolves with no prompt, as a rebase
+ok 21 - merge case: every row resolves with no prompt, as a nodriver
+ok 22 - every cited skill file exists
+ok 23 - no skill prescribes priority: or component: as a card key
+ok 24 - no skill names a guide version; one stamp (lanework-agent-guide v82, lanework-schema v1), in CLAUDE.md
+ok 25 - the stamp (lanework-agent-guide v82, lanework-schema v1) is not behind the board's guide v82 and schema v1
+ok 26 - plugin manifests match the skills folders and validate
+smoke: 26 passed
+exit=0

@@ -1,0 +1,11 @@
+ok 1 - syntax check on every script, by its shebang
+ok 2 - pipeline founded, 8 lanes read
+ok 3 - pipeline vars rendered
+ok 4 - pipeline board validates
+ok 5 - empty collapsed cell keeps the lane body in place
+ok 6 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 7 - collapsed: yes lane starts collapsed with its body
+ok 8 - validator control: a bare-colon title fails
+ok 9 - refuses a non-empty board folder
+tests/smoke.sh: line 130: /Users/rzen/Indie/Shared/lanework-skills/.claude/worktrees/heal-board/skills/lanework/scripts/heal-board.py: No such file or directory
+exit=127
