@@ -7,10 +7,12 @@ usage:
   lanework-merge.py install <repo>               .gitattributes rule + this clone's driver
 
 python3, stdlib only. Self-contained: install copies this file into the clone's git dir.
+The driver never writes outside the file git hands it: when a merge would lose text it writes the
+merged file with no markers and exits 1, and the pass keeps the losing side in a merge comment.
 Merge comments are signed {name: claude, kind: agent, model: M, session: "merge"} when
 LANEWORK_MERGE_MODEL (or --model) names the agent's model, else {name: merge, ...}.
 """
-import datetime, hashlib, json, os, re, shlex, shutil, subprocess, sys, tempfile, uuid as uuidlib
+import datetime, json, os, re, shutil, subprocess, sys, tempfile, uuid as uuidlib
 
 UUID = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 HEADER = '**Merged two edits to this card.**'
@@ -22,10 +24,6 @@ VERSIONED = {'CLAUDE.md', 'AGENTS.md', '.gitignore'}
 
 def is_uuid(s):
     return bool(UUID.match(s or ''))
-
-
-def sha(b):
-    return hashlib.sha1(b if b is not None else b'\0none').hexdigest()
 
 
 def now_utc():
@@ -503,6 +501,12 @@ def merge_doc(base, ours, theirs, kind, singles):
         body = bo
     elif bo == bb:
         body = bt
+    elif kind in ('lane', 'board'):
+        # No thread to hold a loser: git's clean 3-way merge, else both inline, the earlier under a heading.
+        body, conflicts = merge_text(bb, bo, bt)
+        if conflicts:
+            kept_b, lost_e, lost_b = (bt, eo, bo) if win == 'theirs' else (bo, et, bt)
+            body = kept_b.rstrip('\n') + '\n\n## Merged from the earlier edit (%s)\n\n' % stamp_desc(lost_e) + lost_b.lstrip('\n')
     else:
         body = bt if win == 'theirs' else bo
         lost_e, lost_b = (eo, bo) if win == 'theirs' else (et, bt)
@@ -512,6 +516,21 @@ def merge_doc(base, ours, theirs, kind, singles):
             noun, stamp_desc(kept_e), stamp_desc(lost_e)),
             'label': 'The earlier %s' % noun, 'text': lost_b})
     return join_doc(out, body), losses, win
+
+
+def merge_text(b, o, t):
+    """git merge-file semantics on three texts -> (merged, conflict count)."""
+    d = tempfile.mkdtemp()
+    try:
+        paths = []
+        for n, x in (('o', o), ('b', b), ('t', t)):
+            paths.append(os.path.join(d, n))
+            with open(paths[-1], 'w', encoding='utf-8') as f:
+                f.write(x)
+        r = subprocess.run(['git', 'merge-file', '-p', '-q'] + paths, capture_output=True)
+        return r.stdout.decode('utf-8', 'replace'), (r.returncode if r.returncode >= 0 else 1)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def board_singles(repo, board):
@@ -537,7 +556,7 @@ def version_of(data):
 
 
 def merge_bytes(repo, c, b, o, t):
-    """-> (bytes, losses, extras {within-path: bytes}, win). b/o/t are bytes or None."""
+    """-> (bytes, losses, extras {repo path: bytes}, win). b/o/t are bytes or None."""
     if o == t:
         return o, [], {}, 'ours'
     if o == b:
@@ -568,6 +587,9 @@ def merge_bytes(repo, c, b, o, t):
             text, losses, win = merge_doc(n(sb), n(so), n(st), kind, board_singles(repo, c['board']))
             if crlf:
                 text = text.replace('\n', '\r\n')
+            if kind == 'attachment':
+                for l in losses:
+                    l['line'] = 'Attachment %s: %s' % (c['within'][-2][:8], l['line'])
             if kind == 'comment':
                 for l in losses:
                     l['line'] = 'Comment %s: %s' % (c['within'][1][:8], l['line'].replace('The comment: ', ''))
@@ -579,15 +601,20 @@ def merge_bytes(repo, c, b, o, t):
         name = w[-1]
         ext = name[4:]  # '.png' or ''
         extra = '/'.join(w[:-1] + ['blob.theirs' + ext])
-        return o, [{'line': 'Attachment %s: kept ours; the other side\'s file is `%s`.' % (w[-2][:8], extra)}], {extra: t}, 'ours'
+        full = '/'.join([c['board']] + c['rel'][:-1] + ['blob.theirs' + ext])
+        return o, [{'line': 'Attachment %s: kept ours; the other side\'s file is `%s`.' % (w[-2][:8], extra)}], {full: t}, 'ours'
     if w and w[-1].startswith('thumb.'):
         return o, [], {}, 'ours'
     if o is None or t is None:
         return (o if o is not None else t), [], {}, 'ours'
-    return o, [{'line': 'File `%s`: changed on both sides, ours kept.' % '/'.join(c['rel'])}], {}, 'ours'
+    name = c['rel'][-1]
+    stem, dot, ext = name.rpartition('.') if '.' in name.lstrip('.') else (name, '', '')
+    beside = '/'.join([c['board']] + c['rel'][:-1] + [stem + '.theirs' + dot + ext])
+    return o, [{'line': 'File `%s`: changed on both sides; ours kept, the other side\'s beside it as `%s`.' % (
+        '/'.join(c['rel']), beside.split('/')[-1])}], {beside: t}, 'ours'
 
 
-# ---------------------------------------------------------------- merge comments and the ledger
+# ---------------------------------------------------------------- merge comments
 
 def signer(model):
     model = model or os.environ.get('LANEWORK_MERGE_MODEL')
@@ -654,41 +681,6 @@ def post_losses(repo, card_path, losses, model):
     return '%s/comments/%s/index.md' % (card_path, cid)
 
 
-def ledger_path(repo):
-    return os.path.join(state_dir(repo), 'ledger.jsonl')
-
-
-def ledger_read(repo):
-    try:
-        return [json.loads(l) for l in open(ledger_path(repo), encoding='utf-8') if l.strip()]
-    except OSError:
-        return []
-
-
-def ledger_add(repo, entry):
-    with open(ledger_path(repo), 'a', encoding='utf-8') as f:
-        f.write(json.dumps(entry) + '\n')
-
-
-def ledger_write(repo, entries):
-    with open(ledger_path(repo), 'w', encoding='utf-8') as f:
-        for e in entries:
-            f.write(json.dumps(e) + '\n')
-
-
-def store_blob(repo, data):
-    p = os.path.join(state_dir(repo), 'blobs')
-    os.makedirs(p, exist_ok=True)
-    name = sha(data)
-    with open(os.path.join(p, name), 'wb') as f:
-        f.write(data)
-    return name
-
-
-def load_blob(repo, name):
-    return open(os.path.join(state_dir(repo), 'blobs', name), 'rb').read()
-
-
 # ---------------------------------------------------------------- driver
 
 def created_of(data):
@@ -726,28 +718,19 @@ def cmd_driver(argv):
             f.write(data)
         if quiet:
             return 0
-        rc = 0
         card_path = '/'.join([c['board']] + list(c['loc'])) if c['loc'] else None
         here = card_path and os.path.isfile(os.path.join(repo, card_path, 'index.md'))
-        if c['cls'] == 'card' and is_trash(c['loc']) and c['within'] == ['index.md']:
-            # The pass decides a trash against a later edit: no markers, but stop the merge for it.
-            if (here and win == 'theirs') or (not here and win == 'ours'):
-                rc = 1
+        if c['cls'] == 'card' and is_trash(c['loc']) and c['within'] == ['index.md'] and \
+                ((here and win == 'theirs') or (not here and win == 'ours')):
+            sys.stderr.write('lanework-merge: %s: trash against a later edit; stopped for merge-board.sh\n' % path)
+            return 1
         if losses or extras:
-            entry = {'board': c['board'], 'card': c['card'], 'within': '/'.join(c['within'] or c['rel']),
-                     'o': sha(o), 't': sha(t), 'losses': losses, 'placed': False, 'blobs': {}}
-            if c['cls'] == 'card' and here and rc == 0:
-                for w, data2 in extras.items():
-                    write_atomic(repo, card_path + '/' + w, data2)
-                if losses:
-                    post_losses(repo, card_path, losses, None)
-                entry['placed'] = True
-            else:
-                entry['blobs'] = {w: store_blob(repo, d) for w, d in extras.items()}
-                if c['cls'] == 'card' and rc == 0:
-                    sys.stderr.write('lanework-merge: %s: merge comment pending; run merge-board.sh\n' % path)
-            ledger_add(repo, entry)
-        return rc
+            # Stop on loss: the file is merged with no markers, and the pass keeps the losing side.
+            # Nothing is written in place: git may move the card or finish without it.
+            sys.stderr.write('lanework-merge: %s: merged, but one side\'s text needs keeping; '
+                             'stopped for merge-board.sh\n' % path)
+            return 1
+        return 0
     except Exception as e:  # never leave a half merge: ours, flagged as a conflict for the pass
         sys.stderr.write('lanework-merge: %s: %s\n' % (path, e))
         with open(fo, 'wb') as f:
@@ -853,17 +836,18 @@ def prune(repo, d):
             os.rmdir(root)
 
 
-def process_card(repo, trees, revs, board, card, ledger, model, notes):
+def process_card(repo, trees, revs, board, card, model, notes, um):
     base, ours, theirs = revs
     (lb, fb), (lo, fo), (lt, ft) = (trees.card(r, board, card) for r in revs)
     get = lambda f, w: trees.blob(f[w][1]) if w in f else None
     io, it = get(fo, 'index.md'), get(ft, 'index.md')
-    eo = split_doc(io.decode('utf-8', 'replace'))[0] if io else None
-    et = split_doc(it.decode('utf-8', 'replace'))[0] if it else None
+    text = lambda x: x.decode('utf-8', 'replace').replace('\r\n', '\n')
+    eo = split_doc(text(io))[0] if io else None
+    et = split_doc(text(it))[0] if it else None
     win = later(eo, et) if (eo and et) else 'ours'
     locs = {'ours': lo, 'theirs': lt}
     losses = []
-    title = title_of((io or it or b'').decode('utf-8', 'replace'))
+    title = title_of(text(io or it or b''))
     # placement
     if lo is None and lt is None:
         L = None
@@ -918,18 +902,36 @@ def process_card(repo, trees, revs, board, card, ledger, model, notes):
             data, ls, ex, _ = merge_bytes(repo, c, b, o, t)
             files[w] = ((vo or vt)[0], data)
             extras.update(ex)
-            hit = [e for e in ledger if e.get('card') == card and e['within'] == w and e['o'] == sha(o) and e['t'] == sha(t)]
-            for e in hit:
-                e['consumed'] = True
-            if ls and not any(e['placed'] for e in hit):
-                losses += ls
-    for e in ledger:  # pending driver losses for this card
-        if e.get('card') == card and e['board'] == board and not e['placed'] and not e.get('consumed'):
-            e['consumed'] = True
-            losses += e['losses']
-            for w, name in e.get('blobs', {}).items():
-                extras[w] = load_blob(repo, name)
-    # move untracked strays (driver comments, drafts) to the final folder
+            losses += ls
+    # Uncommitted local edits: a tracked path whose work-tree bytes match none of base, ours, theirs, the
+    # merge, or git's conflict-marker output. Carried as ours (3-way against theirs), staged, and reported:
+    # refusing can't work once git has pulled the file into the conflict, since an abort then reverts it.
+    carried = []
+    for d in old_dirs:
+        for p in sorted(set(git(repo, 'ls-files', '-z', '--', d).decode().split('\0')) - {''}):
+            w = p[len(d) + 1:]
+            fp = os.path.join(repo, p)
+            if not os.path.isfile(fp) or not L:
+                continue
+            wt = open(fp, 'rb').read()
+            vals = [trees.blob(f[w][1]) if w in f else None for f in (fb, fo, ft)]
+            ok = {x for x in vals if x is not None} | ({files[w][1]} if w in files else set())
+            if p in um:
+                ok |= {trees.blob(v[1]) for v in um[p].values()}
+                if b'\n=======' in wt:
+                    continue
+            if wt in ok:
+                continue
+            b, t = vals[0], vals[2]
+            c = classify('/'.join([board] + list(L) + w.split('/')))
+            data, ls, ex, _ = (wt, [], {}, 'ours') if t is None or t == b else merge_bytes(repo, c, b, wt, t)
+            files[w] = ((fo.get(w) or ft.get(w) or fb.get(w) or ('100644',))[0], data)
+            extras.update(ex)
+            losses += ls
+            carried.append(p)
+    if carried:
+        notes['carried'].append('"%s" (%s)' % (title, ', '.join(carried)))
+    # move untracked strays (a draft, an earlier run's merge comment) to the final folder
     tracked = set(git(repo, 'ls-files', '-z', '--', *old_dirs).decode().split('\0')) if old_dirs else set()
     strays = []
     for d in old_dirs:
@@ -957,9 +959,9 @@ def process_card(repo, trees, revs, board, card, ledger, model, notes):
                 if mode == '100755':
                     os.chmod(os.path.join(repo, p), 0o755)
                 added.append(p)
-        for w, data in extras.items():
-            write_atomic(repo, final_dir + '/' + w, data)
-            added.append(final_dir + '/' + w)
+        for p, data in extras.items():
+            write_atomic(repo, p, data)
+            added.append(p)
         if losses:
             added.append(post_losses(repo, final_dir, losses, model))
         git(repo, 'add', '-f', '--', *sorted(set(added)))
@@ -967,7 +969,7 @@ def process_card(repo, trees, revs, board, card, ledger, model, notes):
         if d != final_dir:
             prune(repo, d)
     if 'index.md' in files:
-        title = title_of(files['index.md'][1].decode('utf-8', 'replace'))
+        title = title_of(text(files['index.md'][1]))
     where = 'gone' if not L else lane_title(repo, board, L[0]) if not is_trash(L) else 'the trash'
     if lo and lt and lo != lt:
         notes['placed'].append('"%s" to %s' % (title, where))
@@ -988,14 +990,35 @@ def is_merge_artifact(repo, p):
     return False
 
 
-def find_card_dir(repo, board, card):
-    root = os.path.join(repo, board)
-    for cand in [os.path.join(root, l, card) for l in os.listdir(root)] + \
-            [os.path.join(root, '.trash', l, card) for l in (os.listdir(os.path.join(root, '.trash')) if os.path.isdir(os.path.join(root, '.trash')) else [])] + \
-            [os.path.join(root, '.trash', card)]:
-        if os.path.isfile(os.path.join(cand, 'index.md')):
-            return os.path.relpath(cand, repo)
-    return None
+def rehome(repo, notes):
+    """A comment or attachment added on one side of a card the other side moved stays at the old path:
+    git sees no conflict. Move every tracked file in a card folder with no index.md into its card."""
+    out = git(repo, 'ls-files', '-z').decode().split('\0')
+    held = {(c['board'], c['card']) for c in map(classify, unmerged(repo)) if c and c['cls'] == 'card'}
+    items = {}
+    for p in out:
+        c = classify(p) if p else None
+        if c and c['cls'] == 'card':
+            items.setdefault((c['board'], c['card']), {}).setdefault(c['loc'], []).append(p)
+    for (board, card), locs in items.items():
+        homes = [l for l, ps in locs.items() if '/'.join([board] + list(l) + ['index.md']) in ps]
+        orphans = [l for l in locs if l not in homes]
+        if len(homes) != 1 or not orphans or (board, card) in held:
+            continue
+        home = '/'.join([board] + list(homes[0]))
+        moved, title = [], title_of(open(os.path.join(repo, home, 'index.md'), encoding='utf-8', errors='replace').read())
+        for l in orphans:
+            src = '/'.join([board] + list(l))
+            for p in locs[l]:
+                dst = home + p[len(src):]
+                if os.path.exists(os.path.join(repo, dst)):
+                    continue
+                os.makedirs(os.path.dirname(os.path.join(repo, dst)), exist_ok=True)
+                git(repo, 'mv', '-k', '--', p, dst)
+                moved.append(dst)
+            prune(repo, src)
+        if moved:
+            notes['rehomed'].append('%d file%s of "%s"' % (len(moved), '' if len(moved) == 1 else 's', title))
 
 
 def refresh_install(repo):
@@ -1014,10 +1037,9 @@ def cmd_resolve(argv):
     how, base, theirs = op_state(repo)
     revs = (base, 'HEAD', theirs)
     trees = Trees(repo)
-    ledger = ledger_read(repo)
-    notes = {'placed': [], 'comments': [], 'leftover': [], 'lost': [], 'paths': 0}
-    um = {p: s for p, s in unmerged(repo).items() if classify(p)}
-    boards = {classify(p)['board'] for p in um} | {e['board'] for e in ledger}
+    notes = {'placed': [], 'comments': [], 'leftover': [], 'beside': [], 'carried': [], 'rehomed': [], 'paths': 0}
+    um = {p: s for p, s in unmerged(repo).items() if classify(p)} if how else {}
+    boards = {classify(p)['board'] for p in um}
     cards, others = {}, []
     if how and base:
         by_sha = {}
@@ -1045,11 +1067,12 @@ def cmd_resolve(argv):
         s, c = um[p], classify(p)
         if 2 in s and 3 in s:
             b = trees.blob(s[1][1]) if 1 in s else None
-            data, ls, _, _ = merge_bytes(repo, c, b, trees.blob(s[2][1]), trees.blob(s[3][1]))
+            data, ls, ex, _ = merge_bytes(repo, c, b, trees.blob(s[2][1]), trees.blob(s[3][1]))
             write_atomic(repo, p, data)
-            git(repo, 'add', '-f', '--', p)
-            for l in ls:
-                notes['lost'].append((p, l))
+            for q, d in ex.items():
+                write_atomic(repo, q, d)
+            git(repo, 'add', '-f', '--', p, *ex)
+            notes['beside'] += [l['line'] for l in ls]
         elif 2 in s:
             write_atomic(repo, p, trees.blob(s[2][1]))
             git(repo, 'add', '-f', '--', p)
@@ -1058,50 +1081,16 @@ def cmd_resolve(argv):
             remove_paths(repo, [p])
             notes['leftover'].append(p)
     for (board, card) in cards:
-        process_card(repo, trees, revs, board, card, ledger, model, notes)
-    for e in ledger:  # driver losses whose card the pass didn't touch
-        if e.get('consumed') or e['placed']:
-            continue
-        e['consumed'] = True
-        if not e.get('card'):
-            notes['lost'] += [(e['board'] + '/' + e['within'], l) for l in e['losses']]
-            continue
-        d = find_card_dir(repo, e['board'], e['card'])
-        if not d:
-            notes['lost'] += [(e['board'] + '/' + e['within'], l) for l in e['losses']]
-            continue
-        add = []
-        for w, name in e.get('blobs', {}).items():
-            write_atomic(repo, d + '/' + w, load_blob(repo, name))
-            add.append(d + '/' + w)
-        if e['losses']:
-            add.append(post_losses(repo, d, e['losses'], model))
-            notes['comments'].append('"%s" (%s)' % (title_of(open(os.path.join(repo, d, 'index.md'), encoding='utf-8').read()),
-                                                    '; '.join(l['line'] for l in e['losses'])))
-        git(repo, 'add', '-f', '--', *add)
-    for e in ledger:
-        if e['placed'] and not e.get('consumed') and e.get('card'):
-            e['consumed'] = True
-            d = find_card_dir(repo, e['board'], e['card'])
-            t = title_of(open(os.path.join(repo, d, 'index.md'), encoding='utf-8').read()) if d else e['card'][:8]
-            notes['comments'].append('"%s" (%s)' % (t, '; '.join(l['line'] for l in e['losses'])))
-    # stage this operation's merge artifacts anywhere on the touched boards
+        process_card(repo, trees, revs, board, card, model, notes, um)
+    # stage this operation's merge artifacts left untracked by an earlier run of the pass
     for board in sorted(boards):
         out = git(repo, 'status', '--porcelain=v1', '-z', '-uall', '--', board).decode()
         arts = [r[3:] for r in out.split('\0') if r.startswith('?? ') and is_merge_artifact(repo, r[3:])]
         if arts:
             git(repo, 'add', '-f', '--', *arts)
-    if notes['lost']:
-        lost = os.path.join(state_dir(repo), 'lost-%s.md' % now_utc().replace(':', ''))
-        with open(lost, 'w', encoding='utf-8') as f:
-            for p, l in notes['lost']:
-                f.write('## %s\n\n%s\n\n%s\n\n' % (p, l['line'], fence(l['text']) if 'text' in l else ''))
-        notes['lost_file'] = lost
-    done = os.path.join(state_dir(repo), 'ledger.done.jsonl')
-    with open(done, 'a', encoding='utf-8') as f:
-        for e in ledger:
-            f.write(json.dumps(e) + '\n')
-    ledger_write(repo, [])
+    rehome(repo, notes)
+    boards |= {classify(p)['board'] for p in git(repo, 'diff', '--cached', '--name-only', '-z').decode().split('\0')
+               if p and classify(p)}
     # validate
     vals, bad = [], False
     for board in sorted(boards):
@@ -1122,8 +1111,10 @@ def cmd_resolve(argv):
     other = [p for p in unmerged(repo) if not classify(p)]
     # report: one paragraph
     s = []
-    if not how and not notes['comments'] and not notes['paths']:
-        s.append('No merge, rebase or cherry-pick in progress and nothing pending: nothing to resolve.')
+    if not how and not notes['rehomed']:
+        s.append('No merge, rebase or cherry-pick in progress, and no file left behind by a move: nothing to resolve.')
+    elif not how:
+        s.append('Re-homed into their moved cards: %s. Staged, not committed: commit it.' % ', '.join(notes['rehomed']))
     else:
         s.append('Board merge%s: %d unmerged board path%s resolved.' % (' (%s)' % how if how else '', notes['paths'], '' if notes['paths'] == 1 else 's'))
         if notes['placed']:
@@ -1134,8 +1125,12 @@ def cmd_resolve(argv):
             s.append('Nothing was lost, so no merge comment.')
         if notes['leftover']:
             s.append('Kept ours for %s.' % ', '.join(notes['leftover']))
-        if notes.get('lost_file'):
-            s.append('Text lost from lane or board files is kept in %s.' % notes['lost_file'])
+        if notes['beside']:
+            s.append(' '.join(notes['beside']))
+        if notes['rehomed']:
+            s.append('Re-homed into their moved cards: %s.' % ', '.join(notes['rehomed']))
+        if notes['carried']:
+            s.append('Uncommitted edits carried into the merge as ours, and staged: %s.' % '; '.join(notes['carried']))
     if vals:
         s.append(' '.join(v + '.' for v in vals))
     if other:
@@ -1153,12 +1148,13 @@ def cmd_install(argv):
     dst = os.path.join(state_dir(repo), 'lanework-merge.py')
     if os.path.abspath(__file__) != os.path.abspath(dst):
         shutil.copy2(__file__, dst)
-    py = shlex.quote(sys.executable or 'python3')
+    # python3 from PATH and a git-dir-relative script: an interpreter upgrade or a moved repo can't break it
+    cmd = 'python3 "$(git rev-parse --git-common-dir)/lanework-merge/lanework-merge.py" driver %s%%O %%A %%B %%P'
     git(repo, 'config', 'merge.lanework.name', 'Lanework board merge')
-    git(repo, 'config', 'merge.lanework.driver', '%s %s driver %%O %%A %%B %%P' % (py, shlex.quote(dst)))
+    git(repo, 'config', 'merge.lanework.driver', cmd % '')
     git(repo, 'config', 'merge.lanework.recursive', 'lanework-inner')
     git(repo, 'config', 'merge.lanework-inner.name', 'Lanework board merge, inner merge base')
-    git(repo, 'config', 'merge.lanework-inner.driver', '%s %s driver --quiet %%O %%A %%B %%P' % (py, shlex.quote(dst)))
+    git(repo, 'config', 'merge.lanework-inner.driver', cmd % '--quiet ')
     ga = os.path.join(repo, '.gitattributes')
     cur = open(ga, encoding='utf-8').read() if os.path.isfile(ga) else ''
     if ATTR in cur.split('\n'):
