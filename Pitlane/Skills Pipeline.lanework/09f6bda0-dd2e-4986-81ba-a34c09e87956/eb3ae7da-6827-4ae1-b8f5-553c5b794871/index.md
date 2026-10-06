@@ -3,9 +3,9 @@ schema: 1
 kind: card
 title: "Rename pitwall to watch and pitlane to work"
 order: 2048
-labels: [{text: pitlane, kind: {type: skill, text: Skill}}, {text: pitwall, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
+labels: [{text: work, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-06T22:35:32Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
-modified: {at: 2026-10-06T23:09:25Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-06T23:12:34Z, by: {name: fixer, kind: agent, model: sonnet}}
 ---
 The racing names ask users to decode a metaphor before they can use the skills, and early users didn't. The two skills take plain verbs that say what they do: `watch` stays up and reacts to a board, `work` files, sweeps and builds on one. They sit beside `lanework` and `discovery`, which already read as plain English.
 
