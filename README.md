@@ -123,11 +123,11 @@ The skills cite and call each other by relative path, so install all four side b
 
 ## Repository layout
 
-The skills live under `skills/`, one folder each, and that folder is all that ships. `Pitlane/Skills Pipeline.lanework` is the Lanework board where work on the skills is tracked, from ideas and issues to shipped changes. `CLAUDE.md` has the conventions for working in the repo, `CHANGELOG.md` what each release changed, and `scripts/release.sh` cuts a release.
+The skills live under `skills/`, one folder each, and that folder is all that ships. `Lanework/Skills Pipeline.lanework` is the Lanework board where work on the skills is tracked, from ideas and issues to shipped changes. `CLAUDE.md` has the conventions for working in the repo, `CHANGELOG.md` what each release changed, and `scripts/release.sh` cuts a release.
 
 ## Defaults, not rules
 
-The `Pitlane/` folder convention (`<repo root>/Pitlane/<Board>.lanework`, and `~/Pitlane/` for machine-level boards) and the pipeline lane set (Ideas → Shaping → Proposed → Approved → Active → Done, plus Issues and Tasks) are the defaults these skills ship with, not requirements.
+The board folder convention (`<repo root>/Lanework/<Board>.lanework`, and `~/Lanework/` for machine-level boards; `Boards/` is accepted too, and the older `Pitlane/` is found and offered a rename) and the pipeline lane set (Ideas → Shaping → Proposed → Approved → Active → Done, plus Issues and Tasks) are the defaults these skills ship with, not requirements.
 
 A board's actual folder layout, and each lane's own `index.md` body, always win over the defaults described here — the skills are written to defer to what a board's own files say.
 
@@ -141,7 +141,7 @@ Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUD
 
 ## Names
 
-The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, and `discovery` examines a problem space. The `Pitlane/` folder, where a project keeps its boards, is a separate convention with its own name; it is unchanged.
+The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, and `discovery` examines a problem space. The `Lanework/` folder is where a project keeps its boards. It was `Pitlane/` before, which is still found, and the agent offers once to rename it.
 
 ## Credits
 
