@@ -31,7 +31,3 @@ A board is a folder of plain dirs + Markdown that the Lanework app renders live.
 ## Built on this
 
 **pitlane**: sweeping and working a board, writing cards and comments. **pitwall**: a live watch. **discovery**: a question-by-question examination on its own board kind.
-
-## Versioning
-
-Target guide and schema versions, for every skill in the set: `references/authority.md` § Versions.
