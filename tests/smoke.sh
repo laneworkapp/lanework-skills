@@ -18,6 +18,13 @@ for s in "$SK"/*/scripts/*.sh "$ROOT"/scripts/*.sh; do case "$(head -1 "$s")" in
 for s in "$SK"/*/scripts/*.py; do [ -e "$s" ] || continue; python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])' "$s"; done
 ok "syntax check on every script, by its shebang"
 
+# names: the racing names are retired; no skill folder or plugin.json entry may carry them
+for n in pitlane pitwall; do
+  [ ! -e "$SK/$n" ] || { echo "skill folder skills/$n still exists (renamed to work and watch)"; exit 1; }
+  if grep -q "\"./skills/$n\"" "$ROOT/.claude-plugin/plugin.json"; then echo "plugin.json still lists skills/$n"; exit 1; fi
+done
+ok "no skill folder or plugin.json entry is named pitlane or pitwall"
+
 # lanework: pipeline founding + reading
 P="$T/Acme Pipeline.lanework"
 "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
@@ -221,7 +228,7 @@ printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\
 printf 'Where does it run?\n\n## Options\n\n- A: app\n- B: service\n\n## Recommended\n\nA. No server.\n' > "$T/q2.md"
 O1=$("$SK/discovery/scripts/file-question.sh" "$D" "Pricing" --round 1 --body "$T/q1.md" 2>&1)
 O2=$("$SK/discovery/scripts/file-question.sh" "$D" "Engine: placement" --round 1 --body "$T/q2.md" --depends "[Q1](lanework://x/y)" 2>&1)
-grep -q 'lint-ask warning' <<<"$O1$O2" && { echo "$O1$O2"; exit 1; }
+grep -q 'lint-ask warning\|warning: no lint-ask.sh' <<<"$O1$O2" && { echo "$O1$O2"; exit 1; }
 C1=$(head -1 <<<"$O1" | sed 's#.*/##'); A1=$(sed -n 's/^ask comment //p' <<<"$O1"); C2=$(head -1 <<<"$O2" | sed 's#.*/##')
 grep -q '^title: "Q2: Engine: placement"$' "$D"/*/"$C2"/index.md; ok "Q1, Q2 filed, numbered, asks lint clean"
 printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner answered in chat.** "A."\n' > "$T/rec.md"
@@ -231,22 +238,22 @@ printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner answ
 ok "settled with chat record in reply to the ask; parked"
 validate "$D" >/dev/null; ok "discovery board validates"
 
-# pitlane: lint-ask
+# work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"
 printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/bad.md"
-"$SK/pitlane/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes a clean ask"
-if "$SK/pitlane/scripts/lint-ask.sh" "$T/bad.md" >/dev/null; then exit 1; fi; ok "lint-ask fails a hedged, chained ask"
+"$SK/work/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes a clean ask"
+if "$SK/work/scripts/lint-ask.sh" "$T/bad.md" >/dev/null; then exit 1; fi; ok "lint-ask fails a hedged, chained ask"
 
-# pitwall: two boards, one watcher; a comment posted by renaming .draft/ is reported with its board
+# watch: two boards, one watcher; a comment posted by renaming .draft/ is reported with its board
 if command -v fswatch >/dev/null; then
   C=$(ls -d "$D"/*/"$C1"); W="$T/watch.log"
-  "$SK/pitwall/scripts/watch-boards.sh" "$T/snap" "$P" "$D" > "$W" 2>&1 & WP=$!
+  "$SK/watch/scripts/watch-boards.sh" "$T/snap" "$P" "$D" > "$W" 2>&1 & WP=$!
   sleep 2; mkdir -p "$C/comments/.draft"; printf -- '---\nkind: comment\n---\nx\n' > "$C/comments/.draft/index.md"; sleep 1.5
   mv "$C/comments/.draft" "$C/comments/dddd0000-0000-4000-8000-000000000004"; sleep 1.5
   pkill -P "$WP" 2>/dev/null || true; kill "$WP" 2>/dev/null || true; wait "$WP" 2>/dev/null || true
   grep -q "^CHANGED Sync: v2 Discovery.lanework/.*/comments/dddd0000-0000-4000-8000-000000000004/index.md$" "$W" && ! grep -q "\.draft" "$W" || { cat "$W"; exit 1; }
   ok "watch-boards: comment post on the 2nd board reported with its board, draft not reported"
-  if "$SK/pitwall/scripts/watch-boards.sh" "$T/snap2" "$P" "$P/" 2>/dev/null; then exit 1; fi; ok "watch-boards refuses two boards with one folder name"
+  if "$SK/watch/scripts/watch-boards.sh" "$T/snap2" "$P" "$P/" 2>/dev/null; then exit 1; fi; ok "watch-boards refuses two boards with one folder name"
 else
   echo "skip - fswatch not installed"
 fi

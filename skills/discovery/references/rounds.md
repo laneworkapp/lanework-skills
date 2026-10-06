@@ -14,7 +14,7 @@ Per question, one card in Asked: `scripts/file-question.sh`, or by hand from `te
 - Always a recommendation: the owner can accept in one word.
 - Two comments, 1s apart:
   1. **Founding record**: why it's on the frontier now, 2–3 lines, no handle.
-  2. **Ask**: pitlane's shape (`pitlane/templates/ask.md`, lint with `pitlane/scripts/lint-ask.sh`), ending `Context: body.` The card's `waiting.comment` = its uuid.
+  2. **Ask**: work's shape (`work/templates/ask.md`, lint with `work/scripts/lint-ask.sh`), ending `Context: body.` The card's `waiting.comment` = its uuid.
 
 Then post the round in chat, each title linking its card:
 

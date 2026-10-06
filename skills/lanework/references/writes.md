@@ -38,7 +38,7 @@ Guide § Moving and reordering has the full rules.
 - **Posting never restamps the card.**
 - Answering a specific comment → `in-reply-to: <its uuid>`.
 - A posted comment is fixed at most for a typo. Otherwise post a follow-up; never rewrite, remove, or move it into `comments/.trash`.
-- Prose (record vs ask, handles, links): `pitlane/references/writing.md`.
+- Prose (record vs ask, handles, links): `work/references/writing.md`.
 
 ## Tracker boards
 

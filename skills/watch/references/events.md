@@ -13,4 +13,4 @@ A Monitor notification names changed paths (`CHANGED <Board>.lanework/<path>`) o
 6. **A card `index.md` change with no new comment** (a body edit, a move, the app clearing `waiting` after the owner replied): context, not a reply.
 7. **After replying, re-check the stream.** Owner writes landing during your response interleave with your self-triggered events: recheck the ones you skipped as your own.
 
-Other sessions' comments and moves arrive as events too: `pitlane/references/companions.md`.
+Other sessions' comments and moves arrive as events too: `work/references/companions.md`.

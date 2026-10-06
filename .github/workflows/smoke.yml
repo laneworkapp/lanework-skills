@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install fswatch for the pitwall case
+      - name: Install fswatch for the watch case
         run: brew install fswatch
       - name: Run tests/smoke.sh
         run: tests/smoke.sh
