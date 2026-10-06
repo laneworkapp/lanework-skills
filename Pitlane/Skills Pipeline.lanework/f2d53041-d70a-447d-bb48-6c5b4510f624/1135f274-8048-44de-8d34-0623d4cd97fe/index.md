@@ -19,7 +19,7 @@ labels:
       icon:
         glyph: "flag"
 created:  {at: 2026-10-06T22:24:45Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-06T22:32:11Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-06T22:36:07Z}
 ---
 `found-board.sh` founded every lane with an empty body unless its `collapsed` cell was filled, so pipeline boards came out with no lane policy at all.
 

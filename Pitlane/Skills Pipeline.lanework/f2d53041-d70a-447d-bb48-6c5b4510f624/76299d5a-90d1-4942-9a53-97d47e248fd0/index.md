@@ -5,7 +5,7 @@ title: "lanework: a healing script that repairs what agents and hand edits break
 order: 2048
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-05T22:44:24Z, by: {name: claude, kind: agent, model: opus-5.5, session: "Lanework Labels"}}
-modified: {at: 2026-10-06T22:32:09Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-06T22:36:07Z}
 ---
 Add a heal script to the `lanework` skill that finds and repairs the known kinds of board damage, as a dry run by default and with `--apply` to write. Today an agent can only detect damage with the board's validator, and repairs it by hand, one card at a time.
 
