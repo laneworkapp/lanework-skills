@@ -39,8 +39,9 @@ render "$INDEX" title "$TITLE" title_yaml "$(yaml_str "$TITLE")" id "$BOARD_ID" 
   stamp "{at: $NOW, by: $BY}" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
-awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 5; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\t" $3 "\t" $4 "\t" $5 }' "$LANES" |
-while IFS=$'\t' read -r ORDER LANE COLLAPSED LBODY; do
+awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 5; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 }' "$LANES" |
+# \037, not tab: tab is IFS whitespace, so an empty collapsed cell would merge away and shift body.
+while IFS=$'\037' read -r ORDER LANE COLLAPSED LBODY; do
   LANE_ID=$(uuid); mkdir -p "$BOARD/$LANE_ID"
   {
     printf '%s\n' '---' 'schema: 1' 'kind: lane'
