@@ -4,7 +4,7 @@
 # The validator is borrowed from the Skills Pipeline board's app-installed .schema/.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
-VAL="$ROOT/Pitlane/Skills Pipeline.lanework/.schema"
+VAL="$ROOT/Lanework/Skills Pipeline.lanework/.schema"
 T="${1:-$(mktemp -d "${TMPDIR:-/tmp}/lanework-smoke.XXXXXX")}"
 pass=0
 ok() { pass=$((pass+1)); echo "ok $pass - $1"; }
@@ -24,6 +24,16 @@ for n in pitlane pitwall; do
   if grep -q "\"./skills/$n\"" "$ROOT/.claude-plugin/plugin.json"; then echo "plugin.json still lists skills/$n"; exit 1; fi
 done
 ok "no skill folder or plugin.json entry is named pitlane or pitwall"
+
+# folder convention: Lanework/ first, then Boards/, then legacy Pitlane/; the legacy name lives only in finding.md
+hits=$(grep -rn Pitlane "$SK" || true)
+[ -z "$hits" ] || [ -z "$(grep -v '^[^:]*/lanework/references/finding\.md:[0-9]*:.*legacy' <<<"$hits")" ] \
+  || { echo "Pitlane named outside finding.md's legacy entry:"; echo "$hits"; exit 1; }
+F="$SK/lanework/references/finding.md"
+l=$(grep -n 'Lanework/' "$F" | head -1 | cut -d: -f1); b=$(grep -n 'Boards/' "$F" | head -1 | cut -d: -f1)
+[ -n "$l" ] && [ -n "$b" ] && [ "$l" -lt "$b" ] || { echo "finding.md must name Lanework/ before Boards/"; exit 1; }
+[ "$(grep -o 'for f in [A-Za-z ]*;' "$F" | head -1)" = "for f in Lanework Boards Pitlane;" ] || { echo "finding.md's find loop must run Lanework Boards Pitlane in that order"; exit 1; }
+ok "legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop"
 
 # lanework: pipeline founding + reading
 P="$T/Acme Pipeline.lanework"

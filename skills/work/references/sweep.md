@@ -5,7 +5,7 @@ Bounded, user-requested pass over one or more boards. Ends in a **triage report*
 ## 1. Scope
 
 - "Sweep the boards" = the pipeline boards. "Sweep Acme Pipeline" = that one.
-- No board named → the current project's `Pitlane/` + `~/Pitlane/` (`lanework/references/finding.md`). Skip archive and schema boards unless asked.
+- No board named → the current project's boards + `~/` boards (`lanework/references/finding.md`: folders, order, legacy offer). Skip archive and schema boards unless asked.
 - A board's instruction sheet may narrow or widen this. Guidance, not a gate.
 
 ## 2. Inventory
