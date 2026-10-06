@@ -1,0 +1,10 @@
+$ git archive 068c6b4 (round-1 head), with the round-2 tests/merge-case.sh; each new mode, then echo $?
+--- tests/merge-case.sh <scratch> clean
+merge-case (clean): not committed: LANE_A_TOP
+exit=1
+--- tests/merge-case.sh <scratch> rebasemove
+merge-case (rebasemove): rebase: the losing pick should stop
+exit=1
+--- tests/merge-case.sh <scratch> dirty
+merge-case (dirty): dirty: the uncommitted edit was erased
+exit=1
