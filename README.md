@@ -10,6 +10,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `watch` | a standing watch on one or more boards, responding to changes as they arrive |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce |
+| `merge` | resolves git merge, pull and rebase conflicts on a board with no human: a merge driver plus a placement pass, keeping both sides' content and the later stamp's state |
 
 `discovery` and `watch` never start on their own. Type the command first in your message:
 
@@ -26,6 +27,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `work` | 16 | 374 | 6,201 |
 | `watch` | 4 | 146 | 1,044 |
 | `discovery` | 14 | 422 | 2,388 |
+| `merge` | 2 | 301 | 1,241 |
 
 Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
@@ -96,9 +98,17 @@ Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md
 | `templates/topic-card.md` | 65 |
 | **total** | **2,388** |
 
+#### `merge`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 301 |
+| `references/rules.md` | 940 |
+| **total** | **1,241** |
+
 ## Install
 
-As a Claude Code plugin, which installs all four skills and updates with each release:
+As a Claude Code plugin, which installs all five skills and updates with each release:
 
 ```
 /plugin marketplace add laneworkapp/lanework-skills
@@ -115,9 +125,10 @@ ln -s "$(pwd)/lanework-skills/skills/lanework" ~/.claude/skills/lanework
 ln -s "$(pwd)/lanework-skills/skills/work" ~/.claude/skills/work
 ln -s "$(pwd)/lanework-skills/skills/watch" ~/.claude/skills/watch
 ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
+ln -s "$(pwd)/lanework-skills/skills/merge" ~/.claude/skills/merge
 ```
 
-The skills cite and call each other by relative path, so install all four side by side.
+The skills cite and call each other by relative path, so install all five side by side.
 
 `SKILL.md` is the Agent Skills format Claude Code reads; other harnesses that read `SKILL.md` files work the same way.
 

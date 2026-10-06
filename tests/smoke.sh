@@ -258,6 +258,9 @@ else
   echo "skip - fswatch not installed"
 fi
 
+# merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
+for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/null; ok "merge case: every row resolves with no prompt, as a $m"; done
+
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 
 # format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)

@@ -62,3 +62,4 @@ Tracker keys: the board's `remote` (incl. `cadence`), a card's `remote`, a comme
 - Boards usually live in a repo, and the board body says how it's committed. Commit your own board writes, with plain messages.
 - **Stage exact paths**: the card's `index.md`, the `comments/<uuid>` you wrote. Never a lane dir, a whole card dir (it drags in the owner's unposted `comments/.draft/`), `-A` or `.`.
 - Board writes and code changes: separate commits. Shared repo: `git commit --only -- <paths>`, never amend or stash.
+- **Merge conflicts on a board**: never hand-edit the markers. The `merge` skill resolves them (`merge/references/rules.md`).
