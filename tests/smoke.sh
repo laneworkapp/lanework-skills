@@ -97,7 +97,14 @@ assert sorted(p["skills"]) == want, f"plugin.json skills {p['skills']} != folder
 assert [e["name"] for e in m["plugins"]] == [p["name"]], "marketplace.json must list exactly the plugin in plugin.json"
 assert "version" not in m["plugins"][0], "version lives only in plugin.json"
 EOF
-if command -v claude >/dev/null; then claude plugin validate "$ROOT" --strict >/dev/null; fi
+# claude plugin validate: errors fail (exit status). Warnings fail too, except the one known
+# warning: this repo's CLAUDE.md is its dev guide, which sits at the plugin root by design.
+# (--strict would turn that warning into an error, and can't be told to skip just it.)
+if command -v claude >/dev/null; then
+  V=$(claude plugin validate "$ROOT" 2>&1) || { echo "$V"; echo "plugin validate failed"; exit 1; }
+  W=$(printf '%s\n' "$V" | grep -E '^ +❯ ' | grep -v -F 'root: CLAUDE.md at the plugin root is not loaded as project context' || true)
+  [ -z "$W" ] || { echo "$V"; echo "plugin validate: unexpected warning"; exit 1; }
+fi
 ok "plugin manifests match the skills folders and validate"
 
 echo "smoke: $pass passed"
