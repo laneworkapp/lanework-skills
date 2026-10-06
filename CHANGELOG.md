@@ -1,5 +1,17 @@
 **October 2026**
 
+Version 0.2.0: the pitlane skill is now called work, and pitwall is now called watch, started with /watch.
+
+A new merge skill settles git conflicts on a shared board, keeping both sides' edits and stopping only when text would otherwise be lost.
+
+The lanework skill can heal a damaged board, repairing label, stamp and title problems after a dry run.
+
+Boards now live in a Lanework folder, and an older Pitlane folder is still found and offered a rename.
+
+Skills follow version 82 of Lanework's agent guide, where priority and component are labels.
+
+New boards keep every lane's description instead of leaving most of them empty.
+
 Version 0.1.0: the skills install as one Claude Code plugin and update only when a tested release ships.
 
 Skills follow version 78 of Lanework's agent guide.
