@@ -1,0 +1,117 @@
+### tests/smoke.sh at 4ce4a3a (heal-board rebased on main 02da9a6), exit 0
+ok 1 - syntax check on every script, by its shebang
+ok 2 - pipeline founded, 8 lanes read
+ok 3 - pipeline vars rendered
+ok 4 - pipeline board validates
+ok 5 - empty collapsed cell keeps the lane body in place
+ok 6 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 7 - collapsed: yes lane starts collapsed with its body
+ok 8 - validator control: a bare-colon title fails
+ok 9 - refuses a non-empty board folder
+ok 10 - heal dry run lists every kind of damage and writes nothing
+ok 11 - heal --apply repairs each one and the board validates with no DEPRECATED line
+ok 12 - heal leaves a clean card, a foreign entry, an unknown key, a ` #` title and every stamp as written
+ok 13 - a second heal --apply changes nothing
+ok 14 - an indented --- inside a block scalar does not end the frontmatter; the labels below it heal
+ok 15 - a board with its own .schema/ heals the same, against its own validator
+ok 16 - heal defers to the board's own .schema/bin/lanework-heal.py
+ok 17 - discovery founded; colon title quoted; topic rendered
+ok 18 - Q1, Q2 filed, numbered, asks lint clean
+ok 19 - settled with chat record in reply to the ask; parked
+ok 20 - discovery board validates
+ok 21 - lint-ask passes a clean ask
+ok 22 - lint-ask fails a hedged, chained ask
+ok 23 - watch-boards: comment post on the 2nd board reported with its board, draft not reported
+ok 24 - watch-boards refuses two boards with one folder name
+ok 25 - every cited skill file exists
+ok 26 - no skill prescribes priority: or component: as a card key
+ok 27 - no skill names a guide version; one stamp (lanework-agent-guide v82, lanework-schema v1), in CLAUDE.md
+ok 28 - the stamp (lanework-agent-guide v82, lanework-schema v1) is not behind the board's guide v82 and schema v1
+ok 29 - plugin manifests match the skills folders and validate
+smoke: 29 passed
+
+### the two blocking cases, round-1 script (OLD) vs round-2 (NEW)
+== OLD block scalar:
+---
+title: "Block scalar"
+notes: |
+  line one
+modified: {at: 2026-10-06T23:05:01Z, by: {name: fixer, kind: agent, model: test}}
+  ---
+  more
+labels: bug
+---
+Body.
+== OLD comment line:
+---
+title: "Plain title # a yaml comment the owner left"
+modified: {at: 2026-10-06T23:05:01Z, by: {name: fixer, kind: agent, model: test}}
+---
+Body.
+== NEW block scalar:
+---
+title: "Block scalar"
+notes: |
+  line one
+  ---
+  more
+labels: [{text: "bug", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]
+---
+Body.
+== NEW comment line:
+---
+title: "Plain title"
+# a yaml comment the owner left
+---
+Body.
+
+### new smoke against the round-1 script
+heal check failed: retired-key-fold
+exit=1
+
+### unreadable file, --global
+index.md: definition config.labels `status` into the current spelling
+index.md: definition config.labels `text` into the current spelling
+index.md: added-definition config.labels gains `component`, which the board's cards use
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000002/index.md: single-kind kept "Open" of single kind `status`, dropped `Closed`
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000003/index.md: bare-labels labels: "bug" is a one-entry list
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000003/index.md: text-kind "bug" stamped with the `text` kind
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000004/index.md: string-kind "Closed" kind name written as the kind object
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000005/index.md: root-key priority: "High" moved into labels
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000005/index.md: root-key component: "Sync" moved into labels
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000005/index.md: stale-label "Sync" re-stamped from the component definition
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000006/index.md: root-key-dropped priority: "Urgent" dropped, labels already carries "Low"
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000007/index.md: retired-key modified-by "someone" dropped, kept in a record: modified.by names someone else
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000007/index.md: text-kind "bug" stamped with the `text` kind
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000007/index.md: text-kind "ux" stamped with the `text` kind
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000007/index.md: bare-glyph "star" bare glyph folded into icon
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000008/index.md: title-quote unquoted: "Fix: the thing"
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000008/index.md: bare-stamp created written as the mapping
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000008/index.md: bare-stamp modified written as the mapping
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000008/index.md: bare-icon icon written as the mapping {glyph: "star", color: "fern"}
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000008/index.md: retired-key modified-by "claude" folded into modified.by
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-00000000000a/index.md: title-quote continuation folded onto one line, one line: "A long title over two lines"
+aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-00000000000c/index.md: title-quote unquoted: "Plain title"
+skip aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000001/index.md: unreadable: [Errno 13] Permission denied: '/private/tmp/claude-501/-Users-rzen-Indie-Shared-lanework-skills/3a5ba147-ad93-4f38-8866-4bfe55abc1be/scratchpad/ctl/aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000001/index.md'
+skip aaaa0000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-00000000000d/index.md: title carries ` #`, which YAML reads as a comment: quote it by hand
+22 repairs in 10 files (dry run: --apply to write)
+perm exit=0
+global: 1 Area definition in board config; card 5: text: "Sync", color: "fern"
+
+### throwaway copies of real boards
+== SP copy
+8 repairs in 8 files
+documents   133  —  board 1, lane 8, card 32, comment 90, attachment 2, config 0
+deprecated  0
+failures    0 over 0 of 133 documents
+live findings:
+second run: 0 repairs in 0 files
+== LP copy
+   1 skip 11887032-bbbc-47c2-b65f-97c6fba409f5/04f64b90-0049-41a9-8d26-de6362f43f53/comments/a33ce15d-6ec1-48c1-bb81-60eb2a4f1484/index.md: no frontmatter
+1675 repairs in 1265 files
+documents   8263  —  board 1, lane 15, card 571, comment 5710, attachment 1966, config 0
+deprecated  11
+failures    1 over 1 of 8263 documents
+live findings:
+FAIL LP.lanework/11887032-bbbc-47c2-b65f-97c6fba409f5/04f64b90-0049-41a9-8d26-de6362f43f53/comments/a33ce15d-6ec1-48c1-bb81-60eb2a4f1484/index.md: frontmatter-d
+second run: 0 repairs in 0 files
