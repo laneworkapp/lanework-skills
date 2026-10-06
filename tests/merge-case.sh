@@ -147,7 +147,8 @@ dirty)
   mclone; KF="$D/$ACTIVE/$K1/comments/$KC/index.md"
   comment "$D/$ACTIVE/$K1" "$KC" 2026-01-07T00:00:00Z '{name: m, kind: human}' "DIRTY_LOCAL_TOKEN uncommitted."
   if G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1; then fail "dirty: the merge should stop"; fi
-  pass "dirty"; grep -q 'Uncommitted edits carried into the merge as ours' <<<"$OUT" || { echo "$OUT"; fail "dirty: the report doesn't name the local edit"; }
+  pass "dirty"; grep -rq DIRTY_LOCAL_TOKEN "$D" || fail "dirty: the uncommitted edit was erased"
+  grep -q 'Uncommitted edits carried into the merge as ours' <<<"$OUT" || { echo "$OUT"; fail "dirty: the report doesn't name the local edit"; }
   G "$M" commit -q --no-edit; clean_status "dirty"
   grep -q DIRTY_LOCAL_TOKEN "$D/$APPROVED/$K1/comments/$KC/index.md" || fail "dirty: the local edit is not in the merged card"
   # again with no move: git leaves the dirty comment merged and alone, and stops on the body
