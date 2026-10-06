@@ -8,11 +8,11 @@
   },
   "repository": "https://github.com/laneworkapp/lanework-skills",
   "license": "MIT",
-  "keywords": ["lanework", "kanban", "skills", "discovery", "adr", "pdr", "pitlane"],
+  "keywords": ["lanework", "kanban", "skills", "discovery", "adr", "pdr", "work", "watch"],
   "skills": [
     "./skills/lanework",
-    "./skills/pitlane",
-    "./skills/pitwall",
+    "./skills/work",
+    "./skills/watch",
     "./skills/discovery"
   ]
 }

@@ -1,6 +1,6 @@
 # Responding
 
-Only **new owner comments** get replies. Prose: `pitlane/references/writing.md`. Writes: `lanework/references/writes.md`, stamped `session: "board watch"`.
+Only **new owner comments** get replies. Prose: `work/references/writing.md`. Writes: `lanework/references/writes.md`, stamped `session: "board watch"`.
 
 ## Ruling or discussion
 
@@ -14,9 +14,9 @@ Answers a question, picks an option (a button click arrives as `<label>: <option
 Asks for work. Don't do it in the watch session:
 
 1. Post a plan record to the thread first, so the journal shows who's doing what.
-2. Farm it: `pitlane/references/tiers.md`, `pitlane/templates/farmed-prompt.md`. Split work → parallel agents.
-3. Substantial coding card → the build cycle, with the watch session as lead (`pitlane/references/lead.md`).
-4. Review agent output here against `pitlane/references/evidence.md`. Journal outcome + evidence on the thread. Synthesis and the user-facing reply stay here.
+2. Farm it: `work/references/tiers.md`, `work/templates/farmed-prompt.md`. Split work → parallel agents.
+3. Substantial coding card → the build cycle, with the watch session as lead (`work/references/lead.md`).
+4. Review agent output here against `work/references/evidence.md`. Journal outcome + evidence on the thread. Synthesis and the user-facing reply stay here.
 
 ## Questions back
 

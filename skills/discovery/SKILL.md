@@ -43,7 +43,7 @@ From the board, never memory:
 2. Each Asked thread: owner comment newer than `waiting.since` = unrecorded answer → record it first.
 3. Continue at Flow 5.
 
-Owner wants to answer on the board while you wait → suggest `/pitwall <board>` (the owner types it; Claude can't start a watch).
+Owner wants to answer on the board while you wait → suggest `/watch <board>` (the owner types it; Claude can't start a watch).
 
 ## Scripts
 

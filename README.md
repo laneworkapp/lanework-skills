@@ -7,14 +7,14 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | skill | what it's for |
 |---|---|
 | `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, healing a damaged board, the default lane sets, and founding a new board |
-| `pitlane` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
-| `pitwall` | a standing watch on one or more boards, responding to changes as they arrive |
+| `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
+| `watch` | a standing watch on one or more boards, responding to changes as they arrive |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce |
 
-`discovery` and `pitwall` never start on their own. Type the command first in your message:
+`discovery` and `watch` never start on their own. Type the command first in your message:
 
 - `/discovery <topic>` starts or resumes a discovery session.
-- `/pitwall <board> [<board>...]` watches one or more boards, by name or path, until you say stop. With no board named, it watches the project's only board, or asks which.
+- `/watch <board> [<board>...]` watches one or more boards, by name or path, until you say stop. With no board named, it watches the project's only board, or asks which.
 
 ### Sizes
 
@@ -22,65 +22,65 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 9 | 319 | 2,563 |
-| `pitlane` | 16 | 373 | 6,186 |
-| `pitwall` | 4 | 145 | 1,042 |
-| `discovery` | 14 | 432 | 2,398 |
+| `lanework` | 9 | 328 | 2,774 |
+| `work` | 16 | 374 | 6,200 |
+| `watch` | 4 | 146 | 1,044 |
+| `discovery` | 14 | 422 | 2,388 |
 
-Measured with `wc -w` on 2026-10-01, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 319 |
-| `references/authority.md` | 164 |
-| `references/board-kinds.md` | 471 |
+| `SKILL.md` | 328 |
+| `references/authority.md` | 129 |
+| `references/board-kinds.md` | 474 |
 | `references/finding.md` | 101 |
 | `references/format.md` | 143 |
-| `references/founding.md` | 388 |
+| `references/founding.md` | 379 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 759 |
+| `references/writes.md` | 1,002 |
 | `templates/index.md` | 76 |
-| **total** | **2,563** |
+| **total** | **2,774** |
 
-#### `pitlane`
+#### `work`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 373 |
+| `SKILL.md` | 374 |
 | `references/companions.md` | 148 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
-| `references/lead.md` | 972 |
+| `references/lead.md` | 976 |
 | `references/reviewer.md` | 376 |
 | `references/sweep.md` | 531 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
-| `references/writing.md` | 1,037 |
+| `references/writing.md` | 1,040 |
 | `templates/ask.md` | 244 |
-| `templates/farmed-prompt.md` | 148 |
+| `templates/farmed-prompt.md` | 154 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,100** |
+| **total** | **6,200** |
 
-#### `pitwall`
+#### `watch`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 145 |
-| `references/arming.md` | 270 |
+| `SKILL.md` | 146 |
+| `references/arming.md` | 271 |
 | `references/events.md` | 362 |
 | `references/responding.md` | 265 |
-| **total** | **1,042** |
+| **total** | **1,044** |
 
 #### `discovery`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 432 |
+| `SKILL.md` | 422 |
 | `references/board.md` | 271 |
 | `references/conduct.md` | 126 |
 | `references/corners.md` | 171 |
@@ -94,7 +94,7 @@ Measured with `wc -w` on 2026-10-01, over the Markdown an agent reads: `SKILL.md
 | `templates/record.md` | 63 |
 | `templates/ruling.md` | 58 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,398** |
+| **total** | **2,388** |
 
 ## Install
 
@@ -112,8 +112,8 @@ By hand, to follow `main` instead: clone this repo, then symlink or copy each fo
 ```bash
 git clone https://github.com/laneworkapp/lanework-skills.git lanework-skills
 ln -s "$(pwd)/lanework-skills/skills/lanework" ~/.claude/skills/lanework
-ln -s "$(pwd)/lanework-skills/skills/pitlane" ~/.claude/skills/pitlane
-ln -s "$(pwd)/lanework-skills/skills/pitwall" ~/.claude/skills/pitwall
+ln -s "$(pwd)/lanework-skills/skills/work" ~/.claude/skills/work
+ln -s "$(pwd)/lanework-skills/skills/watch" ~/.claude/skills/watch
 ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
 ```
 
@@ -141,10 +141,7 @@ Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUD
 
 ## Names
 
-`pitlane` and `pitwall` are borrowed from motor racing.
-
-- **Pit lane**: the road beside the track where cars come in and crews work on them. The `pitlane` skill is where the work happens. It files and moves cards, sweeps a board, and sends the work to a crew of subagents. Boards live in a `Pitlane/` folder for the same reason.
-- **Pit wall**: the stand between the pit lane and the track. Engineers sit there watching the race live on their screens, and they call the driver in when something changes. The `pitwall` skill watches one or more boards and responds as changes arrive.
+The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, and `discovery` examines a problem space. The `Pitlane/` folder, where a project keeps its boards, is a separate convention with its own name; it is unchanged.
 
 ## Credits
 

@@ -14,7 +14,7 @@ Commands that return a **plausible answer to a different question**: mostly a fa
 | `tool $VAR` under zsh | no word-splitting: one argument. Use an array |
 | `xargs` on paths with spaces | splits the path. Loop, or `find -exec … {} +` |
 | `log show` in zsh | a **builtin**, returns nothing. `/usr/bin/log`, whole-second `--start` / `--end` |
-| filtering fswatch event paths | drops owner comments and card moves. Why: `pitwall/scripts/watch-boards.sh` header |
+| filtering fswatch event paths | drops owner comments and card moves. Why: `watch/scripts/watch-boards.sh` header |
 
 ## Git
 

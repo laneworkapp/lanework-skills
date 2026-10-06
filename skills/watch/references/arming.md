@@ -4,11 +4,11 @@ Once, at start.
 
 ## Rules
 
-Read `pitlane/SKILL.md` and, through it, `lanework/references/authority.md`, by path. Pitwall can't rely on the model loading either skill.
+Read `work/SKILL.md` and, through it, `lanework/references/authority.md`, by path. The watch can't rely on the model loading either skill.
 
 ## Boards
 
-Each `/pitwall` argument is a board name or path:
+Each `/watch` argument is a board name or path:
 
 - Path → that board.
 - Name → match `<Name>.lanework` in the project's `Pitlane/`, then `~/Pitlane/` (`lanework/references/finding.md`). No match or several → ask.
@@ -21,7 +21,7 @@ Then, **per board, now**: read the guide, the board body and **every lane body**
 One persistent Monitor (`persistent: true`) for all boards:
 
 ```bash
-<skills>/pitwall/scripts/watch-boards.sh '<scratchpad>/board-snapshot.txt' '<absolute board path>' ['<absolute board path>'...]
+<skills>/watch/scripts/watch-boards.sh '<scratchpad>/board-snapshot.txt' '<absolute board path>' ['<absolute board path>'...]
 ```
 
 - Needs homebrew `fswatch`. Absent → run the same snapshot diff in a plain 2s `sleep` loop.
@@ -31,6 +31,6 @@ One persistent Monitor (`persistent: true`) for all boards:
 ## Tell the user
 
 - Which boards are watched.
-- The watch runs until TaskStop or session end. It dies with the session and must be re-armed after a resume (`/pitwall` again).
+- The watch runs until TaskStop or session end. It dies with the session and must be re-armed after a resume (`/watch` again).
 - "Stop" tears it down (TaskStop). Watching fewer boards = stop and re-arm with the rest.
 - The Monitor **survives `/clear`**: events keep arriving without this context. After a clear, re-read each board's authority chain before acting on one, or tear the watch down if the user has moved on.
