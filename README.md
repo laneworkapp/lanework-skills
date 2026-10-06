@@ -27,7 +27,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `work` | 16 | 374 | 6,201 |
 | `watch` | 4 | 146 | 1,044 |
 | `discovery` | 14 | 422 | 2,388 |
-| `merge` | 2 | 336 | 1,420 |
+| `merge` | 2 | 362 | 1,577 |
 
 Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
@@ -102,9 +102,9 @@ Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md
 
 | file | words |
 |---|---|
-| `SKILL.md` | 336 |
-| `references/rules.md` | 1,084 |
-| **total** | **1,420** |
+| `SKILL.md` | 362 |
+| `references/rules.md` | 1,215 |
+| **total** | **1,577** |
 
 ## Install
 

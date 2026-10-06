@@ -97,11 +97,13 @@ clean)
   BASEL=$(awk 'f{print} /^---$/{n++; if(n==2) f=1}' "$A/$BN/$IDEAS/index.md")
   lanebody "$A" "$IDEAS" "$TA" "$BYA" "LANE_A_TOP.\n\n$BASEL"; lanebody "$B" "$IDEAS" "$TB" "$BYB" "$BASEL\n\nLANE_B_END."
   lanebody "$A" "$APPROVED" "$TA" "$BYA" "APPR_A replaces the policy."; lanebody "$B" "$APPROVED" "$TB" "$BYB" "APPR_B replaces the policy."
+  sed -i '' 's/^title: .*/title: "Approved A"/' "$A/$BN/$APPROVED/index.md"; sed -i '' 's/^title: .*/title: "Approved B"/' "$B/$BN/$APPROVED/index.md"
   mvcard "$A" "$IDEAS" "$M2" "$DONE"; restamp "$A" "$TA" "$BYA" "$M2"; card "$B" "$IDEAS" "$M2" "M2 base" "$TB" "$BYB" "M2 body TOKEN_B_M2."
   cm "$A" a1; cm "$B" b1; mclone
   G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1 || fail "lossless merge: git should finish by itself"
   clean_status "lossless merge"; inhead LANE_A_TOP LANE_B_END APPR_A APPR_B TOKEN_B_M2 '"y"' '"z"'
   grep -q '^## Merged from the earlier edit' "$D/$APPROVED/index.md" || fail "overlapping lane edits: no merged-from heading"
+  grep -q '^title: "Approved B"$' "$D/$APPROVED/index.md" && grep -q '^Earlier title: "Approved A"$' "$D/$APPROVED/index.md" || fail "lane titles: later wins, earlier inline"
   [ -f "$D/$DONE/$M2/index.md" ] && grep -q TOKEN_B_M2 "$D/$DONE/$M2/index.md" || fail "moved one side, edited other"
   validate_board "$M" "lossless merge"
   # a comment posted on a card the other side moved: git leaves it behind with no conflict; the pass re-homes it
@@ -121,7 +123,14 @@ clean)
   pass "stopped merge"; G "$M" commit -q --no-edit; clean_status "stopped merge"
   inhead TOKEN_A_Y1 TOKEN_B_Y1; [ -f "$D/$APPROVED/$Y1/index.md" ] || fail "Y1 not in the later lane"
   [ "$(mcount "$D/$APPROVED/$Y1")" = 1 ] || fail "Y1: want 1 merge comment"
-  validate_board "$M" "stopped merge"; echo "$OUT"; exit 0 ;;
+  validate_board "$M" "stopped merge"
+  # (j) a tracked orphan comment, then the app moves its card without a commit: git and the disk disagree
+  mkdir -p "$D/$IDEAS/$S1"; comment "$D/$IDEAS/$S1" "$(uuid)" "$TA" "$BYA" "ORPHAN_TOKEN"; cm "$M" orphan
+  mv "$D/$DONE/$S1" "$D/$APPROVED/$S1"
+  OUT=$("$SK/merge/scripts/merge-board.sh" "$M" </dev/null 2>&1) || true
+  grep -q 'Not re-homed: .*disagree' <<<"$OUT" || { echo "$OUT"; fail "(j): the card git and the disk disagree on was not skipped and reported"; }
+  grep -rq ORPHAN_TOKEN "$D/$IDEAS/$S1" && [ -f "$D/$APPROVED/$S1/index.md" ] || fail "(j): the orphan or the moved card was touched"
+  echo "$OUT"; exit 0 ;;
 rebasemove)
   card "$A" "$IDEAS" "$Y1" "Y1 base" "$TA" "$BYA" "Y1 body TOKEN_A_Y1."; cm "$A" a1
   mvcard "$A" "$IDEAS" "$Y1" "$APPROVED"; restamp "$A" 2026-01-05T00:00:00Z "$BYA" "$Y1"; cm "$A" a2
@@ -130,9 +139,14 @@ rebasemove)
   G "$M" rebase -q FETCH_HEAD >/dev/null 2>&1 && fail "rebase: the losing pick should stop"
   while [ -d "$M/.git/rebase-merge" ] || [ -d "$M/.git/rebase-apply" ]; do
     n=$((n+1)); [ $n -le 4 ] || fail "rebase never finished"
-    pass "rebase stop $n"; GIT_EDITOR=true G "$M" rebase --continue >/dev/null 2>&1 || true
+    pass "rebase stop $n"
+    grep -qF 'After the rebase finishes, run merge-board.sh once more and commit the re-home.' <<<"$OUT" || { echo "$OUT"; fail "rebase: the report doesn't say to run the pass again"; }
+    GIT_EDITOR=true G "$M" rebase --continue >/dev/null 2>&1 || true
   done
-  # pick 2 moved the card; git left pick 1's merge comment at the old path, with no conflict
+  # control: pick 2 moved the card and git left pick 1's merge comment behind, so the board doesn't validate yet
+  if python3 "$VAL/.schema/bin/lanework-validate.py" --schema "$VAL/.schema" "$D" 2>&1 | grep -q '^failures    0 '; then
+    fail "rebase control: the board validates before the second run, so the second run proves nothing"; fi
+  # the documented flow: run merge-board.sh once more, commit the re-home
   pass "after the rebase"; grep -q 'Re-homed into their moved cards: 1 file' <<<"$OUT" || { echo "$OUT"; fail "rebase: nothing re-homed"; }
   G "$M" commit -qm "Re-home merge comment"
   clean_status "rebase"; inhead TOKEN_A_Y1 TOKEN_B_Y1
@@ -145,7 +159,7 @@ dirty)
   mvcard "$A" "$IDEAS" "$K1" "$ACTIVE"; card "$A" "$ACTIVE" "$K1" "K1 base" "$TA" "$BYA" "K1 body TOKEN_A_K1."; cm "$A" a1
   mvcard "$B" "$IDEAS" "$K1" "$APPROVED"; card "$B" "$APPROVED" "$K1" "K1 base" "$TB" "$BYB" "K1 body TOKEN_B_K1."; cm "$B" b1
   mclone; KF="$D/$ACTIVE/$K1/comments/$KC/index.md"
-  comment "$D/$ACTIVE/$K1" "$KC" 2026-01-07T00:00:00Z '{name: m, kind: human}' "DIRTY_LOCAL_TOKEN uncommitted."
+  comment "$D/$ACTIVE/$K1" "$KC" 2026-01-07T00:00:00Z '{name: m, kind: human}' $'Heading\n=======\n\nDIRTY_LOCAL_TOKEN uncommitted, under a setext heading.'
   if G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1; then fail "dirty: the merge should stop"; fi
   pass "dirty"; grep -rq DIRTY_LOCAL_TOKEN "$D" || fail "dirty: the uncommitted edit was erased"
   grep -q 'Uncommitted edits carried into the merge as ours' <<<"$OUT" || { echo "$OUT"; fail "dirty: the report doesn't name the local edit"; }

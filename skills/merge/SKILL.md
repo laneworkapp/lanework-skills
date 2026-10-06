@@ -14,7 +14,7 @@ Two people editing one board through git collide often; nearly every collision h
 1. **Driver missing** (`git config --get merge.lanework.driver` empty) → `python3 scripts/lanework-merge.py install <repo>`. Adds the `.gitattributes` rule: tell the user to commit it.
 2. **Pass**: `scripts/merge-board.sh <repo> --model <your model>`. Resolves every unmerged board path, writes merge comments, stages what it resolved, re-homes files a move left behind, validates each board. Run it also after a pull git finished on its own: that's when a comment posted on a card the other side moved is left behind.
 3. **Report**: relay its paragraph. Exit ≠ 0 → a board path is still unmerged or a board fails validation: say which.
-4. **Stop.** The merge commit, `git rebase --continue`, or committing a re-home is the user's. Conflicts outside boards are theirs too.
+4. **Stop.** The merge commit, `git rebase --continue`, or committing a re-home is the user's. Conflicts outside boards are theirs too. **After a rebase finishes, run `merge-board.sh` once more and commit the re-home**: a later pick that moves a card leaves an earlier pick's merge comment behind.
 
 Never hand-edit conflict markers on a board, and never ask the human to pick a side.
 

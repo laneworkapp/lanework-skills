@@ -18,7 +18,7 @@ Every rule is 3-way against the merge base: a key changed on one side only → t
 | what | result |
 |---|---|
 | `modified` | the later stamp, `at` and `by` together |
-| `title` | later wins; the other title in the merge comment (an attachment's: named by its id) |
+| `title` | later wins; the other title in the merge comment (an attachment's: named by its id). A lane or board title: the earlier inline, `Earlier title: "…"` under the body's merged-from heading |
 | `labels`, board `config.labels` values | union, by `text` within a kind. A removal on one side holds |
 | single-valued label kinds: priority, component, any kind the board marks `single` | state: the later side's entries of that kind, whole |
 | `order`, `waiting`, `hero`, `collapsed`, any other key | later `modified` side wins |
@@ -39,14 +39,14 @@ The pass matches cards by uuid across base, ours and theirs, not by git's rename
 |---|---|
 | moved to different lanes on both sides | later `modified` decides lane and `order` |
 | moved on one side, edited on the other | the merged content at the new path |
-| moved on one side, a comment or attachment added on the other | git leaves the new file behind, in a folder with no `index.md`, and finishes. The pass moves it into the card, staged, even after the merge |
+| moved on one side, a comment or attachment added on the other | git leaves the new file behind, in a folder with no `index.md`, and finishes. The pass moves it into the card, staged, even after the merge. The card's home is read from disk; where git and the disk disagree (a move not yet committed), the card is skipped and named in the report |
 | trashed on one side, edited on the other | later `modified` wins: a later trash stays trashed carrying the edit; a later edit restores the card to the lane it held at the base (or the editing side's lane) |
 | trashed on both | trashed once |
 | same uuid added on both sides | ours; theirs' body in the merge comment |
 | deleted for good (`rm`) on one side, edited on the other | the edit kept; the merge comment says the other side deleted it |
 | git paired two different cards by similarity (a delete plus an add) | refused: `created` differs. The pass rebuilds both cards by uuid |
 | card's lane gone on the winning side | the lane's trashed copy, else ours' location |
-| uncommitted local edits in a card the pass rebuilds | carried as ours, 3-way against theirs, staged, named in the report. Never erased |
+| uncommitted local edits in a card the pass rebuilds | carried as ours, 3-way against theirs, staged, named in the report. Never erased. Only git's own conflict output (`<<<<<<< `, `=======`, `>>>>>>> ` lines, in order) is not an edit |
 | any other unmerged board path | ours, named in the report. The merge always finishes |
 
 ## The merge comment
@@ -72,3 +72,6 @@ The pass matches cards by uuid across base, ours and theirs, not by git's rename
 - No merge base (squash, shallow clone) → ours wins every both-changed file, the other side in a merge comment.
 - In a rebase, ours is the upstream: ties and the ours-rows go to it.
 - Criss-cross merges: each clone that merges posts its own merge comment, so one loss can appear twice.
+- A GUI git client may run with a `PATH` that lacks `python3` (a Homebrew one included): the driver can't run there, so see the no-`python3` line above.
+- Re-homing moves tracked files only. An untracked file left in an orphan folder (an unposted draft) stays there.
+- A rebase whose later pick moves a card leaves an earlier pick's merge comment behind until the second run in `SKILL.md` step 4.
