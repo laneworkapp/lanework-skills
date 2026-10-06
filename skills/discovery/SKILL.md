@@ -54,7 +54,3 @@ Owner wants to answer on the board while you wait → suggest `/pitwall <board>`
 | `found-discovery-board.sh <path> [title]` | founds the board: `found-board.sh` with `templates/board.md` + `templates/lanes.md` |
 | `file-question.sh <board> <title> --round N --body F` | files the next Q into Asked, with founding + ask comments |
 | `settle-question.sh <board> <card-uuid> --ruling F` | appends the ruling, clears `waiting`, moves to Settled (or `--to parked`) |
-
-## Versioning
-
-Target guide and schema versions: `lanework/references/authority.md` § Versions.
