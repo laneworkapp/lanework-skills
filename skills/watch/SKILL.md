@@ -4,7 +4,7 @@ description: "Live watch on one or more Lanework boards: replies to your new com
 disable-model-invocation: true
 ---
 
-# watch
+# Watch
 
 This session stays up, watches one or more boards, and acts on what the owner writes until told to stop. Runs only as `/watch <board> [<board>...]`: names or paths, none → `references/arming.md` § Boards.
 
