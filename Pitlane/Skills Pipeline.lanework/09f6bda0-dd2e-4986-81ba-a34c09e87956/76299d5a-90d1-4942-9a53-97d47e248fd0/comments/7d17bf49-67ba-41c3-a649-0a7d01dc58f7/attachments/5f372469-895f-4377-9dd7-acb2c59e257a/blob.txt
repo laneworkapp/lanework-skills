@@ -1,0 +1,49 @@
+### tests/smoke.sh at 0827c46 (heal-board rebased on main b2e31b6), exit 0
+ok 1 - syntax check on every script, by its shebang
+ok 2 - pipeline founded, 8 lanes read
+ok 3 - pipeline vars rendered
+ok 4 - pipeline board validates
+ok 5 - empty collapsed cell keeps the lane body in place
+ok 6 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 7 - collapsed: yes lane starts collapsed with its body
+ok 8 - validator control: a bare-colon title fails
+ok 9 - refuses a non-empty board folder
+ok 10 - heal dry run lists every kind of damage and writes nothing
+ok 11 - heal --apply repairs each one and the board validates with no DEPRECATED line
+ok 12 - heal leaves a clean card, its foreign entry and its unknown key byte for byte, and its lane unstamped
+ok 13 - a second heal --apply changes nothing
+ok 14 - a board with its own .schema/ heals the same, against its own validator
+ok 15 - heal defers to the board's own .schema/bin/lanework-heal.py
+ok 16 - discovery founded; colon title quoted; topic rendered
+ok 17 - Q1, Q2 filed, numbered, asks lint clean
+ok 18 - settled with chat record in reply to the ask; parked
+ok 19 - discovery board validates
+ok 20 - lint-ask passes a clean ask
+ok 21 - lint-ask fails a hedged, chained ask
+ok 22 - watch-boards: comment post on the 2nd board reported with its board, draft not reported
+ok 23 - watch-boards refuses two boards with one folder name
+ok 24 - every cited skill file exists
+ok 25 - no skill prescribes priority: or component: as a card key
+ok 26 - one version stamp (lanework-agent-guide v78), in authority.md only
+ok 27 - plugin manifests match the skills folders and validate
+smoke: 27 passed
+
+# heal-board.py on throwaway copies of real boards (cp -R into scratch; originals untouched)
+SP (Skills Pipeline copy, re-measured at 0827c46): 8 repairs in 8 files (title-quote); after --apply: failures 0 over 0 of 117 documents, deprecated 0; second --apply: 0 repairs in 0 files
+LP (Lanework Pipeline copy): dry run counts:
+   1 bare-icon
+ 417 bare-stamp
+   1 repairs
+ 238 retired-key
+   1 root-key
+  87 stale-label
+ 930 title-quote
+1674 repairs in 1264 files (dry run: --apply to write)
+skip 11887032-bbbc-47c2-b65f-97c6fba409f5/04f64b90-0049-41a9-8d26-de6362f43f53/comments/a33ce15d-6ec1-48c1-bb81-60eb2a4f1484/index.md: unreadable: no frontmatter
+after --apply, validator:
+documents   8253  —  board 1, lane 15, card 570, comment 5703, attachment 1964, config 0
+deprecated  11
+failures    1 over 1 of 8253 documents
+non-trash findings left:
+FAIL LP.lanework/11887032-bbbc-47c2-b65f-97c6fba409f5/04f64b90-0049-41a9-8d26-de6362f43f53/comments/a33ce15d-6ec1-48c1-bb81-60eb2a4f1484/index.md: frontmatter-delimiters at #/ (instance #/) — line 1 is not a `---` delimiter
+second --apply: 0 repairs in 0 files
