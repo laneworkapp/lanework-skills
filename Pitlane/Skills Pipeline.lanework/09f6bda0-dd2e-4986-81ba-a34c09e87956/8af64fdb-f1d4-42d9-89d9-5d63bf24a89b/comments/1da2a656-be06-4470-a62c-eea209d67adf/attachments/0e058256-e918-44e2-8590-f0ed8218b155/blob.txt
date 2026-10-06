@@ -1,0 +1,39 @@
+$ cd .claude/worktrees/merge-skill && bash tests/smoke.sh; echo $?   (at a9a46ab, on main ca8c246)
+ok 1 - syntax check on every script, by its shebang
+ok 2 - no skill folder or plugin.json entry is named pitlane or pitwall
+ok 3 - pipeline founded, 8 lanes read
+ok 4 - pipeline vars rendered
+ok 5 - pipeline board validates
+ok 6 - empty collapsed cell keeps the lane body in place
+ok 7 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 8 - collapsed: yes lane starts collapsed with its body
+ok 9 - validator control: a bare-colon title fails
+ok 10 - refuses a non-empty board folder
+ok 11 - heal dry run lists every kind of damage and writes nothing
+ok 12 - heal --apply repairs each one and the board validates with no DEPRECATED line
+ok 13 - heal leaves a clean card, a foreign entry, an unknown key, a ` #` title and every stamp as written
+ok 14 - a second heal --apply changes nothing
+ok 15 - an indented --- inside a block scalar does not end the frontmatter; the labels below it heal
+ok 16 - a board with its own .schema/ heals the same, against its own validator
+ok 17 - heal defers to the board's own .schema/bin/lanework-heal.py
+ok 18 - discovery founded; colon title quoted; topic rendered
+ok 19 - Q1, Q2 filed, numbered, asks lint clean
+ok 20 - settled with chat record in reply to the ask; parked
+ok 21 - discovery board validates
+ok 22 - lint-ask passes a clean ask
+ok 23 - lint-ask fails a hedged, chained ask
+ok 24 - watch-boards: comment post on the 2nd board reported with its board, draft not reported
+ok 25 - watch-boards refuses two boards with one folder name
+ok 26 - merge case: every row resolves with no prompt, as a merge
+ok 27 - merge case: every row resolves with no prompt, as a rebase
+ok 28 - merge case: every row resolves with no prompt, as a nodriver
+ok 29 - merge case: git finishes a lossless merge alone, stops on a loss, and a comment left by a move is re-homed
+ok 30 - merge case: a rebase with a later move leaves no orphaned folder
+ok 31 - merge case: uncommitted edits in a conflicted card are carried as ours, never erased
+ok 32 - every cited skill file exists
+ok 33 - no skill prescribes priority: or component: as a card key
+ok 34 - no skill names a guide version; one stamp (lanework-agent-guide v82, lanework-schema v1), in CLAUDE.md
+ok 35 - the stamp (lanework-agent-guide v82, lanework-schema v1) is not behind the board's guide v82 and schema v1
+ok 36 - plugin manifests match the skills folders and validate
+smoke: 36 passed
+exit=0
