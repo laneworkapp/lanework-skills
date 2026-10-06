@@ -80,6 +80,11 @@ fi
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 
+# format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)
+H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top-level)|(root|top-level)[^.]*(priority|component)' "$SK" || true; } | grep -v -i 'reserved' || true)
+[ -z "$H" ] || { echo "a skill prescribes priority/component as a card key (they are labels entries, see the guide): $H"; exit 1; }
+ok "no skill prescribes priority: or component: as a card key"
+
 # versions: stamped only in authority.md
 A="$SK/lanework/references/authority.md"
 S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$A" || true; } | head -1)
