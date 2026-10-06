@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Guide version: drop the runtime check, make the stamp a release gate"
-order: 3072
+order: 20480
 labels: [{text: lanework, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-09-28T00:41:31Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-06T22:49:13Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-06T22:57:21Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 The app and skills ship together, and the app never downgrades a board's guide, so an agent gains nothing from comparing the board's guide version with the skills' target at runtime. The stamp's real job is a check before each coordinated release.
 
