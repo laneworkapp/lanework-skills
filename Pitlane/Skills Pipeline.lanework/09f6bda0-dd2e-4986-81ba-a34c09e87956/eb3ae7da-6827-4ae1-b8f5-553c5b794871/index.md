@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Rename pitwall to watch and pitlane to work"
-order: 5120
+order: 2048
 labels: [{text: pitlane, kind: {type: skill, text: Skill}}, {text: pitwall, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-06T22:35:32Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
-modified: {at: 2026-10-06T22:39:43Z}
+modified: {at: 2026-10-06T23:09:25Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 The racing names ask users to decode a metaphor before they can use the skills, and early users didn't. The two skills take plain verbs that say what they do: `watch` stays up and reacts to a board, `work` files, sweeps and builds on one. They sit beside `lanework` and `discovery`, which already read as plain English.
 
@@ -14,7 +14,7 @@ The racing names ask users to decode a metaphor before they can use the skills, 
 - **Out of scope**: the `Pitlane/` folder convention where boards live, and the `Pitlane` wording in `lanework/references/finding.md`. That is a separate decision with a migration cost, to be filed on its own.
 - **Board**: the `Skill` label values become `watch` and `work` in this board's instruction sheet and on open cards. Done cards keep the old values as history.
 - **Check**: `work`'s description still triggers on "Lanework", "pipeline board", "sweep", "file a card". The base skill's "Not for sweeping or working a board" line names `work`. Prose where "work" is both the skill and the verb stays unambiguous.
-- **Version**: major bump at release, per the repo's rule for a renamed skill.
+- **Version**: ~~major bump at release, per the repo's rule for a renamed skill~~ **ruled 2026-10-06: ships in 0.2.0, the owner's call; a minor bump is the pre-1.0 major.**
 - **Verify**: `tests/smoke.sh` passes, including check-refs. `grep -ri 'pitlane\|pitwall' skills .claude-plugin README.md CLAUDE.md tests` finds only the `Pitlane/` folder convention.
 - **Done when**: the above holds and the local `~/.claude/skills` links are renamed.
 - **Accepted limitation**: the app's in-board guide names `pitlane` and `pitwall` in its skills paragraph. That fix ships in the app and is tracked outside this board.
