@@ -466,7 +466,7 @@ def merge_doc(base, ours, theirs, kind, singles):
         return ours, [{'line': 'An unreadable file was changed on both sides: ours kept, the other side\'s is below.',
                        'label': 'The other side\'s file', 'text': theirs}], 'ours'
     win = later(eo, et)
-    losses, out = [], []
+    losses, out, lost_title = [], [], None
     keys = [k for k, _ in eo] + [k for k, _ in et if fm_get(eo, k) is None]
     for k in keys:
         lb, lo, lt = fm_get(eb, k), fm_get(eo, k), fm_get(et, k)
@@ -494,19 +494,27 @@ def merge_doc(base, ours, theirs, kind, singles):
             if k == 'title' and lo and lt:
                 lost = parse_value(lo if win == 'theirs' else lt)
                 kept = parse_value(pick)
-                losses.append({'line': 'Title: kept "%s"; the other side\'s was "%s".' % (kept, lost)})
+                if kind in ('lane', 'board'):  # no thread: inline, with the earlier body (ruling A)
+                    lost_title = lost
+                else:
+                    losses.append({'line': 'Title: kept "%s"; the other side\'s was "%s".' % (kept, lost)})
         if pick:
             out.append((k, pick))
-    if bo == bt or bt == bb:
+    if kind in ('lane', 'board') and not (bo == bt or bt == bb or bo == bb):
+        # No thread to hold a loser: git's clean 3-way merge, else both inline, the earlier under a heading.
+        body, conflicts = merge_text(bb, bo, bt)
+        lost_e, lost_b = (eo, bo) if win == 'theirs' else (et, bt)
+        if conflicts or lost_title is not None:
+            if conflicts:
+                body = bt if win == 'theirs' else bo
+            extra = ['Earlier title: "%s"' % lost_title] if lost_title is not None else []
+            if conflicts:
+                extra.append(lost_b.strip('\n'))
+            body = body.rstrip('\n') + '\n\n## Merged from the earlier edit (%s)\n\n' % stamp_desc(lost_e) + '\n\n'.join(extra) + '\n'
+    elif bo == bt or bt == bb:
         body = bo
     elif bo == bb:
         body = bt
-    elif kind in ('lane', 'board'):
-        # No thread to hold a loser: git's clean 3-way merge, else both inline, the earlier under a heading.
-        body, conflicts = merge_text(bb, bo, bt)
-        if conflicts:
-            kept_b, lost_e, lost_b = (bt, eo, bo) if win == 'theirs' else (bo, et, bt)
-            body = kept_b.rstrip('\n') + '\n\n## Merged from the earlier edit (%s)\n\n' % stamp_desc(lost_e) + lost_b.lstrip('\n')
     else:
         body = bt if win == 'theirs' else bo
         lost_e, lost_b = (eo, bo) if win == 'theirs' else (et, bt)
@@ -515,6 +523,9 @@ def merge_doc(base, ours, theirs, kind, singles):
         losses.append({'line': 'The %s: kept the later edit (%s); the earlier (%s) is below.' % (
             noun, stamp_desc(kept_e), stamp_desc(lost_e)),
             'label': 'The earlier %s' % noun, 'text': lost_b})
+    if lost_title is not None and '## Merged from the earlier edit' not in body:
+        lost_e = eo if win == 'theirs' else et
+        body = body.rstrip('\n') + '\n\n## Merged from the earlier edit (%s)\n\nEarlier title: "%s"\n' % (stamp_desc(lost_e), lost_title)
     return join_doc(out, body), losses, win
 
 
@@ -918,7 +929,7 @@ def process_card(repo, trees, revs, board, card, model, notes, um):
             ok = {x for x in vals if x is not None} | ({files[w][1]} if w in files else set())
             if p in um:
                 ok |= {trees.blob(v[1]) for v in um[p].values()}
-                if b'\n=======' in wt:
+                if is_git_conflict_output(wt):
                     continue
             if wt in ok:
                 continue
@@ -990,6 +1001,15 @@ def is_merge_artifact(repo, p):
     return False
 
 
+CONFLICT = re.compile(rb'(?m)^<<<<<<< [^\n]*\n(?:[^\n]*\n)*?=======\r?\n(?:[^\n]*\n)*?>>>>>>> ')
+
+
+def is_git_conflict_output(data):
+    """git's own conflict output: `<<<<<<< `, `=======` and `>>>>>>> ` marker lines, in that order.
+    Anything else (a setext heading's `=======` included) is somebody's edit, and is carried."""
+    return bool(CONFLICT.search(data))
+
+
 def rehome(repo, notes):
     """A comment or attachment added on one side of a card the other side moved stays at the old path:
     git sees no conflict. Move every tracked file in a card folder with no index.md into its card."""
@@ -1001,24 +1021,53 @@ def rehome(repo, notes):
         if c and c['cls'] == 'card':
             items.setdefault((c['board'], c['card']), {}).setdefault(c['loc'], []).append(p)
     for (board, card), locs in items.items():
-        homes = [l for l, ps in locs.items() if '/'.join([board] + list(l) + ['index.md']) in ps]
-        orphans = [l for l in locs if l not in homes]
-        if len(homes) != 1 or not orphans or (board, card) in held:
-            continue
-        home = '/'.join([board] + list(homes[0]))
-        moved, title = [], title_of(open(os.path.join(repo, home, 'index.md'), encoding='utf-8', errors='replace').read())
-        for l in orphans:
-            src = '/'.join([board] + list(l))
-            for p in locs[l]:
-                dst = home + p[len(src):]
-                if os.path.exists(os.path.join(repo, dst)):
-                    continue
-                os.makedirs(os.path.dirname(os.path.join(repo, dst)), exist_ok=True)
-                git(repo, 'mv', '-k', '--', p, dst)
-                moved.append(dst)
-            prune(repo, src)
-        if moved:
-            notes['rehomed'].append('%d file%s of "%s"' % (len(moved), '' if len(moved) == 1 else 's', title))
+        try:
+            rehome_card(repo, board, card, locs, held, notes)
+        except Exception as e:  # one card's trouble never stops the rest
+            notes['skipped'].append('%s (%s)' % (card[:8], e))
+
+
+def disk_homes(repo, board, card):
+    """Card folders for this uuid that hold an index.md on disk (lane/<card>, .trash/<card>, .trash/<lane>/<card>)."""
+    root, out = os.path.join(repo, board), set()
+    for l in os.listdir(root):
+        if is_uuid(l) and os.path.isfile(os.path.join(root, l, card, 'index.md')):
+            out.add((l, card))
+    t = os.path.join(root, '.trash')
+    if os.path.isdir(t):
+        if os.path.isfile(os.path.join(t, card, 'index.md')):
+            out.add(('.trash', card))
+        for l in os.listdir(t):
+            if is_uuid(l) and os.path.isfile(os.path.join(t, l, card, 'index.md')):
+                out.add(('.trash', l, card))
+    return out
+
+
+def rehome_card(repo, board, card, locs, held, notes):
+    if (board, card) in held:
+        return
+    index_homes = {l for l, ps in locs.items() if '/'.join([board] + list(l) + ['index.md']) in ps}
+    homes = disk_homes(repo, board, card)
+    orphans = [l for l in locs if l not in index_homes]
+    if not orphans:
+        return
+    if homes != index_homes or len(homes) != 1:
+        notes['skipped'].append('%s (git and the disk disagree on where the card is: commit the move first)' % card[:8])
+        return
+    home = '/'.join([board] + list(next(iter(homes))))
+    moved, title = [], title_of(open(os.path.join(repo, home, 'index.md'), encoding='utf-8', errors='replace').read())
+    for l in orphans:
+        src = '/'.join([board] + list(l))
+        for p in locs[l]:
+            dst = home + p[len(src):]
+            if os.path.exists(os.path.join(repo, dst)) or not os.path.exists(os.path.join(repo, p)):
+                continue
+            os.makedirs(os.path.dirname(os.path.join(repo, dst)), exist_ok=True)
+            git(repo, 'mv', '-k', '--', p, dst)
+            moved.append(dst)
+        prune(repo, src)
+    if moved:
+        notes['rehomed'].append('%d file%s of "%s"' % (len(moved), '' if len(moved) == 1 else 's', title))
 
 
 def refresh_install(repo):
@@ -1037,7 +1086,7 @@ def cmd_resolve(argv):
     how, base, theirs = op_state(repo)
     revs = (base, 'HEAD', theirs)
     trees = Trees(repo)
-    notes = {'placed': [], 'comments': [], 'leftover': [], 'beside': [], 'carried': [], 'rehomed': [], 'paths': 0}
+    notes = {'placed': [], 'comments': [], 'leftover': [], 'beside': [], 'carried': [], 'rehomed': [], 'skipped': [], 'paths': 0}
     um = {p: s for p, s in unmerged(repo).items() if classify(p)} if how else {}
     boards = {classify(p)['board'] for p in um}
     cards, others = {}, []
@@ -1088,6 +1137,7 @@ def cmd_resolve(argv):
         arts = [r[3:] for r in out.split('\0') if r.startswith('?? ') and is_merge_artifact(repo, r[3:])]
         if arts:
             git(repo, 'add', '-f', '--', *arts)
+    staged_before = set(git(repo, 'diff', '--cached', '--name-only', '-z').decode().split('\0')) - {''} if not how else set()
     rehome(repo, notes)
     boards |= {classify(p)['board'] for p in git(repo, 'diff', '--cached', '--name-only', '-z').decode().split('\0')
                if p and classify(p)}
@@ -1112,9 +1162,11 @@ def cmd_resolve(argv):
     # report: one paragraph
     s = []
     if not how and not notes['rehomed']:
-        s.append('No merge, rebase or cherry-pick in progress, and no file left behind by a move: nothing to resolve.')
+        s.append('No merge, rebase or cherry-pick in progress%s.' % ('' if notes['skipped'] else ', and no file left behind by a move: nothing to resolve'))
     elif not how:
         s.append('Re-homed into their moved cards: %s. Staged, not committed: commit it.' % ', '.join(notes['rehomed']))
+        if staged_before:
+            s.append('Other changes were already staged (%d path%s); the re-home is staged alongside them, so commit the re-home paths alone if they are not yours to commit.' % (len(staged_before), '' if len(staged_before) == 1 else 's'))
     else:
         s.append('Board merge%s: %d unmerged board path%s resolved.' % (' (%s)' % how if how else '', notes['paths'], '' if notes['paths'] == 1 else 's'))
         if notes['placed']:
@@ -1131,12 +1183,16 @@ def cmd_resolve(argv):
             s.append('Re-homed into their moved cards: %s.' % ', '.join(notes['rehomed']))
         if notes['carried']:
             s.append('Uncommitted edits carried into the merge as ours, and staged: %s.' % '; '.join(notes['carried']))
+    if notes['skipped']:
+        s.append('Not re-homed: %s.' % '; '.join(notes['skipped']))
     if vals:
         s.append(' '.join(v + '.' for v in vals))
     if other:
         s.append('Conflicts outside any board are left for you: %s.' % ', '.join(other))
     if how:
         s.append('Nothing is committed: %s.' % ('commit the merge' if how == 'merge' else 'run git %s --continue' % how))
+    if how == 'rebase':
+        s.append('After the rebase finishes, run merge-board.sh once more and commit the re-home.')
     print(' '.join(s))
     return 1 if (left or bad) else 0
 
