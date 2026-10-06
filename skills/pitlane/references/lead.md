@@ -24,7 +24,7 @@ Project specifics (gate command, what green means, blast radius, remote/PR) come
 Read every candidate card whole (`lanework/references/reading.md`). Then:
 
 1. **Build-blockers first**: a red gate on main blocks every branch's evidence.
-2. Then the board's priority field, then lane order.
+2. Then the card's priority, as the board's guide defines it, then lane order.
 3. Two cards on one surface = a **merge-ordering fact**. Plan the serialization at dispatch.
 
 ## Dispatch

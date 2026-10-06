@@ -48,7 +48,7 @@ Fill `templates/ask.md`. Hard budget:
 
 Lint before the `mv`: `scripts/lint-ask.sh <file> <board>` fails on each mechanical item, silent on a record.
 
-Same pass: set the card's `waiting: {for: <handle>, since: <now>, comment: <ask uuid>}`, restamping `modified`. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since`; never remove it yourself. Cleared before the reply you needed → set it again.
+Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since`; never remove it yourself. Cleared before the reply you needed → set it again.
 
 Options become buttons. A click posts `<label>: <option text>` as the human's comment.
 

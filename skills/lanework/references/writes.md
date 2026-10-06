@@ -4,13 +4,13 @@ The guide has the full rules. These hold on every board and cost most when misse
 
 ## Every write
 
-- **Stamp it.** `created` / `modified` = `{at, by}`; `by: {name: <you or your role>, kind: agent, model: <model>[, session: "<name>"]}`. **Missing `by` claims the owner wrote it.** Move `at` + `by` together. Never sign `shortcuts`, `healer` or `tracker`: app-reserved.
+- **Stamp it**: shape = the guide's § Stamping your work; `by.name` = you or your role. **Missing `by` claims the owner wrote it.** Never sign `shortcuts`, `healer` or `tracker`: app-reserved.
 - **Stage outside the board, then `mv` in.** App reloads on every fs event and can read a half-written file. A temp left beside a card's `index.md` is relocated into its `attachments/`, not deleted (2026-09-08). After an aborted write, check `attachments/` for strays.
-- **Double-quote every string value**: `title: "…"`. A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`. Every scalar on one line; a title never carries a line break.
-- **Priority, component = root keys, never `labels` entries**: `priority: {text: "Medium", rank: 2}`. A `labels` entry of kind `priority`/`component` is not read: drawn as a stray chip, skipped by grouping and filters. A built-in kind is never stamped in `labels` (2026-10-02: three cards copied a custom kind's entry shape).
+- **Double-quote every string value** (guide § Frontmatter: quoting). A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`.
+- **Labels, priority and component**: all `labels` entries; shape, kinds and the built-in `text` kind = the guide's § Frontmatter (`labels`) and `.schema/card.json`. A root `priority:` / `component:` key is reserved: never written. Copy an entry's shape from the guide, never from another card (2026-10-02: three cards copied a custom kind's entry shape).
 - **Validate before committing**: `python3 "$BOARD/.schema/bin/lanework-validate.py" <file or board>` → exit 0 **and** no `DEPRECATED` line. No `.schema/` yet: `founding.md` § Validate.
 - **Stamp lines: rewrite whole, never regex-patch.** Nested braces corrupt. `grep '}}}'` every touched file after.
-- **Icons**: `{glyph: <SF Symbol>}`. `color` only when the tint says what the glyph can't.
+- **Icons, colors**: the guide's § Colors and icons. `color` only when the tint says what the glyph can't.
 
 ## Paths
 
@@ -27,9 +27,8 @@ The guide has the full rules. These hold on every board and cost most when misse
 
 ## Placing
 
-- Bottom of a lane: max `order` + 1024; top: min − 1024; between: midpoint. Empty lane: 1024.
-- Lanes use the same 1024 ladder. Insert by midpoint; no other file changes.
-- Lane has `card-defaults` → union its labels into the new card's `labels` yourself. The app applies them only to cards it makes.
+- Ladder: the guide's § Creating a card (1024 steps, midpoint between). Lanes use the same ladder; inserting changes no other file.
+- Lane has `card-defaults` → union its labels into the new card's `labels` yourself (guide § Frontmatter, lanes). The app applies them only to cards it makes.
 
 ## Comments
 
