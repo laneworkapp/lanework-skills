@@ -2,7 +2,7 @@
 schema: 1
 kind: card
 title: "Fix found-board.sh dropping lane bodies when collapsed is empty"
-order: 1024
+order: 3072
 labels:
   - text: "lanework"
     kind:
@@ -10,13 +10,16 @@ labels:
       text: "Skill"
   - text: "High"
     rank: 1
+    color: "#E07A1F"
+    icon:
+      glyph: "exclamationmark"
     kind:
       type: "priority"
       text: "Priority"
       icon:
         glyph: "flag"
 created:  {at: 2026-10-06T22:24:45Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-06T22:24:45Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-06T22:32:11Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 `found-board.sh` founded every lane with an empty body unless its `collapsed` cell was filled, so pipeline boards came out with no lane policy at all.
 
