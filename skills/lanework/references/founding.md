@@ -16,7 +16,7 @@ scripts/found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lane
 
 Index body: description above the first `##`; instruction sheet below it. The sheet holds whatever an agent would otherwise get wrong: gates and who holds them, the card bar, what verified means, blast radius, repo conduct. Nothing the guide says. Per-board process lives there, never in a file of its own.
 
-Keys and value shapes (board, lane, `config`, `icon`, `background`, `group`, `filter`): the guide's § Frontmatter and `.schema/board.json`, `.schema/lane.json`; none restated here. Founding needs only `schema: 1` on the board, which the script writes.
+Keys and value shapes (board, lane, `config`, `icon`, `background`, `group`, `filter`): the guide's § Frontmatter and `.schema/board.json`, `.schema/lane.json`; none restated here. The script writes the board's required keys.
 
 ## Don't write
 
