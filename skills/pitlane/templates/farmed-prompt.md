@@ -6,7 +6,7 @@ Every farmed task's prompt carries all of these. A farmed agent reads only what 
 Card: <absolute path to the card folder>
 Board: <absolute path to the .lanework folder>
 Before acting: read <board>/CLAUDE.md, the board index.md body, the lane bodies, and the card's whole thread (cat, never head).
-Stamp every write: by: {name: <role>, kind: agent, model: <tier>}
+Stamp every write with `by` (guide § Stamping your work): name <role>, kind agent, model <tier>
 Board write rules: <skills>/lanework/references/writes.md
 Journal on the card's thread: plan when you start, decisions as you make them, verification evidence at the end.
 <paste pitlane/references/writing.md § Short form, verbatim>
