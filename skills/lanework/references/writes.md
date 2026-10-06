@@ -6,7 +6,7 @@ The guide has the full rules. These hold on every board and cost most when misse
 
 - **Stamp it**: shape = the guide's § Stamping your work; `by.name` = you or your role. **Missing `by` claims the owner wrote it.** Never sign `shortcuts`, `healer` or `tracker`: app-reserved.
 - **Stage outside the board, then `mv` in.** App reloads on every fs event and can read a half-written file. A temp left beside a card's `index.md` is relocated into its `attachments/`, not deleted (2026-09-08). After an aborted write, check `attachments/` for strays.
-- **Double-quote every string value** (guide § Frontmatter: quoting). A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`.
+- **Double-quote every string value** (guide § Frontmatter: "Quote any `title` containing a colon", "Keep every scalar on one line"). A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`.
 - **Labels, priority and component**: all `labels` entries; shape, kinds and the built-in `text` kind = the guide's § Frontmatter (`labels`) and `.schema/card.json`. A root `priority:` / `component:` key is reserved: never written. Copy an entry's shape from the guide, never from another card (2026-10-02: three cards copied a custom kind's entry shape).
 - **Validate before committing**: `python3 "$BOARD/.schema/bin/lanework-validate.py" <file or board>` → exit 0 **and** no `DEPRECATED` line. No `.schema/` yet: `founding.md` § Validate.
 - **Stamp lines: rewrite whole, never regex-patch.** Nested braces corrupt. `grep '}}}'` every touched file after.
@@ -18,9 +18,11 @@ The guide has the full rules. These hold on every board and cost most when misse
 - **Never `mkdir` into an existing card's path.** If a write needs one, the path is wrong. A new card = the whole folder staged outside, then one `mv` in.
 - **The Write tool is a ghost machine**: it creates parent dirs, so a stale path mints a duplicate card, and the app remints the stray under a fresh uuid. Prefer shell `mv` guarded by the existence check.
 - **Never rename a uuid folder.**
-- **Delete = `mv` to `<board>/.trash/`**, never `rm -r`. Restamp `modified` whole (the trash sorts by it); leave `order` for the restore.
+- **Delete = `mv` to `<board>/.trash/`**, never `rm -r` (guide § Editing and deleting). Restamp `modified` whole (the trash sorts by it); leave `order` for the restore.
 
 ## Moving
+
+Guide § Moving and reordering has the full rules.
 
 - **Another lane** = `mv` one card folder by name (never a glob: it takes the lane's own `index.md`), a fresh `order`, and `modified` rewritten whole. **A bare `mv` reads as the owner's move.**
 - **Same lane** = rewrite `order` only; leave `modified` alone.
