@@ -1,9 +1,9 @@
 ---
-name: pitlane
-description: "Pitlane: working Lanework boards. Filing and moving cards, writing card bodies and comments (records vs asks to the human), answering board questions, sweeping a pipeline board for workloads, triaging them, and farming the work out to model-tiered subagents, with a lead/fixer/reviewer build cycle for coding cards. Use whenever the user mentions Lanework, Pitlane, or a pipeline board (e.g. 'Acme Pipeline'), or says 'sweep the pipeline board', 'check the lab board', 'file a card on X', 'any open questions on the boards?', 'triage Ideas', 'work the approved cards'. Board fundamentals come from the lanework skill. Not for generic kanban advice unrelated to Lanework."
+name: work
+description: "The work skill: working Lanework boards. Filing and moving cards, writing card bodies and comments (records vs asks to the human), answering board questions, sweeping a pipeline board for workloads, triaging them, and farming the work out to model-tiered subagents, with a lead/fixer/reviewer build cycle for coding cards. Use whenever the user mentions Lanework or a pipeline board (e.g. 'Acme Pipeline'), or says 'sweep the pipeline board', 'check the lab board', 'file a card on X', 'any open questions on the boards?', 'triage Ideas', 'work the approved cards'. Board fundamentals come from the lanework skill. Not for generic kanban advice unrelated to Lanework."
 ---
 
-# Pitlane
+# Work
 
 Working a board: cards are specs, threads are journals, and on a pipeline **a card's lane says who acts next**.
 

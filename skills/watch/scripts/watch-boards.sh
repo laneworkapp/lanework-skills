@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Pitwall board watcher: fswatch-triggered snapshot diff over one or more boards.
+# Watch board watcher: fswatch-triggered snapshot diff over one or more boards.
 #
 # Usage: watch-boards.sh <state-file> <board-path>...
 #

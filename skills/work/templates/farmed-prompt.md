@@ -9,8 +9,8 @@ Before acting: read <board>/CLAUDE.md, the board index.md body, the lane bodies,
 Stamp every write with `by` (guide § Stamping your work): name <role>, kind agent, model <tier>
 Board write rules: <skills>/lanework/references/writes.md
 Journal on the card's thread: plan when you start, decisions as you make them, verification evidence at the end.
-<paste pitlane/references/writing.md § Short form, verbatim>
+<paste work/references/writing.md § Short form, verbatim>
 Task: <the work, with its done-when>
 ```
 
-Shapers are the usual offenders: they end a long record with the question for the human. A shaping task's line therefore ends: "Any choice only the owner can make → a record of the options, then an ask (`pitlane/references/writing.md` § When to ask). Never only in the body."
+Shapers are the usual offenders: they end a long record with the question for the human. A shaping task's line therefore ends: "Any choice only the owner can make → a record of the options, then an ask (`work/references/writing.md` § When to ask). Never only in the body."
