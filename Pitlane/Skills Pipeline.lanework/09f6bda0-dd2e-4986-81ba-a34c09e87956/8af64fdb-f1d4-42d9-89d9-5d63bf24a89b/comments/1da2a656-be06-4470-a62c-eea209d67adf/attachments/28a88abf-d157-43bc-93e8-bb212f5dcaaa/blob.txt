@@ -1,0 +1,15 @@
+$ git archive 76e47dc (round-2 head), with the round-3 tests/merge-case.sh; echo $? after each
+--- merge-case.sh <scratch> dirty
+merge-case (dirty): dirty: the uncommitted edit was erased
+exit=1
+--- merge-case.sh <scratch> rebasemove
+merge-case (rebasemove): rebase: the report doesn't say to run the pass again
+exit=1
+--- merge-case.sh <scratch> clean
+merge-case (clean): lossless merge: git should finish by itself
+exit=1
+--- merge-case.sh <scratch> clean, with the lane-title change and assertion removed, to reach (j)
+                                ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/claude-501/-Users-rzen-Indie-Shared-lanework-skills/3a5ba147-ad93-4f38-8866-4bfe55abc1be/scratchpad/fixer-merge/oldrun/merge-clean/M/Pitlane/Acme Pipeline.lanework/fef58a1a-922d-4522-875c-4dfbf440d816/6c87d209-4df4-4bdd-98e2-b5fe23417ac3/index.md'
+merge-case (clean): (j): the card git and the disk disagree on was not skipped and reported
+exit=1
