@@ -6,7 +6,7 @@ Two readers: the owner, who decides, and the next agent, who resumes cold. Both 
 
 Pasted verbatim into every farmed prompt (`templates/farmed-prompt.md`):
 
-> A comment is a **record** or an **ask**, never both. A record carries context and evidence and never mentions the human. An ask is one request for the human: their handle on the first line, under 80 words, the shape in `pitlane/templates/ask.md`, linted with `pitlane/scripts/lint-ask.sh <file> <board>` before the `mv`, posted one second after the record it depends on, with the card's `waiting` set in the same pass. A choice only the human can make is always an ask: never left in the body or a record alone. In a lead/fixer cycle, the question goes to the lead instead.
+> A comment is a **record** or an **ask**, never both. A record carries context and evidence and never mentions the human. An ask is one request for the human: their handle on the first line, under 80 words, the shape in `work/templates/ask.md`, linted with `work/scripts/lint-ask.sh <file> <board>` before the `mv`, posted one second after the record it depends on, with the card's `waiting` set in the same pass. A choice only the human can make is always an ask: never left in the body or a record alone. In a lead/fixer cycle, the question goes to the lead instead.
 
 ## Record vs ask
 
