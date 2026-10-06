@@ -4,7 +4,33 @@ kind: board
 title: Skills Pipeline
 id: 04b8692e-adef-4b77-959d-ca3e08eb7776
 icon: {glyph: arrowshape.forward.fill}
-config: {show-card-body: 3, labels: [{type: skill, text: Skill}]}
+config:
+  show-card-body: 3
+  labels:
+    - type: "skill"
+      text: "Skill"
+    - type: "priority"
+      text: "Priority"
+      icon:
+        glyph: "flag"
+      single: true
+      values:
+        - text: "Urgent"
+          rank: 0
+          color: "#C8283C"
+          icon:
+            glyph: "exclamationmark.2"
+        - text: "High"
+          rank: 1
+          color: "#E07A1F"
+          icon:
+            glyph: "exclamationmark"
+        - text: "Medium"
+          rank: 2
+        - text: "Low"
+          rank: 3
+          icon:
+            glyph: "arrow.down"
 created:  {at: 2026-09-27T20:39:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 modified: {at: 2026-10-01T10:38:36Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---

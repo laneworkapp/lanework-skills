@@ -3,8 +3,18 @@ schema: 1
 kind: card
 title: "Teach that priority and component are root keys, never labels entries"
 order: 17408
-labels: [{text: lanework, kind: {type: skill, text: Skill}}]
-priority: {text: "Medium", rank: 2}
+labels:
+  - text: "lanework"
+    kind:
+      type: "skill"
+      text: "Skill"
+  - text: "Medium"
+    rank: 2
+    kind:
+      type: "priority"
+      text: "Priority"
+      icon:
+        glyph: "flag"
 created:  {at: 2026-10-02T23:11:13Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "Palette Labels"}}
 modified: {at: 2026-10-02T23:11:13Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "Palette Labels"}}
 ---
