@@ -8,7 +8,7 @@
 #   dirty: an uncommitted local edit in a conflicted card, carried as ours
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
-VAL="$ROOT/Pitlane/Skills Pipeline.lanework"
+VAL="$ROOT/Lanework/Skills Pipeline.lanework"
 T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove or dirty}"
 . "$SK/lanework/scripts/lib.sh"
 MRG="$SK/merge/scripts/lanework-merge.py"
@@ -16,9 +16,9 @@ fail() { echo "merge-case ($MODE): $*" >&2; exit 1; }
 G() { git -C "$1" "${@:2}"; }
 
 W="$T/merge-$MODE"; rm -rf "$W"; mkdir -p "$W"
-O="$W/origin"; mkdir -p "$O/Pitlane"; git init -q -b main "$O"
+O="$W/origin"; mkdir -p "$O/Lanework"; git init -q -b main "$O"
 G "$O" config user.email t@t; G "$O" config user.name t
-BN="Pitlane/Acme Pipeline.lanework"; P="$O/$BN"
+BN="Lanework/Acme Pipeline.lanework"; P="$O/$BN"
 "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
   --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified=x >/dev/null
 cp -R "$VAL/.schema" "$P/.schema"; cp "$VAL/CLAUDE.md" "$P/CLAUDE.md"
