@@ -6,7 +6,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | what it's for |
 |---|---|
-| `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, the default lane sets, and founding a new board |
+| `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, healing a damaged board, the default lane sets, and founding a new board |
 | `pitlane` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `pitwall` | a standing watch on one or more boards, responding to changes as they arrive |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce |
