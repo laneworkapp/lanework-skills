@@ -258,6 +258,12 @@ else
   echo "skip - fswatch not installed"
 fi
 
+# merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
+for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/null; ok "merge case: every row resolves with no prompt, as a $m"; done
+"$ROOT/tests/merge-case.sh" "$T" clean >/dev/null; ok "merge case: git finishes a lossless merge alone, stops on a loss, and a comment left by a move is re-homed"
+"$ROOT/tests/merge-case.sh" "$T" rebasemove >/dev/null; ok "merge case: a rebase with a later move leaves no orphaned folder"
+"$ROOT/tests/merge-case.sh" "$T" dirty >/dev/null; ok "merge case: uncommitted edits in a conflicted card are carried as ours, never erased"
+
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 
 # format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)
