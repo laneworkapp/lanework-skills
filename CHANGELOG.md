@@ -1,5 +1,7 @@
 **October 2026**
 
+Version 0.2.1: installing the plugin no longer needs a GitHub SSH key, since it now downloads over HTTPS.
+
 Version 0.2.0: the pitlane skill is now called work, and pitwall is now called watch, started with /watch.
 
 A new merge skill settles git conflicts on a shared board, keeping both sides' edits and stopping only when text would otherwise be lost.
