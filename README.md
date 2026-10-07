@@ -111,7 +111,7 @@ Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md
 As a Claude Code plugin, which installs all five skills and updates with each release:
 
 ```
-/plugin marketplace add laneworkapp/lanework-skills
+/plugin marketplace add https://github.com/laneworkapp/lanework-skills.git
 /plugin install lanework@lanework
 ```
 
