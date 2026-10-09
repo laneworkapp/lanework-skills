@@ -2,7 +2,7 @@
 schema: 1
 kind: card
 title: "Shaping to Proposed is the agent's move, but no file says so"
-order: -1024
+order: 25600
 labels: [{text: lanework, kind: {type: skill, text: Skill}}, {text: work, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-09T23:54:42Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 modified: {at: 2026-10-09T23:56:11Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
