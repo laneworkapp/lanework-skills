@@ -5,7 +5,7 @@ title: "discovery: record ADRs into the board, not docs/adr"
 order: 1024
 labels: [{text: discovery, kind: {type: skill, text: Skill}}]
 created: {at: 2026-10-09T23:21:18Z}
-modified: {at: 2026-10-09T23:45:15Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-09T23:47:11Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Discovery writes each ADR and PDR as a numbered Markdown file under `docs/adr/` or `docs/pdr/`, where nobody looking at the board sees it. Instead, each record becomes a card in a dedicated Decisions lane on the discovery board, beside the questions that produced it, so the decisions are as visible as the rulings.
 
@@ -13,7 +13,9 @@ Discovery writes each ADR and PDR as a numbered Markdown file under `docs/adr/` 
 
 - **Lane**: Decisions, on the discovery board, between Settled and Parked. Order 4608. Cards never leave it, like Settled.
 - **Card per record**: title `ADR: <short title>` or `PDR: <short title>`, one lane for both. Body = today's record template minus its frontmatter: 1 to 3 sentences of context, decision and why, then Considered options, Consequences, Related only when they earn it. Line 1 links the Settled question it came from.
-- **Labels**: a `Record` kind (`ADR`, `PDR`) and a `Status` kind (`accepted`, `deprecated`, `superseded`), declared in the discovery board's `config.labels`.
+- **Labels**: two closed, single kinds, declared in the discovery board's `config.labels` by `templates/board.md` beside `round`. Each record card stamps one value of each.
+  - `{type: record, text: Record, single: true, values: [{text: ADR, rank: 1}, {text: PDR, rank: 2}]}`
+  - `{type: status, text: Status, single: true, values: [{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}]}`
 - **No numbers**: cards are identified by `lanework://` links, so `NNNN-slug.md` numbering goes. A Settled card's ruling links its record card instead of a path.
 - **Superseding**: the old card is never edited to say something new. It gets the `superseded` status label and a dated comment linking its replacement. The new card links the old under Related.
 - **Bar unchanged**: the three-part bar in `records.md` still decides whether a ruling gets a record at all.
