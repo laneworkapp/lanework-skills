@@ -7,7 +7,7 @@ Only **new owner comments** get replies. Prose: `work/references/writing.md`. Wr
 Answers a question, picks an option (a button click arrives as `<label>: <option text>`), gives an opinion. Handle it in the main session:
 
 - Fold the ruling into the body (`writing.md` § Card bodies), restamping `modified` whole.
-- Last open call on a Shaping card, body at the bar → move it to Proposed in the same pass (`lanework/references/board-kinds.md` § Moves).
+- Last open call ruled → apply the card's lane exit (board and lane bodies) in the same pass.
 - Reply with a three-line record, `in-reply-to` the owner's comment: what was recorded, the card's state now, who acts next. No handle.
 
 ## Action-calling
