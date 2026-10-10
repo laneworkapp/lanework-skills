@@ -1,12 +1,19 @@
 #!/bin/zsh
 # Watch board watcher: fswatch-triggered snapshot diff over one or more boards.
 #
-# Usage: watch-boards.sh <state-file> <board-path>...
+# Usage: watch-boards.sh [--skills <skills-root>] <state-file> <board-path>...
 #
 # Per burst, per board: `CHANGED <Board>.lanework/<path>` for each changed file, or
 # `BULK: <n> files changed in <Board>.lanework` when more than 20 changed.
 # Boards are named by folder, so two boards sharing a folder name are refused:
 # watch those in separate Monitors.
+#
+# --skills <root> (the folder holding the skills, e.g. the `watch` skill's parent):
+# fingerprint of the rule files a watch reads (watch/**/*.md, work/SKILL.md,
+# work/references/*.md, lanework/references/{authority,board-kinds}.md) kept in
+# <state-file>.skills; the root joins fswatch. A different fingerprint, on a burst or
+# at start against the stored one, emits one `SKILLS CHANGED`. No stored value yet =
+# store it, emit nothing. Without --skills nothing changes.
 #
 # fswatch is ONLY the trigger; the emitted paths come from a find-snapshot diff.
 # Never filter fswatch's own event paths: the app posts a comment by renaming
@@ -21,9 +28,16 @@
 # fires the diff); -l 0.5 batches a burst so a lane move lands as one diff.
 set -u
 LC_ALL=C
-STATE=${1:?usage: watch-boards.sh <state-file> <board-path>...}
+USAGE="usage: watch-boards.sh [--skills <skills-root>] <state-file> <board-path>..."
+SKILLS=
+if [[ ${1:-} == --skills ]]; then
+  SKILLS=${2:?$USAGE}; shift 2
+  [[ -d $SKILLS ]] || { echo "watch-boards.sh: not a folder: $SKILLS" >&2; exit 2 }
+  SKILLS=${SKILLS:A}
+fi
+STATE=${1:?$USAGE}
 shift
-(( $# )) || { echo "usage: watch-boards.sh <state-file> <board-path>..." >&2; exit 2 }
+(( $# )) || { echo "$USAGE" >&2; exit 2 }
 
 BOARDS=()
 for b in "$@"; do
@@ -37,8 +51,24 @@ uniq=(${(u)names})
 
 snap() { find "${BOARDS[@]}" -name '*.md' -not -path '*/.trash/*' -not -path '*/comments/.draft/*' -exec stat -f '%m %z %N' {} + 2>/dev/null | sort; }
 
+skills_fp() {
+  (cd "$SKILLS" && { find watch -name '*.md'; ls work/SKILL.md work/references/*.md lanework/references/authority.md lanework/references/board-kinds.md 2>/dev/null; } \
+    | sort -u | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+}
+# compare with the stored fingerprint, store the new one; emit once when it differs
+skills_check() {
+  [[ -n $SKILLS ]] || return 0
+  local new old=; new=$(skills_fp)
+  [[ -f $STATE.skills ]] && old=$(<"$STATE.skills")
+  [[ $new == "$old" ]] && return 0
+  printf '%s\n' "$new" > "$STATE.skills"
+  [[ -z $old ]] || echo "SKILLS CHANGED"
+}
+
 snap > "$STATE"
-fswatch -r -o -l 0.5 "${BOARDS[@]}" | while IFS= read -r _; do
+skills_check
+fswatch -r -o -l 0.5 "${BOARDS[@]}" ${SKILLS:+"$SKILLS"} | while IFS= read -r _; do
+  skills_check
   snap > "$STATE.new"
   changed=$(comm -3 "$STATE" "$STATE.new" | cut -d' ' -f3- | sort -u)
   mv "$STATE.new" "$STATE"
