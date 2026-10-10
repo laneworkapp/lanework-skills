@@ -25,7 +25,7 @@ Per board, after the authority chain:
 | **Active, stalled** | Active, no thread movement | resume, or report why stuck |
 | **Shaping to advance** | Shaping, below the board's proposal bar | farm: shape; an open call → ask |
 | **At a human gate** | Ideas (triage), Proposed (review) | report only, never move |
-| **Holding** | Ideas, Issues, Tasks | report only (`lanework/references/board-kinds.md`) |
+| **Holding** | Ideas, Issues, Tasks | report; research or answer only (`lanework/references/board-kinds.md`) |
 | **Hygiene** | Done / Rejected overdue for archive | only on the owner's explicit ask |
 
 ## 3. Triage report

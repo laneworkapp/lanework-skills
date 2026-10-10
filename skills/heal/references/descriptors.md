@@ -33,6 +33,8 @@ Actor/trigger sentence = the template body's second sentence (the tables: `lanew
 
 ## Pipeline board sheet
 
+Released sheet text the current template drops, handled like a predecessor body: `drop-stale` removes "A chore the owner files in Tasks has passed both."; `replace-flow` swaps the released Flow bullet for the current one (a customised Flow keeps its prose, and only the released Tasks clause becomes "and Tasks as a side entrance"). Sources in `OLD_SHEET`; same upkeep rule as `OLD_BODIES`.
+
 Missing the `Agent lanes` bullet → `insert-permission`: the template's line, naming only the agent lanes the board has, after the `Two human gates` bullet and its wrapped lines (else after the first bullet list under the first `##`). No `##` heading → `skip`, left to the owner. `--skip "board sheet"` declines it.
 
 ## Apply exactly what was shown

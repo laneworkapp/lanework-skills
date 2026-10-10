@@ -25,12 +25,12 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 9 | 330 | 3,666 |
-| `work` | 16 | 397 | 6,290 |
-| `watch` | 4 | 162 | 1,250 |
+| `lanework` | 9 | 330 | 3,664 |
+| `work` | 16 | 397 | 6,293 |
+| `watch` | 4 | 162 | 1,254 |
 | `discovery` | 14 | 492 | 2,789 |
 | `merge` | 2 | 362 | 1,577 |
-| `heal` | 2 | 311 | 836 |
+| `heal` | 2 | 311 | 897 |
 
 Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
@@ -40,14 +40,14 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 |---|---|
 | `SKILL.md` | 330 |
 | `references/authority.md` | 129 |
-| `references/board-kinds.md` | 1,044 |
+| `references/board-kinds.md` | 1,042 |
 | `references/finding.md` | 351 |
 | `references/format.md` | 143 |
 | `references/founding.md` | 421 |
 | `references/reading.md` | 142 |
 | `references/writes.md` | 1,030 |
 | `templates/index.md` | 76 |
-| **total** | **3,666** |
+| **total** | **3,664** |
 
 #### `work`
 
@@ -59,7 +59,7 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `references/fixer.md` | 391 |
 | `references/lead.md` | 976 |
 | `references/reviewer.md` | 376 |
-| `references/sweep.md` | 533 |
+| `references/sweep.md` | 536 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
@@ -69,17 +69,17 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,290** |
+| **total** | **6,293** |
 
 #### `watch`
 
 | file | words |
 |---|---|
 | `SKILL.md` | 162 |
-| `references/arming.md` | 334 |
+| `references/arming.md` | 339 |
 | `references/events.md` | 399 |
-| `references/responding.md` | 355 |
-| **total** | **1,250** |
+| `references/responding.md` | 354 |
+| **total** | **1,254** |
 
 #### `discovery`
 
@@ -114,8 +114,8 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | file | words |
 |---|---|
 | `SKILL.md` | 311 |
-| `references/descriptors.md` | 525 |
-| **total** | **836** |
+| `references/descriptors.md` | 586 |
+| **total** | **897** |
 
 ## Install
 
