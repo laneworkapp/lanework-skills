@@ -30,3 +30,4 @@ Boards found under the legacy folder and under no other of the three, at one lev
 - No stands for the session: don't ask again.
 - Never fires when `Lanework/` or `Boards/` holds a board there; never on `Boards/` alone.
 - After moving, re-arm any `/watch` on the moved board: its path changed.
+- Tell the owner: open the board once by its new path. The app doesn't find a moved board itself, and keeps the old path as a broken entry in its welcome window (observed 2026-10-10).
