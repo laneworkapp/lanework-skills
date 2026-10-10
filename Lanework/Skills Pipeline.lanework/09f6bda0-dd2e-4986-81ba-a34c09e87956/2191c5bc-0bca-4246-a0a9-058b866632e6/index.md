@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "lanework: a catalog of common label kinds for founding boards"
-order: 1024
+order: 7168
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T00:16:22Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T01:49:51Z}
+modified: {at: 2026-10-10T02:44:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
 ---
 Boards founded by hand each invent their own label kinds, so the same idea gets a different name, scale or shape on every board. A catalog in the `lanework` skill gives founding a uniform set to pick from, written into the new board's own `config.labels`.
 
