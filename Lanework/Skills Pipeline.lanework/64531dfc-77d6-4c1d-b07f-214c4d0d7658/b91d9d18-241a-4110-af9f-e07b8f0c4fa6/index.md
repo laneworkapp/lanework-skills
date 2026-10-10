@@ -4,9 +4,9 @@ kind: card
 title: "Codex: add agents/openai.yaml per skill, or say Claude Code only"
 order: 3072
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
+waiting: {for: rzen, since: 2026-10-10T01:55:06Z, comment: b7cb952e-6459-4189-a0f4-165c6867f0e7}
 created:  {at: 2026-09-28T00:21:46Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T01:52:08Z, by: {name: shaper, kind: agent, model: sonnet}}
-waiting: {for: rzen, since: 2026-10-10T01:52:08Z, comment: 3087a261-9012-428a-a886-77c9ac967e59}
+modified: {at: 2026-10-10T01:55:06Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 The README says other harnesses that read `SKILL.md` work the same way, but on Codex `discovery` and `watch` can start unprompted: they set `disable-model-invocation: true`, which Codex does not read.
 
