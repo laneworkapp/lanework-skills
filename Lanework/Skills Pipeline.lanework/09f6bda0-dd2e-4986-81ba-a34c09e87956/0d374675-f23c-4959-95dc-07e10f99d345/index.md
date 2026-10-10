@@ -6,7 +6,7 @@ order: 6144
 labels: [{text: watch, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}, {text: work, kind: {type: skill, text: Skill}}, {text: heal, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T00:53:33Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 waiting: {for: rzen, since: 2026-10-10T02:08:23Z, comment: e8f3ba2a-f2b0-4a23-9529-ed6a945df2be}
-modified: {at: 2026-10-10T02:08:23Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
+modified: {at: 2026-10-10T02:12:37Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
 ---
 An approved card can sit in Approved with no agent picking it up, because pipeline lanes say what a card is but not who acts on it or when, and the watch skill still contradicts itself on moves.
 
@@ -26,14 +26,15 @@ A watch is armed on a pipeline board. The owner drags a card from Proposed to Ap
 
 ## Proposal
 
-1. **Every lane body names its actor and trigger.** All three lane-set templates (`pipeline-lanes.md`, `design-loop-lanes.md`, `datapoint-lanes.md`). Tasks gets "without waiting to be asked".
-2. **A permission line in the pipeline board sheet** (`templates/pipeline-index.md` and this board): Shaping, Approved, Tasks and Active are agents' lanes, acted on unasked. Ideas and Proposed wait on the owner.
+1. **Every lane body names its actor and trigger.** All lane-set templates (`pipeline-lanes.md`, `design-loop-lanes.md`, `datapoint-lanes.md`, discovery's `lanes.md`), per the lane roles ruling below.
+2. **A permission line in the pipeline board sheet** (`templates/pipeline-index.md` and this board): Shaping, Approved and Active are agents' lanes, acted on unasked. Ideas, Issues, Tasks and Proposed wait on the owner.
 3. **One lane → actor table**, in `lanework/references/board-kinds.md`. `work/SKILL.md` and `watch/references/events.md` cite it instead of restating.
 4. **Watch contradictions out**: `events.md` item 6 drops "a move" from "context, not a reply". The `watch` description drops "requested". `responding.md` gains the move case beside comments.
 5. **Arming pass**: `watch/references/arming.md`, after reading lane bodies, one pass over agent lanes acting on what's waiting.
 6. **Writing rule**: `work/references/writing.md` or `lanework/references/founding.md`: a lane body that forbids agents an action also says what they may do.
 7. **Existing boards**: brought to currency by a new `/heal` skill, below.
 
+- **Ruled 2026-10-10 (owner, in chat), lane roles**: Ideas, Issues and Tasks are holding buckets, where agents act only when the owner explicitly asks. Shaping: the owner places cards for agents to shape. Proposed: agents move shaped cards in for review. Approved: the owner moves cards in for agents to implement. Active: agents move cards in as they start. Done: agents move cards in once done-when is met. Replaces "an issue is shaped or fixed on its own merit" and "Tasks are pre-approved, built straight through Active".
 - ~~**Open call, existing boards**: A: agent updates each, one commit per repo. B: list only, the owner edits. C: a script that re-stamps lane bodies from the template.~~ **ruled 2026-10-10: a user-invoked `/heal` skill (owner's comment, then the move to Shaping).**
 
 ## /heal
