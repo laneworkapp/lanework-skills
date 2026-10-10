@@ -6,8 +6,8 @@
 ## Ruling
 
 **<YYYY-MM-DD>**: C, as recommended. "<owner's words>"
-ADR: docs/adr/0003-engine-in-app.md
-PDR: docs/pdr/0002-sync-is-free.md
+ADR: [ADR: Engine lives in the app](lanework://<board>/<card>)
+PDR: [PDR: Sync is free](lanework://<board>/<card>)
 Glossary: **Tracker**, **Remote** in CONTEXT.md
 ```
 

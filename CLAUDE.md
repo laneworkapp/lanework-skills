@@ -15,7 +15,7 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 | `tests/` | `smoke.sh` runs every script on throwaway boards and validates them; `check-refs.sh` checks every cited skill file exists |
 | `README.md` | the user-facing page: what each skill is for, and how to install it |
 
-`docs/adr/`, `docs/pdr/` and `CONTEXT.md` are created the first time the `discovery` skill is run on this repo.
+`CONTEXT.md` and a `Lanework/<Topic> Discovery.lanework` board are created the first time the `discovery` skill is run on this repo. Its ADRs and PDRs are cards in that board's Decisions lane, not files under `docs/`.
 
 ## Working on a skill
 

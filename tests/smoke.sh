@@ -248,6 +248,36 @@ printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner answ
 ok "settled with chat record in reply to the ask; parked"
 validate "$D" >/dev/null; ok "discovery board validates"
 
+# discovery: Decisions lane founded in order, record + status kinds declared, file-record.sh files ADR and PDR cards
+lane_order() { sed -n 's/^order: //p' "$(grep -l "^title: \"$1\"\$" "$D"/*/index.md | head -1)"; }
+[ "$(lane_order Settled)" = 4096 ] && [ "$(lane_order Decisions)" = 4608 ] && [ "$(lane_order Parked)" = 5120 ] || { echo "Decisions lane missing or out of order"; exit 1; }
+ok "Decisions lane founded at 4608, between Settled and Parked"
+{ grep -q '{type: round, text: Round}' "$D/index.md" &&
+  grep -q '{type: record, text: Record, single: true, values: \[{text: ADR, rank: 1}, {text: PDR, rank: 2}\]}' "$D/index.md" &&
+  grep -q '{type: status, text: Status, single: true, values: \[{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}\]}' "$D/index.md"; } || { echo "record/status label kinds missing from config.labels"; exit 1; }
+ok "board config declares the round, record and status label kinds"
+printf 'Sync is free for every user, because a paid tier would split the support load.\n\n## Considered options\n\n- Paid tier: rejected.\n' > "$T/adr.md"
+printf 'Sync ships in the base app.\n' > "$T/pdr.md"
+R1=$("$SK/discovery/scripts/file-record.sh" "$D" "$C1" --record ADR --title "Sync engine lives in the app" --body "$T/adr.md")
+R2=$("$SK/discovery/scripts/file-record.sh" "$D" "$C1" --record PDR --title "Sync is free" --body "$T/pdr.md")
+BID=$(sed -n 's/^id: //p' "$D/index.md")
+K1=$(head -1 <<<"$R1" | sed 's#.*/##'); K2=$(head -1 <<<"$R2" | sed 's#.*/##')
+[ "$(head -1 <<<"$R1")" = "lanework://$BID/$K1" ] || { echo "no link printed: $R1"; exit 1; }
+DEC=$(dirname "$(ls -d "$D"/*/"$K1")")
+n1="$DEC/$K1/index.md"; n2="$DEC/$K2/index.md"
+{ [ "$(grep -m1 '^title:' "$DEC/index.md")" = 'title: "Decisions"' ] &&
+  [ "$(grep -m1 '^title:' "$n1")" = 'title: "ADR: Sync engine lives in the app"' ] &&
+  [ "$(grep -m1 '^title:' "$n2")" = 'title: "PDR: Sync is free"' ]; } || { echo "cards not filed into Decisions with prefixed titles"; exit 1; }
+{ grep -qx 'labels: \[{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}\]' "$n1" &&
+  grep -qx 'labels: \[{text: PDR, rank: 2, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}\]' "$n2"; } || { echo "record/status labels not flattened"; exit 1; }
+[ "$(awk '/^---$/ { n++; next } n == 2 && NF { print; exit }' "$n1")" = "Question: [Q1: Pricing](lanework://$BID/$C1)" ] || { echo "line 1 does not link the question"; exit 1; }
+[ "$(sed -n 's/^order: //p' "$n2")" -gt "$(sed -n 's/^order: //p' "$n1")" ] || { echo "second card not at the bottom"; exit 1; }
+! grep -q '^waiting:' "$n1" || { echo "record card carries waiting"; exit 1; }
+ok "file-record.sh filed one ADR and one PDR card in Decisions: labels flattened, line 1 links the question, bottom order"
+validate "$D" >/dev/null; ok "discovery board validates with the record cards"
+if "$SK/discovery/scripts/file-record.sh" "$D" "$C1" --record NOPE --title x --body "$T/adr.md" 2>/dev/null; then echo "accepted a bad record kind"; exit 1; fi
+ok "file-record.sh refuses a record kind that is not ADR or PDR"
+
 # work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"
 printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/bad.md"

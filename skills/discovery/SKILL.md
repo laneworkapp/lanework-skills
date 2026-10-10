@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Discovery
 
-Agent asks, owner rules, until every corner of the problem/domain space is settled or ruled out. Board = the record, chat = the conversation. Output: board, glossary, ADRs, PDRs.
+Agent asks, owner rules, until every corner of the problem/domain space is settled or ruled out. Board = the record, chat = the conversation. Output: board, glossary, ADR and PDR cards in the Decisions lane.
 
 - **Discovery map**: tree of every decision, grouped by corner. One card, rewritten each round.
 - **Frontier**: decisions whose prerequisites are settled. A round asks the whole frontier.
@@ -22,18 +22,18 @@ Builds on **lanework**: read `lanework/references/authority.md` before any write
 | corners of the space | `references/corners.md` |
 | board: find/found, lanes, cards, moves, order | `references/board.md` |
 | rounds: frontier, ask, answers, close | `references/rounds.md` |
-| glossary, ADRs, PDRs | `references/records.md` |
+| glossary, ADR and PDR cards | `references/records.md` |
 | writing rules | `references/conduct.md` |
 | literal file shapes | `templates/` |
 
 ## Flow
 
 1. **Board**: find or found → `references/board.md`.
-2. **Frame**: read code, docs, `docs/adr/`, `docs/pdr/`, `CONTEXT.md`, prior cards on the topic. Facts are the agent's job, never the owner's: subagent → Facts card. Write the Topic card and the first map (every visible decision, per `references/corners.md`).
+2. **Frame**: read code, docs, the Decisions lane (accepted cards first), any existing `docs/adr/` or `docs/pdr/`, `CONTEXT.md`, prior cards on the topic. Facts are the agent's job, never the owner's: subagent → Facts card. Write the Topic card and the first map (every visible decision, per `references/corners.md`).
 3. **Ask** the frontier → `references/rounds.md`.
 4. **Take answers** → `references/rounds.md`.
 5. **Close the round** → `references/rounds.md`, then back to 3.
-6. **Finish** when the frontier is empty and every corner is settled or out of scope. Closing record on the Topic card: settled/parked counts, records and glossary terms linked, one paragraph on what was agreed. Then one ask: is this a shared understanding? **Build nothing and file no work cards until the owner says so.** Work cards then go on the project's pipeline board, linking back.
+6. **Finish** when the frontier is empty and every corner is settled or out of scope. Closing record on the Topic card: settled/parked counts, record cards and glossary terms linked, one paragraph on what was agreed. Then one ask: is this a shared understanding? **Build nothing and file no work cards until the owner says so.** Work cards then go on the project's pipeline board, linking back.
 
 ## Resume
 
@@ -41,7 +41,8 @@ From the board, never memory:
 
 1. `lanework/scripts/read-board.sh`, then the map card.
 2. Each Asked thread: owner comment newer than `waiting.since` = unrecorded answer → record it first.
-3. Continue at Flow 5.
+3. No Decisions lane (older board) → add it and the `record` + `status` kinds → `references/board.md` § Older boards.
+4. Continue at Flow 5.
 
 Owner wants to answer on the board while you wait → suggest `/watch <board>` (the owner types it; Claude can't start a watch).
 
@@ -53,4 +54,5 @@ Owner wants to answer on the board while you wait → suggest `/watch <board>` (
 |---|---|
 | `found-discovery-board.sh <path> [title]` | founds the board: `found-board.sh` with `templates/board.md` + `templates/lanes.md` |
 | `file-question.sh <board> <title> --round N --body F` | files the next Q into Asked, with founding + ask comments |
+| `file-record.sh <board> <question-uuid> --record ADR\|PDR --title t --body F` | files the ADR/PDR card into Decisions, prints its link for the ruling |
 | `settle-question.sh <board> <card-uuid> --ruling F` | appends the ruling, clears `waiting`, moves to Settled (or `--to parked`) |

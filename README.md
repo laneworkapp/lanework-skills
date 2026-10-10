@@ -9,7 +9,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, healing a damaged board, the default lane sets, and founding a new board |
 | `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `watch` | a standing watch on one or more boards, responding to changes as they arrive |
-| `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce |
+| `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce, filed as cards in a Decisions lane beside the questions |
 | `merge` | resolves git merge, pull and rebase conflicts on a board with no human: a merge driver plus a placement pass, keeping both sides' content and the later stamp's state |
 
 `discovery` and `watch` never start on their own. Type the command first in your message:
@@ -26,10 +26,10 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `lanework` | 9 | 328 | 2,790 |
 | `work` | 16 | 374 | 6,201 |
 | `watch` | 4 | 146 | 1,044 |
-| `discovery` | 14 | 422 | 2,388 |
+| `discovery` | 14 | 484 | 2,752 |
 | `merge` | 2 | 362 | 1,577 |
 
-Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -82,21 +82,21 @@ Measured with `wc -w` on 2026-10-06, over the Markdown an agent reads: `SKILL.md
 
 | file | words |
 |---|---|
-| `SKILL.md` | 422 |
-| `references/board.md` | 271 |
+| `SKILL.md` | 484 |
+| `references/board.md` | 347 |
 | `references/conduct.md` | 126 |
 | `references/corners.md` | 171 |
-| `references/records.md` | 398 |
+| `references/records.md` | 501 |
 | `references/rounds.md` | 262 |
 | `templates/fact-card.md` | 48 |
 | `templates/glossary.md` | 46 |
-| `templates/lanes.md` | 300 |
+| `templates/lanes.md` | 387 |
 | `templates/map-card.md` | 92 |
 | `templates/question-card.md` | 66 |
-| `templates/record.md` | 63 |
-| `templates/ruling.md` | 58 |
+| `templates/record.md` | 91 |
+| `templates/ruling.md` | 66 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,388** |
+| **total** | **2,752** |
 
 #### `merge`
 
