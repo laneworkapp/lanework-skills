@@ -4,9 +4,9 @@ kind: card
 title: "Boards folder: Lanework, then Boards, then legacy Pitlane"
 order: 3072
 labels: [{text: lanework, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
+waiting: {for: rzen, since: 2026-10-10T00:20:06Z, comment: d30e87d5-3bb3-44ba-b7c7-d3247f044b07}
 created:  {at: 2026-10-06T22:38:56Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
-modified: {at: 2026-10-06T23:58:55Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-waiting: {for: rzen, since: 2026-10-06T23:58:55Z, comment: eb7e5f44-0949-47c1-8802-d33276230632}
+modified: {at: 2026-10-10T00:20:06Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Boards live in a `Pitlane/` folder, the one place the racing word stays in daily view after [the skill rename](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/eb3ae7da-6827-4ae1-b8f5-553c5b794871). The folder itself earns its place: one known location so agents never scan, several boards per repo grouped, and names with spaces kept out of the repo root. Only its name changes.
 
