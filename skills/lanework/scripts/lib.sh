@@ -4,9 +4,24 @@
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# flat_str <s>: a title on one line: each CRLF, CR and LF becomes one space. Markdown headings use it as is.
+flat_str() { local s="${1//$'\r\n'/ }"; s="${s//$'\n'/ }"; printf '%s' "${s//$'\r'/ }"; }
+
 # title_str <s>: a title's text for use inside double quotes (no outer quotes, so a prefix like "Q3: " can precede it):
-# CR and LF become a space, then backslash and quote are escaped. Every title a script writes goes through it.
-title_str() { local s="${1//$'\n'/ }"; s="${s//$'\r'/ }"; s="${s//\\/\\\\}"; printf '%s' "${s//\"/\\\"}"; }
+# flat_str, then backslash and quote are escaped. Every title a script writes goes through it.
+title_str() { local s; s="$(flat_str "$1")"; s="${s//\\/\\\\}"; printf '%s' "${s//\"/\\\"}"; }
+
+# merge_kinds <list> <have> <new>: a repeated --labels. Appends <new>'s kinds to <list> (comma list; <have> non-empty once a --labels was given),
+# skipping a kind an earlier flag already named. An empty name is kept, so found-board.sh rejects it.
+merge_kinds() {
+  local out="$1" have="$2" rest="$3," k
+  while [ -n "$rest" ]; do
+    k="${rest%%,*}"; rest="${rest#*,}"
+    if [ -n "$k" ]; then case ",$1," in *",$k,"*) continue ;; esac; fi
+    if [ -n "$have" ]; then out="$out,$k"; else out="$k"; have=1; fi
+  done
+  printf '%s' "$out"
+}
 
 # require_model <script> <usage>: MODEL from --model, else CLAUDE_MODEL; exit 2 with the usage line when neither. Never stamps a guess.
 require_model() {

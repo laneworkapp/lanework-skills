@@ -335,6 +335,19 @@ d' >/dev/null
 grep -qxF 'title: "a\\b \"c\" d"' "$T/Hostile.lanework/index.md" && grep -qxF 'title: "L\\x \"q\""' "$T/Hostile.lanework"/*/index.md \
   || { echo "hostile titles not escaped:"; grep -h '^title:' "$T/Hostile.lanework/index.md" "$T/Hostile.lanework"/*/index.md; exit 1; }
 validate "$T/Hostile.lanework" >/dev/null; ok "found-board.sh: a board and lane title with a backslash, a quote and a newline are escaped and the board validates"
+# a line break in a board title (LF, CR, CRLF) leaves the body heading on one line, words joined by one space
+for brk in $'\n' $'\r' $'\r\n'; do
+  rm -rf "$T/Brk.lanework" "$T/Brk Discovery.lanework"
+  "$FB" "$T/Brk.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --model smoke --title "one${brk}two" >/dev/null
+  "$SK/discovery/scripts/found-discovery-board.sh" "$T/Brk Discovery.lanework" "uno${brk}dos" --model smoke >/dev/null
+  for pair in "Brk.lanework:one two" "Brk Discovery.lanework:uno dos"; do
+    f="$T/${pair%%:*}/index.md"
+    [ "$(grep -c '^# ' "$f")" -eq 1 ] && grep -qxF "# ${pair#*:}" "$f" && grep -qxF "title: \"${pair#*:}\"" "$f" \
+      || { echo "title with a line break (${#brk} byte) in ${pair%%:*}:"; sed -n '/^---$/,$p' "$f" | head -14; exit 1; }
+  done
+  validate "$T/Brk.lanework" >/dev/null; validate "$T/Brk Discovery.lanework" >/dev/null
+done
+ok "found-board.sh and found-discovery-board.sh: a board title with LF, CR or CRLF founds a single '# title' heading and a matching frontmatter title, words joined by one space, and validates"
 
 # work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"
@@ -583,6 +596,26 @@ for lb in priority priority,round,type round; do
   [ "$got" = "${want%,},record,status" ] || { echo "--labels $lb: got $got"; exit 1; }
 done
 ok "found-discovery-board.sh --labels adds kinds to round (round first, deduped) and never loses it"
+# --labels: repeats accumulate (a kind repeated across flags is written once), an empty list is an error, through both founding scripts
+lbl_types() { python3 -c 'import sys,yaml; print(",".join(e["type"] for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]))' "$1"; }
+FD="$SK/discovery/scripts/found-discovery-board.sh"
+for args in "--labels type --labels size:type,size" "--labels type,size --labels priority:type,size,priority" "--labels type --labels type:type" "--labels type --labels size --labels type:type,size"; do
+  rm -rf "$LD/Rep.lanework" "$LD/RepD.lanework"
+  # shellcheck disable=SC2086
+  "$FB" "$LD/Rep.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" ${args%%:*} --model smoke >/dev/null
+  [ "$(lbl_types "$LD/Rep.lanework/index.md")" = "${args#*:}" ] || { echo "found-board.sh ${args%%:*}: got $(lbl_types "$LD/Rep.lanework/index.md")"; exit 1; }
+  "$FD" "$LD/RepD.lanework" --model smoke ${args%%:*} >/dev/null
+  [ "$(lbl_types "$LD/RepD.lanework/index.md")" = "round,${args#*:},record,status" ] || { echo "found-discovery-board.sh ${args%%:*}: got $(lbl_types "$LD/RepD.lanework/index.md")"; exit 1; }
+  validate "$LD/RepD.lanework" >/dev/null
+done
+ok "found-board.sh and found-discovery-board.sh: repeated --labels accumulate in order, and a kind repeated across flags is written once"
+for bad in '--labels ""' '--labels type --labels ""' '--labels "" --labels type'; do
+  rm -rf "$LD/Emp.lanework" "$LD/EmpD.lanework"; rc=0; rd=0
+  eval "\"\$FB\" \"\$LD/Emp.lanework\" --index \"\$LD/idx.md\" --lanes \"\$SK/lanework/templates/datapoint-lanes.md\" $bad --model smoke" >/dev/null 2>&1 || rc=$?
+  eval "\"\$FD\" \"\$LD/EmpD.lanework\" --model smoke $bad" >/dev/null 2>&1 || rd=$?
+  [ "$rc" -eq 2 ] && [ "$rd" -eq 2 ] && [ ! -e "$LD/Emp.lanework" ] && [ ! -e "$LD/EmpD.lanework" ] || { echo "$bad: found-board.sh rc=$rc, found-discovery-board.sh rc=$rd, boards $(ls -d "$LD"/Emp*.lanework 2>/dev/null | wc -l | tr -d ' ') written"; exit 1; }
+done
+ok "found-board.sh and found-discovery-board.sh: an empty --labels list, alone or among others, exits 2 and writes nothing"
 rm -rf "$LD/NoRound.lanework"; rc=0; "$FB" "$LD/NoRound.lanework" --index "$SK/discovery/templates/board.md" --lanes "$SK/discovery/templates/lanes.md" --var topic=x --model smoke >/dev/null 2>&1 || rc=$?
 [ "$rc" -eq 2 ] && [ ! -e "$LD/NoRound.lanework" ] || { echo "board.md without --labels: rc=$rc"; exit 1; }
 ok "found-board.sh with the discovery template and no --labels exits 2 and writes nothing (round cannot be lost)"
