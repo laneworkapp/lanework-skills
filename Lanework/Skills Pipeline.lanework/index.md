@@ -32,7 +32,7 @@ config:
           icon:
             glyph: "arrow.down"
 created:  {at: 2026-09-27T20:39:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T02:31:01Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
+modified: {at: 2026-10-10T02:41:05Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
 ---
 # Skills Pipeline
 
@@ -40,7 +40,7 @@ Where work on the Lanework agent skills goes from a raw idea to something shippe
 
 ## How this board works
 
-- **Flow**: Ideas to Shaping to Proposed to Approved to Active to Done, with Issues as the side entrance for something broken in a shipped skill, and Tasks as the owner's holding bucket for chores that need no shaping.
+- **Flow**: Ideas to Shaping to Proposed to Approved to Active to Done, with Issues as the side entrance for something broken in a shipped skill, and Tasks for chores that need no shaping.
 - **Two human gates**: triage out of Ideas, and review out of Proposed. Agents surface what sits at a gate and never move a card through one. Moving a finished proposal from Shaping into Proposed is the agent's job, not the owner's.
 - **Agent lanes**: Shaping, Approved and Active: agents act on cards there unasked. Elsewhere they may read, link, research and answer, but move a card out or start its work only when asked.
 - **Every card names its skill** with a `Skill` label: `lanework`, `work`, `watch`, `discovery`, `merge`, `heal`, or `repo` for work on the repository itself. A card that spans two skills carries both labels.
