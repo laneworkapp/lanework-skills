@@ -2,7 +2,7 @@
 
 Defaults to copy and change. The app knows nothing about lane names: meaning = lane titles + lane bodies. Lanes and their bodies: `templates/<kind>-lanes.md`.
 
-**Lane actors**: one table per kind, the only place for who acts and what starts it. A lane body's second sentence names both; other files cite these tables, never restate. **agent** = acted on unasked (standing instructions = board sheet + lane bodies, not chat). **gate** = the owner rules; agents move cards in, and out only once the ruling is in the body (discovery Asked). **holding** = agents read, link, research, answer; move out or start only on request. **none** = never a work order. A board's own bodies win.
+**Lane actors**: one table per kind, the only place for who acts and what starts it. A lane body's second sentence names both; other files cite these tables, never restate. **agent** = acted on unasked (standing instructions = board sheet + lane bodies, not chat). **gate** = the owner rules; agents move cards in only, and out only in discovery Asked once the ruling is in the body. **holding** = agents read, link, research, answer; move out or start only on request. **none** = never a work order. A board's own bodies win.
 
 ## Pipeline
 

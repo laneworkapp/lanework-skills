@@ -457,17 +457,22 @@ def check_board(board, sets, perm):
 
 
 def drop_stale(body, sentence):
-    """Remove `sentence` from every line outside a fence or a quote, with one adjoining space (the leading one, else the
-    trailing one). A line left empty or holding only a bullet marker goes whole. Returns (body, removed?)."""
-    out, fenced, removed = [], False, False
+    """Remove `sentence` from every line outside a fence or a quote (a quote may sit in a list item), with one adjoining
+    space (the leading one, else the trailing one). A line left empty or holding only a list marker goes whole. A fence
+    closes on the opener's character at its length or longer. Returns (body, removed?)."""
+    out, fence, removed = [], None, False
     for line in body.split("\n"):
         head = line.lstrip()
-        if head.startswith(("```", "~~~")):
-            fenced = not fenced
-        elif not fenced and not head.startswith(">") and sentence in line:
+        run = re.match(r"(`{3,}|~{3,})", head)
+        if fence:
+            if run and run.group(1)[0] == fence[0] and len(run.group(1)) >= len(fence) and not head[len(run.group(1)):].strip():
+                fence = None
+        elif run:
+            fence = run.group(1)
+        elif not re.sub(r"^(?:[-*+]|\d+[.)])\s+", "", head).startswith(">") and sentence in line:
             line = re.sub(" " + re.escape(sentence) + "|" + re.escape(sentence) + " ?", "", line)
             removed = True
-            if line.strip() in ("", "-", "*", "+"):
+            if re.match(r"^\s*([-*+]|\d+[.)])(\s+\[[ xX]\])?$", line) or not line.strip():
                 continue
         out.append(line)
     return "\n".join(out), removed

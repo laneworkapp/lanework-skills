@@ -491,14 +491,19 @@ D2=$(mkstale inline); perl -pi -e 's/(not the owner.s\.)$/$1 $ENV{STALE}/ if /^-
 D3=$(mkstale fence); printf '\n```\n- %s\n```\n' "$STALE" >> "$D3/index.md"
 D4=$(mkstale quote); printf '\n> %s\n' "$STALE" >> "$D4/index.md"
 D5=$(mkstale mixed); printf '\n~~~\n%s\n~~~\n\n> %s\n\n- Kept. %s\n' "$STALE" "$STALE" "$STALE" >> "$D5/index.md"
-for d in "$D1" "$D2" "$D3" "$D4" "$D5"; do grep -qF "$STALE" "$d/index.md" || { echo "fixture lacks the sentence: $d"; exit 1; }; done
+D6=$(mkstale nested); printf '\n````\n```\n%s\n```\n````\n' "$STALE" >> "$D6/index.md"
+D7=$(mkstale tilde); printf '\n```\n~~~\n%s\n```\n' "$STALE" >> "$D7/index.md"
+D8=$(mkstale listquote); printf '\n- > %s\n' "$STALE" >> "$D8/index.md"
+D9=$(mkstale numbered); printf '1. %s\n' "$STALE" >> "$D9/index.md"
+D10=$(mkstale task); printf -- '- [ ] %s\n' "$STALE" >> "$D10/index.md"
+for d in "$D1" "$D2" "$D3" "$D4" "$D5" "$D6" "$D7" "$D8" "$D9" "$D10"; do grep -qF "$STALE" "$d/index.md" || { echo "fixture lacks the sentence: $d"; exit 1; }; done
 grep -q 'not the owner.s\. A chore' "$D2/index.md" || { echo "inline fixture not inline"; exit 1; }
-for d in "$D1" "$D2"; do
+for d in "$D1" "$D2" "$D9" "$D10"; do
   O=$("$HD" "$d"); grep -q '^board sheet: drop-stale ' <<<"$O" || { echo "$d"; echo "$O"; exit 1; }
   "$HD" "$d" --apply --name fixer --model test >/dev/null; validate "$d" >/dev/null
   [ "$(sbody "$d")" = "$(sbody "$R")" ] && ! grep -qF "$STALE" "$d/index.md" && grep -q '^0 changes' <<<"$("$HD" "$d")" || { echo "drop-stale left a bare bullet or touched a neighbour: $d"; diff <(sbody "$d") <(sbody "$R"); exit 1; }
 done
-for d in "$D3" "$D4"; do
+for d in "$D3" "$D4" "$D6" "$D7" "$D8"; do
   Z=$(sum "$d"); O=$("$HD" "$d")
   { ! grep -q 'drop-stale' <<<"$O" && grep -q '^0 changes' <<<"$O"; } || { echo "$d"; echo "$O"; exit 1; }
   "$HD" "$d" --apply --name fixer --model test >/dev/null; [ "$Z" = "$(sum "$d")" ] || { echo "a fenced or quoted sentence was edited: $d"; exit 1; }
