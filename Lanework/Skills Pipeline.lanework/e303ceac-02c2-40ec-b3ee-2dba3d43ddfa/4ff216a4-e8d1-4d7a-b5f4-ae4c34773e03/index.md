@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Discovery and founding scripts: escape titles, and stamp a real model"
-order: 5120
+order: 32768
 labels: [{text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T01:09:29Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-modified: {at: 2026-10-10T01:46:50Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T02:09:32Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Two stamping bugs in the shipped scripts. `file-question.sh` writes a backslash in a title unescaped, and four scripts stamp `model: unknown` on every documented call.
 
