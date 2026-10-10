@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Smoke is red: the board's guide moved to v84, the skills are stamped v83"
-order: 4096
+order: 38912
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T10:47:00Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-modified: {at: 2026-10-10T11:33:28Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T11:40:40Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 The Lanework app rewrote this board's guide to `lanework-agent-guide v84`, so smoke's stamp gate fails on main and on every branch.
 

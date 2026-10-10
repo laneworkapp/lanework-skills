@@ -1,4 +1,4 @@
-<!-- lanework-agent-guide v83 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
+<!-- lanework-agent-guide v84 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
 
 # This folder is a Lanework kanban board
 
@@ -168,8 +168,13 @@ a trailing "No <kind>" section, named from the first stamped
 with no `kind` reads as no grouping and keeps its bytes, and `kind:
 priority` or `kind: component` reads as that `by`. A `kind` beside
 any other `by` is ignored and left where it is. The Group
-By menu offers the board's `single: true` kinds other than
-`priority` and `component`, which keep their own `by` spellings; a
+By menu lists None, Modified, Created and Due, then one row per
+`single: true` kind the board's vocabulary defines, in vocabulary
+order, `priority` and `component` among them like any other and
+absent on a board that defines neither. Picking any kind row writes
+`{by: label, kind: <type>}`, those two included, and re-picking the
+lane's checked row writes nothing, so a lane already written `by:
+priority` keeps its bytes until it is picked onto another row; a
 hand-written `group` may name any kind. `direction` is `ascending` or
 `descending` (today's shipped, unlabeled default): for the three date
 `by`s that is oldest/newest section first, and for `priority` it is
