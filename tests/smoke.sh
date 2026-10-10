@@ -482,6 +482,31 @@ O=$("$HD" "$R"); { grep -q '^board sheet: drop-stale ' <<<"$O" && grep -q '^boar
 "$HD" "$T/Heal Pre2.lanework" --apply --name fixer --model test >/dev/null; grep -q '^- \*\*Flow\*\*: Ideas to Done, with Issues as the side entrance for something broken, and Tasks as a side entrance\.$' "$T/Heal Pre2.lanework/index.md" || { grep Flow "$T/Heal Pre2.lanework/index.md"; exit 1; }
 ok "heal-descriptors removes the released Tasks-passed-both sentence, swaps the released Flow bullet (a customised Flow keeps its prose), validates, and finds nothing the second time"
 
+# drop-stale goes line by line: an own bullet leaves no bare "-", an inline hit leaves its bullet whole, a fence or a quote is never edited
+export STALE="A chore the owner files in Tasks has passed both."
+sbody() { awk 'n>=2{print} /^---$/{n++}' "$1/index.md"; }
+mkstale() { local d="$T/Heal Stale $1.lanework"; cp -R "$R" "$d"; echo "$d"; }       # $R is healed by now: the sheet is the only thing left to drop
+D1=$(mkstale own);  printf -- '- %s\n' "$STALE" >> "$D1/index.md"
+D2=$(mkstale inline); perl -pi -e 's/(not the owner.s\.)$/$1 $ENV{STALE}/ if /^- \*\*Two human gates\*\*/' "$D2/index.md"
+D3=$(mkstale fence); printf '\n```\n- %s\n```\n' "$STALE" >> "$D3/index.md"
+D4=$(mkstale quote); printf '\n> %s\n' "$STALE" >> "$D4/index.md"
+D5=$(mkstale mixed); printf '\n~~~\n%s\n~~~\n\n> %s\n\n- Kept. %s\n' "$STALE" "$STALE" "$STALE" >> "$D5/index.md"
+for d in "$D1" "$D2" "$D3" "$D4" "$D5"; do grep -qF "$STALE" "$d/index.md" || { echo "fixture lacks the sentence: $d"; exit 1; }; done
+grep -q 'not the owner.s\. A chore' "$D2/index.md" || { echo "inline fixture not inline"; exit 1; }
+for d in "$D1" "$D2"; do
+  O=$("$HD" "$d"); grep -q '^board sheet: drop-stale ' <<<"$O" || { echo "$d"; echo "$O"; exit 1; }
+  "$HD" "$d" --apply --name fixer --model test >/dev/null; validate "$d" >/dev/null
+  [ "$(sbody "$d")" = "$(sbody "$R")" ] && ! grep -qF "$STALE" "$d/index.md" && grep -q '^0 changes' <<<"$("$HD" "$d")" || { echo "drop-stale left a bare bullet or touched a neighbour: $d"; diff <(sbody "$d") <(sbody "$R"); exit 1; }
+done
+for d in "$D3" "$D4"; do
+  Z=$(sum "$d"); O=$("$HD" "$d")
+  { ! grep -q 'drop-stale' <<<"$O" && grep -q '^0 changes' <<<"$O"; } || { echo "$d"; echo "$O"; exit 1; }
+  "$HD" "$d" --apply --name fixer --model test >/dev/null; [ "$Z" = "$(sum "$d")" ] || { echo "a fenced or quoted sentence was edited: $d"; exit 1; }
+done
+"$HD" "$D5" --apply --name fixer --model test >/dev/null; validate "$D5" >/dev/null
+{ [ "$(grep -cF "$STALE" "$D5/index.md")" = 2 ] && grep -q '^- Kept\.$' "$D5/index.md" && grep -q '^0 changes' <<<"$("$HD" "$D5")"; } || { echo "mixed fixture: the fence and quote hits must stay, the bullet hit must go"; tail -12 "$D5/index.md"; exit 1; }
+ok "heal-descriptors drop-stale: removes an own bullet whole and an inline hit alone, never edits a fence or a quote, and a later real hit still goes"
+
 # label kinds: found-board.sh --labels splices catalog rows into config.labels; heal-board.py reads its suggested kinds from the same file
 LK="$SK/lanework/templates/label-kinds.md"; LD="$T/label-kinds"; mkdir -p "$LD"; FB="$SK/lanework/scripts/found-board.sh"
 sed 's/<SF Symbol>/square.grid.2x2/; s/^<.*>$/Test board./; s/^- <.*>$/- Test rule./' "$SK/lanework/templates/index.md" > "$LD/idx.md"
