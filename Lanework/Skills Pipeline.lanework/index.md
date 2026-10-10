@@ -32,7 +32,7 @@ config:
           icon:
             glyph: "arrow.down"
 created:  {at: 2026-09-27T20:39:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T02:00:19Z, by: {name: fixer, kind: agent, model: sonnet}}
+modified: {at: 2026-10-10T02:20:51Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
 ---
 # Skills Pipeline
 
@@ -40,9 +40,9 @@ Where work on the Lanework agent skills goes from a raw idea to something shippe
 
 ## How this board works
 
-- **Flow**: Ideas to Shaping to Proposed to Approved to Active to Done, with Issues as the side entrance for something broken in a shipped skill, and Tasks as the owner's side entrance for chores that need no shaping.
-- **Two human gates**: triage out of Ideas, and review out of Proposed. Agents surface what sits at a gate and never move a card through one. Moving a finished proposal from Shaping into Proposed is the agent's job, not the owner's. A chore the owner files in Tasks has passed both.
-- **Agent lanes**: Shaping, Approved, Tasks and Active are agents' lanes, acted on unasked: a card there is their work, with no instruction needed. Ideas and Proposed wait on the owner.
+- **Flow**: Ideas to Shaping to Proposed to Approved to Active to Done, with Issues as the side entrance for something broken in a shipped skill, and Tasks as the owner's holding bucket for chores that need no shaping.
+- **Two human gates**: triage out of Ideas, and review out of Proposed. Agents surface what sits at a gate and never move a card through one. Moving a finished proposal from Shaping into Proposed is the agent's job, not the owner's.
+- **Agent lanes**: Shaping, Approved and Active: agents act on cards there unasked. Elsewhere they may read, link, research and answer, but move a card out only when asked.
 - **Every card names its skill** with a `Skill` label: `lanework`, `work`, `watch`, `discovery`, `merge`, `heal`, or `repo` for work on the repository itself. A card that spans two skills carries both labels.
 - **A card is ready to build** when its body names the files under `skills/` it touches, how it will be verified, and a done-when a reader could check without asking.
 - **Verified means**: every changed script passes `bash -n` and a real run against a throwaway board outside the repo, with the output quoted in the closing comment. A prose change is read through against the `lanework-agent-guide` version the skills target.
