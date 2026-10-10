@@ -4,7 +4,7 @@ kind: board
 title: {{title_yaml}}
 id: {{id}}
 icon: {glyph: binoculars}
-config: {show-card-body: 3, labels: [{type: round, text: Round}, {type: record, text: Record, single: true, values: [{text: ADR, rank: 1}, {text: PDR, rank: 2}]}, {type: status, text: Status, single: true, values: [{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}]}]}
+config: {show-card-body: 3, labels: [{{label_entries}}{type: record, text: Record, single: true, values: [{text: ADR, rank: 1}, {text: PDR, rank: 2}]}, {type: status, text: Status, single: true, values: [{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}]}]}
 created:  {{stamp}}
 modified: {{stamp}}
 ---

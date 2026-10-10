@@ -13,4 +13,4 @@ if [ $# -gt 0 ] && [[ "$1" != --* ]]; then TITLE="$1"; shift; fi
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
 exec "$HERE/../../lanework/scripts/found-board.sh" "$BOARD" \
   --index "$HERE/../templates/board.md" --lanes "$HERE/../templates/lanes.md" \
-  --title "$TITLE" --var topic="${TITLE% Discovery}" "$@"
+  --title "$TITLE" --labels round --var topic="${TITLE% Discovery}" "$@"
