@@ -1,6 +1,6 @@
 {
   "name": "lanework",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Agent skills for Lanework boards: what a board is and how to found one, sweeping and working a pipeline board, a standing watch on a board, running discovery on a project's problem and domain space, producing ADRs and PDRs, and multi-session planning that charts an idea's open decisions as tickets and resolves them one per session.",
   "author": {
     "name": "laneworkapp",
