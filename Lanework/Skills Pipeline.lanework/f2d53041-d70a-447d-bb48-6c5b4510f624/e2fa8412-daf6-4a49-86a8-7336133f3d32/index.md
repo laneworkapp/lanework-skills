@@ -5,7 +5,7 @@ title: "discovery: record ADRs and PDRs on the board, not in docs/"
 order: 1024
 labels: [{text: discovery, kind: {type: skill, text: Skill}}]
 created: {at: 2026-10-09T23:21:18Z}
-modified: {at: 2026-10-09T23:54:28Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T00:16:22Z}
 ---
 Discovery writes each ADR and PDR as a numbered Markdown file under `docs/adr/` or `docs/pdr/`, where nobody looking at the board sees it. Instead, each record becomes a card in a dedicated Decisions lane on the discovery board, beside the questions that produced it, so the decisions are as visible as the rulings.
 
