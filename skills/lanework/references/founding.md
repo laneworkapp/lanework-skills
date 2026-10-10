@@ -9,7 +9,7 @@ Usually not: a program card with child cards on an existing board carries weeks 
 Path: `<repo root>/<folder>/<Name>.lanework` (machine-level: `~/<folder>/`), folder per `finding.md` (new board).
 
 ```bash
-scripts/found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes> [--var key=value]...
+scripts/found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes> [--var key=value]... --model <your model>
 ```
 
 - Pipeline: `--index templates/pipeline-index.md --var project=<Project> --var verified="<gate command>" --lanes templates/pipeline-lanes.md`.

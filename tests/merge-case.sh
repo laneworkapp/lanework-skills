@@ -20,7 +20,7 @@ O="$W/origin"; mkdir -p "$O/Lanework"; git init -q -b main "$O"
 G "$O" config user.email t@t; G "$O" config user.name t
 BN="Lanework/Acme Pipeline.lanework"; P="$O/$BN"
 "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
-  --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified=x >/dev/null
+  --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified=x --model test >/dev/null
 cp -R "$VAL/.schema" "$P/.schema"; cp "$VAL/CLAUDE.md" "$P/CLAUDE.md"
 lane() { basename "$(lane_by_title "$1/$BN" "$2")"; }
 IDEAS=$(lane "$O" Ideas); APPROVED=$(lane "$O" Approved); ACTIVE=$(lane "$O" Active); DONE=$(lane "$O" Done)

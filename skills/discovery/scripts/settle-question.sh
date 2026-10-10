@@ -1,7 +1,7 @@
 #!/bin/bash
 # settle-question.sh: record a ruling on a question card and move it.
 # usage: settle-question.sh <board> <card-uuid> --ruling F [--to settled|parked] \
-#          [--record F [--reply <ask-uuid>]] [--model m] [--name n] [--session s]
+#          [--record F [--reply <ask-uuid>]] --model m [--name n] [--session s]
 # Appends `## Ruling` + the --ruling text (templates/ruling.md), drops `waiting`, restamps,
 # posts --record as a comment (in reply to --reply), moves the card to the bottom of Settled
 # or Parked. Staged outside the board; the card path is re-resolved just before landing.
@@ -12,7 +12,7 @@ BOARD="${1:?usage: settle-question.sh <board> <card-uuid> --ruling F [...]}"
 CID="${2:?usage: settle-question.sh <board> <card-uuid> --ruling F [...]}"
 shift 2
 TO="settled"; REPLY=""; RULING=""; RECORD=""
-MODEL="${CLAUDE_MODEL:-unknown}"; NAME="claude"; SESSION=""
+MODEL=""; NAME="claude"; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --to)      TO="${2:?}"; shift 2 ;;
@@ -25,6 +25,7 @@ while [ $# -gt 0 ]; do
     *) echo "settle-question.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+require_model settle-question.sh "settle-question.sh <board> <card-uuid> --ruling F --model m [...]"
 [ -r "${RULING:-}" ] || { echo "settle-question.sh: --ruling must name a readable file" >&2; exit 2; }
 [ -z "$RECORD" ] || [ -r "$RECORD" ] || { echo "settle-question.sh: --record must name a readable file" >&2; exit 2; }
 case "$TO" in settled) LANE_TITLE=Settled ;; parked) LANE_TITLE=Parked ;; *) echo "settle-question.sh: --to is settled or parked" >&2; exit 2 ;; esac

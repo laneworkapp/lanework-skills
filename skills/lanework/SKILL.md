@@ -25,7 +25,7 @@ A board is a folder of plain dirs + Markdown that the Lanework app renders live.
 | script | does |
 |---|---|
 | `scripts/read-board.sh <board>` | prints lanes and cards in reading order |
-| `scripts/found-board.sh <board> --index F --lanes F` | founds a board from templates |
+| `scripts/found-board.sh <board> --index F --lanes F --model m` | founds a board from templates |
 | `scripts/heal-board.py <board> [--apply --name N --model M]` | repairs known board damage; when, and which copy wins: `references/writes.md` § Healing |
 | `scripts/lib.sh` | shared helpers, sourced by every skill's scripts |
 

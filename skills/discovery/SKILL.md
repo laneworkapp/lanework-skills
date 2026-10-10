@@ -52,7 +52,7 @@ Owner wants to answer on the board while you wait → suggest `/watch <board>` (
 
 | script | does |
 |---|---|
-| `found-discovery-board.sh <path> [title]` | founds the board: `found-board.sh` with `templates/board.md` + `templates/lanes.md` |
-| `file-question.sh <board> <title> --round N --body F` | files the next Q into Asked, with founding + ask comments |
-| `file-record.sh <board> <question-uuid> --record ADR\|PDR --title t --body F` | files the ADR/PDR card into Decisions, prints its link for the ruling |
-| `settle-question.sh <board> <card-uuid> --ruling F` | appends the ruling, clears `waiting`, moves to Settled (or `--to parked`) |
+| `found-discovery-board.sh <path> [title] --model m` | founds the board: `found-board.sh` with `templates/board.md` + `templates/lanes.md` |
+| `file-question.sh <board> <title> --round N --body F --model m` | files the next Q into Asked, with founding + ask comments |
+| `file-record.sh <board> <question-uuid> --record ADR\|PDR --title t --body F --model m` | files the ADR/PDR card into Decisions, prints its link for the ruling |
+| `settle-question.sh <board> <card-uuid> --ruling F --model m` | appends the ruling, clears `waiting`, moves to Settled (or `--to parked`) |

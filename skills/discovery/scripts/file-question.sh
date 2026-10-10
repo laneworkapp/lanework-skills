@@ -1,7 +1,7 @@
 #!/bin/bash
 # file-question.sh: file the next question card into Asked.
 # usage: file-question.sh <board> "<title, no Q-number>" --round N --body F \
-#          [--ask F] [--depends <link>]... [--why T] [--model m] [--name n] [--session s]
+#          --model m [--ask F] [--depends <link>]... [--why T] [--name n] [--session s]
 # Mints Q<n> from the highest across all lanes. Card frontmatter from templates/question-card.md,
 # body from --body, `## Depends on` appended from --depends. Two comments, 1s apart: founding
 # record (--why, no handle), then the ask (`waiting.comment` points at it).
@@ -16,7 +16,7 @@ BOARD="${1:?usage: file-question.sh <board> <title> --round N --body F [...]}"
 TITLE="${2:?usage: file-question.sh <board> <title> --round N --body F [...]}"
 shift 2
 ROUND=""; BODY_FILE=""; ASK_FILE=""; WHY="**On the frontier now.**"
-MODEL="${CLAUDE_MODEL:-unknown}"; NAME="claude"; SESSION=""; DEPENDS=()
+MODEL=""; NAME="claude"; SESSION=""; DEPENDS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --round)   ROUND="${2:?--round needs a value}"; shift 2 ;;
@@ -30,6 +30,7 @@ while [ $# -gt 0 ]; do
     *) echo "file-question.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
+require_model file-question.sh "file-question.sh <board> <title> --round N --body F --model m [...]"
 [ -n "$ROUND" ] || { echo "file-question.sh: --round is required" >&2; exit 1; }
 [ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-question.sh: --body must name a readable file" >&2; exit 1; }
 [ -z "$ASK_FILE" ] || [ -r "$ASK_FILE" ] || { echo "file-question.sh: --ask must name a readable file" >&2; exit 1; }
@@ -72,7 +73,7 @@ C="$STAGE/$CARD_ID"; mkdir -p "$C/comments/$FOUND_ID" "$C/comments/$ASK_ID"
 
 frontmatter_of "$TEMPLATES/question-card.md" > "$STAGE/fm.md"
 {
-  render "$STAGE/fm.md" n "$NEXTQ" title "${TITLE//\"/\\\"}" order "$(next_order "$ASKED")" \
+  render "$STAGE/fm.md" n "$NEXTQ" title "$(title_str "$TITLE")" order "$(next_order "$ASKED")" \
     round "$ROUND" handle "$HANDLE" since "$NOW" ask_id "$ASK_ID" stamp "{at: $NOW, by: $BY}"
   cat "$BODY_FILE"
   if [ "${#DEPENDS[@]}" -gt 0 ]; then

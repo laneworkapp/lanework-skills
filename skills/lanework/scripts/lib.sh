@@ -7,6 +7,16 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # yaml_str <s>: a double-quoted YAML scalar (always quote strings: see references/writes.md).
 yaml_str() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
 
+# title_str <s>: a title's text for use inside double quotes (no outer quotes, so a prefix like "Q3: " can precede it):
+# CR and LF become a space, then backslash and quote are escaped. Every title a script writes goes through it.
+title_str() { local s="${1//$'\n'/ }"; s="${s//$'\r'/ }"; s="${s//\\/\\\\}"; printf '%s' "${s//\"/\\\"}"; }
+
+# require_model <script> <usage>: MODEL from --model, else CLAUDE_MODEL; exit 2 with the usage line when neither. Never stamps a guess.
+require_model() {
+  MODEL="${MODEL:-${CLAUDE_MODEL:-}}"
+  [ -n "$MODEL" ] || { printf '%s: no model: pass --model <your model> or set CLAUDE_MODEL\nusage: %s\n' "$1" "$2" >&2; exit 2; }
+}
+
 # fm_value <file> <key>: raw scalar of a top-level frontmatter key.
 fm_value() {
   awk -v key="$2" '
