@@ -2,7 +2,7 @@
 schema: 1
 kind: card
 title: "merge: a skill that resolves git merge conflicts on a board without a human"
-order: 4096
+order: 8192
 labels: [{text: merge, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-06T22:44:23Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
 modified: {at: 2026-10-06T23:56:41Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}

@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Make the plugin installable: marketplace.json and a real install command"
-order: 2048
+order: 29696
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-09-28T00:21:40Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-09-28T10:15:01Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-10T01:51:20Z, by: {name: shaper, kind: agent, model: sonnet}}
 ---
 The README says the repo installs as one plugin but gives no command, and without `.claude-plugin/marketplace.json` there is no `/plugin` route to it. Add the manifest so the repo is its own one-plugin marketplace, and put the real commands in the README.
 
