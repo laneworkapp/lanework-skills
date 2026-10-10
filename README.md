@@ -130,7 +130,7 @@ ln -s "$(pwd)/lanework-skills/skills/merge" ~/.claude/skills/merge
 
 The skills cite and call each other by relative path, so install all five side by side.
 
-`SKILL.md` is the Agent Skills format Claude Code reads; other harnesses that read `SKILL.md` files work the same way.
+The skills are written for Claude Code, the one supported harness: `discovery` and `watch` rely on its `disable-model-invocation` setting, and `watch` on its Monitor tool.
 
 ## Repository layout
 
