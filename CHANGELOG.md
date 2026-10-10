@@ -2,7 +2,7 @@
 
 Version 0.6.0: a new plan skill, started with /lanework:plan, charts a big idea's open decisions as tickets on a board and settles one per session.
 
-A running /watch now picks up a new release of the skills without being restarted.
+When the skills are installed by hand, a running /watch now picks up changes to them without being restarted.
 
 Version 0.5.0: lanes on new pipeline, design loop and discovery boards now start with their own icons, tinted only where a lane waits on you.
 
