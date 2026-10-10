@@ -18,14 +18,14 @@ A board is a folder of plain dirs + Markdown that the Lanework app renders live.
 | write rules: stamps, atomic, paths, placing, healing, git | `references/writes.md` |
 | founding a new board | `references/founding.md` |
 | default lane sets and who moves cards | `references/board-kinds.md` |
-| index and lane templates | `templates/` |
+| index and lane templates; the label-kind catalog | `templates/` |
 
 ## Scripts
 
 | script | does |
 |---|---|
 | `scripts/read-board.sh <board>` | prints lanes and cards in reading order |
-| `scripts/found-board.sh <board> --index F --lanes F --model m` | founds a board from templates |
+| `scripts/found-board.sh <board> --index F --lanes F --model m [--labels k,...]` | founds a board from templates; `--labels` writes catalog kinds (`templates/label-kinds.md`) into `config.labels` |
 | `scripts/heal-board.py <board> [--apply --name N --model M]` | repairs known board damage; when, and which copy wins: `references/writes.md` § Healing |
 | `scripts/lib.sh` | shared helpers, sourced by every skill's scripts |
 

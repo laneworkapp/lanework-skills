@@ -22,6 +22,7 @@ Work from raw idea to built. **Lanes = stages of commitment; a card's lane says 
 | Active | agent | an agent moves a card in as it starts: build, evidence, move to Done |
 | Done | none | the agent that built a card moves it in when its done-when is met |
 
+- **Default label kinds**: priority, component, type (`templates/label-kinds.md`).
 - **Common additions**: `Rejected` (collapsed, terminal, one line why), `Deferred` (collapsed). A busy Done: a `modified` `filter` (newer than 2d) + `group` by `modified`, descending (shapes: guide § Frontmatter, lanes).
 
 ## Design loop
@@ -40,6 +41,8 @@ One surface or question worked through drawn alternatives until the owner picks.
 | Chosen | gate | owner picks; build cards on a pipeline board only on request |
 | Dead ends | none | the owner rules a direction out: an agent files it with one line why |
 
+- **Default label kinds**: priority, component.
+
 ## Datapoint
 
 One card per value that exists whether or not anyone is working on it (listing field, setting, published number, policy). Cards are permanent; lanes track the value's state.
@@ -55,6 +58,7 @@ One card per value that exists whether or not anyone is working on it (listing f
 | Filed | none | the file is written: file the card in the same commit. Then wait on the owner |
 | Pushed | gate | the owner pushes. An agent moves the card in only after a read-back that agrees |
 
+- **Default label kinds**: none.
 - **Optional task lanes**: `Checklist` 6144, `Active` 7168, `Done` 8192, for release steps. Mark task cards with a label kind. Group Filed / Pushed by `component` (guide § Frontmatter, lanes).
 
 ## Discovery

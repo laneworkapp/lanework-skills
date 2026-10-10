@@ -1,33 +1,49 @@
 #!/bin/bash
 # found-board.sh: cold-start a board from an index template and a lanes table.
 # usage: found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes.md> \
-#          --model m [--title T] [--var key=value]... [--name n]
+#          --model m [--title T] [--var key=value]... [--labels kind,...] [--name n]
 # Index template gets {{title}}, {{title_yaml}}, {{id}}, {{stamp}} plus each --var.
+# --labels: catalog kinds (templates/label-kinds.md) spliced into config.labels; unknown kind -> exit 2, nothing written.
 # Lanes table rows: | order | title | collapsed (yes) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
 # Refuses a non-empty folder.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-BOARD="${1:?usage: found-board.sh <board> --index F --lanes F [--title T] [--var k=v]... --model m [--name n]}"
+BOARD="${1:?usage: found-board.sh <board> --index F --lanes F [--title T] [--var k=v]... --model m [--labels k,...] [--name n]}"
 shift
-INDEX=""; LANES=""; TITLE=""; VARS=()
-MODEL=""; NAME="claude"
+INDEX=""; LANES=""; TITLE=""; LABELS=""; VARS=()
+MODEL=""; NAME="claude"; HAVE_LABELS=""
+KINDS="$(dirname "${BASH_SOURCE[0]}")/../templates/label-kinds.md"
 while [ $# -gt 0 ]; do
   case "$1" in
     --index) INDEX="${2:?--index needs a file}"; shift 2 ;;
     --lanes) LANES="${2:?--lanes needs a file}"; shift 2 ;;
     --title) TITLE="${2:?--title needs a value}"; shift 2 ;;
     --var)   v="${2:?--var needs key=value}"; VARS+=("${v%%=*}" "${v#*=}"); shift 2 ;;
+    --labels) LABELS="${2?--labels needs a kind list}"; HAVE_LABELS=1; shift 2 ;;
     --model) MODEL="${2:?--model needs a value}"; shift 2 ;;
     --name)  NAME="${2:?--name needs a value}"; shift 2 ;;
     *) echo "found-board.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
-require_model found-board.sh "found-board.sh <board> --index F --lanes F --model m [--title T] [--var k=v]... [--name n]"
+require_model found-board.sh "found-board.sh <board> --index F --lanes F --model m [--title T] [--var k=v]... [--labels k,...] [--name n]"
 [ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
 [ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
+LABELS_YAML=""
+if [ -n "$HAVE_LABELS" ]; then
+  [ -r "$KINDS" ] || { echo "found-board.sh: $KINDS is missing" >&2; exit 1; }
+  ROWS=""; SEEN=","; REST="$LABELS,"   # an empty name anywhere (empty list, "a,,b", trailing comma) is an unknown kind
+  while [ -n "$REST" ]; do
+    k="${REST%%,*}"; REST="${REST#*,}"
+    row=$(awk -F'|' -v k="$k" '/^\|/ { n=$2; e=$3; gsub(/^ +| +$/, "", n); gsub(/^ +| +$/, "", e); if (n == k && e ~ /^\{/) { print e; exit } }' "$KINDS")
+    [ -n "$row" ] || { echo "found-board.sh: unknown label kind '$k' (known: $(awk -F'|' '/^\|/ { n=$2; e=$3; gsub(/ /, "", n); if (e ~ /^ *\{/) { printf "%s%s", s, n; s="," } }' "$KINDS"))" >&2; exit 2; }
+    case "$SEEN" in *",$k,"*) echo "found-board.sh: label kind '$k' named twice" >&2; exit 2 ;; esac
+    SEEN="$SEEN$k,"; ROWS="${ROWS:+$ROWS, }$row"
+  done
+  LABELS_YAML=", labels: [$ROWS]"
+fi
 if [ -d "$BOARD" ] && [ -n "$(ls -A "$BOARD" 2>/dev/null)" ]; then
   echo "found-board.sh: refusing, $BOARD exists and is not empty" >&2; exit 1
 fi
@@ -37,7 +53,7 @@ STAGE=$(mktemp -d "${TMPDIR:-/tmp}/lanework-found.XXXXXX"); trap 'rm -rf "$STAGE
 mkdir -p "$BOARD"
 
 render "$INDEX" title "$TITLE" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
-  stamp "{at: $NOW, by: $BY}" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
+  stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
 awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 5; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 }' "$LANES" |

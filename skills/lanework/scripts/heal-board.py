@@ -59,14 +59,6 @@ from datetime import datetime, timezone
 RESERVED_NAMES = {"healer", "shortcuts", "tracker"}
 FLOW_LIMIT = 120
 TEXT_KIND = {"type": "text", "text": "Text", "icon": {"glyph": "tag"}}
-SUGGESTED = [
-    {"type": "priority", "text": "Priority", "icon": {"glyph": "flag"}, "single": True, "values": [
-        {"text": "Urgent", "rank": 0, "color": "#C8283C", "icon": {"glyph": "exclamationmark.2"}},
-        {"text": "High", "rank": 1, "color": "#E07A1F", "icon": {"glyph": "exclamationmark"}},
-        {"text": "Medium", "rank": 2},
-        {"text": "Low", "rank": 3, "icon": {"glyph": "arrow.down"}}]},
-    {"type": "component", "text": "Component", "color": "aluminum", "icon": {"glyph": "puzzlepiece"}, "single": True},
-]
 RESERVED_KINDS = ("priority", "component")
 LABEL_KEYS = ("text", "rank", "color", "icon", "kind")
 KIND_KEYS = ("type", "text", "color", "icon")
@@ -206,6 +198,44 @@ def inline(text):
     if " #" in t:
         t = t.split(" #", 1)[0]
     return scalar(t)
+
+
+KIND_CATALOG = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "templates", "label-kinds.md")
+
+
+def load_suggested(path=KIND_CATALOG):
+    """The suggested priority and component kinds: their rows in templates/label-kinds.md (the one
+    source found-board.sh --labels also reads). A missing file or row stops the run; nothing falls back."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError as e:
+        raise SystemExit("heal-board: cannot read the label-kinds catalog %s: %s" % (os.path.normpath(path), e.strerror))
+    rows = {}
+    for line in lines:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if line.startswith("|") and len(cells) == 2 and cells[1].startswith("{"):
+            rows[cells[0]] = cells[1]
+    out = []
+    for kind in RESERVED_KINDS:
+        if kind not in rows:
+            raise SystemExit("heal-board: %s has no `%s` row" % (os.path.normpath(path), kind))
+        try:
+            out.append(plain_str(inline(rows[kind])))
+        except ParseError as e:
+            raise SystemExit("heal-board: %s: the `%s` row does not parse: %s" % (os.path.normpath(path), kind, e))
+    return out
+
+
+def plain_str(v):
+    if isinstance(v, dict):
+        return {k: plain_str(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [plain_str(x) for x in v]
+    return str(v) if isinstance(v, str) else v
+
+
+SUGGESTED = load_suggested()
 
 
 def indent(line):

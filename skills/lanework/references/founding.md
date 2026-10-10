@@ -9,11 +9,12 @@ Usually not: a program card with child cards on an existing board carries weeks 
 Path: `<repo root>/<folder>/<Name>.lanework` (machine-level: `~/<folder>/`), folder per `finding.md` (new board).
 
 ```bash
-scripts/found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes> [--var key=value]... --model <your model>
+scripts/found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes> [--var key=value]... [--labels <kind>,...] --model <your model>
 ```
 
 - Pipeline: `--index templates/pipeline-index.md --var project=<Project> --var verified="<gate command>" --lanes templates/pipeline-lanes.md`.
 - Other kinds: `templates/design-loop-lanes.md` or `templates/datapoint-lanes.md`, plus an index filled in from `templates/index.md`. Custom lanes: same table format. Kinds: `board-kinds.md`.
+- **Label kinds**: offer the lane set's default (`board-kinds.md`) and the rest of the catalog in one line (priority, component, type, size, platform, release, epic), then pass `--labels <kinds>`. Rows: `templates/label-kinds.md`. Unknown kind → exit 2, nothing written. None wanted → omit the flag.
 - **Lane bodies** (custom lanes too): 2nd sentence = who acts + what starts it (tables: `board-kinds.md`). A body forbidding agents an action also says what they may do.
 - Mints the board `id` (host of every `lanework://` link; never changes), stamps, quotes titles, and stages every write outside the board.
 
