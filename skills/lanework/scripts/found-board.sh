@@ -32,6 +32,16 @@ require_model found-board.sh "found-board.sh <board> --index F --lanes F --model
 [ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
 [ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
+# the slot names and the built-in keys are the script's: a --var can't overwrite them
+set -- ${VARS[@]+"${VARS[@]}"}
+while [ $# -gt 0 ]; do
+  case "$1" in labels|label_entries|title|title_yaml|id|stamp) echo "found-board.sh: --var $1 is reserved" >&2; exit 2 ;; esac
+  shift 2
+done
+HAS_LABELS_SLOT=""; grep -q '{{labels}}\|{{label_entries}}' "$INDEX" && HAS_LABELS_SLOT=1
+if [ -z "$HAVE_LABELS" ] && grep -q '{{label_entries}}' "$INDEX"; then
+  echo "found-board.sh: $INDEX needs --labels (it holds {{label_entries}})" >&2; exit 2
+fi
 LABELS_YAML=""; LABEL_ENTRIES=""
 if [ -n "$HAVE_LABELS" ]; then
   [ -r "$KINDS" ] || { echo "found-board.sh: $KINDS is missing" >&2; exit 1; }
@@ -44,6 +54,7 @@ if [ -n "$HAVE_LABELS" ]; then
     SEEN="$SEEN$k,"; ROWS="${ROWS:+$ROWS, }$row"
   done
   LABELS_YAML=", labels: [$ROWS]"; LABEL_ENTRIES="$ROWS, "
+  [ -n "$HAS_LABELS_SLOT" ] || { echo "found-board.sh: --labels given but $INDEX has no {{labels}} or {{label_entries}} slot" >&2; exit 2; }
 fi
 if [ -d "$BOARD" ] && [ -n "$(ls -A "$BOARD" 2>/dev/null)" ]; then
   echo "found-board.sh: refusing, $BOARD exists and is not empty" >&2; exit 1

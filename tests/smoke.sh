@@ -538,6 +538,33 @@ validate "$LD/All.lanework" >/dev/null; ok "a card carrying one flattened entry 
 [ "$(norm_index "$LD/D Discovery.lanework/index.md")" = "$(sed 's/{type: round, text: Round}/{type: round, text: Round, single: true}/' "$ROOT/tests/fixtures/founded-discovery-index.md")" ] || { norm_index "$LD/D Discovery.lanework/index.md"; exit 1; }
 validate "$LD/D Discovery.lanework" >/dev/null
 ok "a founded discovery board takes round from the catalog: config byte-identical to the pre-catalog founding except round gains single: true, and it validates"
+# discovery keeps round whatever the caller passes; slot and var guards in found-board.sh
+for lb in priority priority,round,type round; do
+  rm -rf "$LD/DL.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$LD/DL.lanework" --model smoke --labels "$lb" >/dev/null
+  validate "$LD/DL.lanework" >/dev/null
+  want=round,$(tr ',' '\n' <<<"$lb" | { grep -v '^round$' || true; } | paste -sd, - )
+  got=$(python3 -c 'import sys,yaml; print(",".join(e["type"] for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]))' "$LD/DL.lanework/index.md")
+  [ "$got" = "${want%,},record,status" ] || { echo "--labels $lb: got $got"; exit 1; }
+done
+ok "found-discovery-board.sh --labels adds kinds to round (round first, deduped) and never loses it"
+rm -rf "$LD/NoRound.lanework"; rc=0; "$FB" "$LD/NoRound.lanework" --index "$SK/discovery/templates/board.md" --lanes "$SK/discovery/templates/lanes.md" --var topic=x --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 2 ] && [ ! -e "$LD/NoRound.lanework" ] || { echo "board.md without --labels: rc=$rc"; exit 1; }
+ok "found-board.sh with the discovery template and no --labels exits 2 and writes nothing (round cannot be lost)"
+printf '%s\n' '---' 'schema: 1' 'kind: board' 'title: {{title_yaml}}' 'id: {{id}}' 'icon: {glyph: square.grid.2x2}' 'config: {show-card-body: 3}' 'created:  {{stamp}}' 'modified: {{stamp}}' '---' '# {{title}}' > "$LD/slotless.md"
+rm -rf "$LD/Slotless.lanework"; rc=0; "$FB" "$LD/Slotless.lanework" --index "$LD/slotless.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --labels priority --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 2 ] && [ ! -e "$LD/Slotless.lanework" ] || { echo "slotless index with --labels: rc=$rc"; exit 1; }
+"$FB" "$LD/Slotless.lanework" --index "$LD/slotless.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --model smoke >/dev/null
+ok "found-board.sh --labels with an index that has neither {{labels}} nor {{label_entries}} exits 2 and writes nothing; without --labels such an index still founds"
+for bad in "type,type" "priority,size,priority"; do
+  rm -rf "$LD/Dup.lanework"; rc=0; "$FB" "$LD/Dup.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --labels "$bad" --model smoke >/dev/null 2>&1 || rc=$?
+  [ "$rc" -eq 2 ] && [ ! -e "$LD/Dup.lanework" ] || { echo "--labels $bad: rc=$rc"; exit 1; }
+done
+ok "found-board.sh --labels naming a kind twice exits 2 and writes nothing"
+for rv in labels label_entries title title_yaml id stamp; do
+  rm -rf "$LD/Rv.lanework"; rc=0; "$FB" "$LD/Rv.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --var "$rv=, foo: 1" --model smoke >/dev/null 2>&1 || rc=$?
+  [ "$rc" -eq 2 ] && [ ! -e "$LD/Rv.lanework" ] || { echo "--var $rv: rc=$rc"; exit 1; }
+done
+ok "found-board.sh --var naming a slot or built-in key (labels, label_entries, title, title_yaml, id, stamp) exits 2 and writes nothing"
 # heal-board.py: embedded SUGGESTED priority and component equal the catalog rows; a copy with no catalog beside it still heals
 python3 - "$SK/lanework/scripts/heal-board.py" "$LK" <<'PY' || { echo "heal's embedded SUGGESTED differs from the catalog rows"; exit 1; }
 import importlib.util, sys; sys.dont_write_bytecode = True
