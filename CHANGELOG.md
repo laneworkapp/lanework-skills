@@ -1,5 +1,11 @@
 **October 2026**
 
+Version 0.4.0: new boards can start with common label kinds (priority, component, type, size, platform, release, epic and round), chosen when the board is founded.
+
+Each kind of board now comes with sensible default label kinds, and discovery boards always keep their round label.
+
+Skills now follow version 83 of Lanework's agent guide, where a lane can group its cards by any label.
+
 Version 0.3.0: a new heal skill, started with /heal, brings your existing boards up to date after showing you every change first.
 
 Every lane now says who acts on it and what starts them, so agents no longer stall on a card you approved.
