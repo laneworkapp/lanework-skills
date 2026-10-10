@@ -23,9 +23,10 @@ Then, **per board, now**: read the guide, the board body and **every lane body**
 One persistent Monitor (`persistent: true`) for all boards:
 
 ```bash
-<skills>/watch/scripts/watch-boards.sh '<scratchpad>/board-snapshot.txt' '<absolute board path>' ['<absolute board path>'...]
+<skills>/watch/scripts/watch-boards.sh --skills '<skills root>' '<scratchpad>/board-snapshot.txt' '<absolute board path>' ['<absolute board path>'...]
 ```
 
+- `<skills root>` = the folder holding the `watch` skill, resolved through symlinks. The watcher fingerprints the rule files and emits `SKILLS CHANGED` when they change, live or since the last arm (`events.md` item 8).
 - Needs homebrew `fswatch`. Absent → run the same snapshot diff in a plain 2s `sleep` loop.
 - Two boards with the same folder name → refused. Give each its own Monitor and state file.
 - **Don't "improve" the watcher by filtering fswatch paths.** Why: the script's header. That header is load-bearing history.

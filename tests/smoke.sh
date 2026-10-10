@@ -379,6 +379,37 @@ if command -v fswatch >/dev/null; then
   grep -q "^CHANGED Sync: v2 Discovery.lanework/.*/comments/dddd0000-0000-4000-8000-000000000004/index.md$" "$W" && ! grep -q "\.draft" "$W" || { cat "$W"; exit 1; }
   ok "watch-boards: comment post on the 2nd board reported with its board, draft not reported"
   if "$SK/watch/scripts/watch-boards.sh" "$T/snap2" "$P" "$P/" 2>/dev/null; then exit 1; fi; ok "watch-boards refuses two boards with one folder name"
+  [ ! -e "$T/snap.skills" ] || { echo "no --skills, yet a .skills state file appeared"; exit 1; }; ok "watch-boards: without --skills there is no skills state and no behavior change"
+
+  # watch --skills: a rule-file edit emits SKILLS CHANGED once, live and across a restart; a non-rule file emits nothing
+  # scratch skills copy + scratch board, outside the repo; polling a bounded wait, never a fixed sleep
+  S2="$T/skills-copy"; PB="$T/Probe.lanework"; W2="$T/watch-skills.log"; mkdir -p "$PB"; cp -R "$SK" "$S2"; printf -- '---\nkind: board\n---\n# Probe\n' > "$PB/index.md"
+  wait_for() { local i; for i in $(seq 1 100); do grep -q -- "$2" "$1" 2>/dev/null && return 0; sleep 0.1; done; return 1; }
+  # probe: a new board file the watcher must report; retried, because fswatch may still be starting
+  pn=0; probe() { local t; for t in 1 2 3 4 5 6 7 8; do pn=$((pn+1)); printf 'x\n' > "$PB/probe-$pn.md"; wait_for "$W2" "^CHANGED Probe.lanework/probe-$pn.md$" && return 0; done; echo "watcher never reported a probe file:"; cat "$W2"; exit 1; }
+  stop_watch() { pkill -P "$WP" 2>/dev/null || true; kill "$WP" 2>/dev/null || true; wait "$WP" 2>/dev/null || true; }
+  nchanged() { grep -c '^SKILLS CHANGED$' "$W2" || true; }
+  : > "$W2"; "$SK/watch/scripts/watch-boards.sh" --skills "$S2" "$T/snap3" "$PB" > "$W2" 2>&1 & WP=$!
+  wait_for "$T/snap3.skills" '.' || { echo "no skills fingerprint stored:"; cat "$W2"; exit 1; }
+  probe   # fswatch is live
+  [ "$(nchanged)" = 0 ] || { echo "SKILLS CHANGED with no edit"; cat "$W2"; exit 1; }
+  printf '\nan edit\n' >> "$S2/work/references/writing.md"
+  wait_for "$W2" '^SKILLS CHANGED$' || { echo "live rule-file edit not reported:"; cat "$W2"; exit 1; }
+  probe; probe; [ "$(nchanged)" = 1 ] || { echo "SKILLS CHANGED not exactly once after a live edit:"; cat "$W2"; exit 1; }
+  ok "watch-boards --skills: a live rule-file edit emits SKILLS CHANGED once"
+  printf '\nan edit\n' >> "$S2/work/templates/ask.md"; printf '\nan edit\n' >> "$S2/lanework/references/writes.md"; printf '\nan edit\n' >> "$S2/lanework/SKILL.md"
+  probe; probe; [ "$(nchanged)" = 1 ] || { echo "a non-rule file edit emitted SKILLS CHANGED:"; cat "$W2"; exit 1; }
+  ok "watch-boards --skills: an edit to a template or a non-rule reference emits nothing"
+  stop_watch
+  printf '\nan edit\n' >> "$S2/lanework/references/authority.md"
+  : > "$W2"; "$SK/watch/scripts/watch-boards.sh" --skills "$S2" "$T/snap3" "$PB" > "$W2" 2>&1 & WP=$!
+  wait_for "$W2" '^SKILLS CHANGED$' || { echo "restart after a rule-file edit did not report it:"; cat "$W2"; exit 1; }
+  probe; [ "$(nchanged)" = 1 ] || { echo "SKILLS CHANGED not exactly once at start:"; cat "$W2"; exit 1; }
+  stop_watch
+  : > "$W2"; "$SK/watch/scripts/watch-boards.sh" --skills "$S2" "$T/snap3" "$PB" > "$W2" 2>&1 & WP=$!
+  wait_for "$T/snap3.skills" '.'; probe; stop_watch
+  [ "$(nchanged)" = 0 ] || { echo "a restart with no edit reported SKILLS CHANGED:"; cat "$W2"; exit 1; }
+  ok "watch-boards --skills: a restart after a rule-file edit emits it at start, and a second restart emits nothing"
 else
   echo "skip - fswatch not installed"
 fi
