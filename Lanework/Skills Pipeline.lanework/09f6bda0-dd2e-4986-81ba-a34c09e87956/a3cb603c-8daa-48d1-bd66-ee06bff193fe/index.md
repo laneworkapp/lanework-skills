@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "README sizes drift: generate or check the word counts"
-order: 2048
+order: 9216
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-06T22:56:02Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T01:59:36Z}
+modified: {at: 2026-10-10T02:41:52Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 The README's per-file word counts are a hand-kept snapshot that drifts with every skill edit: today 9 of its 45 rows are wrong. Add a smoke case that recomputes them and fails on any mismatch.
 
