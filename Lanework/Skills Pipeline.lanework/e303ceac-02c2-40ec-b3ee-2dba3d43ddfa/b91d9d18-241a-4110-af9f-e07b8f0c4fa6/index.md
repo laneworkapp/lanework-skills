@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "README: name Claude Code as the supported harness"
-order: 9216
+order: 33792
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-09-28T00:21:46Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T02:09:55Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T02:13:20Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 The README says other harnesses that read `SKILL.md` work the same way, but on Codex `discovery` and `watch` can start unprompted: they set `disable-model-invocation: true`, which Codex does not read.
 
