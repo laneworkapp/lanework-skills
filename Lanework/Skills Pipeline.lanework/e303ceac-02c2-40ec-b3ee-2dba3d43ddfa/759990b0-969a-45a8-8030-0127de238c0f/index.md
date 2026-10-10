@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "CI: run tests/smoke.sh on a macOS runner"
-order: 9216
+order: 31744
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-09-28T00:21:44Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T02:00:29Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T02:03:10Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 `.github/workflows/smoke.yml` is on main and green (macOS runner, every push to main and stable and every pull request). What is left is proving the job goes red when smoke should fail.
 
