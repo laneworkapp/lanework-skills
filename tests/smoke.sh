@@ -363,6 +363,102 @@ for blank in $'\n' $' \r\n ' '   '; do
 done
 ok "a title with a line break and a '## ' cannot open a body section (heading and the discovery topic line stay on one line); a title blank once flattened exits 2 and writes nothing"
 
+# plan: found, file, claim, resolve, unblock, out of scope, frontier, records from Working
+PS="$SK/plan/scripts"; PL="$T/Sync: v2 Plan.lanework"
+"$PS/found-plan-board.sh" "$PL" --model smoke >/dev/null
+grep -q '^title: "Sync: v2 Plan"$' "$PL/index.md" && grep -q '^A plan for Sync: v2:' "$PL/index.md" && ! grep -q '{{' "$PL/index.md" || { echo "plan board title or topic not rendered"; exit 1; }
+[ "$(grep -l '^icon: ' "$PL"/*/index.md | grep -c .)" -eq 7 ] && grep -qx 'collapsed: true' "$(grep -l '^title: "Out of scope"$' "$PL"/*/index.md)" || { echo "plan lanes missing icons or Out of scope not collapsed"; exit 1; }
+[ "$(python3 -c 'import sys,yaml; print(",".join(e["type"] for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]))' "$PL/index.md")" = ticket,record,status ] || { echo "plan board config.labels is not ticket,record,status"; exit 1; }
+validate "$PL" >/dev/null; ok "plan board founded: colon title quoted, topic rendered, 7 lanes with icons, ticket/record/status kinds, validates"
+rm -rf "$T/PL2.lanework"; "$PS/found-plan-board.sh" "$T/PL2.lanework" --labels priority --labels priority,size --model smoke >/dev/null
+[ "$(python3 -c 'import sys,yaml; print(",".join(e["type"] for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]))' "$T/PL2.lanework/index.md")" = ticket,priority,size,record,status ] || { echo "plan --labels not spliced after ticket"; exit 1; }
+validate "$T/PL2.lanework" >/dev/null
+for bad in ticket '""' nonsense; do rm -rf "$T/PL3.lanework"; rc=0; eval "\"\$PS/found-plan-board.sh\" \"\$T/PL3.lanework\" --labels $bad --model smoke" >/dev/null 2>&1 || rc=$?
+  [ "$rc" -eq 2 ] && [ ! -e "$T/PL3.lanework" ] || { echo "plan --labels $bad: rc=$rc"; exit 1; }; done
+ok "found-plan-board.sh --labels adds catalog kinds after ticket; a kind outside the catalog or an empty list exits 2 and writes nothing"
+PBID=$(sed -n 's/^id: //p' "$PL/index.md"); plane() { sed -n 's/^title: "\(.*\)"$/\1/p' "$(dirname "$(ls -d "$PL"/*/"$1")")/index.md"; }
+printf 'Where does the engine run?\n' > "$T/t.md"
+TO1=$("$PS/file-ticket.sh" "$PL" "Engine: placement" --type grilling --body "$T/t.md" --model smoke); TL1=$(head -1 <<<"$TO1"); T1=${TL1##*/}
+TO2=$("$PS/file-ticket.sh" "$PL" "Rate limits" --type research --body "$T/t.md" --model smoke); TL2=$(head -1 <<<"$TO2"); T2=${TL2##*/}
+TO3=$("$PS/file-ticket.sh" "$PL" 'Both [x] "q"' --type task --body "$T/t.md" --depends "$TL1" --depends "$TL2" --model smoke); T3=$(head -1 <<<"$TO3" | sed 's#.*/##')
+TO4=$("$PS/file-ticket.sh" "$PL" "After one" --type prototype --body "$T/t.md" --depends "$TL1" --why "**Waits on the engine.**" --model smoke); T4=$(head -1 <<<"$TO4" | sed 's#.*/##')
+{ [ "$(plane "$T1")" = Frontier ] && [ "$(plane "$T2")" = Frontier ] && [ "$(plane "$T3")" = Blocked ] && [ "$(plane "$T4")" = Blocked ] &&
+  grep -q '^T3 -> Blocked$' <<<"$TO3" && grep -q '^short id ' <<<"$TO1" && [ "$TL1" = "lanework://$PBID/$T1" ]; } || { echo "tickets not landed Frontier/Blocked by dependency: $TO1 $TO3"; exit 1; }
+TF3="$(ls "$PL"/*/"$T3"/index.md)"
+{ grep -qxF 'title: "T3: Both [x] \"q\""' "$TF3" && grep -qx 'labels: \[{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}\]' "$TF3" &&
+  grep -qxF -- "- [T1: Engine: placement]($TL1)" "$TF3" && grep -qxF -- "- [T2: Rate limits]($TL2)" "$TF3" && grep -qx '## Depends on' "$TF3" &&
+  grep -qx '\*\*Charted.\*\*' "$(ls "$PL"/*/"$T1"/comments/*/index.md)" && grep -qx '\*\*Waits on the engine.\*\*' "$(ls "$PL"/*/"$T4"/comments/*/index.md)"; } || { echo "ticket card shape wrong:"; cat "$TF3"; exit 1; }
+validate "$PL" >/dev/null; [ "$(python3 "$SK/lanework/scripts/heal-board.py" "$PL" | tail -1)" = "0 repairs in 0 files" ] || { echo "heal-board finds repairs on fresh tickets"; exit 1; }
+ok "file-ticket.sh mints T1..T4, flattened Ticket label, Depends on as named links, Frontier when free and Blocked while a dependency is open; validates, heal finds nothing"
+S3=$(sum "$PL")
+for dep in "lanework://other/$T1" "[T1]($TL1)" "lanework://$PBID/00000000-0000-4000-8000-000000000000"; do
+  if "$PS/file-ticket.sh" "$PL" "Bad" --type grilling --body "$T/t.md" --depends "$dep" --model smoke 2>/dev/null; then echo "accepted bad dependency $dep"; exit 1; fi
+done
+if "$PS/file-ticket.sh" "$PL" "Bad" --type nope --body "$T/t.md" --model smoke 2>/dev/null; then echo "accepted a bad type"; exit 1; fi
+[ "$S3" = "$(sum "$PL")" ] || { echo "a refused file-ticket wrote something"; exit 1; }
+ok "file-ticket.sh refuses another board's link, a non-link, a missing card and a bad type, writing nothing"
+if "$PS/claim-ticket.sh" "$PL" "$T3" --model smoke 2>"$T/err.txt"; then echo "claimed a Blocked ticket"; exit 1; fi
+grep -q 'is in Blocked, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
+"$PS/claim-ticket.sh" "$PL" "$T1" --model smoke --session s1 >/dev/null
+[ "$(plane "$T1")" = Working ] && cat "$PL"/*/"$T1"/comments/*/index.md | grep -qx '\*\*Claimed\*\* by claude, session s1.' || { echo "claim did not move to Working with a Claimed comment"; exit 1; }
+grep -q 'modified: {at: .*, by: {name: claude, kind: agent, model: smoke, session: "s1"}}' "$(ls "$PL"/*/"$T1"/index.md)" || { echo "claim did not restamp modified"; exit 1; }
+if "$PS/claim-ticket.sh" "$PL" "$T1" --model smoke 2>"$T/err.txt"; then echo "claimed a Working ticket twice"; exit 1; fi
+grep -q 'is in Working, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
+if "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/t.md" --model smoke 2>/dev/null; then echo "resolved an unclaimed ticket"; exit 1; fi
+ok "claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one"
+# a Working ticket wearing waiting loses it on resolve; one of two deps resolved keeps T3 Blocked, unblocks T4
+TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk '{print} /^order:/ {print "waiting: {for: human, since: 2026-10-10T00:00:00Z, comment: 11111111-1111-4111-8111-111111111111}"}' "$TF1" > "$T/w.md" && mv "$T/w.md" "$TF1"
+printf '**2026-10-10**: In the app, as recommended. "Yes."\n' > "$T/res1.md"
+RO1=$("$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/res1.md" --model smoke)
+TF1="$(ls "$PL"/*/"$T1"/index.md)"
+{ [ "$(plane "$T1")" = Resolved ] && ! grep -q '^waiting:' "$TF1" && grep -qx '## Resolution' "$TF1" && grep -qF '"Yes."' "$TF1" &&
+  [ "$(plane "$T4")" = Frontier ] && [ "$(plane "$T3")" = Blocked ] && grep -qx 'unblocked T4' <<<"$RO1" && ! grep -q 'unblocked T3' <<<"$RO1" && [ "$(tail -1 <<<"$RO1")" = "$TL1" ]; } || { echo "resolve/unblock wrong: $RO1"; exit 1; }
+"$PS/claim-ticket.sh" "$PL" "$T2" --model smoke >/dev/null
+RO2=$("$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/res1.md" --model smoke)
+[ "$(plane "$T3")" = Frontier ] && grep -qx 'unblocked T3' <<<"$RO2" || { echo "T3 not unblocked once both deps resolved: $RO2"; exit 1; }
+[ "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T3"/index.md)")" -gt "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T4"/index.md)")" ] || { echo "unblocked ticket not at the bottom of Frontier"; exit 1; }
+validate "$PL" >/dev/null; ok "resolve-ticket.sh appends the resolution, drops waiting, moves to Resolved; unblocks exactly the tickets whose deps are all Resolved (two deps: only after both), to the bottom of Frontier"
+# out of scope: from Frontier; a new ticket depending on it is refused; Resolved can't go out of scope
+printf '**2026-10-10**: Out of scope: past the destination.\n' > "$T/oos.md"
+"$PS/resolve-ticket.sh" "$PL" "$T4" --resolution "$T/oos.md" --to out-of-scope --model smoke >/dev/null
+[ "$(plane "$T4")" = "Out of scope" ] || { echo "out-of-scope did not move the ticket"; exit 1; }
+if "$PS/file-ticket.sh" "$PL" "Needs four" --type grilling --body "$T/t.md" --depends "lanework://$PBID/$T4" --model smoke 2>"$T/err.txt"; then echo "accepted an out-of-scope dependency"; exit 1; fi
+grep -q 'is Out of scope: rule this ticket out too, or drop the dependency' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
+if "$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/oos.md" --to out-of-scope --model smoke 2>/dev/null; then echo "moved a Resolved ticket out of scope"; exit 1; fi
+ok "resolve-ticket.sh --to out-of-scope moves a Frontier ticket; file-ticket.sh refuses a dependency on it; a Resolved ticket can't go out of scope"
+# frontier.sh: lists in order, blocked deps shown; drift warned on stderr, exit 0
+TO5=$("$PS/file-ticket.sh" "$PL" "Five" --type grilling --body "$T/t.md" --depends "lanework://$PBID/$T3" --model smoke); T5=$(head -1 <<<"$TO5" | sed 's#.*/##')
+FO=$("$PS/frontier.sh" "$PL" 2>"$T/drift.txt")
+{ [ "$(grep -c '^== ' <<<"$FO")" -eq 3 ] && grep -q "^T3: Both \[x\] \"q\"  \[${T3:0:8}\](lanework://$PBID/$T3)\$" <<<"$FO" && grep -qx '    waits on T3: Both \[x\] "q" (Frontier)' <<<"$FO" && [ ! -s "$T/drift.txt" ]; } || { echo "frontier.sh output wrong:"; echo "$FO"; cat "$T/drift.txt"; exit 1; }
+TF5="$(ls "$PL"/*/"$T5"/index.md)"; printf -- '- [T4](lanework://%s/%s)\n' "$PBID" "$T4" >> "$TF5"
+BL=$(dirname "$(dirname "$TF5")"); FR=$(dirname "$(dirname "$(ls "$PL"/*/"$T3"/index.md)")")
+mv "$FR/$T3" "$BL/$T3"   # hand-made drift: T3 Blocked with every dep Resolved; T5 depends on an out-of-scope card
+"$PS/frontier.sh" "$PL" >/dev/null 2>"$T/drift.txt" || { echo "frontier.sh exited non-zero"; exit 1; }
+grep -q 'drift: T3: Both \[x\] "q" is Blocked but every dependency is Resolved' "$T/drift.txt" && grep -q 'drift: T5: Five depends on T4: After one, which is Out of scope' "$T/drift.txt" || { echo "drift not warned:"; cat "$T/drift.txt"; exit 1; }
+mv "$BL/$T3" "$FR/$T3"
+ok "frontier.sh prints Frontier, Blocked with open deps, Working; warns on a Blocked ticket with every dep Resolved and a dep on an Out of scope card; exits 0"
+# records from Working: file-record.sh --from Working; default (Asked) refuses on a plan board
+"$PS/claim-ticket.sh" "$PL" "$T3" --model smoke >/dev/null
+printf 'Engine in the app.\n' > "$T/adrp.md"
+PR=$("$SK/discovery/scripts/file-record.sh" "$PL" "$T3" --record ADR --title "Engine in the app" --body "$T/adrp.md" --from Working --model smoke)
+PK=${PR##*/}; PKF="$(ls "$PL"/*/"$PK"/index.md)"
+[ "$(plane "$PK")" = Decisions ] && [ "$(awk '/^---$/ { n++; next } n == 2 && NF { print; exit }' "$PKF")" = "Question: [T3: Both \[x\] \"q\"](lanework://$PBID/$T3)" ] || { echo "plan record not filed from Working:"; cat "$PKF"; exit 1; }
+if "$SK/discovery/scripts/file-record.sh" "$PL" "$T3" --record ADR --title x --body "$T/adrp.md" --model smoke 2>"$T/err.txt"; then echo "default --from accepted a plan board"; exit 1; fi
+grep -q 'no Asked lane' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
+if "$SK/discovery/scripts/file-record.sh" "$PL" "$T5" --record ADR --title x --body "$T/adrp.md" --from Working --model smoke 2>"$T/err.txt"; then echo "--from Working accepted a Blocked ticket"; exit 1; fi
+grep -q 'is not a card in Working' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
+if "$SK/discovery/scripts/file-record.sh" "$D" "$C2" --record ADR --title x --body "$T/adrp.md" --model smoke 2>"$T/err.txt"; then echo "default --from accepted a non-Asked question"; exit 1; fi
+grep -q 'is not a card in Asked' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
+validate "$PL" >/dev/null; ok "file-record.sh --from Working files a plan record linking its ticket; the default still demands Asked, and --from refuses a card outside that lane"
+# a model is required: every plan script that writes exits 2 and writes nothing
+S4=$(sum "$PL")
+refused file-ticket "$PS/file-ticket.sh" "$PL" "Nomodel" --type grilling --body "$T/t.md"
+refused claim-ticket "$PS/claim-ticket.sh" "$PL" "$T5"
+refused resolve-ticket "$PS/resolve-ticket.sh" "$PL" "$T3" --resolution "$T/res1.md"
+refused found-plan-board "$PS/found-plan-board.sh" "$T/NoModel Plan.lanework"
+[ "$S4" = "$(sum "$PL")" ] && [ ! -e "$T/NoModel Plan.lanework" ] || { echo "a refused plan call wrote something"; exit 1; }
+ok "file-ticket, claim-ticket, resolve-ticket and found-plan-board exit 2 with usage and write nothing when no model is given"
+
 # work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"
 printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/bad.md"
@@ -447,12 +543,12 @@ for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/n
 # lane actors: every lane body names its actor and trigger; the lane -> actor table lives once; heal-descriptors brings old boards to currency
 lane_file() { grep -l "^title: \"$2\"\$" "$1"/*/index.md | head -1; }
 lane_body() { tail -1 "$(lane_file "$1" "$2")"; }
-for b in "$P" "$T/design-loop.lanework" "$T/datapoint.lanework" "$D"; do
+for b in "$P" "$T/design-loop.lanework" "$T/datapoint.lanework" "$D" "$PL"; do
   for f in "$b"/*/index.md; do
     lb=$(tail -1 "$f"); { [ -n "$lb" ] && [ "$lb" != --- ] && grep -qE '[.!?] [A-Z`]' <<<"$lb"; } || { echo "lane body missing or one sentence: $f"; exit 1; }
   done
 done
-ok "every lane of a founded pipeline, design-loop, datapoint and discovery board has a body of two sentences or more"
+ok "every lane of a founded pipeline, design-loop, datapoint, discovery and plan board has a body of two sentences or more"
 grep -q 'unasked' <<<"$(lane_body "$P" Approved)" || { echo "the Approved body must say an agent takes the top card unasked"; exit 1; }
 for l in Ideas Issues Tasks; do b=$(lane_body "$P" $l)
   ! grep -qiE 'unasked|without waiting|agents? (act|build|shape|fix)|builds? (it|them)|shapes? (it|them)' <<<"$b" || { echo "$l is a holding lane: its body must not have agents act unasked: $b"; exit 1; }
@@ -462,7 +558,7 @@ grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active: agents act on car
 ok "Approved takes the top card unasked; Ideas, Issues and Tasks bodies have agents act on nothing; the sheet's Agent lanes line carries the rule"
 [ "$(grep -rlE '^\| lane \| who acts \|' "$SK" | sed "s#^$SK/##")" = "lanework/references/board-kinds.md" ] || { echo "the lane -> actor table must live only in lanework/references/board-kinds.md"; exit 1; }
 for l in Ideas Issues Tasks Shaping Proposed Approved Active Done; do grep -qE "^\| $l \|" "$SK/lanework/references/board-kinds.md" || { echo "board-kinds.md table has no $l row"; exit 1; }; done
-! grep -qE '^\| (Done|Dead ends|Filed|Facts|Settled|Decisions|Parked) \| agent ' "$SK/lanework/references/board-kinds.md" || { echo "a lane an agent only files into is marked agent (a work order for the arming pass): use none"; exit 1; }
+! grep -qE '^\| (Done|Dead ends|Filed|Facts|Settled|Decisions|Parked|Resolved|Out of scope) \| agent ' "$SK/lanework/references/board-kinds.md" || { echo "a lane an agent only files into is marked agent (a work order for the arming pass): use none"; exit 1; }
 ok "the lane -> actor table lives only in board-kinds.md, with a row per pipeline lane"
 
 { ! grep -q 'a move' <(grep -E '^6\. ' "$SK/watch/references/events.md") && ! grep -qiE 'requested' <(grep '^description:' "$SK/watch/SKILL.md") &&
