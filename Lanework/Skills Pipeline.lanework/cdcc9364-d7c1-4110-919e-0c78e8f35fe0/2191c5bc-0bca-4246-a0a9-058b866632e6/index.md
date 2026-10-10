@@ -5,7 +5,7 @@ title: "lanework: a catalog of common label kinds for founding boards"
 order: 7168
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T00:16:22Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T01:37:42Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-10T01:38:41Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 Boards founded by hand each invent their own label kinds, so the same idea gets a different name, scale or shape on every board. A short catalog in the `lanework` skill gives founding a uniform set to pick from, stamped into the new board's `config.labels`.
 
@@ -28,4 +28,5 @@ Boards founded by hand each invent their own label kinds, so the same idea gets 
 - **Touches**: `skills/lanework/references/label-kinds.md` (new: the catalog, each kind as a ready `config.labels` entry), `references/founding.md` (pick kinds at founding), `references/board-kinds.md` (default kinds per lane set), maybe `scripts/found-board.sh` (a `--labels` flag) and `scripts/heal-board.py` (its built-in priority/component defaults read from one place).
 - ~~**Open call, scope**: which kinds make the catalog.~~ **ruled 2026-10-10: B plus epic: priority, component, type, size, platform, release, epic.**
 - ~~**Open call, home**: board `config.labels` or machine `default-labels`.~~ **ruled 2026-10-10: A, the board's own `config.labels`.**
+- **After the app drops machine `default-labels`** ([4392544b](lanework://6c887de3-eb25-4b83-8750-31f1b8743f05/4392544b-bf94-40bf-b4cf-6a346af84b22)): remove `heal-board.py --global` and its line in `references/writes.md`. Until the guide drops it, the skills follow guide v82.
 - **Done when**: the catalog file exists, founding cites it, a board founded with the kinds validates clean, and smoke covers it.
