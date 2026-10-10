@@ -1,5 +1,11 @@
 **October 2026**
 
+Version 0.5.0: lanes on new pipeline, design loop and discovery boards now start with their own icons, tinted only where a lane waits on you.
+
+When /heal updates a lane's description, it now keeps your own notes intact, including lists and code blocks.
+
+Skills now follow version 84 of Lanework's agent guide.
+
 Version 0.4.0: new boards can start with common label kinds (priority, component, type, size, platform, release, epic and round), chosen when the board is founded.
 
 Each kind of board now comes with sensible default label kinds, and discovery boards always keep their round label.
