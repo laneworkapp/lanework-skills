@@ -11,11 +11,13 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `watch` | a standing watch on one or more boards, responding to changes as they arrive |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce, filed as cards in a Decisions lane beside the questions |
 | `merge` | resolves git merge, pull and rebase conflicts on a board with no human: a merge driver plus a placement pass, keeping both sides' content and the later stamp's state |
+| `heal` | brings existing boards up to the current skills and guide: repairs board damage, then makes each lane body and the pipeline board sheet name who acts and what starts it, keeping the owner's own wording |
 
-`discovery` and `watch` never start on their own. Type the command first in your message:
+`discovery`, `watch` and `heal` never start on their own. Type the command first in your message:
 
 - `/discovery <topic>` starts or resumes a discovery session.
 - `/watch <board> [<board>...]` watches one or more boards, by name or path, until you say stop. With no board named, it watches the project's only board, or asks which.
+- `/heal <board> [<board>...]` shows what it would change on each board, then applies it when you say go, with one commit per board repo.
 
 ### Sizes
 
@@ -23,11 +25,12 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 9 | 328 | 2,790 |
-| `work` | 16 | 374 | 6,201 |
-| `watch` | 4 | 146 | 1,044 |
-| `discovery` | 14 | 484 | 2,847 |
+| `lanework` | 9 | 328 | 3,662 |
+| `work` | 16 | 399 | 6,297 |
+| `watch` | 4 | 162 | 1,278 |
+| `discovery` | 14 | 484 | 2,902 |
 | `merge` | 2 | 362 | 1,577 |
+| `heal` | 2 | 281 | 626 |
 
 Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
@@ -37,26 +40,26 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 |---|---|
 | `SKILL.md` | 328 |
 | `references/authority.md` | 129 |
-| `references/board-kinds.md` | 474 |
-| `references/finding.md` | 101 |
+| `references/board-kinds.md` | 1,029 |
+| `references/finding.md` | 351 |
 | `references/format.md` | 143 |
-| `references/founding.md` | 379 |
+| `references/founding.md` | 423 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 1,018 |
+| `references/writes.md` | 1,041 |
 | `templates/index.md` | 76 |
-| **total** | **2,790** |
+| **total** | **3,662** |
 
 #### `work`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 374 |
-| `references/companions.md` | 148 |
+| `SKILL.md` | 399 |
+| `references/companions.md` | 213 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
-| `references/lead.md` | 977 |
+| `references/lead.md` | 976 |
 | `references/reviewer.md` | 376 |
-| `references/sweep.md` | 531 |
+| `references/sweep.md` | 538 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
@@ -66,17 +69,17 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,201** |
+| **total** | **6,297** |
 
 #### `watch`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 146 |
-| `references/arming.md` | 271 |
-| `references/events.md` | 362 |
-| `references/responding.md` | 265 |
-| **total** | **1,044** |
+| `SKILL.md` | 162 |
+| `references/arming.md` | 345 |
+| `references/events.md` | 399 |
+| `references/responding.md` | 372 |
+| **total** | **1,278** |
 
 #### `discovery`
 
@@ -90,13 +93,13 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `references/rounds.md` | 311 |
 | `templates/fact-card.md` | 48 |
 | `templates/glossary.md` | 46 |
-| `templates/lanes.md` | 390 |
+| `templates/lanes.md` | 445 |
 | `templates/map-card.md` | 92 |
 | `templates/question-card.md` | 66 |
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 66 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,847** |
+| **total** | **2,902** |
 
 #### `merge`
 
@@ -106,9 +109,17 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `references/rules.md` | 1,215 |
 | **total** | **1,577** |
 
+#### `heal`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 281 |
+| `references/descriptors.md` | 345 |
+| **total** | **626** |
+
 ## Install
 
-As a Claude Code plugin, which installs all five skills and updates with each release:
+As a Claude Code plugin, which installs all six skills and updates with each release:
 
 ```
 /plugin marketplace add https://github.com/laneworkapp/lanework-skills.git
@@ -126,9 +137,10 @@ ln -s "$(pwd)/lanework-skills/skills/work" ~/.claude/skills/work
 ln -s "$(pwd)/lanework-skills/skills/watch" ~/.claude/skills/watch
 ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
 ln -s "$(pwd)/lanework-skills/skills/merge" ~/.claude/skills/merge
+ln -s "$(pwd)/lanework-skills/skills/heal" ~/.claude/skills/heal
 ```
 
-The skills cite and call each other by relative path, so install all five side by side.
+The skills cite and call each other by relative path, so install all six side by side.
 
 The skills are written for Claude Code, the one supported harness: `discovery` and `watch` rely on its `disable-model-invocation` setting, and `watch` on its Monitor tool.
 
@@ -152,7 +164,7 @@ Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUD
 
 ## Names
 
-The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, `discovery` examines a problem space, and `merge` resolves git conflicts on a board. The `Lanework/` folder is where a project keeps its boards. It was `Pitlane/` before, which is still found, and the agent offers once to rename it.
+The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, `discovery` examines a problem space, `merge` resolves git conflicts on a board, and `heal` brings existing boards up to date. The `Lanework/` folder is where a project keeps its boards. It was `Pitlane/` before, which is still found, and the agent offers once to rename it.
 
 ## Credits
 

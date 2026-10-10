@@ -15,7 +15,7 @@ Per board, after the authority chain:
 - **Skip** `.trash/`, Done, and any lane whose body marks itself out of scope, unless the owner asks (archive sweep, "what shipped?").
 - List lanes in order with card counts (`lanework/scripts/read-board.sh`).
 - Read every card's frontmatter; skim bodies; full threads only for cards that look actionable.
-- The lane says who acts next: that's the primary classifier.
+- The lane says who acts next (`lanework/references/board-kinds.md` tables): that's the primary classifier.
 
 | workload | shows up | who acts |
 |---|---|---|

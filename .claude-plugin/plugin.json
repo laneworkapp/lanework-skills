@@ -14,6 +14,7 @@
     "./skills/work",
     "./skills/watch",
     "./skills/discovery",
-    "./skills/merge"
+    "./skills/merge",
+    "./skills/heal"
   ]
 }
