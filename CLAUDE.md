@@ -12,7 +12,7 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 | `CHANGELOG.md` | user-facing release notes, in the `app-changelog` format |
 | `scripts/release.sh` | cuts a release; `.github/workflows/smoke.yml` runs smoke on every push and pull request |
 | `Lanework/Skills Pipeline.lanework/` | the development pipeline board: ideas, issues and work on the skills |
-| `tests/` | `smoke.sh` runs every script on throwaway boards and validates them; `check-refs.sh` checks every cited skill file exists |
+| `tests/` | `smoke.sh` runs every script on throwaway boards and validates them; `check-refs.sh` checks every cited skill file exists; `check-sizes.sh` checks the README word counts against `wc -w` |
 | `README.md` | the user-facing page: what each skill is for, and how to install it |
 
 `CONTEXT.md` and a `Lanework/<Topic> Discovery.lanework` board are created the first time the `discovery` skill is run on this repo. Its ADRs and PDRs are cards in that board's Decisions lane, not files under `docs/`.
@@ -25,7 +25,7 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 - **Agent-facing text is telegraphic**: fragments, arrows and tables over full sentences, as long as nothing becomes ambiguous.
 - **Cite files as `<skill>/<dir>/<file>`** from another skill, and `<dir>/<file>` within one. Scripts reach siblings by relative path (`../../lanework/scripts/lib.sh`, which every script sources), because users symlink each folder into `~/.claude/skills/<name>`. Keep the skills side by side under `skills/`, and install them together.
 - **Entries replace; they don't append.** Extend an existing entry first, then merge several into one, and only then add. Project facts (gate commands, what green means, blast radius) never move into a skill: they belong in a board's instruction sheet or a repo's `CLAUDE.md`.
-- **Scripts target macOS bash and BSD tools** (`date -v`, `uuidgen`). **Verified** = `tests/smoke.sh` passing (it runs `bash -n`, every script on throwaway boards, the schema validator, and `check-refs.sh`), plus a new smoke case for any new script behavior. Never test against the Skills Pipeline board.
+- **Scripts target macOS bash and BSD tools** (`date -v`, `uuidgen`). **Verified** = `tests/smoke.sh` passing (it runs `bash -n`, every script on throwaway boards, the schema validator, `check-refs.sh` and `check-sizes.sh`), plus a new smoke case for any new script behavior. Never test against the Skills Pipeline board.
 - **The in-board agent guide wins.** The skills target one guide and schema version, stamped here and nowhere else: **`lanework-agent-guide v83`**, **`lanework-schema v1`** (smoke fails on a guide version anywhere under `skills/`). Smoke also gates the stamp: it fails when the Skills Pipeline board's guide or `.schema/VERSION` is newer. When the guide moves on, read every skill against it, fix the drift, then bump the stamp here.
 
 ## Releasing
