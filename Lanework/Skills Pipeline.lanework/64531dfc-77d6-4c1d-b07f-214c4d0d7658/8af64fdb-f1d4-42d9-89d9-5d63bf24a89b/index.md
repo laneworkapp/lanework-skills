@@ -2,11 +2,11 @@
 schema: 1
 kind: card
 title: "merge: a skill that resolves git merge conflicts on a board without a human"
-order: 8192
+order: 1024
 labels: [{text: merge, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 waiting: {for: rzen, since: 2026-10-10T02:02:08Z, comment: 7735d4c7-7f9f-47cb-af9f-0ca0c2d3cca9}
 created:  {at: 2026-10-06T22:44:23Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
-modified: {at: 2026-10-10T02:02:08Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T12:02:24Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Two people editing one board through git collide often: both restamp `modified`, both move the same card, both touch a body. Nearly every such conflict has a mechanical answer, so a new skill, `merge`, resolves them and lets the merge, pull or rebase finish. Its standing rule: when in doubt, keep both edits and move on. ~~It never stops for a human.~~ **ruled 2026-10-06: the driver stops the git merge whenever it would otherwise lose text, and `merge-board.sh` places it. Merges that lose nothing still finish on their own.**
 
@@ -64,6 +64,17 @@ New `skills/merge/`: `SKILL.md`, `references/rules.md` (the two tables above, as
 ## Verify
 
 A new smoke case founds a scratch board in a scratch repo, clones it twice, and on each clone makes one instance of every row in both tables, committing on each side. Then `git merge` with the driver installed, then `merge-board.sh`. Asserts: exit 0 with no prompt; `grep -r '<<<<<<<'` finds nothing; the validator passes with no DEPRECATED line; every body and comment written on either side exists somewhere on the board; each moved card sits in its later-stamped lane; the restored card is back in its base lane; one merge comment per card that lost something and none elsewhere. The same case run as a rebase.
+
+## Remaining: the app-side check
+
+The skill shipped in `c2ab48b` and `tests/merge-case.sh` covers every row on scripted edits. What is left is a collision where one side is bytes the app wrote, which is what the hand check in Done when stands for.
+
+- ~~**Open call**~~, **open**: how the app-side check is done (ask `7735d4c7`). **Recommendation: A.**
+- **A, app-written fixtures (recommended)**: a new `merge-case.sh` mode, `appside`. Side B is real app writes copied into `tests/fixtures/app-writes/`: an unstamped lane-file rewrite, a card moved between lanes, a comment the app posted (quoted `{name: "…", kind: "human"}` stamp), and a card title edit. They come from this board's own git history, so no new app session is needed. A `README` there names each file's source commit. Side A edits the same items by script, and the case asserts the merge resolves with no prompt and the board validates. It runs in smoke and CI. Limitation: it freezes today's app format, and a new app build needs fixtures re-copied.
+- **B, live app via Shortcuts**: `shortcuts run` drives Lanework's Shortcuts actions on clone B, then merges. It exercises the real app, but runs on this Mac only, not in CI, and needs a Shortcut built once. Unverified: which writes the actions cover.
+- **C, keep the hand check**: as written in Done when.
+- **Touches (A)**: `tests/merge-case.sh` (an `appside` mode), `tests/fixtures/app-writes/` (new), `tests/smoke.sh` (calls the mode), `README.md` § Sizes only if a skill file changes (none expected).
+- **Done when (A)**: replaces the hand-check sentence below. `merge-case.sh <dir> appside` passes in smoke. A mutation that drops one fixture's quoted stamp handling turns it red. Not covered by any route: the app redrawing a merged board on screen.
 
 ## Done when
 
