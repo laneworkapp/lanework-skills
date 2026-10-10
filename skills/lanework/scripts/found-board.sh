@@ -4,7 +4,8 @@
 #          --model m [--title T] [--var key=value]... [--labels kind,...] [--name n]
 # Index template gets {{title}}, {{title_yaml}}, {{id}}, {{stamp}} plus each --var.
 # Slots: {{labels}} = ", labels: [rows]" (empty without --labels); {{label_entries}} = "row, row, " for a template that has labels of its own.
-# --labels: catalog kinds (templates/label-kinds.md) spliced into config.labels; unknown kind -> exit 2, nothing written.
+# --labels: catalog kinds (templates/label-kinds.md) spliced into config.labels; unknown or empty kind -> exit 2, nothing written.
+#   Repeated --labels accumulate (a kind repeated across flags is written once); a kind twice in one list -> exit 2.
 # Lanes table rows: | order | title | collapsed (yes) | icon (YAML flow mapping, or empty) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
 # Refuses a non-empty folder.
@@ -22,7 +23,7 @@ while [ $# -gt 0 ]; do
     --lanes) LANES="${2:?--lanes needs a file}"; shift 2 ;;
     --title) TITLE="${2:?--title needs a value}"; shift 2 ;;
     --var)   v="${2:?--var needs key=value}"; VARS+=("${v%%=*}" "${v#*=}"); shift 2 ;;
-    --labels) LABELS="${2?--labels needs a kind list}"; HAVE_LABELS=1; shift 2 ;;
+    --labels) LABELS="$(merge_kinds "$LABELS" "$HAVE_LABELS" "${2?--labels needs a kind list}")"; HAVE_LABELS=1; shift 2 ;;
     --model) MODEL="${2:?--model needs a value}"; shift 2 ;;
     --name)  NAME="${2:?--name needs a value}"; shift 2 ;;
     *) echo "found-board.sh: unknown argument: $1" >&2; exit 1 ;;
@@ -64,7 +65,7 @@ NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL"); BOARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/lanework-found.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$BOARD"
 
-render "$INDEX" title "$TITLE" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
+render "$INDEX" title "$(flat_str "$TITLE")" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
   stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" label_entries "$LABEL_ENTRIES" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
