@@ -1,5 +1,9 @@
 **October 2026**
 
+Version 0.2.2: agents now move a finished proposal from Shaping to Proposed themselves, instead of leaving that move to you.
+
+A question you ask on a card another session owns is now answered on the card, never in chat.
+
 Version 0.2.1: installing the plugin no longer needs a GitHub SSH key, since it now downloads over HTTPS.
 
 Version 0.2.0: the pitlane skill is now called work, and pitwall is now called watch, started with /watch.
