@@ -345,9 +345,23 @@ for brk in $'\n' $'\r' $'\r\n'; do
     [ "$(grep -c '^# ' "$f")" -eq 1 ] && grep -qxF "# ${pair#*:}" "$f" && grep -qxF "title: \"${pair#*:}\"" "$f" \
       || { echo "title with a line break (${#brk} byte) in ${pair%%:*}:"; sed -n '/^---$/,$p' "$f" | head -14; exit 1; }
   done
+  grep -q '^Discovery on uno dos: its problem' "$T/Brk Discovery.lanework/index.md" || { echo "discovery topic line split by a line break"; exit 1; }
   validate "$T/Brk.lanework" >/dev/null; validate "$T/Brk Discovery.lanework" >/dev/null
 done
 ok "found-board.sh and found-discovery-board.sh: a board title with LF, CR or CRLF founds a single '# title' heading and a matching frontmatter title, words joined by one space, and validates"
+# a hostile title cannot start a body section; a title blank once flattened is refused
+rm -rf "$T/Evil Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$T/Evil Discovery.lanework" $'Evil\n## X Discovery' --model smoke >/dev/null
+! grep -q '^## X' "$T/Evil Discovery.lanework/index.md" && grep -q '^Discovery on Evil ## X: its problem' "$T/Evil Discovery.lanework/index.md" \
+  && grep -qxF '# Evil ## X Discovery' "$T/Evil Discovery.lanework/index.md" && validate "$T/Evil Discovery.lanework" >/dev/null \
+  || { echo "hostile title leaked a body heading:"; sed -n '/^---$/,$p' "$T/Evil Discovery.lanework/index.md" | head -14; exit 1; }
+rm -rf "$T/Evil.lanework" "$T/Blank.lanework"; "$FB" "$T/Evil.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --model smoke --title $'Evil\n## X' >/dev/null
+! grep -q '^## X' "$T/Evil.lanework/index.md" && grep -qxF '# Evil ## X' "$T/Evil.lanework/index.md" || { echo "pipeline title leaked a section"; exit 1; }
+for blank in $'\n' $' \r\n ' '   '; do
+  rm -rf "$T/Blank.lanework"; rc=0
+  "$FB" "$T/Blank.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --model smoke --title "$blank" >/dev/null 2>&1 || rc=$?
+  [ "$rc" -eq 2 ] && [ ! -e "$T/Blank.lanework" ] || { echo "blank title: rc=$rc"; exit 1; }
+done
+ok "a title with a line break and a '## ' cannot open a body section (heading and the discovery topic line stay on one line); a title blank once flattened exits 2 and writes nothing"
 
 # work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"

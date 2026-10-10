@@ -24,4 +24,4 @@ if [ -n "$HAVE_EXTRA" ]; then   # an empty or blank name stays in the list, so f
 fi
 exec "$HERE/../../lanework/scripts/found-board.sh" "$BOARD" \
   --index "$HERE/../templates/board.md" --lanes "$HERE/../templates/lanes.md" \
-  --title "$TITLE" --labels "$LABELS" --var topic="${TITLE% Discovery}" ${ARGS[@]+"${ARGS[@]}"}
+  --title "$TITLE" --labels "$LABELS" --var topic="$(flat_str "${TITLE% Discovery}")" ${ARGS[@]+"${ARGS[@]}"}
