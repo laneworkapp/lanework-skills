@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Agents stall on approved cards: lanes name no actor or trigger"
-order: 6144
+order: 34816
 labels: [{text: watch, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}, {text: work, kind: {type: skill, text: Skill}}, {text: heal, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T00:53:33Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T02:13:36Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
+modified: {at: 2026-10-10T02:41:05Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
 ---
 An approved card can sit in Approved with no agent picking it up, because pipeline lanes say what a card is but not who acts on it or when, and the watch skill still contradicts itself on moves.
 
