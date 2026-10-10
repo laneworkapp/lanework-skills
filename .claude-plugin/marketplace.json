@@ -13,7 +13,7 @@
         "url": "https://github.com/laneworkapp/lanework-skills.git",
         "ref": "stable"
       },
-      "description": "What a Lanework board is and how to found one, sweeping and working a pipeline board, a standing watch on boards, and discovery on a project's problem and domain space."
+      "description": "What a Lanework board is and how to found one, sweeping and working a pipeline board, a standing watch on boards, discovery on a project's problem and domain space, and multi-session planning one decision ticket at a time."
     }
   ]
 }

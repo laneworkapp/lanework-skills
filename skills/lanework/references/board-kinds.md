@@ -73,3 +73,17 @@ A project's problem and domain space, one question per card. Owned by the `disco
 | Settled | none | the owner rules: write the ruling into the body, move it in |
 | Decisions | none | a ruling produces an ADR or PDR: file it before the question settles |
 | Parked | none | the owner defers or declines: move it in with the reason |
+
+## Plan
+
+An idea too big for one session, planned to a destination one decision per ticket. Owned by the `plan` skill. Default label kinds: ticket, record, status.
+
+| lane | who acts | what starts it |
+|---|---|---|
+| Map | agent | a ticket resolves: rewrite the map. A resuming session reads it first |
+| Frontier | holding | `/lanework:plan <board>` claims the top ticket |
+| Blocked | none | its last dependency resolves: the resolving script moves it to Frontier |
+| Working | agent | a session claimed it: resolve it. HITL waits on the owner |
+| Resolved | none | a ticket's resolution is written: move it in |
+| Decisions | none | a resolution produces an ADR or PDR: file it before the ticket resolves |
+| Out of scope | none | ruled past the destination: move it in with one line why |
