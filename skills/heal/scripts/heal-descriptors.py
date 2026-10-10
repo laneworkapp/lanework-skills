@@ -190,8 +190,8 @@ def read_templates():
         for line in lines:
             if re.match(r"\|\s*\d+\s*\|", line):
                 cells = [c.strip() for c in line.strip().strip("|").split("|")]
-                if len(cells) >= 4:
-                    rows.append((cells[1], "|".join(cells[3:]).strip()))
+                if len(cells) >= 5:
+                    rows.append((cells[1], "|".join(cells[4:]).strip()))
         if rows:
             sets[name] = rows
     return sets
