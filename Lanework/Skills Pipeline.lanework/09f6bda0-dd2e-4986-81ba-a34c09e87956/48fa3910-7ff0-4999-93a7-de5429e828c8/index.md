@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "watch: re-read the skills when a release lands mid-watch"
-order: 2048
+order: 11264
 labels: [{text: watch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T03:08:36Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
-modified: {at: 2026-10-10T11:32:39Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T11:41:21Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 A watch reads its skill files once, at arming, so a skill change that lands while it runs never reaches it until it is re-armed. The watcher reports the change as an event, and the watch re-reads its rules when that event arrives.
 
