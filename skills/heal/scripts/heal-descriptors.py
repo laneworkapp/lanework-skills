@@ -207,16 +207,15 @@ def permission_line():
 
 def compose_permission(line, titles):
     """The template's Agent lanes line, naming only the lanes this board has (None: it has none of them)."""
-    m = re.match(r"(.*?\*\*: )(.+?) (?:are|is) (agents' lanes|an agent lane)(.*)$", line)
+    m = re.match(r"(.*?\*\*: )([^:]+?)(: .*)$", line)
     if not m:
         return line
     have = {t.lower() for t in titles}
     keep = [n for n in re.split(r", | and ", m.group(2)) if n.lower() in have]
     if not keep:
         return None
-    if len(keep) == 1:
-        return "%s%s is an agent lane%s" % (m.group(1), keep[0], m.group(4))
-    return "%s%s and %s are agents' lanes%s" % (m.group(1), ", ".join(keep[:-1]), keep[-1], m.group(4))
+    names = keep[0] if len(keep) == 1 else ", ".join(keep[:-1]) + " and " + keep[-1]
+    return m.group(1) + names + m.group(3)
 
 
 def says(body, sentence):

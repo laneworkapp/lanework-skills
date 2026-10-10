@@ -4,9 +4,9 @@ Read by `scripts/found-board.sh`. `collapsed`: `yes` starts collapsed. `body`: o
 
 | order | title | collapsed | body |
 |---|---|---|---|
-| 1024 | Brief | | The standing reference: the inventory, the constraints, the evidence, and the calls still open. An agent keeps it current as evidence and rulings come in, and the owner rules the open calls. |
+| 1024 | Brief | | The standing reference: inventory, constraints, evidence and open calls. An agent keeps it current, and the owner rules the open calls. |
 | 2048 | Alternatives | | One candidate direction per card, as a paragraph and its reasoning. Agents move cards on to Mockups when there is something to draw. |
-| 3072 | Mockups | | Drawn directions. An agent draws a card that lands here, attaching renders, light and dark, for every variant it lists. A card that shows no picture is not in Mockups. |
-| 4096 | Sittings | | The owner has walked the card. An agent records the rulings on it in the owner's words, and a card can loop back to Mockups. Only happens with the owner present. |
-| 5120 | Chosen | | The direction that won. Only the owner chooses, and it leaves as build cards on a pipeline board, linked both ways, when the owner asks an agent to file them. |
-| 6144 | Dead ends | yes | Directions that died, one line each saying why. An agent files a direction here once the owner rules it out. Collapsed because it is read least and regretted most when lost. |
+| 3072 | Mockups | | Drawn directions, with renders attached light and dark for every variant. An agent draws each card that lands here. |
+| 4096 | Sittings | | A sitting: the owner walks the card, so the owner is present. An agent records the rulings in the owner's words, and the card may loop back to Mockups. |
+| 5120 | Chosen | | The direction that won; only the owner chooses. An agent files build cards on a pipeline board, linked both ways, only when the owner asks. |
+| 6144 | Dead ends | yes | Directions that died, one line each saying why. An agent files one here once the owner rules it out. |
