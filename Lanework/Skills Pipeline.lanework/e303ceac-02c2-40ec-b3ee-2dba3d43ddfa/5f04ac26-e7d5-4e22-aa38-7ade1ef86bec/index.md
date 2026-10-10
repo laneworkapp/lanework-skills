@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Templates: a line break in a board title splits its body heading"
-order: 9216
+order: 43008
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T02:09:31Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-modified: {at: 2026-10-10T11:41:18Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T12:10:13Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 `found-board.sh` writes a board title raw into the body heading, `# {{title}}`, so a line break in the title splits the heading over two lines. The frontmatter title is already flattened and escaped by `title_str`.
 
