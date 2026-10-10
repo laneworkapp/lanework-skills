@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "heal and board-kinds: follow-ups from the lane-actors review"
-order: 12288
+order: 40960
 labels: [{text: heal, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}, {text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T02:41:04Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
-modified: {at: 2026-10-10T11:41:22Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T12:00:41Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Three small gaps the review of [0d374675](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/0d374675-f23c-4959-95dc-07e10f99d345) left as notes (verdict 2833db72), none blocking. All three are real at HEAD. Build after [c8cf1d23](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/c8cf1d23-38bf-4981-bce6-6df61091bacb) (lane icons) lands: it rewrites `read_templates` in `heal-descriptors.py` and smoke's lane fixtures, and both are edited here.
 
