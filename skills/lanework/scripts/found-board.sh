@@ -5,7 +5,7 @@
 # Index template gets {{title}}, {{title_yaml}}, {{id}}, {{stamp}} plus each --var.
 # Slots: {{labels}} = ", labels: [rows]" (empty without --labels); {{label_entries}} = "row, row, " for a template that has labels of its own.
 # --labels: catalog kinds (templates/label-kinds.md) spliced into config.labels; unknown kind -> exit 2, nothing written.
-# Lanes table rows: | order | title | collapsed (yes) | body |  (templates/*-lanes.md).
+# Lanes table rows: | order | title | collapsed (yes) | icon (YAML flow mapping, or empty) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
 # Refuses a non-empty folder.
 set -euo pipefail
@@ -68,14 +68,15 @@ render "$INDEX" title "$TITLE" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD
   stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" label_entries "$LABEL_ENTRIES" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
-awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 5; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 }' "$LANES" |
-# \037, not tab: tab is IFS whitespace, so an empty collapsed cell would merge away and shift body.
-while IFS=$'\037' read -r ORDER LANE COLLAPSED LBODY; do
+awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 6; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 "\037" $6 }' "$LANES" |
+# \037, not tab: tab is IFS whitespace, so an empty collapsed or icon cell would merge away and shift body.
+while IFS=$'\037' read -r ORDER LANE COLLAPSED ICON LBODY; do
   LANE_ID=$(uuid); mkdir -p "$BOARD/$LANE_ID"
   {
     printf '%s\n' '---' 'schema: 1' 'kind: lane'
     printf 'title: %s\n' "\"$(title_str "$LANE")\""
     printf 'order: %s\n' "$ORDER"
+    if [ -n "$ICON" ]; then printf 'icon: %s\n' "$ICON"; fi
     if [ "$COLLAPSED" = yes ]; then printf '%s\n' 'collapsed: true'; fi
     printf 'created:  {at: %s, by: %s}\n' "$NOW" "$BY"
     printf 'modified: {at: %s, by: %s}\n' "$NOW" "$BY"

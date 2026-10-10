@@ -41,6 +41,9 @@ P="$T/Acme Pipeline.lanework"
   --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified='`make check`' --model smoke >/dev/null
 [ "$("$SK/lanework/scripts/read-board.sh" "$P" | grep -c '^== ')" -eq 8 ]; ok "pipeline founded, 8 lanes read"
 grep -q 'Verified means\*\* `make check`, run on the current head' "$P/index.md"; ok "pipeline vars rendered"
+lane_of() { grep -l "^title: \"$2\"$" "$1"/*/index.md; }
+[ "$(grep -x 'icon: .*' "$(lane_of "$P" Issues)")" = 'icon: {glyph: exclamationmark.triangle, color: carnation}' ] && [ "$(grep '^icon:' "$(lane_of "$P" Ideas)")" = 'icon: {glyph: lightbulb}' ] \
+  && [ "$(grep -l '^icon: ' "$P"/*/index.md | grep -c .)" -eq 8 ]; ok "pipeline lanes carry their template icons (Issues tinted, Ideas plain, all 8 set)"
 validate "$P" >/dev/null; ok "pipeline board validates"
 L=$(grep -l '^title: "Ideas"$' "$P"/*/index.md); if grep -q '^collapsed:' "$L"; then exit 1; fi
 tail -1 "$L" | grep -q '^The inbox and triage queue'
@@ -49,6 +52,7 @@ for k in design-loop:6 datapoint:5; do
   B="$T/${k%:*}.lanework"; sed 's/<SF Symbol>/square.grid.2x2/; s/^<.*>$/Test board./; s/^- <.*>$/- Test rule./' "$SK/lanework/templates/index.md" > "$T/idx.md"
   "$SK/lanework/scripts/found-board.sh" "$B" --index "$T/idx.md" --lanes "$SK/lanework/templates/${k%:*}-lanes.md" --model smoke >/dev/null
   [ "$("$SK/lanework/scripts/read-board.sh" "$B" | grep -c '^== ')" -eq "${k#*:}" ]; validate "$B" >/dev/null
+if grep -q "^icon:" "$T"/design-loop.lanework/*/index.md; then exit 1; fi
 done; ok "design-loop (6 lanes) and datapoint (5) founded from templates, validate"
 L=$(grep -l '^title: "Dead ends"$' "$T/design-loop.lanework"/*/index.md); grep -q '^collapsed: true$' "$L"; tail -1 "$L" | grep -q '^Directions th'
 ok "collapsed: yes lane starts collapsed with its body"
@@ -322,7 +326,7 @@ grep -q 'model: envmodel' "$T/EnvModel.lanework/index.md" && grep -q 'model: fla
 ok "found-board.sh stamps CLAUDE_MODEL when no --model is given, and --model wins over it"
 
 # a hostile board title and lane title go through title_str and the board validates
-printf '| order | title | collapsed | body |\n|---|---|---|---|\n| 1024 | L\\x "q" | | Body. |\n' > "$T/hostile-lanes.md"
+printf '| order | title | collapsed | icon | body |\n|---|---|---|---|---|\n| 1024 | L\\x "q" | | | Body. |\n' > "$T/hostile-lanes.md"
 "$FB" "$T/Hostile.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$T/hostile-lanes.md" --var project=x --var verified=x --model smoke \
   --title 'a\b "c"
 d' >/dev/null
@@ -398,7 +402,7 @@ if "$HD" "$X" --apply >/dev/null 2>&1; then echo "--apply ran without --model"; 
 ok "heal-descriptors --apply without --model exits 2 and writes nothing"
 IDLE=$(lane_file "$X" Ideas); IDLE_SUM=$(shasum "$IDLE")
 "$HD" "$X" --apply --name fixer --model test >/dev/null; validate "$X" >/dev/null
-TPL() { awk -F'|' -v t="$1" '/^\| *[0-9]/ { gsub(/^ +| +$/, "", $3); gsub(/^ +| +$/, "", $5); if ($3 == t) print $5 }' "$SK/lanework/templates/pipeline-lanes.md"; }
+TPL() { awk -F'|' -v t="$1" '/^\| *[0-9]/ { gsub(/^ +| +$/, "", $3); gsub(/^ +| +$/, "", $6); if ($3 == t) print $6 }' "$SK/lanework/templates/pipeline-lanes.md"; }
 [ "$(lane_body "$X" Approved)" = "$(TPL Approved)" ] && [ "$(lane_body "$X" Shaping)" = "$(TPL Shaping)" ] || { echo "replace or fill did not give the current template body"; exit 1; }
 TB=$(lane_body "$X" Tasks); AS=$(TPL Tasks | sed -E 's/^[^.]*\. //; s/\. .*$/./')
 [ "$TB" = "Owner chores, built through Active. $AS Nothing here needs shaping. Agents never file here." ] || { echo "customised body not extended in place: $TB"; exit 1; }
