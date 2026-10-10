@@ -1,5 +1,17 @@
 **October 2026**
 
+Version 0.3.0: a new heal skill, started with /heal, brings your existing boards up to date after showing you every change first.
+
+Every lane now says who acts on it and what starts them, so agents no longer stall on a card you approved.
+
+Ideas, Issues and Tasks now hold cards until you move them on, and agents start work unasked only in Shaping, Approved and Active.
+
+A board watch now picks up approved cards that were already waiting when it started.
+
+Discovery now records each decision as a card in a Decisions lane on its board, instead of a file in your repository.
+
+Board scripts now refuse to run without a model name instead of signing your board as "unknown", and keep backslashes in card titles.
+
 Version 0.2.2: agents now move a finished proposal from Shaping to Proposed themselves, instead of leaving that move to you.
 
 A question you ask on a card another session owns is now answered on the card, never in chat.
