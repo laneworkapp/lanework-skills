@@ -4,9 +4,6 @@
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# yaml_str <s>: a double-quoted YAML scalar (always quote strings: see references/writes.md).
-yaml_str() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
-
 # title_str <s>: a title's text for use inside double quotes (no outer quotes, so a prefix like "Q3: " can precede it):
 # CR and LF become a space, then backslash and quote are escaped. Every title a script writes goes through it.
 title_str() { local s="${1//$'\n'/ }"; s="${s//$'\r'/ }"; s="${s//\\/\\\\}"; printf '%s' "${s//\"/\\\"}"; }

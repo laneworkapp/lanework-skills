@@ -311,7 +311,24 @@ refused file-record "$SK/discovery/scripts/file-record.sh" "$D" "$C4" --record A
 refused found-board "$SK/lanework/scripts/found-board.sh" "$NB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x
 refused found-discovery-board "$SK/discovery/scripts/found-discovery-board.sh" "$NB"
 [ "$S2" = "$(sum "$D")" ] && [ ! -e "$NB" ] || { echo "a refused call wrote something"; exit 1; }
-ok "file-question, settle-question, file-record and found-board exit 2 with usage and write nothing when no model is given"
+ok "file-question, settle-question, file-record, found-board and found-discovery-board exit 2 with usage and write nothing when no model is given"
+
+# the model comes from --model, else CLAUDE_MODEL, and --model wins
+FB="$SK/lanework/scripts/found-board.sh"; FA=(--index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x)
+CLAUDE_MODEL=envmodel "$FB" "$T/EnvModel.lanework" "${FA[@]}" >/dev/null
+CLAUDE_MODEL=envmodel "$FB" "$T/FlagModel.lanework" "${FA[@]}" --model flagmodel >/dev/null
+grep -q 'model: envmodel' "$T/EnvModel.lanework/index.md" && grep -q 'model: flagmodel' "$T/FlagModel.lanework/index.md" && ! grep -q 'model: envmodel' "$T/FlagModel.lanework/index.md" \
+  || { echo "model not taken from CLAUDE_MODEL, or --model did not win"; exit 1; }
+ok "found-board.sh stamps CLAUDE_MODEL when no --model is given, and --model wins over it"
+
+# a hostile board title and lane title go through title_str and the board validates
+printf '| order | title | collapsed | body |\n|---|---|---|---|\n| 1024 | L\\x "q" | | Body. |\n' > "$T/hostile-lanes.md"
+"$FB" "$T/Hostile.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$T/hostile-lanes.md" --var project=x --var verified=x --model smoke \
+  --title 'a\b "c"
+d' >/dev/null
+grep -qxF 'title: "a\\b \"c\" d"' "$T/Hostile.lanework/index.md" && grep -qxF 'title: "L\\x \"q\""' "$T/Hostile.lanework"/*/index.md \
+  || { echo "hostile titles not escaped:"; grep -h '^title:' "$T/Hostile.lanework/index.md" "$T/Hostile.lanework"/*/index.md; exit 1; }
+validate "$T/Hostile.lanework" >/dev/null; ok "found-board.sh: a board and lane title with a backslash, a quote and a newline are escaped and the board validates"
 
 # work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"

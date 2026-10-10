@@ -9,7 +9,7 @@
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-BOARD="${1:?usage: found-board.sh <board> --index F --lanes F [--title T] [--var k=v]... [--model m] [--name n]}"
+BOARD="${1:?usage: found-board.sh <board> --index F --lanes F [--title T] [--var k=v]... --model m [--name n]}"
 shift
 INDEX=""; LANES=""; TITLE=""; VARS=()
 MODEL=""; NAME="claude"
