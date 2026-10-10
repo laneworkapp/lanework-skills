@@ -10,6 +10,14 @@ Answers a question, picks an option (a button click arrives as `<label>: <option
 - Last open call ruled → apply the card's lane exit (board and lane bodies) in the same pass.
 - Reply with a three-line record, `in-reply-to` the owner's comment: what was recorded, the card's state now, who acts next. No handle.
 
+## A move into an agent lane
+
+A bare move, or a card already waiting at arming (`arming.md`), in an agent lane (`lanework/references/board-kinds.md` tables) is the work order. No comment needed, none to answer:
+
+1. Read the card whole, then act per the lane body: shape, build, or answer (`work/SKILL.md`).
+2. Substantial work follows § Action-calling below: plan record, farm, build cycle.
+3. Moved into an owner lane (Ideas, Proposed): surface it in the report, never act.
+
 ## Action-calling
 
 Asks for work. Don't do it in the watch session:

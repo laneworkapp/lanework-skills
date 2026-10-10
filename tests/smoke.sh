@@ -356,6 +356,58 @@ for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/n
 "$ROOT/tests/merge-case.sh" "$T" rebasemove >/dev/null; ok "merge case: a rebase with a later move leaves no orphaned folder"
 "$ROOT/tests/merge-case.sh" "$T" dirty >/dev/null; ok "merge case: uncommitted edits in a conflicted card are carried as ours, never erased"
 
+# lane actors: every lane body names its actor and trigger; the lane -> actor table lives once; heal-descriptors brings old boards to currency
+lane_file() { grep -l "^title: \"$2\"\$" "$1"/*/index.md | head -1; }
+lane_body() { tail -1 "$(lane_file "$1" "$2")"; }
+for b in "$P" "$T/design-loop.lanework" "$T/datapoint.lanework" "$D"; do
+  for f in "$b"/*/index.md; do
+    lb=$(tail -1 "$f"); { [ -n "$lb" ] && [ "$lb" != --- ] && grep -qE '[.!?] [A-Z`]' <<<"$lb"; } || { echo "lane body missing or one sentence: $f"; exit 1; }
+  done
+done
+ok "every lane of a founded pipeline, design-loop, datapoint and discovery board has a body of two sentences or more"
+grep -q 'without waiting to be asked' <<<"$(lane_body "$P" Tasks)" && grep -q 'without waiting to be asked' <<<"$(lane_body "$P" Approved)" || { echo "Tasks and Approved bodies must say an agent acts without waiting to be asked"; exit 1; }
+grep -q '^- \*\*Agent lanes\*\*' "$P/index.md" || { echo "pipeline board sheet has no permission line"; exit 1; }
+ok "pipeline Tasks and Approved bodies name the trigger; the board sheet carries the agent-lanes permission line"
+[ "$(grep -rlE '^\| lane \| who acts \|' "$SK" | sed "s#^$SK/##")" = "lanework/references/board-kinds.md" ] || { echo "the lane -> actor table must live only in lanework/references/board-kinds.md"; exit 1; }
+for l in Ideas Issues Tasks Shaping Proposed Approved Active Done; do grep -qE "^\| $l \|" "$SK/lanework/references/board-kinds.md" || { echo "board-kinds.md table has no $l row"; exit 1; }; done
+ok "the lane -> actor table lives only in board-kinds.md, with a row per pipeline lane"
+{ ! grep -q 'a move' <(grep -E '^6\. ' "$SK/watch/references/events.md") && ! grep -qiE 'requested' <(grep '^description:' "$SK/watch/SKILL.md") &&
+  grep -qi 'agent lanes' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
+ok "watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move"
+
+HD="$SK/heal/scripts/heal-descriptors.py"
+X="$T/Heal Me.lanework"
+"$SK/lanework/scripts/found-board.sh" "$X" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Heal --var verified='`make`' >/dev/null
+cp -R "$X" "$T/Heal Sheet.lanework"
+setbody() { local f; f=$(lane_file "$X" "$1"); sed -i '' '$d' "$f"; [ -z "$2" ] || printf '%s\n' "$2" >> "$f"; }
+setbody Approved 'The ready-to-build queue, ranked in build order, top is next. The spec is frozen, so a scope change bounces the card back to Shaping.'
+setbody Tasks "Owner chores, built through Active. Nothing here needs shaping. Agents never file here."
+setbody Shaping ''
+validate "$X" >/dev/null
+Z0=$(sum "$X"); O=$("$HD" "$X")
+{ grep -q '^lane Approved: replace-body ' <<<"$O" && grep -q '^lane Tasks: insert-actor ' <<<"$O" && grep -q '^lane Shaping: fill-body ' <<<"$O" && grep -q '^3 changes in 3 files' <<<"$O"; } || { echo "$O"; exit 1; }
+[ "$Z0" = "$(sum "$X")" ]; ok "heal-descriptors dry run lists the old-template, customised and empty lane bodies and writes nothing"
+if "$HD" "$X" --apply >/dev/null 2>&1; then echo "--apply ran without --model"; exit 1; else [ $? -eq 2 ]; fi; [ "$Z0" = "$(sum "$X")" ]
+ok "heal-descriptors --apply without --model exits 2 and writes nothing"
+IDLE=$(lane_file "$X" Ideas); IDLE_SUM=$(shasum "$IDLE")
+"$HD" "$X" --apply --name fixer --model test >/dev/null; validate "$X" >/dev/null
+TPL() { awk -F'|' -v t="$1" '/^\| *[0-9]/ { gsub(/^ +| +$/, "", $3); gsub(/^ +| +$/, "", $5); if ($3 == t) print $5 }' "$SK/lanework/templates/pipeline-lanes.md"; }
+[ "$(lane_body "$X" Approved)" = "$(TPL Approved)" ] && [ "$(lane_body "$X" Shaping)" = "$(TPL Shaping)" ] || { echo "replace or fill did not give the current template body"; exit 1; }
+TB=$(lane_body "$X" Tasks); AS=$(TPL Tasks | sed -E 's/^[^.]*\. //; s/\. .*$/./')
+[ "$TB" = "Owner chores, built through Active. $AS Nothing here needs shaping. Agents never file here." ] || { echo "customised body not extended in place: $TB"; exit 1; }
+for l in Approved Tasks Shaping; do grep -qE '^modified: \{at: [0-9TZ:-]+, by: \{name: fixer, kind: agent, model: test\}\}$' "$(lane_file "$X" "$l")" || { echo "$l not restamped whole"; exit 1; }; done
+[ "$IDLE_SUM" = "$(shasum "$IDLE")" ] || { echo "an untouched lane was rewritten"; exit 1; }
+ok "heal-descriptors --apply replaces, extends in place and fills; touched lanes restamped with the agent, others untouched, board validates"
+Z1=$(sum "$X"); O=$("$HD" "$X" --apply --name fixer --model test); [ "$Z1" = "$(sum "$X")" ] && grep -q '^0 changes' <<<"$O" || { echo "$O"; exit 1; }
+ok "a second heal-descriptors --apply changes nothing"
+Y="$T/Heal Sheet.lanework"; sed -i '' '/^- \*\*Agent lanes\*\*/d' "$Y/index.md"; validate "$Y" >/dev/null
+O=$("$HD" "$Y"); grep -q '^board sheet: insert-permission ' <<<"$O" && grep -q '^1 changes in 1 files' <<<"$O" || { echo "$O"; exit 1; }
+"$HD" "$Y" --apply --name fixer --model test >/dev/null; validate "$Y" >/dev/null
+grep -q '^- \*\*Agent lanes\*\*' "$Y/index.md" && grep -qE '^modified: \{at: [0-9TZ:-]+, by: \{name: fixer, kind: agent, model: test\}\}$' "$Y/index.md" && grep -q '^0 changes' <<<"$("$HD" "$Y")" || { echo "board sheet not healed"; exit 1; }
+ok "heal-descriptors inserts the permission line into a board sheet that lacks it, restamps the board, then finds nothing"
+O=$("$HD" "$H3") && grep -q 'no known lane set' <<<"$O" || { echo "$O"; exit 1; }
+ok "a board matching no lane set gets no descriptor changes"
+
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 
 # format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)
