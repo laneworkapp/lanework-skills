@@ -38,5 +38,5 @@ A ruling that clears the bar: file its record first (`records.md` § Format). Th
 When every Asked card of the round is Settled / Parked:
 
 1. Rewrite the map card (`templates/map-card.md`) + a thread comment naming the round closed. A corner with no branches is a gap → next round.
-2. Check every ruling that cleared the bar has its record card, and pinned terms are in `CONTEXT.md` (`records.md`).
+2. Check every ruling that cleared the bar has its record card (a missed one: the question is Settled and `file-record.sh` refuses it, so file it via a new question card in the next round that links the old one), and pinned terms are in `CONTEXT.md` (`records.md`).
 3. Recompute the frontier → Ask.
