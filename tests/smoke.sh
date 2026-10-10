@@ -477,6 +477,7 @@ O=$("$HD" "$R"); { grep -q '^board sheet: drop-stale ' <<<"$O" && grep -q '^boar
 ok "heal-descriptors removes the released Tasks-passed-both sentence, swaps the released Flow bullet (a customised Flow keeps its prose), validates, and finds nothing the second time"
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
+"$ROOT/tests/check-sizes.sh" || { echo "README § Sizes is out of date: fix the rows named above"; exit 1; }; ok "README sizes match wc -w, rows, totals and summary"
 
 # format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)
 H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top-level)|(root|top-level)[^.]*(priority|component)' "$SK" || true; } | grep -v -i 'reserved' || true)
