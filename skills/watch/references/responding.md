@@ -1,6 +1,6 @@
 # Responding
 
-Only **new owner comments** get replies. Prose: `work/references/writing.md`. Writes: `lanework/references/writes.md`, stamped `session: "board watch"`.
+Only **new owner comments** get replies, on the card, including on a card another session owns (`work/references/companions.md`). Prose: `work/references/writing.md`. Writes: `lanework/references/writes.md`, stamped `session: "board watch"`.
 
 ## Ruling or discussion
 
