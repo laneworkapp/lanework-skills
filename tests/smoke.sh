@@ -43,7 +43,7 @@ P="$T/Acme Pipeline.lanework"
 grep -q 'Verified means\*\* `make check`, run on the current head' "$P/index.md"; ok "pipeline vars rendered"
 validate "$P" >/dev/null; ok "pipeline board validates"
 L=$(grep -l '^title: "Ideas"$' "$P"/*/index.md); if grep -q '^collapsed:' "$L"; then exit 1; fi
-tail -1 "$L" | grep -q '^The inbox and the triage queue\.'
+tail -1 "$L" | grep -q '^The inbox and triage queue'
 ok "empty collapsed cell keeps the lane body in place"
 for k in design-loop:6 datapoint:5; do
   B="$T/${k%:*}.lanework"; sed 's/<SF Symbol>/square.grid.2x2/; s/^<.*>$/Test board./; s/^- <.*>$/- Test rule./' "$SK/lanework/templates/index.md" > "$T/idx.md"
@@ -365,13 +365,13 @@ for b in "$P" "$T/design-loop.lanework" "$T/datapoint.lanework" "$D"; do
   done
 done
 ok "every lane of a founded pipeline, design-loop, datapoint and discovery board has a body of two sentences or more"
-grep -q 'without waiting to be asked' <<<"$(lane_body "$P" Approved)" || { echo "the Approved body must say an agent acts without waiting to be asked"; exit 1; }
+grep -q 'unasked' <<<"$(lane_body "$P" Approved)" || { echo "the Approved body must say an agent takes the top card unasked"; exit 1; }
 for l in Ideas Issues Tasks; do b=$(lane_body "$P" $l)
-  { grep -q 'explicitly asks' <<<"$b" && grep -q 'read, link, research and answer' <<<"$b" && ! grep -qiE 'without waiting|unasked|builds? (it|them)|shapes? (it|them)|(built|shaped|fixed) (straight|on its)' <<<"$b"; } || { echo "$l is a holding bucket: it says what agents may do, and starts work only on the owner's ask: $b"; exit 1; }
+  ! grep -qiE 'unasked|without waiting|agents? (act|build|shape|fix)|builds? (it|them)|shapes? (it|them)' <<<"$b" || { echo "$l is a holding lane: its body must not have agents act unasked: $b"; exit 1; }
 done
-grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active are agents' lanes" "$P/index.md" || { echo "pipeline board sheet has no Agent lanes line naming Shaping, Approved and Active"; exit 1; }
+grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active: agents act on cards there unasked. Elsewhere they may read, link, research and answer, but move a card out only when asked" "$P/index.md" || { echo "pipeline board sheet has no Agent lanes line carrying the rule"; exit 1; }
 ! grep -q 'has passed both' "$P/index.md" || { echo "the sheet still says a Tasks chore has passed both gates"; exit 1; }
-ok "Approved names its trigger; Ideas, Issues and Tasks are holding buckets that say what agents may do; the sheet's Agent lanes line names Shaping, Approved and Active"
+ok "Approved takes the top card unasked; Ideas, Issues and Tasks bodies have agents act on nothing; the sheet's Agent lanes line carries the rule"
 [ "$(grep -rlE '^\| lane \| who acts \|' "$SK" | sed "s#^$SK/##")" = "lanework/references/board-kinds.md" ] || { echo "the lane -> actor table must live only in lanework/references/board-kinds.md"; exit 1; }
 for l in Ideas Issues Tasks Shaping Proposed Approved Active Done; do grep -qE "^\| $l \|" "$SK/lanework/references/board-kinds.md" || { echo "board-kinds.md table has no $l row"; exit 1; }; done
 ok "the lane -> actor table lives only in board-kinds.md, with a row per pipeline lane"
@@ -435,11 +435,11 @@ ok "heal-descriptors inserts the Agent lanes bullet after a wrapped Two human ga
 grep -v '^| 1792 |' "$SK/lanework/templates/pipeline-lanes.md" > "$T/nt-lanes.md"
 NT="$T/Heal NoTasks.lanework"; "$SK/lanework/scripts/found-board.sh" "$NT" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$T/nt-lanes.md" --var project=Heal --var verified=make --model smoke >/dev/null
 sed -i '' '/^- \*\*Agent lanes\*\*/d' "$NT/index.md"; "$HD" "$NT" --apply --name fixer --model test >/dev/null; validate "$NT" >/dev/null
-grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active are agents' lanes" "$NT/index.md" || { echo "no-Tasks sheet"; exit 1; }
+grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active: " "$NT/index.md" || { echo "no-Tasks sheet"; exit 1; }
 sed -i '' '/^- \*\*Agent lanes\*\*/d' "$NT/index.md"; sed -i '' '/^| 2048 |/d' "$T/nt-lanes.md"
 NT2="$T/Heal NoTasks2.lanework"; "$SK/lanework/scripts/found-board.sh" "$NT2" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$T/nt-lanes.md" --var project=Heal --var verified=make --model smoke >/dev/null
 sed -i '' '/^- \*\*Agent lanes\*\*/d' "$NT2/index.md"; "$HD" "$NT2" --apply --name fixer --model test >/dev/null
-grep -q "^- \*\*Agent lanes\*\*: Approved and Active are agents' lanes" "$NT2/index.md" || { grep Agent "$NT2/index.md"; exit 1; }
+grep -q "^- \*\*Agent lanes\*\*: Approved and Active: " "$NT2/index.md" || { grep Agent "$NT2/index.md"; exit 1; }
 ok "the Agent lanes line names only the agent lanes the board has (no Tasks, or no Shaping either: the lane is left out)"
 K="$T/Heal Kindless.lanework"; cp -R "$T/Heal Current.lanework" "$K" 2>/dev/null || { cp -R "$T/Heal Sheet.lanework" "$K"; }
 f=$(lane_file "$K" Shaping); sed -i '' '$d' "$f"; sed -i '' '/^kind: lane$/d' "$f"
