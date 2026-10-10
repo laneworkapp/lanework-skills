@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "found-discovery-board.sh: --labels edge cases match found-board.sh"
-order: 10240
+order: 44032
 labels: [{text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T03:16:45Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
-modified: {at: 2026-10-10T11:41:20Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-10T12:10:15Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Repeated and empty `--labels` behave differently across the two founding scripts. One rule fixes both: repeated lists accumulate, and an empty list is an error everywhere.
 
