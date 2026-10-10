@@ -26,7 +26,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `lanework` | 9 | 328 | 2,790 |
 | `work` | 16 | 374 | 6,201 |
 | `watch` | 4 | 146 | 1,044 |
-| `discovery` | 14 | 484 | 2,812 |
+| `discovery` | 14 | 484 | 2,847 |
 | `merge` | 2 | 362 | 1,577 |
 
 Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
@@ -86,17 +86,17 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `references/board.md` | 347 |
 | `references/conduct.md` | 126 |
 | `references/corners.md` | 171 |
-| `references/records.md` | 540 |
-| `references/rounds.md` | 283 |
+| `references/records.md` | 544 |
+| `references/rounds.md` | 311 |
 | `templates/fact-card.md` | 48 |
 | `templates/glossary.md` | 46 |
-| `templates/lanes.md` | 387 |
+| `templates/lanes.md` | 390 |
 | `templates/map-card.md` | 92 |
 | `templates/question-card.md` | 66 |
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 66 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,812** |
+| **total** | **2,847** |
 
 #### `merge`
 

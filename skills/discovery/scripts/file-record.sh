@@ -1,5 +1,5 @@
 #!/bin/bash
-# file-record.sh: file an ADR or PDR card into Decisions from a settled ruling.
+# file-record.sh: file an ADR or PDR card into Decisions from a question's ruling, before it settles.
 # usage: file-record.sh <board> <question-card-uuid> --record ADR|PDR --title t --body F \
 #          [--model m] [--name n] [--session s]
 # Card frontmatter from templates/record.md (title "<ADR|PDR>: <t>", flattened `Record` and

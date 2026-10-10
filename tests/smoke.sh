@@ -291,7 +291,7 @@ for bad in "$C3" .. "$K1" 0000; do
 done
 O4=$("$SK/discovery/scripts/file-question.sh" "$D" "Open one" --round 2 --body "$T/q3.md" 2>&1); C4=$(head -1 <<<"$O4" | sed 's#.*/##')
 if "$SK/discovery/scripts/file-record.sh" "$D" "$C4" --record NOPE --title x --body "$T/adr.md" 2>/dev/null; then echo "accepted a bad record kind"; exit 1; fi
-[ -z "$(ls "$DEC")" ] || [ "$(ls -d "$DEC"/*/ | wc -l)" -eq 2 ] || { echo "a refused call wrote a card"; exit 1; }
+[ "$(ls -d "$DEC"/*/ | wc -l)" -eq 2 ] || { echo "a refused call wrote a card"; exit 1; }
 ok "file-record.sh refuses a settled question, a path, a record card, a short id, and a record kind that is not ADR or PDR"
 
 # work: lint-ask
