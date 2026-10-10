@@ -25,8 +25,8 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 342 | 3,995 |
-| `work` | 16 | 397 | 6,294 |
+| `lanework` | 10 | 342 | 4,006 |
+| `work` | 16 | 397 | 6,301 |
 | `watch` | 4 | 162 | 1,254 |
 | `discovery` | 14 | 492 | 2,833 |
 | `merge` | 2 | 362 | 1,577 |
@@ -40,7 +40,7 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 |---|---|
 | `SKILL.md` | 342 |
 | `references/authority.md` | 129 |
-| `references/board-kinds.md` | 1,065 |
+| `references/board-kinds.md` | 1,076 |
 | `references/finding.md` | 351 |
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
@@ -48,7 +48,7 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `references/writes.md` | 1,030 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 249 |
-| **total** | **3,995** |
+| **total** | **4,006** |
 
 #### `work`
 
@@ -60,7 +60,7 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `references/fixer.md` | 391 |
 | `references/lead.md` | 977 |
 | `references/reviewer.md` | 376 |
-| `references/sweep.md` | 536 |
+| `references/sweep.md` | 543 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
@@ -70,7 +70,7 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,294** |
+| **total** | **6,301** |
 
 #### `watch`
 

@@ -24,8 +24,8 @@ Per board, after the authority chain:
 | **Approved, unruled** | Approved or Active, with an open call and no ruling | don't build; post or re-post the ask (`writing.md` § When to ask), report it |
 | **Active, stalled** | Active, no thread movement | resume, or report why stuck |
 | **Shaping to advance** | Shaping, below the board's proposal bar | farm: shape; an open call → ask |
-| **At a human gate** | Ideas (triage), Proposed (review) | report only, never move |
-| **Holding** | Ideas, Issues, Tasks | report; research or answer only (`lanework/references/board-kinds.md`) |
+| **At a human gate** | `gate` lanes (pipeline: Proposed, review) | report; move only as the `gate` key allows (`lanework/references/board-kinds.md`) |
+| **Holding** | Ideas (triage), Issues, Tasks | report; research or answer only (`lanework/references/board-kinds.md`) |
 | **Hygiene** | Done / Rejected overdue for archive | only on the owner's explicit ask |
 
 ## 3. Triage report

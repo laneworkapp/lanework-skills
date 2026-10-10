@@ -29,7 +29,8 @@ Per lane of the matched set:
                      heading, list, quote, fence, table or tag. Nothing else is touched, never a replacement
   (nothing)          the body is the current template's, or already carries the sentence word for word
 Pipeline boards also get, on the board sheet (`index.md` body):
-  drop-stale         the released sentence "A chore the owner files in Tasks has passed both." leaves the sheet
+  drop-stale         the released sentence "A chore the owner files in Tasks has passed both." leaves the sheet: line by
+                     line, every hit outside a fence or a quote, and a line left empty or bullet-only goes whole
   replace-flow       the released Flow bullet becomes the current template's; a customised Flow keeps its prose and
                      only the released Tasks clause becomes "and Tasks as a side entrance"
   insert-permission  the `Agent lanes` bullet (naming only the lanes the board has), after the `Two human gates`
@@ -412,9 +413,8 @@ def check_board(board, sets, perm):
         except (OSError, UnicodeDecodeError, ValueError) as e:
             skips.append(("board sheet", "can't read it (%s)" % e)); return info, changes, skips
         body, steps = idx.body, []
-        stale = re.compile(r"\s?" + re.escape(OLD_SHEET["sentence"]))
-        if stale.search(body):
-            body = stale.sub("", body, count=1)
+        body, dropped = drop_stale(body, OLD_SHEET["sentence"])
+        if dropped:
             steps.append(("drop-stale", "the released sentence \"%s\"" % OLD_SHEET["sentence"]))
         lines = body.split("\n")
         flow_now = template_line("- **Flow**")
@@ -454,6 +454,23 @@ def check_board(board, sets, perm):
         for code, detail in steps:      # one file, one write: every step carries the final body
             changes.append((idx, "board sheet", code, detail, "\n".join(lines)))
     return info, changes, skips
+
+
+def drop_stale(body, sentence):
+    """Remove `sentence` from every line outside a fence or a quote, with one adjoining space (the leading one, else the
+    trailing one). A line left empty or holding only a bullet marker goes whole. Returns (body, removed?)."""
+    out, fenced, removed = [], False, False
+    for line in body.split("\n"):
+        head = line.lstrip()
+        if head.startswith(("```", "~~~")):
+            fenced = not fenced
+        elif not fenced and not head.startswith(">") and sentence in line:
+            line = re.sub(" " + re.escape(sentence) + "|" + re.escape(sentence) + " ?", "", line)
+            removed = True
+            if line.strip() in ("", "-", "*", "+"):
+                continue
+        out.append(line)
+    return "\n".join(out), removed
 
 
 def main(argv):
