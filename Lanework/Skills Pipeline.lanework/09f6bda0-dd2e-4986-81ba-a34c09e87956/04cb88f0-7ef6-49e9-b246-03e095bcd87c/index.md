@@ -2,7 +2,7 @@
 schema: 1
 kind: card
 title: "Boards folder: Lanework, then Boards, then legacy Pitlane"
-order: 3072
+order: 7168
 labels: [{text: lanework, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 waiting: {for: rzen, since: 2026-10-10T00:20:06Z, comment: d30e87d5-3bb3-44ba-b7c7-d3247f044b07}
 created:  {at: 2026-10-06T22:38:56Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
