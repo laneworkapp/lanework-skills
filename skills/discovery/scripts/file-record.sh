@@ -1,7 +1,7 @@
 #!/bin/bash
 # file-record.sh: file an ADR or PDR card into Decisions from a question's ruling, before it settles.
 # usage: file-record.sh <board> <question-card-uuid> --record ADR|PDR --title t --body F \
-#          [--model m] [--name n] [--session s]
+#          --model m [--name n] [--session s]
 # Card frontmatter from templates/record.md (title "<ADR|PDR>: <t>", flattened `Record` and
 # `accepted` status labels), body = line 1 linking the question, then --body. Lands at the
 # bottom of Decisions, staged outside the board. Prints the card's lanework:// link: put it
@@ -15,7 +15,7 @@ BOARD="${1:?usage: file-record.sh <board> <question-uuid> --record ADR|PDR --tit
 QID="${2:?usage: file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F [...]}"
 shift 2
 KIND=""; TITLE=""; BODY_FILE=""
-MODEL="${CLAUDE_MODEL:-unknown}"; NAME="claude"; SESSION=""
+MODEL=""; NAME="claude"; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --record)  KIND="${2:?--record needs ADR or PDR}"; shift 2 ;;
@@ -27,6 +27,7 @@ while [ $# -gt 0 ]; do
     *) echo "file-record.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
+require_model file-record.sh "file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F --model m [...]"
 case "$KIND" in ADR) RANK=1 ;; PDR) RANK=2 ;; *) echo "file-record.sh: --record is ADR or PDR" >&2; exit 1 ;; esac
 [ -n "$TITLE" ] || { echo "file-record.sh: --title is required" >&2; exit 1; }
 [ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-record.sh: --body must name a readable file" >&2; exit 1; }
@@ -39,7 +40,7 @@ QCARD="$ASKED/$QID"
 [ -f "$QCARD/index.md" ] || { echo "file-record.sh: $QID is not a question in Asked (file the record before settling)" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
 QTITLE=$(strip_quotes "$(fm_value "$QCARD/index.md" title)" | perl -pe 's/\\(.)/$1/g; s/([\\\[\]])/\\$1/g')
-CTITLE="${TITLE//$'\n'/ }"; CTITLE="${CTITLE//$'\r'/ }"; CTITLE="${CTITLE//\\/\\\\}"; CTITLE="${CTITLE//\"/\\\"}"
+CTITLE=$(title_str "$TITLE")
 
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); CARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-record.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT

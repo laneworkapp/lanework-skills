@@ -1,7 +1,7 @@
 #!/bin/bash
 # found-board.sh: cold-start a board from an index template and a lanes table.
 # usage: found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes.md> \
-#          [--title T] [--var key=value]... [--model m] [--name n]
+#          --model m [--title T] [--var key=value]... [--name n]
 # Index template gets {{title}}, {{title_yaml}}, {{id}}, {{stamp}} plus each --var.
 # Lanes table rows: | order | title | collapsed (yes) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
@@ -12,7 +12,7 @@ set -euo pipefail
 BOARD="${1:?usage: found-board.sh <board> --index F --lanes F [--title T] [--var k=v]... [--model m] [--name n]}"
 shift
 INDEX=""; LANES=""; TITLE=""; VARS=()
-MODEL="${CLAUDE_MODEL:-unknown}"; NAME="claude"
+MODEL=""; NAME="claude"
 while [ $# -gt 0 ]; do
   case "$1" in
     --index) INDEX="${2:?--index needs a file}"; shift 2 ;;
@@ -24,6 +24,7 @@ while [ $# -gt 0 ]; do
     *) echo "found-board.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
+require_model found-board.sh "found-board.sh <board> --index F --lanes F --model m [--title T] [--var k=v]... [--name n]"
 [ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
 [ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
@@ -35,7 +36,7 @@ NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL"); BOARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/lanework-found.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$BOARD"
 
-render "$INDEX" title "$TITLE" title_yaml "$(yaml_str "$TITLE")" id "$BOARD_ID" \
+render "$INDEX" title "$TITLE" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
   stamp "{at: $NOW, by: $BY}" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
@@ -45,7 +46,7 @@ while IFS=$'\037' read -r ORDER LANE COLLAPSED LBODY; do
   LANE_ID=$(uuid); mkdir -p "$BOARD/$LANE_ID"
   {
     printf '%s\n' '---' 'schema: 1' 'kind: lane'
-    printf 'title: %s\n' "$(yaml_str "$LANE")"
+    printf 'title: %s\n' "\"$(title_str "$LANE")\""
     printf 'order: %s\n' "$ORDER"
     if [ "$COLLAPSED" = yes ]; then printf '%s\n' 'collapsed: true'; fi
     printf 'created:  {at: %s, by: %s}\n' "$NOW" "$BY"
