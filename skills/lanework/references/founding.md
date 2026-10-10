@@ -14,7 +14,7 @@ scripts/found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lane
 
 - Pipeline: `--index templates/pipeline-index.md --var project=<Project> --var verified="<gate command>" --lanes templates/pipeline-lanes.md`.
 - Other kinds: `templates/design-loop-lanes.md` or `templates/datapoint-lanes.md`, plus an index filled in from `templates/index.md`. Custom lanes: same table format. Kinds: `board-kinds.md`.
-- **Lane bodies** (custom lanes too) name who acts and what starts it, the second sentence (the tables in `board-kinds.md`). A body that forbids agents an action also says what they may do instead.
+- **Lane bodies** (custom lanes too): 2nd sentence = who acts + what starts it (tables: `board-kinds.md`). A body forbidding agents an action also says what they may do.
 - Mints the board `id` (host of every `lanework://` link; never changes), stamps, quotes titles, and stages every write outside the board.
 
 Index body: description above the first `##`; instruction sheet below it. The sheet holds whatever an agent would otherwise get wrong: gates and who holds them, the card bar, what verified means, blast radius, repo conduct. Nothing the guide says. Per-board process lives there, never in a file of its own.

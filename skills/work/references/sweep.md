@@ -20,12 +20,12 @@ Per board, after the authority chain:
 | workload | shows up | who acts |
 |---|---|---|
 | **Unanswered question** | any lane: `waiting` in the frontmatter, or a thread ending in a question. `waiting.for` / the mention names the human → on them; addressed to an agent → on you | answer, or surface |
-| **Approved, unstarted** | Approved, Tasks | farm: build |
+| **Approved, unstarted** | Approved | farm: build |
 | **Approved, unruled** | Approved or Active, with an open call and no ruling | don't build; post or re-post the ask (`writing.md` § When to ask), report it |
 | **Active, stalled** | Active, no thread movement | resume, or report why stuck |
 | **Shaping to advance** | Shaping, below the board's proposal bar | farm: shape; an open call → ask |
 | **At a human gate** | Ideas (triage), Proposed (review) | report only, never move |
-| **Issue** | Issues | diagnose; fix if the board policy allows |
+| **Holding** | Ideas, Issues, Tasks | report only (`lanework/references/board-kinds.md`) |
 | **Hygiene** | Done / Rejected overdue for archive | only on the owner's explicit ask |
 
 ## 3. Triage report
@@ -37,7 +37,7 @@ Always before, or alongside, farming. Per board: what waits on the human (gates,
 - Execution leaves the main session. Synthesis, review of agent output, and every judgment-call board write stay.
 - Tier: `tiers.md`. Prompt: `templates/farmed-prompt.md`.
 - Workflow-scale orchestration needs the user's explicit opt-in. A handful of Agent-tool subagents doesn't. Enough parallel work for a workflow → say so and ask.
-- Substantial coding (≥2 independent Approved or Tasks cards, or review independence matters) → a build team, `team.md`. Below that, work the card directly.
+- Substantial coding (≥2 independent Approved cards, or review independence matters) → a build team, `team.md`. Below that, work the card directly.
 
 ## 5. Close
 
