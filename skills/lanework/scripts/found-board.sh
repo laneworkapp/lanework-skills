@@ -33,6 +33,7 @@ require_model found-board.sh "found-board.sh <board> --index F --lanes F --model
 [ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
 [ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
+[ -n "$(flat_str "$TITLE" | tr -d '[:space:]')" ] || { echo "found-board.sh: --title is blank once its line breaks are flattened" >&2; exit 2; }
 # the slot names and the built-in keys are the script's: a --var can't overwrite them
 set -- ${VARS[@]+"${VARS[@]}"}
 while [ $# -gt 0 ]; do
