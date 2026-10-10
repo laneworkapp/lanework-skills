@@ -52,10 +52,11 @@ for k in design-loop:6 datapoint:5; do
   B="$T/${k%:*}.lanework"; sed 's/<SF Symbol>/square.grid.2x2/; s/^<.*>$/Test board./; s/^- <.*>$/- Test rule./' "$SK/lanework/templates/index.md" > "$T/idx.md"
   "$SK/lanework/scripts/found-board.sh" "$B" --index "$T/idx.md" --lanes "$SK/lanework/templates/${k%:*}-lanes.md" --model smoke >/dev/null
   [ "$("$SK/lanework/scripts/read-board.sh" "$B" | grep -c '^== ')" -eq "${k#*:}" ]; validate "$B" >/dev/null
-if grep -q "^icon:" "$T"/design-loop.lanework/*/index.md; then exit 1; fi
 done; ok "design-loop (6 lanes) and datapoint (5) founded from templates, validate"
 L=$(grep -l '^title: "Dead ends"$' "$T/design-loop.lanework"/*/index.md); grep -q '^collapsed: true$' "$L"; tail -1 "$L" | grep -q '^Directions th'
-ok "collapsed: yes lane starts collapsed with its body"
+grep -qx 'icon: {glyph: xmark.circle}' "$L" && [ "$(grep -l '^icon: ' "$T"/design-loop.lanework/*/index.md | grep -c .)" -eq 6 ]
+if grep -q "^icon:" "$T"/datapoint.lanework/*/index.md; then exit 1; fi
+ok "collapsed: yes lane starts collapsed with its body; design-loop lanes carry icons, datapoint lanes none"
 X="$T/broken.lanework"; cp -R "$P" "$X"; f=$(ls "$X"/*/index.md | head -1); sed -i '' 's/^title: .*/title: a: b/' "$f"
 if validate "$X" >/dev/null 2>&1; then echo "validator passed a broken board"; exit 1; fi; ok "validator control: a bare-colon title fails"
 if "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
@@ -237,7 +238,8 @@ ok "heal defers to the board's own .schema/bin/lanework-heal.py"
 D="$T/Sync: v2 Discovery.lanework"
 "$SK/discovery/scripts/found-discovery-board.sh" "$D" --model smoke >/dev/null
 grep -q '^title: "Sync: v2 Discovery"$' "$D/index.md" && grep -q '^Discovery on Sync: v2:' <(sed -n '/^# /,$p' "$D/index.md" | sed -n 3p)
-ok "discovery founded; colon title quoted; topic rendered"
+[ "$(grep -l '^icon: ' "$D"/*/index.md | grep -c .)" -eq 6 ] && grep -qx 'icon: {glyph: questionmark.bubble, color: smokey-tangerine}' "$(grep -l '^title: "Asked"$' "$D"/*/index.md)"
+ok "discovery founded; colon title quoted; topic rendered; lanes carry icons"
 printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/q1.md"
 printf 'Where does it run?\n\n## Options\n\n- A: app\n- B: service\n\n## Recommended\n\nA. No server.\n' > "$T/q2.md"
 O1=$("$SK/discovery/scripts/file-question.sh" "$D" "Pricing" --round 1 --body "$T/q1.md" --model smoke 2>&1)
