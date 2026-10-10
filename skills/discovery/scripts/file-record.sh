@@ -5,7 +5,8 @@
 # Card frontmatter from templates/record.md (title "<ADR|PDR>: <t>", flattened `Record` and
 # `accepted` status labels), body = line 1 linking the question, then --body. Lands at the
 # bottom of Decisions, staged outside the board. Prints the card's lanework:// link: put it
-# in the ruling (templates/ruling.md). Run before settle-question.sh; no waiting, no comments.
+# in the ruling (templates/ruling.md). Run before settle-question.sh: the question must still be
+# in Asked (a settled card is never edited). No waiting, no comments.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 TEMPLATES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)"
@@ -32,17 +33,20 @@ case "$KIND" in ADR) RANK=1 ;; PDR) RANK=2 ;; *) echo "file-record.sh: --record 
 [ -f "$BOARD/index.md" ] || { echo "file-record.sh: not a board: $BOARD" >&2; exit 1; }
 
 DEC=$(lane_by_title "$BOARD" Decisions) || { echo "file-record.sh: no Decisions lane on $BOARD (add it, with the record and status label kinds: templates/lanes.md, templates/board.md)" >&2; exit 1; }
-QCARD=$(ls -d "$BOARD"/*/"$QID" 2>/dev/null | head -1 || true)
-[ -n "$QCARD" ] && [ -f "$QCARD/index.md" ] || { echo "file-record.sh: no question card $QID on the board" >&2; exit 1; }
+[[ "$QID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || { echo "file-record.sh: not a lowercase card uuid: $QID" >&2; exit 1; }
+ASKED=$(lane_by_title "$BOARD" Asked) || { echo "file-record.sh: no Asked lane on $BOARD" >&2; exit 1; }
+QCARD="$ASKED/$QID"
+[ -f "$QCARD/index.md" ] || { echo "file-record.sh: $QID is not a question in Asked (file the record before settling)" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
-QTITLE=$(strip_quotes "$(fm_value "$QCARD/index.md" title)"); QTITLE="${QTITLE//\\\"/\"}"
+QTITLE=$(strip_quotes "$(fm_value "$QCARD/index.md" title)" | perl -pe 's/\\(.)/$1/g; s/([\\\[\]])/\\$1/g')
+CTITLE="${TITLE//$'\n'/ }"; CTITLE="${CTITLE//$'\r'/ }"; CTITLE="${CTITLE//\\/\\\\}"; CTITLE="${CTITLE//\"/\\\"}"
 
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); CARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-record.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 C="$STAGE/$CARD_ID"; mkdir -p "$C"
 
 frontmatter_of "$TEMPLATES/record.md" > "$STAGE/fm.md"
-render "$STAGE/fm.md" kind "$KIND" rank "$RANK" title "${TITLE//\"/\\\"}" order "$(next_order "$DEC")" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
+render "$STAGE/fm.md" kind "$KIND" rank "$RANK" title "$CTITLE" order "$(next_order "$DEC")" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-record.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
 {
   cat "$STAGE/fm.out"

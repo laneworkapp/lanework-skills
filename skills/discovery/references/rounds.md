@@ -29,7 +29,7 @@ Then post the round in chat, each title linking its card:
 - **Chat** → record comment quoting the owner verbatim, in reply to the ask (`templates/ruling.md`).
 - **Card** → app clears `waiting`. Re-read the whole thread.
 
-Then: ruling → body `## Ruling` (`templates/ruling.md`), card → bottom of Settled (`scripts/settle-question.sh`). Deferred or declined → Parked, reason = ruling.
+A ruling that clears the bar: file its record first (`records.md` § Format). Then: ruling → body `## Ruling` (`templates/ruling.md`), card → bottom of Settled (`scripts/settle-question.sh`). Deferred or declined → Parked, reason = ruling.
 
 **Challenge**: answer conflicts with a settled card, the glossary, an ADR/PDR, or the code → don't record it. Next round asks: "Q3 settled X; this implies Y. Which holds?"
 
@@ -38,5 +38,5 @@ Then: ruling → body `## Ruling` (`templates/ruling.md`), card → bottom of Se
 When every Asked card of the round is Settled / Parked:
 
 1. Rewrite the map card (`templates/map-card.md`) + a thread comment naming the round closed. A corner with no branches is a gap → next round.
-2. Write this round's records (`records.md`). Never batch to the end.
+2. Check every ruling that cleared the bar has its record card, and pinned terms are in `CONTEXT.md` (`records.md`).
 3. Recompute the frontier → Ask.

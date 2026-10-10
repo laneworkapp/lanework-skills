@@ -1,6 +1,6 @@
 # Records
 
-Written at each round's close, from its rulings. Never ahead of a ruling; never batched to the end.
+Written from rulings, never ahead of one, never batched to the end. ADR/PDR cards: filed when the answer is taken, before the question is settled (§ Format). Glossary: at the round's close.
 
 ## Glossary: `CONTEXT.md`
 
@@ -33,7 +33,7 @@ Else the Settled card is the record. Explicit no's qualify: a non-goal that will
 ## Format
 
 - A record is a card in the **Decisions** lane (`templates/lanes.md`), not a file. `scripts/file-record.sh` files it: `templates/record.md` shape, title `ADR: <title>` / `PDR: <title>`, line 1 links the Settled question, labels `Record` (ADR/PDR) + `Status`. Optional sections only when they earn it.
-- Order: file the record → put its link in the ruling → `settle-question.sh`. The ruling links the card (`templates/ruling.md`); the card links the question. No numbers: links identify.
+- Order: answer taken → file the record (question still in Asked) → put its link in the ruling → `settle-question.sh`. A Settled card is never edited, so a record filed after settling cannot be linked from its ruling. The ruling links the card (`templates/ruling.md`); the card links the question. No numbers: links identify.
 - `Status`: `accepted | deprecated | superseded`. From a ruling → `accepted`. No `proposed`: a record is only written from a ruling.
 - Status or label change = picker-style rewrite of the one `labels` entry (kind `status`, flattened per the guide), never a body edit.
 
