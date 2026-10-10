@@ -8,7 +8,8 @@
 # Boards are named by folder, so two boards sharing a folder name are refused:
 # watch those in separate Monitors.
 #
-# --skills <root> (the folder holding the skills, e.g. the `watch` skill's parent):
+# --skills <root> (the folder holding watch/, work/ and lanework/, each possibly a symlink;
+# a root with no watch/SKILL.md is refused, exit 2):
 # fingerprint of the rule files a watch reads (watch/**/*.md, work/SKILL.md,
 # work/references/*.md, lanework/references/{authority,board-kinds}.md) kept in
 # <state-file>.skills; the root joins fswatch. A different fingerprint, on a burst or
@@ -31,11 +32,12 @@ LC_ALL=C
 USAGE="usage: watch-boards.sh [--skills <skills-root>] <state-file> <board-path>..."
 SKILLS=
 if [[ ${1:-} == --skills ]]; then
-  SKILLS=${2:?$USAGE}; shift 2
-  [[ -d $SKILLS ]] || { echo "watch-boards.sh: not a folder: $SKILLS" >&2; exit 2 }
+  SKILLS=${2:-}; [[ -n $SKILLS ]] || { echo "$USAGE" >&2; exit 2 }
+  shift 2
+  [[ -f $SKILLS/watch/SKILL.md ]] || { echo "watch-boards.sh: --skills wants the folder that holds watch/, work/ and lanework/ (no watch/SKILL.md in $SKILLS)" >&2; exit 2 }
   SKILLS=${SKILLS:A}
 fi
-STATE=${1:?$USAGE}
+STATE=${1:-}; [[ -n $STATE ]] || { echo "$USAGE" >&2; exit 2 }
 shift
 (( $# )) || { echo "$USAGE" >&2; exit 2 }
 
@@ -51,9 +53,20 @@ uniq=(${(u)names})
 
 snap() { find "${BOARDS[@]}" -name '*.md' -not -path '*/.trash/*' -not -path '*/comments/.draft/*' -exec stat -f '%m %z %N' {} + 2>/dev/null | sort; }
 
+# each skill folder may be a symlink (per-skill installs): resolve it, find from inside it,
+# and give fswatch the resolved folder, since edits land in the link target
+SKDIRS=()
+for n in watch work lanework; do d=$SKILLS/$n; [[ -d $d ]] && SKDIRS+=(${d:A}); done
 skills_fp() {
-  (cd "$SKILLS" && { find watch -name '*.md'; ls work/SKILL.md work/references/*.md lanework/references/authority.md lanework/references/board-kinds.md 2>/dev/null; } \
-    | sort -u | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+  local n
+  for n in watch work lanework; do
+    ( cd "$SKILLS/$n" 2>/dev/null || exit 0
+      case $n in
+        watch) find . -name '*.md' ;;
+        work) ls ./SKILL.md ./references/*.md ;;
+        lanework) ls ./references/authority.md ./references/board-kinds.md ;;
+      esac 2>/dev/null | sort -u | xargs shasum -a 256 2>/dev/null | sed "s#  \./#  $n/#" )
+  done | shasum -a 256 | cut -d' ' -f1
 }
 # compare with the stored fingerprint, store the new one; emit once when it differs
 skills_check() {
@@ -67,7 +80,7 @@ skills_check() {
 
 snap > "$STATE"
 skills_check
-fswatch -r -o -l 0.5 "${BOARDS[@]}" ${SKILLS:+"$SKILLS"} | while IFS= read -r _; do
+fswatch -r -o -l 0.5 "${BOARDS[@]}" "${SKDIRS[@]}" | while IFS= read -r _; do
   skills_check
   snap > "$STATE.new"
   changed=$(comm -3 "$STATE" "$STATE.new" | cut -d' ' -f3- | sort -u)
