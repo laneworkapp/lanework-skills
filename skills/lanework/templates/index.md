@@ -4,7 +4,7 @@ kind: board
 title: {{title_yaml}}
 id: {{id}}
 icon: {glyph: <SF Symbol>}
-config: {show-card-body: 3}
+config: {show-card-body: 3{{labels}}}
 created:  {{stamp}}
 modified: {{stamp}}
 ---

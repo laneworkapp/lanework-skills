@@ -476,6 +476,81 @@ O=$("$HD" "$R"); { grep -q '^board sheet: drop-stale ' <<<"$O" && grep -q '^boar
 "$HD" "$T/Heal Pre2.lanework" --apply --name fixer --model test >/dev/null; grep -q '^- \*\*Flow\*\*: Ideas to Done, with Issues as the side entrance for something broken, and Tasks as a side entrance\.$' "$T/Heal Pre2.lanework/index.md" || { grep Flow "$T/Heal Pre2.lanework/index.md"; exit 1; }
 ok "heal-descriptors removes the released Tasks-passed-both sentence, swaps the released Flow bullet (a customised Flow keeps its prose), validates, and finds nothing the second time"
 
+# label kinds: found-board.sh --labels splices catalog rows into config.labels; heal-board.py reads its suggested kinds from the same file
+LK="$SK/lanework/templates/label-kinds.md"; LD="$T/label-kinds"; mkdir -p "$LD"; FB="$SK/lanework/scripts/found-board.sh"
+sed 's/<SF Symbol>/square.grid.2x2/; s/^<.*>$/Test board./; s/^- <.*>$/- Test rule./' "$SK/lanework/templates/index.md" > "$LD/idx.md"
+norm_index() { sed -E 's/^id: .*/id: ID/; s/^(created|modified): .*/\1: STAMP/' "$1"; }
+"$FB" "$LD/P.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified='`make check`' --model smoke >/dev/null
+"$FB" "$LD/G.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --model smoke >/dev/null
+[ "$(norm_index "$LD/P.lanework/index.md")" = "$(cat "$ROOT/tests/fixtures/founded-pipeline-index.md")" ] && [ "$(norm_index "$LD/G.lanework/index.md")" = "$(cat "$ROOT/tests/fixtures/founded-plain-index.md")" ] || { echo "founding without --labels drifted from the pre-catalog golden"; exit 1; }
+ok "found-board.sh without --labels founds an index byte-identical to the pre-catalog founding (pipeline and plain templates)"
+ALLK=priority,component,type,size,platform,release,epic
+"$FB" "$LD/All.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified=x --labels "$ALLK" --model smoke >/dev/null
+validate "$LD/All.lanework" >/dev/null
+python3 - "$LD/All.lanework/index.md" "$ALLK" <<'PY' || { echo "config.labels is not exactly the seven kinds"; exit 1; }
+import sys, yaml
+fm = open(sys.argv[1]).read().split("---\n")[1]
+cfg = yaml.safe_load(fm)["config"]
+got = [e["type"] for e in cfg["labels"]]
+assert got == sys.argv[2].split(","), got
+assert cfg["show-card-body"] == 3
+by = {e["type"]: e for e in cfg["labels"]}
+assert by["priority"]["single"] is True and [v["rank"] for v in by["priority"]["values"]] == [0, 1, 2, 3]
+assert "values" not in by["component"] and "values" not in by["platform"]
+assert all("rank" in v for k in ("type", "size") for v in by[k]["values"])
+PY
+ok "found-board.sh --labels naming all seven kinds founds a board whose config.labels holds exactly those seven, in order, and it validates"
+"$FB" "$LD/Two.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --labels size,priority --model smoke >/dev/null
+validate "$LD/Two.lanework" >/dev/null
+[ "$(python3 -c 'import sys,yaml; print(",".join(e["type"] for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]))' "$LD/Two.lanework/index.md")" = size,priority ] || exit 1
+ok "found-board.sh --labels takes any subset, in the order given, on the plain index template too"
+for bad in "type,nonsense" "nonsense" "type,,size" ""; do
+  rm -rf "$LD/Bad.lanework"; rc=0
+  "$FB" "$LD/Bad.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --labels "$bad" --model smoke >/dev/null 2>"$LD/err" || rc=$?
+  [ "$rc" -eq 2 ] && [ ! -e "$LD/Bad.lanework" ] && [ -s "$LD/err" ] || { echo "--labels '$bad': exit $rc, board $( [ -e "$LD/Bad.lanework" ] && echo written || echo absent)"; exit 1; }
+done
+ok "found-board.sh --labels with an unknown, empty or blank kind exits 2 with a message and writes nothing"
+# a card carrying one flattened entry of each kind validates with no DEPRECATED line
+CD="$LD/All.lanework/$(ls "$LD/All.lanework" | grep -v -E '^(index.md|\.)' | head -1)"; CID=$(uuidgen | tr A-Z a-z); mkdir -p "$CD/$CID"
+cat > "$CD/$CID/index.md" <<'CARD'
+---
+schema: 1
+kind: card
+title: "One of each kind"
+order: 1024
+labels:
+  - {text: Urgent, rank: 0, color: "#C8283C", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}
+  - {text: core, color: aluminum, kind: {type: component, text: Component, color: aluminum, icon: {glyph: puzzlepiece}}}
+  - {text: Bug, rank: 1, icon: {glyph: ladybug}, kind: {type: type, text: Type, icon: {glyph: square.grid.2x2}}}
+  - {text: M, rank: 2, kind: {type: size, text: Size, icon: {glyph: ruler}}}
+  - {text: macOS, kind: {type: platform, text: Platform, icon: {glyph: laptopcomputer.and.iphone}}}
+  - {text: 0.3.0, kind: {type: release, text: Release, icon: {glyph: shippingbox}}}
+  - {text: Search, kind: {type: epic, text: Epic, icon: {glyph: mountain.2}}}
+created:  {at: 2026-10-10T00:00:00Z}
+modified: {at: 2026-10-10T00:00:00Z}
+---
+Body.
+CARD
+validate "$LD/All.lanework" >/dev/null; ok "a card carrying one flattened entry of each of the seven kinds validates with no DEPRECATED line"
+# heal-board.py reads its suggested priority and component from the catalog file, and fails loudly without it
+python3 - "$SK/lanework/scripts/heal-board.py" "$LK" <<'PY' || { echo "heal SUGGESTED does not match the catalog rows"; exit 1; }
+import importlib.util, sys; sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("hb", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
+rows = {}
+for line in open(sys.argv[2]):
+    if line.startswith("| ") and line.count("|") >= 3:
+        cells = [c.strip() for c in line.strip().strip("|").split("|", 1)]
+        if cells[0] in ("priority", "component"): rows[cells[0]] = hb.inline(cells[1])
+assert sorted(rows) == ["component", "priority"], rows
+assert [s["type"] for s in hb.SUGGESTED] == ["priority", "component"]
+assert all(s == rows[s["type"]] for s in hb.SUGGESTED), (hb.SUGGESTED, rows)
+PY
+ok "heal-board.py SUGGESTED priority and component equal the label-kinds.md rows"
+cp -R "$SK/lanework" "$LD/lw-nocatalog"; rm "$LD/lw-nocatalog/templates/label-kinds.md"; rc=0
+python3 "$LD/lw-nocatalog/scripts/heal-board.py" "$LD/P.lanework" >"$LD/out" 2>&1 || rc=$?
+[ "$rc" -ne 0 ] && grep -q 'label-kinds.md' "$LD/out" || { cat "$LD/out"; exit 1; }
+ok "heal-board.py without templates/label-kinds.md fails loudly naming the file, not silently falling back"
+
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 "$ROOT/tests/check-sizes.sh" || { echo "README § Sizes is out of date: fix the rows named above"; exit 1; }; ok "README sizes match wc -w, rows, totals and summary"
 
