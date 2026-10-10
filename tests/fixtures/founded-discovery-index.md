@@ -1,16 +1,16 @@
 ---
 schema: 1
 kind: board
-title: {{title_yaml}}
-id: {{id}}
+title: "D Discovery"
+id: ID
 icon: {glyph: binoculars}
-config: {show-card-body: 3, labels: [{{label_entries}}{type: record, text: Record, single: true, values: [{text: ADR, rank: 1}, {text: PDR, rank: 2}]}, {type: status, text: Status, single: true, values: [{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}]}]}
-created:  {{stamp}}
-modified: {{stamp}}
+config: {show-card-body: 3, labels: [{type: round, text: Round}, {type: record, text: Record, single: true, values: [{text: ADR, rank: 1}, {text: PDR, rank: 2}]}, {type: status, text: Status, single: true, values: [{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}]}]}
+created: STAMP
+modified: STAMP
 ---
-# {{title}}
+# D Discovery
 
-Discovery on {{topic}}: its problem and domain space, examined one question per card. The agent asks in rounds, the owner rules, and the ruling is written into the card in the owner's words. Brief holds the topic and the discovery map, Facts holds what was looked up, and Settled is the record a later session resumes from. Rulings that clear the bar also become ADR and PDR cards in the Decisions lane.
+Discovery on D: its problem and domain space, examined one question per card. The agent asks in rounds, the owner rules, and the ruling is written into the card in the owner's words. Brief holds the topic and the discovery map, Facts holds what was looked up, and Settled is the record a later session resumes from. Rulings that clear the bar also become ADR and PDR cards in the Decisions lane.
 
 ## How this board works
 

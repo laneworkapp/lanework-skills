@@ -63,7 +63,7 @@ One card per value that exists whether or not anyone is working on it (listing f
 
 ## Discovery
 
-A project's problem and domain space, one question per card. Owned by the `discovery` skill.
+A project's problem and domain space, one question per card. Owned by the `discovery` skill. Default label kinds: round.
 
 | lane | who acts | what starts it |
 |---|---|---|

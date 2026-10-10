@@ -3,6 +3,7 @@
 # usage: found-board.sh "<path>/<Name>.lanework" --index <template> --lanes <lanes.md> \
 #          --model m [--title T] [--var key=value]... [--labels kind,...] [--name n]
 # Index template gets {{title}}, {{title_yaml}}, {{id}}, {{stamp}} plus each --var.
+# Slots: {{labels}} = ", labels: [rows]" (empty without --labels); {{label_entries}} = "row, row, " for a template that has labels of its own.
 # --labels: catalog kinds (templates/label-kinds.md) spliced into config.labels; unknown kind -> exit 2, nothing written.
 # Lanes table rows: | order | title | collapsed (yes) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
@@ -31,7 +32,7 @@ require_model found-board.sh "found-board.sh <board> --index F --lanes F --model
 [ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
 [ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
-LABELS_YAML=""
+LABELS_YAML=""; LABEL_ENTRIES=""
 if [ -n "$HAVE_LABELS" ]; then
   [ -r "$KINDS" ] || { echo "found-board.sh: $KINDS is missing" >&2; exit 1; }
   ROWS=""; SEEN=","; REST="$LABELS,"   # an empty name anywhere (empty list, "a,,b", trailing comma) is an unknown kind
@@ -42,7 +43,7 @@ if [ -n "$HAVE_LABELS" ]; then
     case "$SEEN" in *",$k,"*) echo "found-board.sh: label kind '$k' named twice" >&2; exit 2 ;; esac
     SEEN="$SEEN$k,"; ROWS="${ROWS:+$ROWS, }$row"
   done
-  LABELS_YAML=", labels: [$ROWS]"
+  LABELS_YAML=", labels: [$ROWS]"; LABEL_ENTRIES="$ROWS, "
 fi
 if [ -d "$BOARD" ] && [ -n "$(ls -A "$BOARD" 2>/dev/null)" ]; then
   echo "found-board.sh: refusing, $BOARD exists and is not empty" >&2; exit 1
@@ -53,7 +54,7 @@ STAGE=$(mktemp -d "${TMPDIR:-/tmp}/lanework-found.XXXXXX"); trap 'rm -rf "$STAGE
 mkdir -p "$BOARD"
 
 render "$INDEX" title "$TITLE" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
-  stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
+  stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" label_entries "$LABEL_ENTRIES" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
 awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 5; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 }' "$LANES" |

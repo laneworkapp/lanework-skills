@@ -59,6 +59,14 @@ from datetime import datetime, timezone
 RESERVED_NAMES = {"healer", "shortcuts", "tracker"}
 FLOW_LIMIT = 120
 TEXT_KIND = {"type": "text", "text": "Text", "icon": {"glyph": "tag"}}
+EMBEDDED_SUGGESTED = [
+    {"type": "priority", "text": "Priority", "icon": {"glyph": "flag"}, "single": True, "values": [
+        {"text": "Urgent", "rank": 0, "color": "#C8283C", "icon": {"glyph": "exclamationmark.2"}},
+        {"text": "High", "rank": 1, "color": "#E07A1F", "icon": {"glyph": "exclamationmark"}},
+        {"text": "Medium", "rank": 2},
+        {"text": "Low", "rank": 3, "icon": {"glyph": "arrow.down"}}]},
+    {"type": "component", "text": "Component", "color": "aluminum", "icon": {"glyph": "puzzlepiece"}, "single": True},
+]
 RESERVED_KINDS = ("priority", "component")
 LABEL_KEYS = ("text", "rank", "color", "icon", "kind")
 KIND_KEYS = ("type", "text", "color", "icon")
@@ -204,13 +212,14 @@ KIND_CATALOG = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "
 
 
 def load_suggested(path=KIND_CATALOG):
-    """The suggested priority and component kinds: their rows in templates/label-kinds.md (the one
-    source found-board.sh --labels also reads). A missing file or row stops the run; nothing falls back."""
+    """The suggested priority and component kinds: their rows in templates/label-kinds.md when that file
+    sits beside the skill, else the embedded copy (the app ships this script alone as `.schema/bin/lanework-heal.py`).
+    smoke asserts the embedded copy equals the rows, so the two cannot drift."""
     try:
         with open(path, encoding="utf-8") as fh:
             lines = fh.read().splitlines()
-    except OSError as e:
-        raise SystemExit("heal-board: cannot read the label-kinds catalog %s: %s" % (os.path.normpath(path), e.strerror))
+    except OSError:
+        return EMBEDDED_SUGGESTED
     rows = {}
     for line in lines:
         cells = [c.strip() for c in line.strip().strip("|").split("|")]

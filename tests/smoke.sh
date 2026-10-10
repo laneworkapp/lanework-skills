@@ -252,7 +252,7 @@ validate "$D" >/dev/null; ok "discovery board validates"
 lane_order() { sed -n 's/^order: //p' "$(grep -l "^title: \"$1\"\$" "$D"/*/index.md | head -1)"; }
 [ "$(lane_order Settled)" = 4096 ] && [ "$(lane_order Decisions)" = 4608 ] && [ "$(lane_order Parked)" = 5120 ] || { echo "Decisions lane missing or out of order"; exit 1; }
 ok "Decisions lane founded at 4608, between Settled and Parked"
-{ grep -q '{type: round, text: Round}' "$D/index.md" &&
+{ grep -q '{type: round, text: Round, single: true}' "$D/index.md" &&
   grep -q '{type: record, text: Record, single: true, values: \[{text: ADR, rank: 1}, {text: PDR, rank: 2}\]}' "$D/index.md" &&
   grep -q '{type: status, text: Status, single: true, values: \[{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}\]}' "$D/index.md"; } || { echo "record/status label kinds missing from config.labels"; exit 1; }
 ok "board config declares the round, record and status label kinds"
@@ -484,7 +484,7 @@ norm_index() { sed -E 's/^id: .*/id: ID/; s/^(created|modified): .*/\1: STAMP/' 
 "$FB" "$LD/G.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --model smoke >/dev/null
 [ "$(norm_index "$LD/P.lanework/index.md")" = "$(cat "$ROOT/tests/fixtures/founded-pipeline-index.md")" ] && [ "$(norm_index "$LD/G.lanework/index.md")" = "$(cat "$ROOT/tests/fixtures/founded-plain-index.md")" ] || { echo "founding without --labels drifted from the pre-catalog golden"; exit 1; }
 ok "found-board.sh without --labels founds an index byte-identical to the pre-catalog founding (pipeline and plain templates)"
-ALLK=priority,component,type,size,platform,release,epic
+ALLK=priority,component,type,size,platform,round,release,epic
 "$FB" "$LD/All.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified=x --labels "$ALLK" --model smoke >/dev/null
 validate "$LD/All.lanework" >/dev/null
 python3 - "$LD/All.lanework/index.md" "$ALLK" <<'PY' || { echo "config.labels is not exactly the seven kinds"; exit 1; }
@@ -496,10 +496,10 @@ assert got == sys.argv[2].split(","), got
 assert cfg["show-card-body"] == 3
 by = {e["type"]: e for e in cfg["labels"]}
 assert by["priority"]["single"] is True and [v["rank"] for v in by["priority"]["values"]] == [0, 1, 2, 3]
-assert "values" not in by["component"] and "values" not in by["platform"]
+assert "values" not in by["component"] and "values" not in by["platform"] and "icon" not in by["round"] and by["round"]["single"] is True
 assert all("rank" in v for k in ("type", "size") for v in by[k]["values"])
 PY
-ok "found-board.sh --labels naming all seven kinds founds a board whose config.labels holds exactly those seven, in order, and it validates"
+ok "found-board.sh --labels naming all eight kinds founds a board whose config.labels holds exactly those eight, in order, and it validates"
 "$FB" "$LD/Two.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --labels size,priority --model smoke >/dev/null
 validate "$LD/Two.lanework" >/dev/null
 [ "$(python3 -c 'import sys,yaml; print(",".join(e["type"] for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]))' "$LD/Two.lanework/index.md")" = size,priority ] || exit 1
@@ -523,6 +523,7 @@ labels:
   - {text: core, color: aluminum, kind: {type: component, text: Component, color: aluminum, icon: {glyph: puzzlepiece}}}
   - {text: Bug, rank: 1, icon: {glyph: ladybug}, kind: {type: type, text: Type, icon: {glyph: square.grid.2x2}}}
   - {text: M, rank: 2, kind: {type: size, text: Size, icon: {glyph: ruler}}}
+  - {text: '1', kind: {type: round, text: Round}}
   - {text: macOS, kind: {type: platform, text: Platform, icon: {glyph: laptopcomputer.and.iphone}}}
   - {text: 0.3.0, kind: {type: release, text: Release, icon: {glyph: shippingbox}}}
   - {text: Search, kind: {type: epic, text: Epic, icon: {glyph: mountain.2}}}
@@ -531,9 +532,14 @@ modified: {at: 2026-10-10T00:00:00Z}
 ---
 Body.
 CARD
-validate "$LD/All.lanework" >/dev/null; ok "a card carrying one flattened entry of each of the seven kinds validates with no DEPRECATED line"
-# heal-board.py reads its suggested priority and component from the catalog file, and fails loudly without it
-python3 - "$SK/lanework/scripts/heal-board.py" "$LK" <<'PY' || { echo "heal SUGGESTED does not match the catalog rows"; exit 1; }
+validate "$LD/All.lanework" >/dev/null; ok "a card carrying one flattened entry of each of the eight kinds validates with no DEPRECATED line"
+# discovery: the round kind comes from the catalog; the founded config is today's except round gains single: true
+"$SK/discovery/scripts/found-discovery-board.sh" "$LD/D Discovery.lanework" --model smoke >/dev/null
+[ "$(norm_index "$LD/D Discovery.lanework/index.md")" = "$(sed 's/{type: round, text: Round}/{type: round, text: Round, single: true}/' "$ROOT/tests/fixtures/founded-discovery-index.md")" ] || { norm_index "$LD/D Discovery.lanework/index.md"; exit 1; }
+validate "$LD/D Discovery.lanework" >/dev/null
+ok "a founded discovery board takes round from the catalog: config byte-identical to the pre-catalog founding except round gains single: true, and it validates"
+# heal-board.py: embedded SUGGESTED priority and component equal the catalog rows; a copy with no catalog beside it still heals
+python3 - "$SK/lanework/scripts/heal-board.py" "$LK" <<'PY' || { echo "heal's embedded SUGGESTED differs from the catalog rows"; exit 1; }
 import importlib.util, sys; sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("hb", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
 rows = {}
@@ -542,14 +548,19 @@ for line in open(sys.argv[2]):
         cells = [c.strip() for c in line.strip().strip("|").split("|", 1)]
         if cells[0] in ("priority", "component"): rows[cells[0]] = hb.inline(cells[1])
 assert sorted(rows) == ["component", "priority"], rows
-assert [s["type"] for s in hb.SUGGESTED] == ["priority", "component"]
-assert all(s == rows[s["type"]] for s in hb.SUGGESTED), (hb.SUGGESTED, rows)
+assert [s["type"] for s in hb.EMBEDDED_SUGGESTED] == ["priority", "component"]
+assert all(s == rows[s["type"]] for s in hb.EMBEDDED_SUGGESTED), (hb.EMBEDDED_SUGGESTED, rows)
+assert hb.SUGGESTED == hb.EMBEDDED_SUGGESTED
 PY
-ok "heal-board.py SUGGESTED priority and component equal the label-kinds.md rows"
-cp -R "$SK/lanework" "$LD/lw-nocatalog"; rm "$LD/lw-nocatalog/templates/label-kinds.md"; rc=0
-python3 "$LD/lw-nocatalog/scripts/heal-board.py" "$LD/P.lanework" >"$LD/out" 2>&1 || rc=$?
-[ "$rc" -ne 0 ] && grep -q 'label-kinds.md' "$LD/out" || { cat "$LD/out"; exit 1; }
-ok "heal-board.py without templates/label-kinds.md fails loudly naming the file, not silently falling back"
+ok "heal-board.py's embedded SUGGESTED priority and component equal the label-kinds.md rows"
+mkdir -p "$LD/solo"; cp "$SK/lanework/scripts/heal-board.py" "$LD/solo/lanework-heal.py"
+"$FB" "$LD/Solo.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --model smoke >/dev/null
+SC="$LD/Solo.lanework/$(ls "$LD/Solo.lanework" | grep -v -E '^(index.md|\.)' | head -1)"; SCD="$SC/$(uuidgen | tr A-Z a-z)"; mkdir -p "$SCD"
+printf '%s\n' '---' 'schema: 1' 'kind: card' 'title: "Old"' 'order: 1024' 'priority: High' 'created:  {at: 2026-10-10T00:00:00Z}' 'modified: {at: 2026-10-10T00:00:00Z}' '---' 'Body.' > "$SCD/index.md"
+python3 "$LD/solo/lanework-heal.py" "$LD/Solo.lanework" --apply --name fixer --model smoke >/dev/null
+grep -q 'type: "\?priority"\?' "$LD/Solo.lanework/index.md" && grep -q 'Urgent' "$LD/Solo.lanework/index.md" && ! grep -q '^priority:' "$SCD/index.md" || { cat "$LD/Solo.lanework/index.md"; exit 1; }
+validate "$LD/Solo.lanework" >/dev/null
+ok "heal-board.py run from a copy outside the skill tree (no catalog beside it) uses the embedded copy and heals a missing priority definition"
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 "$ROOT/tests/check-sizes.sh" || { echo "README § Sizes is out of date: fix the rows named above"; exit 1; }; ok "README sizes match wc -w, rows, totals and summary"

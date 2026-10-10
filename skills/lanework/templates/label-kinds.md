@@ -9,5 +9,6 @@ Read by `scripts/found-board.sh --labels` and `scripts/heal-board.py`. One row p
 | type | {type: type, text: Type, icon: {glyph: square.grid.2x2}, single: true, values: [{text: Bug, rank: 1, icon: {glyph: ladybug}}, {text: Feature, rank: 2, icon: {glyph: sparkles}}, {text: Chore, rank: 3, icon: {glyph: wrench}}, {text: Docs, rank: 4, icon: {glyph: doc.text}}, {text: Spike, rank: 5, icon: {glyph: magnifyingglass}}]} |
 | size | {type: size, text: Size, icon: {glyph: ruler}, single: true, values: [{text: XS, rank: 0}, {text: S, rank: 1}, {text: M, rank: 2}, {text: L, rank: 3}, {text: XL, rank: 4}]} |
 | platform | {type: platform, text: Platform, icon: {glyph: laptopcomputer.and.iphone}} |
+| round | {type: round, text: Round, single: true} |
 | release | {type: release, text: Release, icon: {glyph: shippingbox}, single: true} |
 | epic | {type: epic, text: Epic, icon: {glyph: mountain.2}, single: true} |
