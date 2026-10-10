@@ -1,4 +1,4 @@
-<!-- lanework-agent-guide v82 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
+<!-- lanework-agent-guide v83 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
 
 # This folder is a Lanework kanban board
 
@@ -132,8 +132,9 @@ rides along untouched while it is folded.
 
 Lanes may set `group` — how the lane's cards are sectioned on screen —
 as a mapping with two subkeys, always written together: `group: {by:
-modified, direction: descending}`. `by` is `modified`, `created`,
-`due`, `priority` or `component`. The first three read as day buckets
+modified, direction: descending}` (three under `label`, below).
+`by` is `modified`, `created`, `due`, `priority`, `component` or
+`label`. The first three read as day buckets
 and draw newest section first (`due`'s undated cards fall into a
 trailing "No due date" section). `priority` instead sections on the
 stamped `rank` of the card's own `labels` entry of kind `priority`
@@ -150,7 +151,26 @@ sections are the distinct component values that actually occur,
 ordered **alphabetical case-insensitive**, labelled with the
 **first-seen spelling** of each case-insensitive group (the first card,
 in the lane's own order, to carry it); a componentless card falls into
-a trailing "No component" section. `direction` is `ascending` or
+a trailing "No component" section. `label` sections on any one label
+kind, named in a third subkey: `group: {by: label, kind: status,
+direction: descending}`. The `kind` is a kind's `type`, matched
+case-insensitively against each card's stamped `kind.type`, and no
+definition is consulted. A card's value is its `labels` entry of
+that kind — the lowest rank where it carries several, else the first
+in file order — so every card sits in exactly one section. Ranked
+entries section on the exact stamped `rank` and are labelled with
+the `text` of their first card; unranked ones section
+alphabetically, case-insensitive, after the ranked ones, labelled
+with the first-seen spelling, so a kind that mixes both draws its
+ranked sections first. A card with no entry of the kind falls into
+a trailing "No <kind>" section, named from the first stamped
+`kind.text` in the lane, else the `kind` as written. `by: label`
+with no `kind` reads as no grouping and keeps its bytes, and `kind:
+priority` or `kind: component` reads as that `by`. A `kind` beside
+any other `by` is ignored and left where it is. The Group
+By menu offers the board's `single: true` kinds other than
+`priority` and `component`, which keep their own `by` spellings; a
+hand-written `group` may name any kind. `direction` is `ascending` or
 `descending` (today's shipped, unlabeled default): for the three date
 `by`s that is oldest/newest section first, and for `priority` it is
 lowest/highest priority first — `descending` always means "the
@@ -159,11 +179,14 @@ literally "biggest number first" (a lower `rank` is a higher
 priority). For `component` there is no rank to invert:
 `descending` draws A→Z and `ascending` flips to Z→A, the literal
 dictionary reading, since a freeform value has no "prominence" for
-the words to mean anything other than themselves. Under `modified`
+the words to mean anything other than themselves. For `label`,
+`descending` draws the lowest rank first and then A to Z, and
+`ascending` flips both, ranked sections still ahead of unranked
+ones. Under `modified`
 and `created` this is presentation only — nothing about a card's
 own file changes because a lane groups, and a drag only ever
 changes a card's `order`, exactly as an ungrouped lane's does. Under
-`priority`, `component` and `due` **a drop into a section assigns
+`priority`, `component`, `label` and `due` **a drop into a section assigns
 that section's value to the card**: it writes the flattened `labels`
 entry of that kind in place of any the card had, or the bare `due`
 day, exactly as the card window's own rows do, and a drop under the
