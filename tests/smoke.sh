@@ -369,14 +369,16 @@ grep -q 'unasked' <<<"$(lane_body "$P" Approved)" || { echo "the Approved body m
 for l in Ideas Issues Tasks; do b=$(lane_body "$P" $l)
   ! grep -qiE 'unasked|without waiting|agents? (act|build|shape|fix)|builds? (it|them)|shapes? (it|them)' <<<"$b" || { echo "$l is a holding lane: its body must not have agents act unasked: $b"; exit 1; }
 done
-grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active: agents act on cards there unasked. Elsewhere they may read, link, research and answer, but move a card out only when asked" "$P/index.md" || { echo "pipeline board sheet has no Agent lanes line carrying the rule"; exit 1; }
+grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active: agents act on cards there unasked. Elsewhere they may read, link, research and answer, but move a card out or start its work only when asked" "$P/index.md" || { echo "pipeline board sheet has no Agent lanes line carrying the rule"; exit 1; }
 ! grep -q 'has passed both' "$P/index.md" || { echo "the sheet still says a Tasks chore has passed both gates"; exit 1; }
 ok "Approved takes the top card unasked; Ideas, Issues and Tasks bodies have agents act on nothing; the sheet's Agent lanes line carries the rule"
 [ "$(grep -rlE '^\| lane \| who acts \|' "$SK" | sed "s#^$SK/##")" = "lanework/references/board-kinds.md" ] || { echo "the lane -> actor table must live only in lanework/references/board-kinds.md"; exit 1; }
 for l in Ideas Issues Tasks Shaping Proposed Approved Active Done; do grep -qE "^\| $l \|" "$SK/lanework/references/board-kinds.md" || { echo "board-kinds.md table has no $l row"; exit 1; }; done
+! grep -qE '^\| (Done|Dead ends|Filed|Facts|Settled|Decisions|Parked) \| agent ' "$SK/lanework/references/board-kinds.md" || { echo "a lane an agent only files into is marked agent (a work order for the arming pass): use none"; exit 1; }
 ok "the lane -> actor table lives only in board-kinds.md, with a row per pipeline lane"
+
 { ! grep -q 'a move' <(grep -E '^6\. ' "$SK/watch/references/events.md") && ! grep -qiE 'requested' <(grep '^description:' "$SK/watch/SKILL.md") &&
-  grep -qi 'agent lanes' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md" &&
+  grep -q 'Arming pass' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md" &&
   grep -q 'unclaimed' "$SK/watch/references/arming.md" && grep -q 'companions.md' "$SK/watch/references/responding.md" && ! grep -q 'Ideas, Proposed' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
 ok "watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move"
 
@@ -460,6 +462,19 @@ DG=$("$HD" "$Q" | sed -n 's/^digest //p'); "$HD" "$Q" --apply --model test --exp
 ok "--apply --expect refuses with exit 3 and writes nothing when the change list drifted; the fresh digest applies"
 rc=0; "$HD" "$Q" --apply --model test --name "" >/dev/null 2>"$T/name.err" || rc=$?; [ "$rc" -ne 0 ] && grep -q -- '--name needs a non-empty name' "$T/name.err" || { echo "empty --name"; cat "$T/name.err"; exit 1; }
 ok "an empty --name is refused with a plain message"
+
+# a pre-ruling sheet: the released "passed both" sentence and Flow clause are template text; the heal removes them
+OLDFLOW="- **Flow**: Ideas to Shaping to Proposed to Approved to Active to Done, with Issues as the side entrance for things broken in the running system, and Tasks as the owner's side entrance for chores that need no shaping."
+R="$T/Heal Pre.lanework"; cp -R "$T/Heal Current.lanework" "$R" 2>/dev/null || cp -R "$T/Heal Sheet.lanework" "$R"
+sed -i '' '/^- \*\*Agent lanes\*\*/d' "$R/index.md"
+OLDFLOW="$OLDFLOW" perl -pi -e 'BEGIN{$o=$ENV{OLDFLOW}} $_="$o\n" if /^- \*\*Flow\*\*/; s/(is the agent.s job, not the owner.s\.)/$1 A chore the owner files in Tasks has passed both./' "$R/index.md"
+grep -q 'passed both' "$R/index.md" || { echo "fixture lacks the released sentence"; exit 1; }
+cp -R "$R" "$T/Heal Pre2.lanework"; perl -pi -e 's/^- \*\*Flow\*\*: .*$/- **Flow**: Ideas to Done, with Issues as the side entrance for something broken, and Tasks as the owner\x27s side entrance for chores that need no shaping./' "$T/Heal Pre2.lanework/index.md"
+O=$("$HD" "$R"); { grep -q '^board sheet: drop-stale ' <<<"$O" && grep -q '^board sheet: replace-flow ' <<<"$O" && grep -q '^board sheet: insert-permission ' <<<"$O" && grep -q '^3 changes in 1 files' <<<"$O"; } || { echo "$O"; exit 1; }
+"$HD" "$R" --apply --name fixer --model test >/dev/null; validate "$R" >/dev/null
+! grep -q 'passed both' "$R/index.md" && [ "$(grep '^- \*\*Flow\*\*' "$R/index.md")" = "$(grep '^- \*\*Flow\*\*' "$SK/lanework/templates/pipeline-index.md")" ] && grep -q '^0 changes' <<<"$("$HD" "$R")" || { echo "pre-ruling sheet not healed"; exit 1; }
+"$HD" "$T/Heal Pre2.lanework" --apply --name fixer --model test >/dev/null; grep -q '^- \*\*Flow\*\*: Ideas to Done, with Issues as the side entrance for something broken, and Tasks as a side entrance\.$' "$T/Heal Pre2.lanework/index.md" || { grep Flow "$T/Heal Pre2.lanework/index.md"; exit 1; }
+ok "heal-descriptors removes the released Tasks-passed-both sentence, swaps the released Flow bullet (a customised Flow keeps its prose), validates, and finds nothing the second time"
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 

@@ -29,6 +29,9 @@ Per lane of the matched set:
                      heading, list, quote, fence, table or tag. Nothing else is touched, never a replacement
   (nothing)          the body is the current template's, or already carries the sentence word for word
 Pipeline boards also get, on the board sheet (`index.md` body):
+  drop-stale         the released sentence "A chore the owner files in Tasks has passed both." leaves the sheet
+  replace-flow       the released Flow bullet becomes the current template's; a customised Flow keeps its prose and
+                     only the released Tasks clause becomes "and Tasks as a side entrance"
   insert-permission  the `Agent lanes` bullet (naming only the lanes the board has), after the `Two human gates`
                      bullet and its wrapped lines
 
@@ -155,6 +158,17 @@ OLD_BODIES = {
 }
 
 
+# Sheet text earlier pipeline-index templates shipped that the current one drops (Tasks chores were pre-approved).
+# Source: `git log -p` of lanework/templates/pipeline-index.md (and its lanework-boards/ path), released history
+# on main up to 35ba2ce. Removed or replaced like a predecessor lane body.
+OLD_SHEET = {
+    "sentence": "A chore the owner files in Tasks has passed both.",
+    "flow": [
+        "- **Flow**: Ideas to Shaping to Proposed to Approved to Active to Done, with Issues as the side entrance for things broken in the running system, and Tasks as the owner's side entrance for chores that need no shaping.",
+    ],
+    "tasks_clause": "and Tasks as the owner's side entrance for chores that need no shaping",
+}
+
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 BOUNDARY = re.compile(r"[.!?][\"')\]*`]*\s+(?=[A-Z`\"*(\[])")
 
@@ -194,15 +208,19 @@ def actor_sentence(body):
     return (rest[:n.start() + 1] if n else rest).strip()
 
 
-def permission_line():
+def template_line(mark):
     try:
         with open(PIPELINE_INDEX, encoding="utf-8") as f:
             for line in f.read().split("\n"):
-                if line.startswith(PERMISSION_MARK):
+                if line.startswith(mark):
                     return line.rstrip()
     except OSError:
         pass
     return None
+
+
+def permission_line():
+    return template_line(PERMISSION_MARK)
 
 
 def compose_permission(line, titles):
@@ -393,7 +411,23 @@ def check_board(board, sets, perm):
             idx = Document(os.path.join(board, "index.md"))
         except (OSError, UnicodeDecodeError, ValueError) as e:
             skips.append(("board sheet", "can't read it (%s)" % e)); return info, changes, skips
-        lines = idx.body.split("\n")
+        body, steps = idx.body, []
+        stale = re.compile(r"\s?" + re.escape(OLD_SHEET["sentence"]))
+        if stale.search(body):
+            body = stale.sub("", body, count=1)
+            steps.append(("drop-stale", "the released sentence \"%s\"" % OLD_SHEET["sentence"]))
+        lines = body.split("\n")
+        flow_now = template_line("- **Flow**")
+        for k, l in enumerate(lines):
+            if not l.startswith("- **Flow**"):
+                continue
+            if flow_now and norm(l) in {norm(x) for x in OLD_SHEET["flow"]}:
+                lines[k] = flow_now
+                steps.append(("replace-flow", "the released Flow bullet: the current template's"))
+            elif OLD_SHEET["tasks_clause"] in l:
+                lines[k] = l.replace(OLD_SHEET["tasks_clause"], "and Tasks as a side entrance")
+                steps.append(("replace-flow", "the released Tasks clause: \"and Tasks as a side entrance\""))
+            break
         perm = compose_permission(perm, titles) if perm else perm
         if not perm:
             skips.append(("board sheet", "no Agent lanes line to write: the template has none, or the board has none of its lanes"))
@@ -415,8 +449,10 @@ def check_board(board, sets, perm):
             if at is None:
                 skips.append(("board sheet", "no bullet list under its first ## heading: add the Agent lanes line by hand"))
             else:
-                new = lines[:at + 1] + [perm] + lines[at + 1:]
-                changes.append((idx, "board sheet", "insert-permission", "the Agent lanes line: agents' lanes are acted on unasked", "\n".join(new)))
+                lines = lines[:at + 1] + [perm] + lines[at + 1:]
+                steps.append(("insert-permission", "the Agent lanes line"))
+        for code, detail in steps:      # one file, one write: every step carries the final body
+            changes.append((idx, "board sheet", code, detail, "\n".join(lines)))
     return info, changes, skips
 
 
@@ -489,7 +525,11 @@ def main(argv):
         if apply_ and changes:
             stage = tempfile.mkdtemp(prefix="lanework-heal-")
             try:
+                written = set()
                 for n, (d, where, code, detail, body) in enumerate(changes):
+                    if d.path in written:      # several steps, one file: the first write carries them all
+                        continue
+                    written.add(d.path)
                     with open(d.path, "rb") as f:
                         if f.read() != d.raw:
                             print("skip %s: changed while healing, run again" % where); continue

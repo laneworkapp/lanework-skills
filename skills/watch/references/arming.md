@@ -16,7 +16,7 @@ Each `/watch` argument is a board name or path:
 
 Then, **per board, now**: read the guide, the board body and **every lane body**, so later wake-ups act without re-reading. A lane body is the only place a lane says it's out of scope for agents.
 
-**Arming pass**: agent lanes (`lanework/references/board-kinds.md`; board bodies win). Every unclaimed card there (no START or plan comment: `work/references/companions.md`) = work order, acted on as a move (`responding.md` § A move into an agent lane). No event fires for cards already sitting. Other lanes: report, never act.
+**Arming pass**: `agent` rows of the tables (`lanework/references/board-kinds.md`; board bodies win). Every unclaimed card there (no START or plan comment: `work/references/companions.md`) = work order, acted on as a move (`responding.md` § A move into an agent lane). No event fires for cards already sitting. Any other lane: no work order, report.
 
 ## Monitor
 
