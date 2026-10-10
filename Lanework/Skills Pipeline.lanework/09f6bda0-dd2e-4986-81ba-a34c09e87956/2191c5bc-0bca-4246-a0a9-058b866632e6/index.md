@@ -5,7 +5,7 @@ title: "lanework: a catalog of common label kinds for founding boards"
 order: 7168
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-10T00:16:22Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T02:44:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
+modified: {at: 2026-10-10T02:52:31Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
 ---
 Boards founded by hand each invent their own label kinds, so the same idea gets a different name, scale or shape on every board. A catalog in the `lanework` skill gives founding a uniform set to pick from, written into the new board's own `config.labels`.
 
@@ -20,12 +20,14 @@ Boards founded by hand each invent their own label kinds, so the same idea gets 
 | `platform` | open, multi | iOS, macOS, watchOS, web… | one card can span targets |
 | `release` | open, single | `0.3.0`, `Winter`… | what ships together; filter a release |
 | `epic` | open, single | per project | a body of work spanning components and releases |
+| `round` | open, single | `1`, `2`… | which discovery round asked a question; discovery boards' existing kind |
 
 **Rejected**: `status` (the lane is the status), `state` (reserved for the tracker engine).
 
 **Deferred**: `assignee`. Useful, but no good way yet to manage it alongside the claims that live in the thread and stamps.
 
 - ~~**Open call, scope**: which kinds make the catalog.~~ **ruled 2026-10-10: B plus epic: priority, component, type, size, platform, release, epic.**
+- **Added 2026-10-10 (owner, in chat)**: `round`, discovery's existing `{type: round, text: Round}` plus `single: true`. No icon: one would restamp every existing discovery card's kind. `discovery/templates/board.md` takes its `round` entry from the catalog, so there is one definition.
 - ~~**Open call, home**: board `config.labels` or machine `default-labels`.~~ **ruled 2026-10-10: A, the board's own `config.labels`.**
 
 ## Proposal
@@ -57,4 +59,4 @@ After [0d374675](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/0d374675-f23c-4
 
 ## Done when
 
-The catalog file holds all seven kinds, founding writes any subset into the board's own `config.labels`, each lane set names its default kinds, `heal-board.py` reads its suggested kinds from the same file, and the smoke cases pass.
+The catalog file holds all eight kinds, discovery's board template takes `round` from it, founding writes any subset into the board's own `config.labels`, each lane set names its default kinds, `heal-board.py` reads its suggested kinds from the same file, and the smoke cases pass.
