@@ -2,25 +2,25 @@
 
 Defaults to copy and change. The app knows nothing about lane names: meaning = lane titles + lane bodies. Lanes and their bodies: `templates/<kind>-lanes.md`.
 
-**Lane actors**: each kind's table below is the one place that says who acts on a lane and what starts it. Every lane body names both (its second sentence), and other files cite these tables, never restate them. **Agent = acts unasked** on a card in that lane, standing instructions being the board sheet + lane bodies, never chat. Owner = waits on the owner; an agent surfaces it and stops. A board's own bodies win where they differ.
+**Lane actors**: one table per kind, the only place for who acts and what starts it. A lane body's second sentence names both; other files cite these tables, never restate. **agent** = acted on unasked (standing instructions = board sheet + lane bodies, not chat). **owner** = holding: agents read, link, research, answer; start work or move a card out only on explicit request (own finished work in excepted). A board's own bodies win.
 
 ## Pipeline
 
 Work from raw idea to built. **Lanes = stages of commitment; a card's lane says who acts next.** Ideas → Shaping → Proposed → Approved → Active → Done, with Issues and Tasks as side entrances.
 
 - **Card** = one piece of work (feature, fix, chore). Body = spec, growing from a one-liner in Ideas to a brief in Approved an agent can pick up cold. Thread = journal: why, plan, decisions, evidence.
-- **Moves**: agents shape, build, answer, report, and move cards between the lanes on either side of their own work. **Humans hold two gates**: triage (out of Ideas) and review (out of Proposed: approve, bounce to Shaping, reject). Agents surface a card at a gate and stop. **Review approves the card, not its open calls**: an open call is ruled only through an ask on the card (`work/references/writing.md`). **Tasks** = owner-filed chores, pre-approved → build via Active. Agent-found chores → Ideas, never Tasks.
+- **Moves**: agents shape, build, answer, report, and move cards between the lanes on either side of their own work. **Humans hold two gates**: triage (out of Ideas) and review (out of Proposed: approve, bounce to Shaping, reject). Agents surface a card at a gate and stop. **Review approves the card, not its open calls**: an open call is ruled only through an ask on the card (`work/references/writing.md`). **Ideas, Issues, Tasks** = holding (owner rows below). **Tasks** = owner-filed chores needing no shaping; owner moves one to Approved. Agent-found chores → Ideas, never Tasks.
 
 | lane | who acts | what starts it |
 |---|---|---|
-| Ideas | owner | triage: moves each card on to Shaping, or out. Agents file here, never move out |
-| Issues | agent | a card lands: diagnose and shape in place, move to Proposed |
-| Tasks | agent | a card lands: build it through Active, no instruction needed |
-| Shaping | agent | a card lands: develop the proposal, move to Proposed |
+| Ideas | owner | triage: owner moves a card on to Shaping or out. Agents file here |
+| Issues | owner | holding: agents read, link, research, answer; move out / start only on request |
+| Tasks | owner | holding: owner moves a chore to Approved |
+| Shaping | agent | the owner places a card here: develop the proposal, move to Proposed |
 | Proposed | owner | review: approve, bounce to Shaping, reject. Agents never move out |
-| Approved | agent | approval is the go-ahead: take the top card into Active |
-| Active | agent | the claimed card: build, evidence, move to Done |
-| Done | none | an agent moves a card in when its done-when is met |
+| Approved | agent | the owner moves a card in, which is the go-ahead: take the top into Active |
+| Active | agent | an agent moves a card in as it starts: build, evidence, move to Done |
+| Done | agent | the agent that built a card moves it in when its done-when is met |
 
 - **Common additions**: `Rejected` (collapsed, terminal, one line why), `Deferred` (collapsed). A busy Done: a `modified` `filter` (newer than 2d) + `group` by `modified`, descending (shapes: guide § Frontmatter, lanes).
 
@@ -37,7 +37,7 @@ One surface or question worked through drawn alternatives until the owner picks.
 | Alternatives | agent | a direction worth drawing: move it to Mockups |
 | Mockups | agent | a card lands: draw every variant, light and dark |
 | Sittings | owner | the owner walks the card. An agent records the rulings |
-| Chosen | owner | the owner picks. An agent then files build cards on a pipeline board |
+| Chosen | owner | owner picks; build cards on a pipeline board only on request |
 | Dead ends | agent | the owner rules a direction out: file it with one line why |
 
 ## Datapoint
@@ -50,8 +50,8 @@ One card per value that exists whether or not anyone is working on it (listing f
 | lane | who acts | what starts it |
 |---|---|---|
 | Brief | agent | the record changes: keep the map current |
-| Ideas | owner | decides which ideas become cards. Agents file here unasked |
-| Drafting | agent | a card lands, or its body changes: write the value |
+| Ideas | owner | decides which ideas become datapoints. Agents leave ideas here, never promote one |
+| Drafting | agent | the owner places a card here, or its body changes: write the value |
 | Filed | agent | the file is written: file the card in the same commit. Then wait on the owner |
 | Pushed | owner | the owner pushes. An agent moves the card in only after a read-back that agrees |
 

@@ -25,12 +25,12 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 9 | 328 | 3,662 |
-| `work` | 16 | 399 | 6,297 |
-| `watch` | 4 | 162 | 1,278 |
-| `discovery` | 14 | 484 | 2,902 |
+| `lanework` | 9 | 330 | 3,675 |
+| `work` | 16 | 397 | 6,290 |
+| `watch` | 4 | 162 | 1,250 |
+| `discovery` | 14 | 492 | 2,905 |
 | `merge` | 2 | 362 | 1,577 |
-| `heal` | 2 | 281 | 626 |
+| `heal` | 2 | 311 | 836 |
 
 Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
@@ -38,28 +38,28 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 
 | file | words |
 |---|---|
-| `SKILL.md` | 328 |
+| `SKILL.md` | 330 |
 | `references/authority.md` | 129 |
-| `references/board-kinds.md` | 1,029 |
+| `references/board-kinds.md` | 1,053 |
 | `references/finding.md` | 351 |
 | `references/format.md` | 143 |
-| `references/founding.md` | 423 |
+| `references/founding.md` | 421 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 1,041 |
+| `references/writes.md` | 1,030 |
 | `templates/index.md` | 76 |
-| **total** | **3,662** |
+| **total** | **3,675** |
 
 #### `work`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 399 |
+| `SKILL.md` | 397 |
 | `references/companions.md` | 213 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
 | `references/lead.md` | 976 |
 | `references/reviewer.md` | 376 |
-| `references/sweep.md` | 538 |
+| `references/sweep.md` | 533 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
@@ -69,23 +69,23 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,297** |
+| **total** | **6,290** |
 
 #### `watch`
 
 | file | words |
 |---|---|
 | `SKILL.md` | 162 |
-| `references/arming.md` | 345 |
+| `references/arming.md` | 334 |
 | `references/events.md` | 399 |
-| `references/responding.md` | 372 |
-| **total** | **1,278** |
+| `references/responding.md` | 355 |
+| **total** | **1,250** |
 
 #### `discovery`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 484 |
+| `SKILL.md` | 492 |
 | `references/board.md` | 347 |
 | `references/conduct.md` | 126 |
 | `references/corners.md` | 171 |
@@ -93,13 +93,13 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 | `references/rounds.md` | 311 |
 | `templates/fact-card.md` | 48 |
 | `templates/glossary.md` | 46 |
-| `templates/lanes.md` | 445 |
+| `templates/lanes.md` | 440 |
 | `templates/map-card.md` | 92 |
 | `templates/question-card.md` | 66 |
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 66 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,902** |
+| **total** | **2,905** |
 
 #### `merge`
 
@@ -113,9 +113,9 @@ Measured with `wc -w` on 2026-10-09, over the Markdown an agent reads: `SKILL.md
 
 | file | words |
 |---|---|
-| `SKILL.md` | 281 |
-| `references/descriptors.md` | 345 |
-| **total** | **626** |
+| `SKILL.md` | 311 |
+| `references/descriptors.md` | 525 |
+| **total** | **836** |
 
 ## Install
 

@@ -2,13 +2,18 @@
 # heal-descriptors.py: bring a board's lane bodies and pipeline sheet up to the current templates. Python 3, standard library only.
 """heal-descriptors.py: check that a board's lane bodies name who acts on each lane and what starts it.
 
-    heal-descriptors.py <board>... [--apply --model M [--name N] [--session S]]
+    heal-descriptors.py <board>... [--skip LANE]... [--apply --model M [--name N] [--session S] [--expect DIGEST]]
 
 Dry run by default: one line per change, `<where>: <code> <what>`, nothing written.
 `--apply` writes each changed file (staged outside the board, then moved in) and restamps that
 file's `modified` whole with the running agent: `--model` is required (exit 2 without it,
 nothing written); `--name` defaults to `claude`, `--session` is optional. Idempotent: a
 second run finds nothing.
+
+Every run ends with `digest <hex>`, a hash of the full change list (each board, lane, code and new text).
+`--apply --expect <digest>` recomputes the list and refuses (exit 3, nothing written) when it differs, so only
+what the dry run showed is applied. `--skip <lane title>` (repeatable; `board sheet` for the sheet) leaves
+that change out, in the digest too.
 
 The source is the template tables, read at run time, never a copy: `lanework/templates/pipeline-lanes.md`,
 `design-loop-lanes.md`, `datapoint-lanes.md` and `discovery/templates/lanes.md`, plus the permission
@@ -20,15 +25,18 @@ Per lane of the matched set:
   fill-body          the body is empty: the current template body
   replace-body       the body is the current template's predecessor, word for word (OLD_BODIES): the current body
   insert-actor       a customised body that does not yet say it: the actor/trigger sentence goes after
-                     its first sentence. Nothing else is touched, never a replacement
+                     its first sentence, or above the body as its own paragraph when that opens with a
+                     heading, list, quote, fence, table or tag. Nothing else is touched, never a replacement
   (nothing)          the body is the current template's, or already carries the sentence word for word
 Pipeline boards also get, on the board sheet (`index.md` body):
-  insert-permission  the `Agent lanes` bullet, after the `Two human gates` bullet
+  insert-permission  the `Agent lanes` bullet (naming only the lanes the board has), after the `Two human gates`
+                     bullet and its wrapped lines
 
 Never touched: `.trash/`, cards, comments, the guide, `.schema/`, `collapsed`, `order`, `width`, and any lane
 whose title is not in the matched set. `skip` lines name what was left for the owner.
 """
 
+import hashlib
 import os
 import re
 import shutil
@@ -53,8 +61,9 @@ MATCH = 0.75
 # Bodies earlier templates shipped, per lane set and lane title. A board founded before a template changed
 # carries one of these word for word. Source: `git log -p` of the four lanes tables
 # (lanework/templates/{pipeline,design-loop,datapoint}-lanes.md, discovery/templates/lanes.md, and their
-# earlier paths under lanework-boards/), every distinct body per lane up to 35ba2ce. When a template body
-# changes, add the body it replaces here, in the same commit.
+# earlier paths under lanework-boards/), every distinct body per lane on main up to 35ba2ce (released history
+# only). Not covered: the grill-me predecessor board's bodies (found-grill-board.sh), whose Brief differs. When a
+# released template body changes, add the body it replaces here, in the same commit.
 OLD_BODIES = {
     "pipeline": {
         "Ideas": [
@@ -196,15 +205,34 @@ def permission_line():
     return None
 
 
+def compose_permission(line, titles):
+    """The template's Agent lanes line, naming only the lanes this board has (None: it has none of them)."""
+    m = re.match(r"(.*?\*\*: )(.+?) (?:are|is) (agents' lanes|an agent lane)(.*)$", line)
+    if not m:
+        return line
+    have = {t.lower() for t in titles}
+    keep = [n for n in re.split(r", | and ", m.group(2)) if n.lower() in have]
+    if not keep:
+        return None
+    if len(keep) == 1:
+        return "%s%s is an agent lane%s" % (m.group(1), keep[0], m.group(4))
+    return "%s%s and %s are agents' lanes%s" % (m.group(1), ", ".join(keep[:-1]), keep[-1], m.group(4))
+
+
 def says(body, sentence):
     """Does the body already carry the sentence, word for word. A paraphrase doesn't count: the owner's prose
     can't be told from a missing trigger by word overlap (a Tasks body saying "built straight through Active" lacks it)."""
     return norm(sentence) in norm(body)
 
 
+NOT_PROSE = re.compile(r"(#|[-*+]\s|>|```|~~~|\||<|\d+[.)]\s)")
+
+
 def insert_after_first_sentence(body, sentence):
     lead = body[:len(body) - len(body.lstrip())]
     content = body.lstrip()
+    if NOT_PROSE.match(content):       # a heading, list, quote, fence, table or tag opens it: the sentence is its own paragraph above
+        return lead + sentence + "\n\n" + content
     cut = content.find("\n\n")
     para, tail = (content[:cut], content[cut:]) if cut >= 0 else (content.rstrip(), "")
     if cut < 0:
@@ -333,7 +361,7 @@ def check_board(board, sets, perm):
             d = Document(p)
         except (OSError, UnicodeDecodeError, ValueError) as e:
             skips.append(("lane %s" % os.path.relpath(p, board), "can't read it (%s)" % e)); continue
-        if d.kind() != "lane" or not d.title():
+        if not d.title():           # depth defines a lane; `kind: lane` may be missing
             continue
         lanes.append(d); titles.append(d.title())
     lanes.sort(key=lambda d: (d.order(), d.title()))
@@ -367,14 +395,18 @@ def check_board(board, sets, perm):
         except (OSError, UnicodeDecodeError, ValueError) as e:
             skips.append(("board sheet", "can't read it (%s)" % e)); return info, changes, skips
         lines = idx.body.split("\n")
+        perm = compose_permission(perm, titles) if perm else perm
         if not perm:
-            skips.append(("board sheet", "the pipeline-index template has no Agent lanes line"))
-        elif any(l.startswith(PERMISSION_MARK) or says(l, perm) for l in lines if l.startswith("-")):
+            skips.append(("board sheet", "no Agent lanes line to write: the template has none, or the board has none of its lanes"))
+        elif any(l.startswith(PERMISSION_MARK) for l in lines):
             pass
         elif not any(l.startswith("## ") for l in lines):
             skips.append(("board sheet", "no instruction sheet (no ## heading): add the Agent lanes line by hand"))
         else:
             at = next((k for k, l in enumerate(lines) if l.startswith(ANCHOR_MARK)), None)
+            if at is not None:   # past the bullet's wrapped lines
+                while at + 1 < len(lines) and lines[at + 1].startswith(("  ", "\t")):
+                    at += 1
             if at is None:       # no Two human gates bullet: after the first bullet list under the first ## heading
                 start = next(k for k, l in enumerate(lines) if l.startswith("## "))
                 at = next((k for k in range(start + 1, len(lines)) if lines[k].startswith("- ")), None)
@@ -390,27 +422,36 @@ def check_board(board, sets, perm):
 
 
 def main(argv):
-    boards, apply_, name, model, session = [], False, "claude", None, None
+    boards, apply_, name, model, session, expect, skip = [], False, "claude", None, None, None, set()
     it = iter(argv)
     for a in it:
         if a == "--apply":
             apply_ = True
-        elif a in ("--name", "--model", "--session"):
+        elif a in ("--name", "--model", "--session", "--expect", "--skip"):
             v = next(it, None)
+            if v is None:
+                print("heal-descriptors: %s needs a value" % a, file=sys.stderr); return 64
             if a == "--name": name = v
             elif a == "--model": model = v
-            else: session = v
+            elif a == "--session": session = v
+            elif a == "--expect": expect = v
+            else: skip.add(v.strip().lower())
         elif a in ("-h", "--help"):
             print(__doc__); return 0
         elif not a.startswith("-"):
             boards.append(a)
         else:
             print("heal-descriptors: unknown argument %s" % a, file=sys.stderr); return 64
+    usage = "usage: heal-descriptors.py <board>... [--skip LANE]... [--apply --model M [--name N] [--session S] [--expect DIGEST]]"
     if not boards:
-        print("usage: heal-descriptors.py <board>... [--apply --model M [--name N] [--session S]]", file=sys.stderr); return 64
+        print(usage, file=sys.stderr); return 64
+    if expect and not apply_:
+        print("heal-descriptors: --expect goes with --apply", file=sys.stderr); return 64
     if apply_ and not model:
         print("heal-descriptors: --apply needs --model (the restamp names who healed); nothing written", file=sys.stderr); return 2
-    if apply_ and (not name or name.lower() in RESERVED_NAMES):
+    if apply_ and not name.strip():
+        print("heal-descriptors: --name needs a non-empty name; nothing written", file=sys.stderr); return 64
+    if apply_ and name.lower() in RESERVED_NAMES:
         print("heal-descriptors: %s is reserved for the app; sign as yourself" % name, file=sys.stderr); return 64
     for b in boards:
         if not os.path.isfile(os.path.join(b, "index.md")):
@@ -420,11 +461,26 @@ def main(argv):
         print("heal-descriptors: no lane templates found beside this script (install the skills side by side)", file=sys.stderr); return 64
     at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     stamp = stamp_line(at, name, model or "dry-run", session)
+    plan, digest = [], hashlib.sha256()
     for b in boards:
         board = os.path.abspath(b)
+        info, found, skips = check_board(board, sets, perm)
+        changes = []
+        for c in found:
+            if c[1].lower() in skip or c[1].lower().replace("lane ", "", 1) in skip:
+                skips.append((c[1], "left alone by --skip"))
+            else:
+                changes.append(c)
+        for _, where, code, _, body in changes:
+            digest.update(("%s\0%s\0%s\0%s\0" % (board, where, code, body)).encode("utf-8"))
+        plan.append((board, info, changes, skips))
+    hexd = digest.hexdigest()[:16]
+    if expect and expect != hexd:
+        print("heal-descriptors: the change list is not the one shown (digest %s, expected %s); nothing written, dry-run again" % (hexd, expect), file=sys.stderr)
+        return 3
+    for board, info, changes, skips in plan:
         if len(boards) > 1:
             print("== %s" % os.path.basename(board))
-        info, changes, skips = check_board(board, sets, perm)
         for line in info:
             print(line)
         for _, where, code, detail, _ in changes:
@@ -446,6 +502,7 @@ def main(argv):
                 shutil.rmtree(stage, ignore_errors=True)
         print("%d changes in %d files%s" % (len(changes), len({d.path for d, *_ in changes}),
               "" if apply_ or not changes else " (dry run: --apply to write)"))
+    print("digest %s" % hexd)
     return 0
 
 

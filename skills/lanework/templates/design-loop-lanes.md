@@ -1,6 +1,6 @@
 # Design loop lanes
 
-Read by `scripts/found-board.sh`. `collapsed`: `yes` starts collapsed. `body`: owner-facing lane policy, no `|`. The second sentence of a body names who acts on the lane and what starts it; `heal/scripts/heal-descriptors.py` reads it, and the table of lane actors is `references/board-kinds.md`.
+Read by `scripts/found-board.sh`. `collapsed`: `yes` starts collapsed. `body`: owner-facing lane policy, no `|`. A body's 2nd sentence = who acts + what starts it (`references/board-kinds.md`); `heal` reads it.
 
 | order | title | collapsed | body |
 |---|---|---|---|
@@ -8,5 +8,5 @@ Read by `scripts/found-board.sh`. `collapsed`: `yes` starts collapsed. `body`: o
 | 2048 | Alternatives | | One candidate direction per card, as a paragraph and its reasoning. Agents move cards on to Mockups when there is something to draw. |
 | 3072 | Mockups | | Drawn directions. An agent draws a card that lands here, attaching renders, light and dark, for every variant it lists. A card that shows no picture is not in Mockups. |
 | 4096 | Sittings | | The owner has walked the card. An agent records the rulings on it in the owner's words, and a card can loop back to Mockups. Only happens with the owner present. |
-| 5120 | Chosen | | The direction that won. Only the owner chooses, and an agent then files it as build cards on a pipeline board, linked both ways. |
+| 5120 | Chosen | | The direction that won. Only the owner chooses, and it leaves as build cards on a pipeline board, linked both ways, when the owner asks an agent to file them. |
 | 6144 | Dead ends | yes | Directions that died, one line each saying why. An agent files a direction here once the owner rules it out. Collapsed because it is read least and regretted most when lost. |

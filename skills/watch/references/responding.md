@@ -12,11 +12,11 @@ Answers a question, picks an option (a button click arrives as `<label>: <option
 
 ## A move into an agent lane
 
-A bare move, or a card already waiting at arming (`arming.md`), in an agent lane (`lanework/references/board-kinds.md` tables) is the work order. No comment needed, none to answer:
+A bare move, or a card waiting at arming (`arming.md`), in an agent lane (`lanework/references/board-kinds.md`) = work order, if unclaimed (`work/references/companions.md`). No comment to answer:
 
-1. Read the card whole, then act per the lane body: shape, build, or answer (`work/SKILL.md`).
-2. Substantial work follows § Action-calling below: plan record, farm, build cycle.
-3. Moved into an owner lane (Ideas, Proposed): surface it in the report, never act.
+1. Read the card whole; act per the lane body (`work/SKILL.md`).
+2. Substantial work → § Action-calling below.
+3. Any other lane: surface in the report, never act.
 
 ## Action-calling
 

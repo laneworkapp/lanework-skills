@@ -365,19 +365,24 @@ for b in "$P" "$T/design-loop.lanework" "$T/datapoint.lanework" "$D"; do
   done
 done
 ok "every lane of a founded pipeline, design-loop, datapoint and discovery board has a body of two sentences or more"
-grep -q 'without waiting to be asked' <<<"$(lane_body "$P" Tasks)" && grep -q 'without waiting to be asked' <<<"$(lane_body "$P" Approved)" || { echo "Tasks and Approved bodies must say an agent acts without waiting to be asked"; exit 1; }
-grep -q '^- \*\*Agent lanes\*\*' "$P/index.md" || { echo "pipeline board sheet has no permission line"; exit 1; }
-ok "pipeline Tasks and Approved bodies name the trigger; the board sheet carries the agent-lanes permission line"
+grep -q 'without waiting to be asked' <<<"$(lane_body "$P" Approved)" || { echo "the Approved body must say an agent acts without waiting to be asked"; exit 1; }
+for l in Ideas Issues Tasks; do b=$(lane_body "$P" $l)
+  { grep -q 'explicitly asks' <<<"$b" && grep -q 'read, link, research and answer' <<<"$b" && ! grep -qiE 'without waiting|unasked|builds? (it|them)|shapes? (it|them)|(built|shaped|fixed) (straight|on its)' <<<"$b"; } || { echo "$l is a holding bucket: it says what agents may do, and starts work only on the owner's ask: $b"; exit 1; }
+done
+grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active are agents' lanes" "$P/index.md" || { echo "pipeline board sheet has no Agent lanes line naming Shaping, Approved and Active"; exit 1; }
+! grep -q 'has passed both' "$P/index.md" || { echo "the sheet still says a Tasks chore has passed both gates"; exit 1; }
+ok "Approved names its trigger; Ideas, Issues and Tasks are holding buckets that say what agents may do; the sheet's Agent lanes line names Shaping, Approved and Active"
 [ "$(grep -rlE '^\| lane \| who acts \|' "$SK" | sed "s#^$SK/##")" = "lanework/references/board-kinds.md" ] || { echo "the lane -> actor table must live only in lanework/references/board-kinds.md"; exit 1; }
 for l in Ideas Issues Tasks Shaping Proposed Approved Active Done; do grep -qE "^\| $l \|" "$SK/lanework/references/board-kinds.md" || { echo "board-kinds.md table has no $l row"; exit 1; }; done
 ok "the lane -> actor table lives only in board-kinds.md, with a row per pipeline lane"
 { ! grep -q 'a move' <(grep -E '^6\. ' "$SK/watch/references/events.md") && ! grep -qiE 'requested' <(grep '^description:' "$SK/watch/SKILL.md") &&
-  grep -qi 'agent lanes' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
+  grep -qi 'agent lanes' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md" &&
+  grep -q 'unclaimed' "$SK/watch/references/arming.md" && grep -q 'companions.md' "$SK/watch/references/responding.md" && ! grep -q 'Ideas, Proposed' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
 ok "watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move"
 
 HD="$SK/heal/scripts/heal-descriptors.py"
 X="$T/Heal Me.lanework"
-"$SK/lanework/scripts/found-board.sh" "$X" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Heal --var verified='`make`' >/dev/null
+"$SK/lanework/scripts/found-board.sh" "$X" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Heal --var verified='`make`' --model smoke >/dev/null
 cp -R "$X" "$T/Heal Sheet.lanework"
 setbody() { local f; f=$(lane_file "$X" "$1"); sed -i '' '$d' "$f"; [ -z "$2" ] || printf '%s\n' "$2" >> "$f"; }
 setbody Approved 'The ready-to-build queue, ranked in build order, top is next. The spec is frozen, so a scope change bounces the card back to Shaping.'
@@ -407,6 +412,54 @@ grep -q '^- \*\*Agent lanes\*\*' "$Y/index.md" && grep -qE '^modified: \{at: [0-
 ok "heal-descriptors inserts the permission line into a board sheet that lacks it, restamps the board, then finds nothing"
 O=$("$HD" "$H3") && grep -q 'no known lane set' <<<"$O" || { echo "$O"; exit 1; }
 ok "a board matching no lane set gets no descriptor changes"
+
+# heal-descriptors, round 2: non-prose first paragraphs, wrapped anchor bullets, boards without Tasks, kind-less lanes, --skip, --expect, --name
+lane_text() { awk 'n>=2{print} /^---$/{n++}' "$(lane_file "$1" "$2")"; }
+AS2() { TPL "$1" | sed -E 's/^[^.]*\. //; s/\. .*$/./'; }
+N="$T/Heal Markup.lanework"; "$SK/lanework/scripts/found-board.sh" "$N" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Heal --var verified=make --model smoke >/dev/null
+for l in Ideas Issues Tasks; do f=$(lane_file "$N" $l); sed -i '' '$d' "$f"; done
+printf '## Policy\n\nOnly the owner triages. Agents file here.\n' >> "$(lane_file "$N" Ideas)"
+printf -- '- one rule\n- another rule\n' >> "$(lane_file "$N" Issues)"
+printf '> quoted note\n' >> "$(lane_file "$N" Tasks)"
+"$HD" "$N" --apply --name fixer --model test >/dev/null; validate "$N" >/dev/null
+for l in Ideas Issues Tasks; do t=$(lane_text "$N" $l)
+  [ "$(head -1 <<<"$t")" = "$(AS2 $l)" ] && [ -z "$(sed -n 2p <<<"$t")" ] || { echo "$l: the sentence is not its own first paragraph: $t"; exit 1; }; done
+lane_text "$N" Ideas | grep -qxF '## Policy' && lane_text "$N" Ideas | grep -qxF 'Only the owner triages. Agents file here.' && lane_text "$N" Issues | grep -qxF -- '- another rule' && lane_text "$N" Tasks | grep -qxF '> quoted note' || { echo "markup was edited"; exit 1; }
+[ "$(sum "$N")" = "$(sum "$N")" ] && grep -q '^0 changes' <<<"$("$HD" "$N")" || exit 1
+ok "heal-descriptors puts the sentence above a heading, list or quote that opens a body, and leaves the markup as written"
+W="$T/Heal Wrap.lanework"; cp -R "$T/Heal Sheet.lanework" "$W"; sed -i '' '/^- \*\*Agent lanes\*\*/d' "$W/index.md"
+perl -0pi -e 's/(\*\*Two human gates\*\*: triage out of Ideas,) and/$1\n  and/' "$W/index.md"
+"$HD" "$W" --apply --name fixer --model test >/dev/null; validate "$W" >/dev/null
+[ "$(grep -A2 '^- \*\*Two human gates' "$W/index.md" | sed -n 2p | cut -c1-9)" = "  and rev" ] && grep -A2 '^- \*\*Two human gates' "$W/index.md" | sed -n 3p | grep -q '^- \*\*Agent lanes\*\*' || { echo "the Agent lanes bullet split a wrapped gates bullet"; exit 1; }
+ok "heal-descriptors inserts the Agent lanes bullet after a wrapped Two human gates bullet's continuation lines"
+grep -v '^| 1792 |' "$SK/lanework/templates/pipeline-lanes.md" > "$T/nt-lanes.md"
+NT="$T/Heal NoTasks.lanework"; "$SK/lanework/scripts/found-board.sh" "$NT" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$T/nt-lanes.md" --var project=Heal --var verified=make --model smoke >/dev/null
+sed -i '' '/^- \*\*Agent lanes\*\*/d' "$NT/index.md"; "$HD" "$NT" --apply --name fixer --model test >/dev/null; validate "$NT" >/dev/null
+grep -q "^- \*\*Agent lanes\*\*: Shaping, Approved and Active are agents' lanes" "$NT/index.md" || { echo "no-Tasks sheet"; exit 1; }
+sed -i '' '/^- \*\*Agent lanes\*\*/d' "$NT/index.md"; sed -i '' '/^| 2048 |/d' "$T/nt-lanes.md"
+NT2="$T/Heal NoTasks2.lanework"; "$SK/lanework/scripts/found-board.sh" "$NT2" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$T/nt-lanes.md" --var project=Heal --var verified=make --model smoke >/dev/null
+sed -i '' '/^- \*\*Agent lanes\*\*/d' "$NT2/index.md"; "$HD" "$NT2" --apply --name fixer --model test >/dev/null
+grep -q "^- \*\*Agent lanes\*\*: Approved and Active are agents' lanes" "$NT2/index.md" || { grep Agent "$NT2/index.md"; exit 1; }
+ok "the Agent lanes line names only the agent lanes the board has (no Tasks, or no Shaping either: the lane is left out)"
+K="$T/Heal Kindless.lanework"; cp -R "$T/Heal Current.lanework" "$K" 2>/dev/null || { cp -R "$T/Heal Sheet.lanework" "$K"; }
+f=$(lane_file "$K" Shaping); sed -i '' '$d' "$f"; sed -i '' '/^kind: lane$/d' "$f"
+grep -q '^lane Shaping: fill-body ' <<<"$("$HD" "$K")" || { echo "a lane without kind: lane was ignored"; exit 1; }
+ok "a depth-1 folder with no kind: lane is still a lane"
+Q="$T/Heal Opts.lanework"; "$SK/lanework/scripts/found-board.sh" "$Q" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Heal --var verified=make --model smoke >/dev/null
+for l in Approved Tasks; do f=$(lane_file "$Q" $l); sed -i '' '$d' "$f"; done
+printf 'The ready-to-build queue, ranked in build order, top is next. The spec is frozen, so a scope change bounces the card back to Shaping.\n' >> "$(lane_file "$Q" Approved)"
+printf 'Owner chores, built through Active. Agents never file here.\n' >> "$(lane_file "$Q" Tasks)"
+TF=$(lane_file "$Q" Tasks); T0=$(shasum "$TF")
+O=$("$HD" "$Q" --skip tasks); grep -q '^lane Approved: replace-body ' <<<"$O" && ! grep -q '^lane Tasks: ' <<<"$O" && grep -q '^skip lane Tasks: left alone by --skip' <<<"$O" || { echo "$O"; exit 1; }
+DG=$("$HD" "$Q" | sed -n 's/^digest //p'); DS=$(sed -n 's/^digest //p' <<<"$O"); [ -n "$DG" ] && [ "$DG" != "$DS" ] || { echo "digest does not follow --skip"; exit 1; }
+"$HD" "$Q" --skip Tasks --apply --model test --expect "$DS" >/dev/null; [ "$T0" = "$(shasum "$TF")" ] && [ "$(lane_body "$Q" Approved)" = "$(TPL Approved)" ] || { echo "--skip applied or missed a change"; exit 1; }
+ok "--skip leaves a lane out of the list, the digest and the apply"
+DG=$("$HD" "$Q" | sed -n 's/^digest //p'); f=$(lane_file "$Q" Ideas); sed -i '' '$d' "$f"; printf 'Notes only. Nothing else.\n' >> "$f"; S2=$(sum "$Q")
+rc=0; "$HD" "$Q" --apply --model test --expect "$DG" >/dev/null 2>"$T/exp.err" || rc=$?; [ "$rc" -eq 3 ] && [ "$S2" = "$(sum "$Q")" ] && grep -q 'not the one shown' "$T/exp.err" || { echo "expect mismatch: rc=$rc"; exit 1; }
+DG=$("$HD" "$Q" | sed -n 's/^digest //p'); "$HD" "$Q" --apply --model test --expect "$DG" >/dev/null; grep -q '^0 changes' <<<"$("$HD" "$Q")"
+ok "--apply --expect refuses with exit 3 and writes nothing when the change list drifted; the fresh digest applies"
+rc=0; "$HD" "$Q" --apply --model test --name "" >/dev/null 2>"$T/name.err" || rc=$?; [ "$rc" -ne 0 ] && grep -q -- '--name needs a non-empty name' "$T/name.err" || { echo "empty --name"; cat "$T/name.err"; exit 1; }
+ok "an empty --name is refused with a plain message"
 
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 

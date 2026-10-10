@@ -55,7 +55,7 @@ Tracker keys: the board's `remote` (incl. `cadence`), a card's `remote`, a comme
 - **Which copy**: the board's `.schema/bin/lanework-heal.py` when present (it wins: the app ships it), else `scripts/heal-board.py`. The skill's copy refuses to run where the board ships one.
 - **Run**: `python3 scripts/heal-board.py <board>` → read the repair list (dry run, writes nothing) → `--apply --name <you> --model <model>` → validate. Commit the heal on its own.
 - **Repairs**: label stamps vs the board's `config.labels`, extra entries of a `single` kind, retired label and definition spellings, reserved root `priority:`/`component:` keys moved into `labels`, bare stamps, unquoted or multi-line titles, flat `icon`/`iconColor`, `modified-by`. Machine-level `default-labels` only via `--global <config index.md>`.
-- **Whole board to currency** (lane bodies and the pipeline sheet too, not only damage): the `heal` skill runs this repair, then `heal/scripts/heal-descriptors.py`.
+- **Whole board to currency** (lane bodies, pipeline sheet): the `heal` skill.
 - **Writes**: no `modified` restamp: a heal is upkeep, like the app's. A repair that drops a fact posts a record on the card, signed as you, before the file changes. `skip` lines = left for you by hand. Never `.trash/`, a foreign entry or an unknown key. A missing `by` stays missing: it means the owner.
 
 ## Git

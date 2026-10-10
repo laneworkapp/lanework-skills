@@ -12,9 +12,9 @@ Builds on `lanework` (authority, writes, healing). Read `lanework/references/aut
 
 ## Flow
 
-1. **Dry run, every board**: data repairs (`lanework/references/writes.md` § Healing), then descriptors (`references/descriptors.md`). Show one list per board: every change, every skip with its reason.
+1. **Dry run, every board**: data repairs (`lanework/references/writes.md` § Healing), then descriptors (`references/descriptors.md`). Show one list per board: every change, every skip with its reason. Note the descriptor `digest`.
 2. **The user's go, in this chat.** A user-invoked command confirming its own diff is not an open call on a card: no ask, no `waiting`.
-3. **Apply** what was shown, nothing more. Both scripts are idempotent: a second run finds nothing.
+3. **Apply** what was shown, nothing more: `heal-descriptors.py ... --apply --expect <digest>`, with any `--skip` the user chose. Exit 3 = the board changed since the dry run: dry-run again and show it. Both scripts are idempotent: a second run finds nothing.
 4. **After**: validate each board (`lanework/references/writes.md` § Every write), one commit per board repo staging only the healed paths, push when the repo has a remote.
 5. **Report per board**: what changed, what was skipped and why, what is left for the owner.
 

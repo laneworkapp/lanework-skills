@@ -1,6 +1,6 @@
 # Lanes
 
-Read by `scripts/found-discovery-board.sh` (format: `lanework/templates/pipeline-lanes.md`). `collapsed`: `yes` starts collapsed. `body`: owner-facing lane policy, no `|`. The second sentence of a body names who acts on the lane and what starts it (`lanework/references/board-kinds.md`); `heal/scripts/heal-descriptors.py` reads it.
+Read by `scripts/found-discovery-board.sh` (format: `lanework/templates/pipeline-lanes.md`). `collapsed`: `yes` starts collapsed. `body`: owner-facing lane policy, no `|`. A body's 2nd sentence = who acts + what starts it (`lanework/references/board-kinds.md`); `heal` reads it.
 
 | order | title | collapsed | body |
 |---|---|---|---|
