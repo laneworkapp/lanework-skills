@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Relay, don't engage left the owner's board question answered in chat"
-order: 1024
+order: 26624
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "watch", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-10-10T00:04:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T00:04:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-10-10T00:10:08Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 ---
 A watch session read "else surface to the user" in `work/references/companions.md` as "deliver the answer in chat", so an owner's question on a companion's card got its answer in the terminal, plus a chat question about whether to post it.
 
