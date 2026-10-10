@@ -26,7 +26,7 @@ One persistent Monitor (`persistent: true`) for all boards:
 <skills>/watch/scripts/watch-boards.sh --skills '<skills root>' '<scratchpad>/board-snapshot.txt' '<absolute board path>' ['<absolute board path>'...]
 ```
 
-- `<skills root>` = the folder holding the `watch` skill, resolved through symlinks. The watcher fingerprints the rule files and emits `SKILLS CHANGED` when they change, live or since the last arm (`events.md` item 8).
+- `<skills root>` = the folder holding `watch/`, `work/` and `lanework/`, each a real folder or a symlink (a root without `watch/SKILL.md` is refused). Symlinked and in-place installs only; plugin installs re-read on a new `/watch`. The watcher fingerprints the rule files and emits `SKILLS CHANGED` when they change, live or since the last arm (`events.md` item 8).
 - Needs homebrew `fswatch`. Absent → run the same snapshot diff in a plain 2s `sleep` loop.
 - Two boards with the same folder name → refused. Give each its own Monitor and state file.
 - **Don't "improve" the watcher by filtering fswatch paths.** Why: the script's header. That header is load-bearing history.

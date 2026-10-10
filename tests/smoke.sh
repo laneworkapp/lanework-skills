@@ -379,7 +379,7 @@ if command -v fswatch >/dev/null; then
   grep -q "^CHANGED Sync: v2 Discovery.lanework/.*/comments/dddd0000-0000-4000-8000-000000000004/index.md$" "$W" && ! grep -q "\.draft" "$W" || { cat "$W"; exit 1; }
   ok "watch-boards: comment post on the 2nd board reported with its board, draft not reported"
   if "$SK/watch/scripts/watch-boards.sh" "$T/snap2" "$P" "$P/" 2>/dev/null; then exit 1; fi; ok "watch-boards refuses two boards with one folder name"
-  [ ! -e "$T/snap.skills" ] || { echo "no --skills, yet a .skills state file appeared"; exit 1; }; ok "watch-boards: without --skills there is no skills state and no behavior change"
+  [ ! -e "$T/snap.skills" ] || { echo "no --skills, yet a .skills state file appeared"; exit 1; }; ok "watch-boards: without --skills no .skills state file is written"
 
   # watch --skills: a rule-file edit emits SKILLS CHANGED once, live and across a restart; a non-rule file emits nothing
   # scratch skills copy + scratch board, outside the repo; polling a bounded wait, never a fixed sleep
@@ -410,6 +410,30 @@ if command -v fswatch >/dev/null; then
   wait_for "$T/snap3.skills" '.'; probe; stop_watch
   [ "$(nchanged)" = 0 ] || { echo "a restart with no edit reported SKILLS CHANGED:"; cat "$W2"; exit 1; }
   ok "watch-boards --skills: a restart after a rule-file edit emits it at start, and a second restart emits nothing"
+
+  # per-skill symlink install: a root of symlinks into a real copy; edits land through the real path
+  S3="$T/skills-real"; SL="$T/skills-links"; cp -R "$SK" "$S3"; mkdir -p "$SL"; for n in watch work lanework; do ln -s "$S3/$n" "$SL/$n"; done
+  : > "$W2"; "$SK/watch/scripts/watch-boards.sh" --skills "$SL" "$T/snap4" "$PB" > "$W2" 2>&1 & WP=$!
+  wait_for "$T/snap4.skills" '.' || { echo "no skills fingerprint stored (symlinked root):"; cat "$W2"; exit 1; }
+  probe; printf '\nan edit\n' >> "$S3/watch/references/events.md"
+  wait_for "$W2" '^SKILLS CHANGED$' || { echo "edit through the real path of a symlinked skill not reported:"; cat "$W2"; exit 1; }
+  probe; [ "$(nchanged)" = 1 ] || { echo "not exactly once (symlinked root):"; cat "$W2"; exit 1; }
+  ok "watch-boards --skills: a root of per-skill symlinks reports an edit made through the real path, once"
+  stop_watch
+  printf '\nan edit\n' >> "$S3/work/SKILL.md"
+  : > "$W2"; "$SK/watch/scripts/watch-boards.sh" --skills "$SL" "$T/snap4" "$PB" > "$W2" 2>&1 & WP=$!
+  wait_for "$W2" '^SKILLS CHANGED$' || { echo "restart after an edit not reported (symlinked root):"; cat "$W2"; exit 1; }
+  probe; stop_watch; [ "$(nchanged)" = 1 ] || { echo "not exactly once at start (symlinked root):"; cat "$W2"; exit 1; }
+  ok "watch-boards --skills: a restart after an edit through a symlinked skill emits it at start"
+  # bounded: a watcher that is not refused would run forever
+  "$SK/watch/scripts/watch-boards.sh" --skills "$SK/watch" "$T/snap5" "$PB" >/dev/null 2>&1 & WP=$!
+  for i in $(seq 1 50); do kill -0 "$WP" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$WP" 2>/dev/null; then stop_watch; echo "a root without watch/SKILL.md was not refused"; exit 1; fi
+  rc=0; wait "$WP" || rc=$?
+  [ "$rc" = 2 ] && [ ! -e "$T/snap5" ] || { echo "a root without watch/SKILL.md was not refused with exit 2 (rc=$rc)"; exit 1; }
+  rc=0; out=$("$SK/watch/scripts/watch-boards.sh" --skills 2>&1) || rc=$?
+  [ "$rc" = 2 ] && grep -q 'usage: watch-boards.sh \[--skills' <<<"$out" || { echo "bad usage text: $out"; exit 1; }
+  ok "watch-boards --skills: a root with no watch/SKILL.md is refused with exit 2, and the usage text prints"
 else
   echo "skip - fswatch not installed"
 fi
