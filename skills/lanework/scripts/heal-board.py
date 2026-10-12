@@ -561,6 +561,19 @@ def num(v):
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else v
 
 
+DECIMAL = re.compile(r"[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?")
+
+
+def numeric_rank(v):
+    """CardLabels.numericRank: an int, a finite float, or a numeric string; None for anything else."""
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return float(v) if float(v) == float(v) and abs(float(v)) != float("inf") else None
+    if isinstance(v, str):
+        # Swift's Double(String): plain decimal digits only, no spaces and no `_` separators
+        return float(v) if DECIMAL.fullmatch(v) else None
+    return None
+
+
 def spelled(n):
     words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
     return words[n] if 0 <= n < len(words) else str(n)
@@ -883,8 +896,8 @@ class Heal:
                         continue
                     dup_keys[t].add(key)
                     cur = best.get(t)
-                    r, cr = num(item.get("rank")), (num(cur.get("rank")) if cur else None)
-                    ranked, cranked = isinstance(r, float), isinstance(cr, float)
+                    r, cr = numeric_rank(item.get("rank")), (numeric_rank(cur.get("rank")) if cur else None)
+                    ranked, cranked = r is not None, cr is not None
                     if cur is None or (ranked and (not cranked or r < cr)):
                         best[t] = item
         kept, gone = [], {}

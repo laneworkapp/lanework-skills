@@ -108,6 +108,18 @@ labels: [{text: Mud, kind: {type: status, text: Status, icon: {glyph: circle}}},
 created:  $STAMP
 modified: $STAMP
 EOF
+hcard c0000000-0000-4000-8000-00000000000f <<EOF
+title: "Single kind, a quoted rank beats a number"
+labels: [{text: Aaa, rank: 3, kind: {type: status, text: Status, icon: {glyph: circle}}}, {text: Bbb, rank: "1", kind: {type: status, text: Status, icon: {glyph: circle}}}]
+created:  $STAMP
+modified: $STAMP
+EOF
+hcard c0000000-0000-4000-8000-000000000000 <<EOF
+title: "Single kind, a quoted rank beats no rank"
+labels: [{text: Mud, kind: {type: status, text: Status, icon: {glyph: circle}}}, {text: Nib, rank: "2", kind: {type: status, text: Status, icon: {glyph: circle}}}]
+created:  $STAMP
+modified: $STAMP
+EOF
 hcard c0000000-0000-4000-8000-000000000003 <<EOF
 title: "Bare scalar labels"
 labels: bug
@@ -188,6 +200,8 @@ done
 hfail() { echo "heal check failed: $1"; exit 1; }
 c() { sed -n '2,/^---$/p' "$HL/c0000000-0000-4000-8000-00000000000$1/index.md"; }
 c 1 | grep -qF 'labels: [{text: "Open", rank: 1, color: "fern", kind: {type: "status", text: "Status", icon: {glyph: "circle"}}}]' || hfail stale-label
+c f | grep -q '^labels: \[{text: "Bbb"' && ! c f | grep -q Aaa && grep -q 'Kept `Bbb`; dropped `Aaa`' "$HL"/c*0f/comments/*/index.md || hfail single-kind-quoted-rank
+c 0 | grep -q '^labels: \[{text: "Nib"' && ! c 0 | grep -q Mud && grep -q 'Kept `Nib`; dropped `Mud`' "$HL"/c*00/comments/*/index.md || hfail single-kind-quoted-vs-unranked
 c 2 | grep -q '^labels: \[{text: "Open"' && ! c 2 | grep -q Closed && grep -q 'Kept `Open`; dropped `Closed`' "$HL"/c*02/comments/*/index.md || hfail single-kind
 c e | grep -q '^labels: \[{text: "Zed", rank: 2' && ! c e | grep -q 'Mud\|Yak\|rank: 1' && grep -q 'Kept `Zed`; dropped `Mud`, `Zed`, `Yak`' "$HL"/c*0e/comments/*/index.md || hfail single-kind-reader-pick
 c 3 | grep -qF 'labels: [{text: "bug", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]' || hfail bare-labels
