@@ -228,6 +228,10 @@ grep -q "^modified: $STAMP$" "$HL"/c*08/comments/d*/index.md && grep -q 'type: a
 ok "heal leaves a clean card, a foreign entry, an unknown key, a \` #\` title and every stamp as written"
 S1=$(sum "$H"); O=$("$HEAL" "$H" --apply --name fixer --model test); [ "$S1" = "$(sum "$H")" ] && grep -q '^0 repairs' <<<"$O" || { echo "$O"; exit 1; }
 ok "a second heal --apply changes nothing"
+HG="$T/Global.lanework"; cp -R "$T/heal-seed" "$HG"; printf -- '---\nschema: 1\nkind: config\nconfig:\n  default-labels: []\n---\n' > "$T/machine-config.md"; SG=$(sum "$HG")
+RC=0; "$HEAL" "$HG" --apply --name fixer --model test --global "$T/machine-config.md" 2>/dev/null || RC=$?
+[ "$RC" = 64 ] && [ "$SG" = "$(sum "$HG")" ] || { echo "--global: exit $RC, board changed or not"; exit 1; }
+ok "heal-board no longer takes --global: exit 64, the damaged board untouched"
 # a block scalar holding an indented `---` (outside the validator's dialect, so a board of its own)
 H3="$T/Block.lanework"; HL3="$H3/aaaa0000-0000-4000-8000-000000000001"; mkdir -p "$HL3"
 cp "$H/index.md" "$H3/index.md"; cp "$HL/index.md" "$HL3/index.md"; HLs="$HL"; HL="$HL3"

@@ -2,7 +2,7 @@
 # heal-board.py: repair the known kinds of board damage. Python 3, standard library only.
 """heal-board.py: find and repair the known kinds of damage on a Lanework board.
 
-    heal-board.py <board> [--apply --model M [--name N] [--session S]] [--global FILE] [--ignore-board-copy]
+    heal-board.py <board> [--apply --model M [--name N] [--session S]] [--ignore-board-copy]
 
 Dry run by default: one line per repair, `<file>: <code> <what>`, nothing written.
 `--apply` writes each repaired file (staged outside the board, then moved in). No `modified`
@@ -10,14 +10,13 @@ is restamped: a heal is upkeep, not an edit (the app's own heal rule). `--name`/
 sign the records a heal posts. Idempotent: a second run finds nothing.
 
 Definitions healed against: the built-in `text` kind, plus the board's own
-`config.labels`, plus `--global FILE`'s `config.default-labels` when given. The
-machine-level config is read only through `--global`.
+`config.labels`.
 
 Repairs (the board's agent guide, then the app's LabelHealing / lanework-migrate-labels where the guide is silent):
   definition        a `config.labels` entry in a retired spelling: `kind:` for `type:`, a bare `glyph:`,
                     the retired `default` kind, `value:` or a bare string in `values`
   added-definition  a `priority`/`component` kind the board's cards use and its vocabulary lacks
-                    (the machine's definition with --global, else the suggested one)
+                    (the suggested one)
   bare-labels       `labels: <scalar>`, or a bare string entry
   string-kind       an entry's `kind: <name>` where the kind object belongs
   text-kind         a free label with no `kind`, or the retired `default` kind
@@ -1068,12 +1067,12 @@ def post_record(board, card_dir, facts, at, by):
 
 
 def main(argv):
-    args = {"apply": False, "name": "claude", "model": None, "session": None, "global": None, "ignore": False, "board": None}
+    args = {"apply": False, "name": "claude", "model": None, "session": None, "ignore": False, "board": None}
     it = iter(argv)
     for a in it:
         if a == "--apply":
             args["apply"] = True
-        elif a in ("--name", "--model", "--session", "--global"):
+        elif a in ("--name", "--model", "--session"):
             args[a[2:]] = next(it, None)
         elif a == "--ignore-board-copy":
             args["ignore"] = True
@@ -1085,7 +1084,7 @@ def main(argv):
             print("heal-board: unknown argument %s" % a, file=sys.stderr); return 64
     board = args["board"]
     if not board or not os.path.isfile(os.path.join(board, "index.md")):
-        print("usage: heal-board.py <board> [--apply --model M [--name N] [--session S]] [--global FILE]", file=sys.stderr)
+        print("usage: heal-board.py <board> [--apply --model M [--name N] [--session S]]", file=sys.stderr)
         return 64
     board = os.path.abspath(board)
     own = os.path.join(board, ".schema", "bin", "lanework-heal.py")
@@ -1098,18 +1097,15 @@ def main(argv):
         if canon(args["name"] or "") in RESERVED_NAMES or not args["name"]:
             print("heal-board: %s is reserved for the app; sign as yourself" % args["name"], file=sys.stderr); return 64
 
-    glob_entries = config_labels(args["global"], "default-labels") if args["global"] else []
-    glob_defs = definitions_of(glob_entries)
     board_index = os.path.join(board, "index.md")
     board_defs = definitions_of(config_labels(board_index, "labels"))
     docs = list(documents(board))
     used = used_root_kinds(p for p, r in docs if r == "card")
     added = []
-    for s in SUGGESTED:                      # the machine's definition where --global has one, else the suggested
+    for s in SUGGESTED:                      # the suggested definition
         if s["type"] in used and s["type"] not in board_defs:
-            added.append(next((e for e in glob_entries if isinstance(e, dict) and canon(e.get("type", "")) == s["type"]), s))
+            added.append(s)
     defs = {}
-    defs.update(glob_defs)
     defs.update(board_defs)
     defs.update(definitions_of(added))
 
