@@ -1,5 +1,7 @@
 **October 2026**
 
+When /heal finds a card with several values of a one-value label kind, it now keeps the one Lanework shows (the lowest rank) instead of the first in the file.
+
 Version 0.6.0: a new plan skill, started with /lanework:plan, charts a big idea's open decisions as tickets on a board and settles one per session.
 
 When the skills are installed by hand, a running /watch now picks up changes to them without being restarted.
