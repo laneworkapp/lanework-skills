@@ -25,7 +25,9 @@ Repairs (the board's agent guide, then the app's LabelHealing / lanework-migrate
   root-key          a reserved root `priority:`/`component:` key moved into `labels`
   root-key-dropped  the same key, dropped: `labels` already carries an entry of that kind (it wins)
   stale-label       a recognised entry whose stamps disagree with the current definition
-  single-kind       several entries of a `single` kind: the first in file order stays
+  single-kind       several entries of a `single` kind: the one a reader picks stays (the lowest `rank`,
+                    a ranked entry before an unranked one, a repeat counting once, the first in file
+                    order where ranks tie or none is ranked)
   bare-stamp        `created`/`modified` as a bare timestamp, or `by` as a bare name
   bare-icon         `icon: <glyph>` and `iconColor:` folded into the `icon` mapping (the mapping wins)
   retired-key       `modified-by`: folded into `modified.by` when that has none; dropped when it
@@ -868,24 +870,40 @@ class Heal:
                     continue
             out.append(item)
 
-        # one value of each single kind, the first in file order
-        seen, kept, gone = set(), [], {}
+        # one value of each single kind: the one a reader picks (lowest rank, a ranked entry
+        # before an unranked one, a repeat counting once, the first in file order on a tie)
+        best, dup_keys = {}, {}
         for item in out:
             if entry_of(item):
                 t = canon(item["kind"]["type"])
                 d = self.defs.get(t)
                 if d and d["single"]:
-                    if t in seen:
-                        gone.setdefault(t, []).append(item); continue
-                    seen.add(t)
+                    key = (t, canon(item["text"]))
+                    if key in dup_keys.setdefault(t, set()):
+                        continue
+                    dup_keys[t].add(key)
+                    cur = best.get(t)
+                    r, cr = num(item.get("rank")), (num(cur.get("rank")) if cur else None)
+                    ranked, cranked = isinstance(r, float), isinstance(cr, float)
+                    if cur is None or (ranked and (not cranked or r < cr)):
+                        best[t] = item
+        kept, gone = [], {}
+        for item in out:
+            if entry_of(item):
+                t = canon(item["kind"]["type"])
+                d = self.defs.get(t)
+                if d and d["single"]:
+                    if item is not best[t]:
+                        gone.setdefault(t, []).append(item)
+                        continue
             kept.append(item)
         if gone:
             changed = True
             for t, went in gone.items():
-                first = next(i for i in kept if entry_of(i) and canon(i["kind"]["type"]) == t)
+                first = best[t]
                 names = ", ".join("`%s`" % w["text"] for w in went)
                 self.note(doc.path, "single-kind", "kept %s of single kind `%s`, dropped %s" % (emit_str(first["text"]), t, names))
-                dropped_facts.append("This board defines `%s` as a `single` kind, and this card carried %s of them in `labels`; the first in the list is what remains. Kept `%s`; dropped %s." % (t, spelled(len(went) + 1), first["text"], names))
+                dropped_facts.append("This board defines `%s` as a `single` kind, and this card carried %s of them in `labels`; the one a reader picks remains (the lowest `rank`, a ranked entry before an unranked one, a repeat counting once, the first in the list where ranks tie or none is ranked). Kept `%s`; dropped %s." % (t, spelled(len(went) + 1), first["text"], names))
             dropped_facts.insert(0, "```yaml\n" + "\n".join(doc.raw_lines("labels") or []) + "\n```")
         if changed:
             if kept:
