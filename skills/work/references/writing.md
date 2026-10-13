@@ -17,7 +17,6 @@ Pasted verbatim into every farmed prompt (`templates/farmed-prompt.md`):
 
 - Belong together → two comments, the ask 1s after, so it's last in the thread and the bell opens on it.
 - **The handle is a bell, not a cc.** Only in an ask: never a founding comment, START, closing report, or felt check inside a landing note. Measured: 167 of 618 agent comments mentioned the owner, typically 250–700 words with the request last, and the bell stopped meaning anything.
-- **Tracker board, engine on**: every comment on a published card is public, and an ask's handle mentions a tracker user. `lanework/references/writes.md` § Tracker boards.
 - A record ending in a question for the human renders without option buttons (the app draws them only on a real ask, 2026-09-26). Split it.
 
 ## When to ask
@@ -48,7 +47,7 @@ Fill `templates/ask.md`. Hard budget:
 
 Lint before the `mv`: `scripts/lint-ask.sh <file> <board>` fails on each mechanical item, silent on a record.
 
-Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since`; never remove it yourself. Cleared before the reply you needed → set it again.
+Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never clears it. Never remove it yourself. Cleared before the reply you needed → set it again.
 
 Options become buttons. A click posts `<label>: <option text>` as the human's comment.
 
