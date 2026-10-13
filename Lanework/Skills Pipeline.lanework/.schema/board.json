@@ -47,11 +47,11 @@
         "priorities" : {
           "$ref" : "common.json#/$defs/legacy-priority-roster",
           "deprecated" : true,
-          "description" : "Retired 2026-09-01: still read and converted into the `priority` label kind, then folded into `config.labels` on the board's next rewrite."
+          "description" : "Retired 2026-09-01, and not read at all since 2026-09-07: not at render, not as a fallback, not folded on a rewrite. A board still carrying it keeps its bytes until the one-time migration rewrites it as a `priority` kind under `config.labels`."
         },
         "labels" : {
           "$ref" : "common.json#/$defs/label-kinds",
-          "description" : "The board's own label-kind vocabulary additions, unioned over the global `config.default-labels` with per-kind shadowing."
+          "description" : "The board's whole label-kind vocabulary beyond the built-in `text` kind. Nothing on the machine adds to it."
         },
         "thumb-sizes" : {
           "$ref" : "common.json#/$defs/thumb-sizes",
@@ -60,10 +60,6 @@
         "show-statusbar" : {
           "$ref" : "common.json#/$defs/lenient-bool",
           "description" : "Shows the board window's status bar. Absent is hidden, and the app removes the subkey rather than writing false."
-        },
-        "collapse-empty" : {
-          "$ref" : "common.json#/$defs/lenient-bool",
-          "description" : "Auto-collapses a lane with no visible cards to the slim strip. Presentation-only: never written into a lane's own `collapsed`."
         },
         "show-trash" : {
           "$ref" : "common.json#/$defs/lenient-bool",

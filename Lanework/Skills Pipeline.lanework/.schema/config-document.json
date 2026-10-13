@@ -27,27 +27,28 @@
         "priorities" : {
           "$ref" : "common.json#/$defs/legacy-priority-roster",
           "deprecated" : true,
-          "description" : "Retired 2026-09-01: still read and converted into the `priority` label kind at this level. This document has no fold of its own."
+          "description" : "Retired 2026-09-01, and not read at all since 2026-09-07. The document keeps its bytes. The one-time migration script folds it into the document's own `default-labels`, which is also retired and not read, and a board gains a `priority` kind in its `config.labels` only where that board's own cards use priority."
         },
         "default-labels" : {
           "$ref" : "common.json#/$defs/label-kinds",
-          "description" : "The machine-wide label-kind vocabulary. Deliberately not spelled `labels`: a board unions into this rather than replacing it."
+          "deprecated" : true,
+          "description" : "Retired, and not read at all: a board's label vocabulary is its own `config.labels` plus the built-in `text` kind, and nothing on this machine adds to it. A document still carrying it keeps its bytes."
         },
         "thumb-sizes" : {
           "$ref" : "common.json#/$defs/thumb-sizes",
           "description" : "The picker's size roster at the cascade's global level; a board's own overrides it."
         },
-        "foreground-colors" : {
-          "$ref" : "common.json#/$defs/palette-colors",
-          "description" : "The machine's icon-tint palette, unioned over the built-in table with per-name shadowing."
-        },
-        "background-colors" : {
-          "$ref" : "common.json#/$defs/palette-colors",
-          "description" : "The machine's background palette. Independent of the foreground table by design."
-        },
         "restore-open-boards" : {
           "$ref" : "common.json#/$defs/lenient-bool",
           "description" : "Whether the app reopens the previously open boards at launch. Absent means true."
+        },
+        "waiting-signpost" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Whether the app signposts the moment a card's waiting flag arrives for this machine's human. Absent means true. False turns the announcement off and leaves the flag itself showing."
+        },
+        "templates-repo" : {
+          "$ref" : "common.json#/$defs/lenient-text",
+          "description" : "The GitHub repository the New Board Gallery reads, as `https://github.com/<owner>/<repo>`. Absent, or a value that is not a readable GitHub repo URL, means laneworkapp/lanework-templates. Never a ref: the app always reads `main`."
         },
         "logging" : {
           "$ref" : "common.json#/$defs/logging",

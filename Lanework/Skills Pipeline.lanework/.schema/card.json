@@ -39,7 +39,7 @@
     },
     "labels" : {
       "$ref" : "common.json#/$defs/labels",
-      "description" : "The card's labels — a list of self-sufficient label maps. One reading, projected to a flat list of default-kind names where a surface wants one."
+      "description" : "The card's labels — a list of self-sufficient label maps. Every entry stamps its kind, the built-in `text` kind — free labels — included. One reading, projected to a flat list of text-kind names where a surface wants one."
     },
     "due" : {
       "$ref" : "common.json#/$defs/timestamp",
@@ -47,11 +47,13 @@
     },
     "priority" : {
       "$ref" : "common.json#/$defs/sugar-label",
-      "description" : "The card's one priority, as a whole label: `{text, rank, color, icon}`, the kind implied by the key so the value stamps none."
+      "deprecated" : true,
+      "description" : "Reserved: never written and not read. A card's priority is a `labels` entry of kind `priority`; a key found here is a one-time migration to that entry, and an entry already in `labels` wins."
     },
     "component" : {
       "$ref" : "common.json#/$defs/sugar-label",
-      "description" : "The card's one component, as a whole label. Open by default, so it normally carries `text` plus the kind's own colour."
+      "deprecated" : true,
+      "description" : "Reserved: never written and not read. A card's component is a `labels` entry of kind `component`; a key found here is a one-time migration to that entry, and an entry already in `labels` wins."
     },
     "hero" : {
       "$ref" : "common.json#/$defs/lenient-text",
@@ -59,7 +61,7 @@
     },
     "waiting" : {
       "$ref" : "common.json#/$defs/waiting",
-      "description" : "The card is blocked on a human's reply: `{on, since, comment}`. Set by an agent, removed by the app once a human has commented on the card later than `since`."
+      "description" : "The card is blocked on a human's reply: `{on, since, comment}`. Set by an agent, removed by the app once a human has commented on the card later than `since`, or has replied to the ask (`in-reply-to` its `comment` uuid, whatever either stamp says). An agent's reply never clears it."
     },
     "start" : {
       "$ref" : "common.json#/$defs/timestamp",
