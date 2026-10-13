@@ -252,6 +252,7 @@ grep -qxF 'title: "Block scalar, damage below it"' "$F3" && grep -qF 'labels: [{
   && [ "$(awk 'n>=2{print} /^---$/{n++}' "$F3")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/block-seed.md")" ] || hfail block-scalar
 ok "an indented --- inside a block scalar does not end the frontmatter; the labels below it heal"
 H2="$T/Damaged copy.lanework"; cp -R "$T/heal-seed" "$H2"; cp -R "$VAL" "$H2/.schema"
+rm -f "$H2/.schema/bin/lanework-heal.py"   # this case tests the skill's heal against the board's validator; the board-heal case is next
 "$HEAL" "$H2" --apply --name fixer --model test >/dev/null
 V=$(python3 "$H2/.schema/bin/lanework-validate.py" "$H2"); grep -q '^failures    0 ' <<<"$V" && ! grep -q DEPRECATED <<<"$V" || { echo "$V"; exit 1; }
 ok "a board with its own .schema/ heals the same, against its own validator"
