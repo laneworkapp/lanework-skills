@@ -40,14 +40,9 @@ Guide § Moving and reordering has the full rules.
 - A posted comment is fixed at most for a typo. Otherwise post a follow-up; never rewrite, remove, or move it into `comments/.trash`.
 - Prose (record vs ask, handles, links): `work/references/writing.md`.
 
-## Tracker boards
+## Tracker keys
 
-Tracker keys: the board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`, a lane's `remote-state`, a `labels` entry of kind `state`, `.tracker.nosync/`. Whether an engine runs: the board's guide says.
-
-- **Engine off** (guide: "This build runs no tracker engine", the release build): every tracker key is reserved. **Never write, edit or copy one**; don't add a `remote` to bind a board. Keys a board already carries stay byte for byte.
-- **Engine on** (guide describes two-way sync): the engine's alone, never written, edited or copied: a card's `remote`, its `state` label, any comment's `remote`, `.tracker.nosync/`. Absent card `remote` = unpublished: hand-writing or copying one claims a ticket that isn't the card's. Yours to hand-write: the board's `remote` and a lane's `remote-state`.
-  - **Your writes push, like anyone's.** Filing a card publishes an issue. A move into a lane with a `remote-state`, or trash, changes the issue's state. A body or title edit edits the issue.
-  - **Every comment on a published card is posted to the issue verbatim, as the token's user, and emails the repo's watchers.** `@handle` mentions that tracker user. Deleting it here leaves it there. Write each one as public.
+The board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`, a lane's `remote-state`, a `labels` entry of kind `state`, `.tracker.nosync/`: left by builds that ran tracker sync. No build runs it now. **Never write, edit or copy one.** Keys a board already carries stay byte for byte.
 
 ## Healing
 
