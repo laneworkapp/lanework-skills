@@ -74,37 +74,14 @@
       ]
     },
     "lenient-bool" : {
-      "description" : "A boolean, or one of YAML 1.1's boolean words written quoted. The reader lowercases before matching, so the spellings listed here are the whole set in any casing; anything else has no reading.",
+      "description" : "A boolean, or one of YAML 1.1's boolean words (`true`/`false`, `yes`/`no`, `on`/`off`, `y`/`n`) written as a string, in any casing. Anything else has no reading.",
       "anyOf" : [
         {
           "type" : "boolean"
         },
         {
           "type" : "string",
-          "enum" : [
-            "true",
-            "True",
-            "TRUE",
-            "yes",
-            "Yes",
-            "YES",
-            "on",
-            "On",
-            "ON",
-            "y",
-            "Y",
-            "false",
-            "False",
-            "FALSE",
-            "no",
-            "No",
-            "NO",
-            "off",
-            "Off",
-            "OFF",
-            "n",
-            "N"
-          ]
+          "pattern" : "^(?:[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|[Oo][Nn]|[Yy]|[Ff][Aa][Ll][Ss][Ee]|[Nn][Oo]|[Oo][Ff][Ff]|[Nn])$"
         }
       ]
     },
@@ -199,7 +176,7 @@
       "additionalProperties" : true
     },
     "waiting" : {
-      "description" : "Card only. The card is blocked on a human's reply. Set by an agent; removed by the app once a human has commented on the card later than `since`. A mapping is the only shape.",
+      "description" : "Card only. The card is blocked on a human's reply. Set by an agent; removed by the app once a human has commented on the card later than `since`, or has replied to the ask (`in-reply-to` its `comment` uuid, whatever either stamp says). An agent's reply never clears it. A mapping is the only shape.",
       "type" : "object",
       "properties" : {
         "for" : {
@@ -207,7 +184,7 @@
           "$ref" : "#/$defs/lenient-text"
         },
         "since" : {
-          "description" : "When the flag was set. A human comment created strictly later than this is what clears it; without a readable `since` the app never clears the flag.",
+          "description" : "When the flag was set. A human comment created strictly later than this clears it, as does a human reply to the ask whatever its stamp; without a readable `since` the app never clears the flag.",
           "$ref" : "#/$defs/timestamp"
         },
         "comment" : {
@@ -224,7 +201,11 @@
           "type" : "object",
           "properties" : {
             "by" : {
-              "description" : "`modified`, `created`, `due`, `priority` or `component`. A name this build does not know reads as no grouping and keeps its bytes.",
+              "description" : "`modified`, `created`, `due`, `priority`, `component` or `label` — `priority` and `component` section by the card's `labels` entry of that kind, the lowest rank where it carries several; `label` does the same for the kind named by `kind`. A name this build does not know reads as no grouping and keeps its bytes.",
+              "$ref" : "#/$defs/lenient-text"
+            },
+            "kind" : {
+              "description" : "With `by: label`: the label kind to section on, its `type` matched case-insensitively against each card's stamped `kind.type`. Ranked entries section on the exact `rank`, unranked ones alphabetically after them, and a card with no entry of the kind falls into a trailing \"No <kind>\" section. `by: label` with no `kind` reads as no grouping and keeps its bytes. Ignored under any other `by`.",
               "$ref" : "#/$defs/lenient-text"
             },
             "direction" : {
@@ -242,10 +223,10 @@
       ]
     },
     "labels" : {
-      "description" : "A card's labels — a list of self-sufficient label maps, each carrying everything a reader needs.",
+      "description" : "A card's labels — a list of self-sufficient label maps, each carrying everything a reader needs, its kind included.",
       "type" : "array",
       "items" : {
-        "$ref" : "#/$defs/label"
+        "$ref" : "#/$defs/label-entry"
       }
     },
     "label" : {
@@ -269,14 +250,40 @@
           "$ref" : "#/$defs/icon"
         },
         "kind" : {
-          "description" : "The kind this value belongs to. Absent means implied by context — `default` in a list, the key's own kind on `priority`/`component`, the containing definition on a `values` entry. A built-in kind is never stamped.",
+          "description" : "The kind this value belongs to. Stamped on every `labels` entry, the built-in `text` kind included; absent only on a definition's `values` entry, where the containing definition is the kind.",
           "$ref" : "#/$defs/label-kind"
         }
       },
       "additionalProperties" : true
     },
+    "label-entry" : {
+      "description" : "One `labels` entry: a label that stamps its kind object inline, the built-in `text` kind — free labels — included.",
+      "anyOf" : [
+        {
+          "description" : "The entry, its kind stamped.",
+          "$ref" : "#/$defs/label",
+          "not" : {
+            "properties" : {
+              "kind" : {
+                "not" : {}
+              }
+            }
+          }
+        },
+        {
+          "description" : "An entry with no `kind` — a free label written before 2026-10-05, when the built-in `text` kind replaced `default`. Not read: preserved and invisible until `lanework-migrate-labels` stamps it `kind: {type: text, text: Text, icon: {glyph: tag}}` once.",
+          "deprecated" : true,
+          "$ref" : "#/$defs/label",
+          "properties" : {
+            "kind" : {
+              "not" : {}
+            }
+          }
+        }
+      ]
+    },
     "sugar-label" : {
-      "description" : "One label at a sugar key — `priority` or `component`. The key names the kind, so the value never carries one.",
+      "description" : "One label at a reserved root key — `priority` or `component`, never written since 2026-10-05 and moved once into `labels` by the migration. The key named the kind, so the value carries none.",
       "type" : "object",
       "properties" : {
         "text" : {
@@ -296,7 +303,7 @@
           "$ref" : "#/$defs/icon"
         },
         "kind" : {
-          "description" : "Forbidden here: the key names the kind, and a stamped `kind` on a sugar value is not read.",
+          "description" : "Forbidden here: the key named the kind.",
           "not" : {}
         }
       },
@@ -307,7 +314,7 @@
       "type" : "object",
       "properties" : {
         "type" : {
-          "description" : "The identity — kebab-case, matched case-insensitively. `default`, `priority` and `component` are built in.",
+          "description" : "The identity — kebab-case, matched case-insensitively. `text` — free labels — is the one built-in kind, replacing `default`; `priority` and `component` are ordinary kinds since 2026-10-05.",
           "$ref" : "#/$defs/lenient-text"
         },
         "text" : {
@@ -378,7 +385,7 @@
       }
     },
     "legacy-priority-roster" : {
-      "description" : "The retired priority roster. Not read at all since 2026-09-07: a level still carrying it keeps its bytes, and it converts once into a `priority` entry under `labels` / `default-labels`.",
+      "description" : "The retired priority roster. Not read at all since 2026-09-07: a level still carrying it keeps its bytes, and it converts once into a `priority` entry under `labels`.",
       "type" : "array",
       "items" : {
         "anyOf" : [
@@ -422,28 +429,6 @@
         }
       ]
     },
-    "palette-colors" : {
-      "description" : "A named colour table, unioned over the built-in one with per-name shadowing.",
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "properties" : {
-          "name" : {
-            "description" : "The kebab-case identity board files write, matched exactly.",
-            "$ref" : "#/$defs/lenient-text"
-          },
-          "rgb" : {
-            "description" : "A `#RRGGBB` hex, six digits: transparency is `alpha`, never folded in here.",
-            "$ref" : "#/$defs/lenient-text"
-          },
-          "alpha" : {
-            "description" : "0–1, default 1. Above the top clamps; a negative reads as 1.",
-            "type" : "number"
-          }
-        },
-        "additionalProperties" : true
-      }
-    },
     "filter-clauses" : {
       "description" : "Which of a lane's cards show. AND across clauses; a clause this build cannot read is dropped and the rest apply.",
       "type" : "array",
@@ -451,7 +436,7 @@
         "type" : "object",
         "properties" : {
           "by" : {
-            "description" : "`modified`, `created`, `due`, `label`, `priority`, `component` or `waiting`.",
+            "description" : "`modified`, `created`, `due`, `label`, `priority`, `component` or `waiting`. `priority` and `component` match the card's `labels` entry of that kind.",
             "$ref" : "#/$defs/lenient-text"
           },
           "op" : {
@@ -530,6 +515,117 @@
         }
       },
       "additionalProperties" : true
+    },
+    "template-descriptor-forbidden" : {
+      "description" : "Forbidden in a template descriptor: an identity or a history stamp, both minted only when the app turns the descriptor into a real board. Present with any value, this key fails validation outright.",
+      "not" : {}
+    },
+    "template-author" : {
+      "description" : "The template's byline: a display name and a GitHub profile link.",
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "description" : "The display name every Gallery row and the chooser footer show.",
+          "$ref" : "#/$defs/lenient-text"
+        },
+        "url" : {
+          "description" : "A GitHub profile link, `https://github.com/<user>` only — Q34's ruling. The chooser opens it and shows the host beside the name, so a value naming another site has no reading.",
+          "type" : "string",
+          "pattern" : "^https://github\\.com/[A-Za-z0-9][A-Za-z0-9-]*$"
+        }
+      },
+      "additionalProperties" : true
+    },
+    "template-descriptor-template" : {
+      "description" : "The template's own picker metadata: chooser position and byline. Distinct from the inert board-level `template` (`common.json#/$defs/template`) that rides along unread on an instantiated board.",
+      "type" : "object",
+      "properties" : {
+        "order" : {
+          "description" : "Display position in the template chooser.",
+          "$ref" : "#/$defs/lenient-integer"
+        },
+        "author" : {
+          "description" : "Who made this template, shown on every Gallery row and in the chooser footer.",
+          "$ref" : "#/$defs/template-author"
+        }
+      },
+      "additionalProperties" : true
+    },
+    "template-lane" : {
+      "description" : "One lane: the lane's own keys (`title`, `icon`, …) verbatim, checked against lane.json, plus `body` and an optional `cards:` list. No `id`, no `created`, no `modified`, no `order`, no `lanes` — a descriptor lane has neither an identity nor a history, and its position is its own index in the list, not a key it carries.",
+      "type" : "object",
+      "$ref" : "lane.json#",
+      "properties" : {
+        "body" : {
+          "description" : "The lane's purpose, inline — the same key the descriptor's own root carries, one level down.",
+          "$ref" : "#/$defs/lenient-text"
+        },
+        "cards" : {
+          "description" : "The lane's starter cards, in order. Position is the list index, exactly as the lane's own position is.",
+          "$ref" : "#/$defs/template-cards"
+        },
+        "id" : {
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "created" : {
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "modified" : {
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "order" : {
+          "description" : "Forbidden (review round 1, N3): position is the list index, not a key a descriptor lane carries (card 07ff3331).",
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "lanes" : {
+          "description" : "Forbidden (review round 1, N3): `lanes:` nests only at the descriptor root, never inside a lane.",
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        }
+      },
+      "additionalProperties" : true
+    },
+    "template-lanes" : {
+      "description" : "The board's lanes, in order. Position is the list index — a descriptor lane has no `order` key of its own.",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/template-lane"
+      }
+    },
+    "template-card" : {
+      "description" : "One starter card: the card's own keys (`title`, `icon`, `priority`, …) verbatim, checked against card.json, plus `body`. No `id`, no `created`, no `modified`, no `order`, no `cards` — a descriptor card has neither an identity nor a history, its position is its own index in the list, and it carries no starter cards of its own.",
+      "type" : "object",
+      "$ref" : "card.json#",
+      "properties" : {
+        "body" : {
+          "description" : "The card's content, inline — the same key the descriptor's own root and its lane carry, one level down.",
+          "$ref" : "#/$defs/lenient-text"
+        },
+        "id" : {
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "created" : {
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "modified" : {
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "order" : {
+          "description" : "Forbidden (review round 1, N3): position is the list index, not a key a descriptor card carries (card 07ff3331).",
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        },
+        "cards" : {
+          "description" : "Forbidden (review round 1, N3): a starter card carries no starter cards of its own.",
+          "$ref" : "#/$defs/template-descriptor-forbidden"
+        }
+      },
+      "additionalProperties" : true
+    },
+    "template-cards" : {
+      "description" : "A lane's starter cards, in order. Position is the list index.",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/template-card"
+      }
     }
   }
 }
