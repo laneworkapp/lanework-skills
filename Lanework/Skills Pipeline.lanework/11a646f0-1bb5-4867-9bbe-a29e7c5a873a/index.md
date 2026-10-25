@@ -5,7 +5,7 @@ title: Issues
 order: 1536
 icon: {glyph: exclamationmark.triangle, color: carnation}
 created:  {at: 2026-09-27T20:39:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-10-10T11:28:53Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "skills chat"}}
+modified: {at: 2026-10-13T15:20:39Z}
 collapsed: true
 ---
 The side entrance for something broken in a shipped skill: a script that fails, an instruction that misleads an agent, or drift from the current agent guide. It waits here until the owner moves it on. The body says how to reproduce it.

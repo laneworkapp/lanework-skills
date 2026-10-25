@@ -1,4 +1,4 @@
-<!-- lanework-agent-guide v93 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
+<!-- lanework-agent-guide v101 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
 
 # This folder is a Lanework kanban board
 
@@ -20,6 +20,8 @@ heading at all is entirely description.
 - **Run `lanework-validate.py` on what you hand-wrote** before you commit (Frontmatter).
 
 **Ready-made skills.** Four agent skills for working boards are published at https://github.com/laneworkapp/lanework-skills: `lanework` (what a board is, reading one, founding a new one by hand), `pitlane` (sweeping a board and farming its work to subagents), `pitwall` (a standing watch on one or more boards) and `discovery` (a guided examination of a project's problem and domain space, run on its own board). Install by cloning the repo and linking each folder under its `skills/` into `~/.claude/skills/<name>`, or install the whole repo as the Claude Code plugin `lanework`. The skills are written against this guide's version line; wherever a skill and this guide disagree, this guide wins.
+
+**Where to get Lanework.** The app that draws this board is a Mac app, downloaded from https://laneworkapp.com. If a person you work with can't see this board as a board, point them there.
 
 ## Layout
 
@@ -302,15 +304,33 @@ mean the priority alone.
 
 Lanes may also set `card-defaults` — a mapping of what a fresh card born
 into that lane starts with, one subkey today: `card-defaults: {labels:
-[feature-idea]}`. Applied once, at the moment the card is created — never
+[feature-idea]}`. Each item is either a bare name, which is a free label
+and the normal way to write one, or a full label entry of one of the
+board's own kinds, in the card's `labels` grammar below: `{labels:
+[feature-idea, {text: Idea, kind: {type: type, text: Type}}]}`.
+Applied once, at the moment the card is created — never
 on a move, a paste, or a duplicate, so removing a stamped-in label later
 sticks and editing the lane's defaults never reaches back into a card
-already born. The app's own card-making paths apply it for you; when you
+already born. At that moment a kinded entry is re-stamped against the
+board's own definition of its kind, so the card wears the kind's look as
+it is then, and a kind the board defines as `single` keeps one value,
+the one a reader picks (the lowest `rank`, else the first). In a lane
+grouped by a kind it defaults, the app opens a new card in that
+value's section, and a card is born in the section it was started in:
+one started under a different section is born without that kind's
+default. The app's
+own card-making paths apply it for you; when you
 file a card straight onto disk, stamp the lane's default labels into your
 new card's own `labels` yourself, unioned in, case-insensitively, with
-whatever else you write (`labels`'s own grammar, below). No control in the
-app writes this key — writing it by hand or by agent is how a lane's
-defaults get set.
+whatever else you write (`labels`'s own grammar, below): a name as a
+free label, a kinded entry with the board's current stamps for its
+value. Where your card names its own value of a `single` kind, yours
+wins and the lane's default of that kind is left out. A lane's page in
+Board Settings edits `labels` in its New cards start with row: a pop-up
+for each kind the board defines and a field for free labels, which it
+writes as bare names. An entry whose kind the board does not define is
+kept, and so is any other subkey you add to the mapping, each with its
+value and place, though the app writes the key in its compact form. Writing the key by hand or by agent stays just as valid.
 
 The board's own `index.md` also carries `id` — a lowercase UUID that is the
 board's identity, written by the app the first time it opens a board without
@@ -337,7 +357,7 @@ to. Its `handle` is this machine's human's mention handle, the one the
 Mentions section below names.
 Label kinds are never set here: a `default-labels` key in this file
 is retired and not read, and a board's vocabulary is its own
-`config.labels` alone.
+`config.labels` plus the built-in `text` kind.
 Its other keys — `restore-open-boards`, `templates-repo` and
 `waiting-signpost` — are the app's own settings: whether it reopens the
 boards that were open at launch, the repository the New Board Gallery
@@ -359,8 +379,9 @@ board, and a roster written here does nothing.
   the board, or with a heading to keep the face title-only.
 - `due-soon` — how many days ahead a card's due date counts as *due soon*
   and wears the amber chip, **default `1`** (today and tomorrow). Today is
-  day zero, so `due-soon: 0` means today alone. There is no control for this
-  in the app — writing the subkey is how a board's horizon moves.
+  day zero, so `due-soon: 0` means today alone. The owner sets it in the
+  app's Board ▸ Board Settings… window, which writes this subkey; writing
+  it here is the same change.
 - `collapse-empty` — **retired**: no build reads it any more, and no
   lane folds on its own; only an explicit `collapsed: true` folds one.
   The app drops the key the next time it rewrites this board's own
@@ -376,7 +397,7 @@ board, and a roster written here does nothing.
   nothing at all. Priorities are a label kind now: write a `priority`
   kind under `labels`, just below, and write each card's own value as
   a `labels` entry of that kind on the card itself (further down).
-- `labels` — this board's own additions to the label-kind vocabulary,
+- `labels` — this board's own label kinds,
   an array of kind entries (`labels: [{type: epic, text: Epic, color:
   tan, icon: {glyph: mountain.2}}, {type: status, text: Status, single:
   true, values: [{text: Open, rank: 1, color: fern}, {text: Closed,
@@ -397,8 +418,8 @@ board, and a roster written here does nothing.
   reader picks (the lowest `rank`, the first in file order where ranks
   tie or none is ranked) and a comment signed `healer` records what was
   dropped (Stamping your work, below).
-  **The effective vocabulary is this board's own `labels` plus one
-  built-in kind**, and nothing on this machine adds to it.
+  **The effective vocabulary is this board's own `labels` plus the
+  built-in `text` kind**, and nothing on this machine adds to it.
   **One kind is built in and always present** —
   `text` (`{type: text, text: Text, icon: {glyph: tag}}`), the open,
   multi-valued kind free labels belong to, stamped on every one of
@@ -421,8 +442,12 @@ board, and a roster written here does nothing.
   it is what a writer picks from and stamps in full onto the card, and
   nothing that draws, sorts, filters or groups a card ever consults it,
   so recolouring a kind here changes new writes and leaves every card
-  already written saying exactly what it says. There is no control for
-  this in the app — writing the subkey is how a board's kinds get added.
+  already written saying exactly what it says. The owner makes, edits
+  and removes kinds in Board ▸ Board Settings…, under Label Kinds, and
+  its Save re-stamps every card that uses a changed kind; writing the
+  subkey by hand is the same change to the palette, and the cards it
+  reaches are re-stamped as they are next written or on the
+  on-command pass.
 - `thumb-sizes` — the square sizes this board offers when you embed one of
   a card's images, a list of positive whole numbers (`thumb-sizes: [200,
   400]`). Each number names a square an image is **fitted into**, never
@@ -437,8 +462,9 @@ board, and a roster written here does nothing.
   and both absent falls back to the built-in `[200, 400]`; an explicit
   `thumb-sizes: []` is not absent — it offers no sizes at all, full
   resolution only. Removing a size never deletes files already written,
-  because prose may still point at them. There is no control for this in
-  the app — writing the subkey is how a board's sizes change.
+  because prose may still point at them. The owner sets it in the app's
+  Board ▸ Board Settings… window, which writes this subkey; writing it here
+  is the same change.
 - `logging` — the board's own activity log (`.log/`, above), **off unless
   this key or the app-wide default turns it on**. Canonically a mapping,
   `logging: {level: info, retain: 30}`. `level` is `off`, `error`,
@@ -458,8 +484,9 @@ board, and a roster written here does nothing.
   key is read once, when the board opens**: changing it — here or in the
   machine's own config — takes effect the next time the board is opened, not
   on the next reload, so a board you are looking at keeps the level and the
-  retention it opened with. There is no control for this in the app — writing
-  the subkey is how a board's logging changes.
+  retention it opened with. The owner sets each subkey in the app's Board ▸
+  Board Settings… window, which writes only the one it changes; writing them
+  here is the same change.
 - `show-statusbar` — `true` puts a status bar along the bottom edge of
   the board's window: a breadcrumb saying where the current selection
   lives — the board's place on disk, then the selected card's title or a
@@ -532,12 +559,17 @@ stays short — `icon: {glyph: hammer.fill, color: fern}` — and as an
 indented block once the `key: value` line would run past about 120
 characters: two spaces in, `subkey: value` lines under a map, `- ` items
 under a list, the map inside a list item opening on its own dash line.
-The two forms are the same value and **both read, always**, so write
-whichever suits you; one you wrote by hand is left exactly as written
-until the app itself next writes that key, and then it comes back in
-whichever form the length rule picks. **The two stamps are exempt and are
+The same limit holds again at every level inside a block: a nested map
+or list whose own line fits stays on that one line (`- {text: High,
+rank: 1}`), and only one that would run past opens out in turn.
+The two forms are the same value and **both read, always**, but only
+the compact one is written: the app writes it whenever it saves a key,
+and the board's heal rewrites a collection laid out any other way,
+opened out further or on one line past the limit, when it is next run
+(H17 in `.schema/HEAL.md`). **The two stamps are exempt and are
 always one line**, however many subkeys `by` grows — `created` and
-`modified` stay greppable.
+`modified` stay greppable, and a stamp written over several lines is
+healed onto one.
 
 Cards may set `labels` — a list of label maps, drawn as chips along the
 bottom of the card's face and editable in the app.

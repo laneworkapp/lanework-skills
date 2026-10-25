@@ -1,4 +1,4 @@
-<!-- lanework-heal-catalog v1 — the board heal's rule catalog, written into .schema/ by the Lanework app. Don't edit it here: it is rewritten whenever the app ships a newer one. -->
+<!-- lanework-heal-catalog v2 — the board heal's rule catalog, written into .schema/ by the Lanework app. Don't edit it here: it is rewritten whenever the app ships a newer one. -->
 
 # The heal catalog
 
@@ -16,7 +16,6 @@ that no longer appears in the file afterwards.
 ```
 python3 .schema/bin/lanework-heal.py <board>                  # dry run: one line per repair, nothing written
 python3 .schema/bin/lanework-heal.py <board> --apply --name <you> --model <model> [--session <s>]
-python3 .schema/bin/lanework-heal.py <board> --global <config index.md>   # also read the machine's definitions
 ```
 
 A dry-run line reads `<file>: <rule id> <code> <what>`, and a `skip <file>: <why>`
@@ -48,16 +47,15 @@ with the board's format.
   value a closed kind doesn't list, keeps every byte of its stamps (H13).
 - **Never walked**: `.trash/`, `comments/.draft` and `comments/.trash`.
 - **Only what needs repair.** A file no rule changes is never rewritten. A
-  rewritten list or mapping keeps the form the file had: a block collection
-  stays block, one subkey or item to a line, as the app writes it.
+  rewritten list or mapping comes back in the writer's compact form, and a
+  comment on its key line stays on that line.
 - **Idempotent.** A second `--apply` straight after the first finds nothing,
   and a run interrupted after its records and before its files posts no
   record twice when it is run again.
 
 **Order.** In each document the rules run in id order, each on the previous
 one's output. The definitions a card heals against come from the board's own
-`config.labels` (after H05, H06 and H15), plus the built-in `text` kind, plus
-the `--global` file's `config.default-labels` when that's given.
+`config.labels` (after H05, H06 and H15), plus the built-in `text` kind.
 
 **What the heal never does**: the app's writer folds some retired spellings
 on its own next write of a file, and those aren't catalog rules: `author`
@@ -171,8 +169,7 @@ config: {labels: [{type: "phase", icon: {glyph: "flag"}, values: [{text: "Draft"
 When the board's cards use the `priority` or `component` kind (a reserved
 root key, or a `labels` entry of that kind, in any spelling) and
 `config.labels` doesn't define it, the board gains the definition, appended
-after its own entries. It's the `--global` file's definition when that has
-one, else the suggested one:
+after its own entries, as the suggested one:
 
 ```yaml
 - {type: priority, text: Priority, icon: {glyph: flag}, single: true, values: [{text: Urgent, rank: 0, color: "#C8283C", icon: {glyph: exclamationmark.2}}, {text: High, rank: 1, color: "#E07A1F", icon: {glyph: exclamationmark}}, {text: Medium, rank: 2}, {text: Low, rank: 3, icon: {glyph: arrow.down}}]}
@@ -247,7 +244,11 @@ labels: [{text: "High", rank: 1, color: "#E07A1F", icon: {glyph: "exclamationmar
 ```
 
 - **Skip**: a key with no reading (a list, or a mapping with no `text`), and a
-  `labels` that isn't a list. A `null` value is left as written.
+  `labels` that isn't a list. A `null` root key (`priority:` or `component:`)
+  is left as written. A `labels` that is bare, `~` or `null`, `[]`, or only a
+  comment under it is no list, not a skip: the entry starts one. `labels: ""`,
+  a number, or a mapping is still skipped (a text scalar is H07's one-entry
+  list).
 
 ## H12 · root-key-dropped
 
@@ -334,3 +335,38 @@ The retired `config.collapse-empty` is removed, whatever its value, and
 config: {collapse-empty: true, show-statusbar: true}    # before
 config: {show-statusbar: true}                          # after
 ```
+
+## H17 · compact-collection
+
+- **Documents**: every document, every top-level key whose value is a
+  non-empty list or mapping, the two stamps included.
+- **Drops a fact**: no. Only the layout changes; every value reads the same.
+
+A collection stored in a layout other than the writer's compact form is
+rewritten in it. The compact form is what the app writes: `key: <flow>` while
+that line is at most 120 characters, else `key:` over an indented block in
+which each nested entry stays on one line when its own line fits, the same
+rule again one level down. The two stamps are always one line. A key needs
+the rule when its stored lines, not counting blank or comment lines, number
+differently from the compact form's: more lines is a hand-expanded
+(verbose) collection, and one line where the compact form has several is a
+flow line past 120 characters. Quoting and spacing never fire it.
+
+Every string comes back double-quoted, as the app writes it, except a
+timestamp written plain in the app's own form (`2026-09-13T01:29:48Z`), which
+stays plain. A stamp keeps its words plain, as H02 writes it. A comment on the
+key's line stays on the first line written.
+
+```yaml
+labels:                                              # before
+  - text: "Low"
+    rank: 3
+    kind:
+      type: "priority"
+labels: [{text: "Low", rank: 3, kind: {type: "priority"}}]   # after
+```
+
+- **Left alone**: a key written twice; a key with a comment line inside its
+  value; and a key whose value holds a block scalar (`|`, `>`), an anchor, an
+  alias or a tag (`&`, `*`, `!`). Rewriting any of these could lose or
+  misread what was written.
