@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Dispatch skill: a flat-context watch session"
-order: 3072
+order: 1024
 labels: [{text: dispatch, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T01:06:26Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "skills chat"}}
-waiting: {for: rzen, since: 2026-10-25T01:09:53Z, comment: 1ebe6a1b-12e1-4cf0-b28a-44a7ea04976e}
-modified: {at: 2026-10-25T01:09:53Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-25T01:11:04Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 A new skill, `dispatch`, turns a long-running watch session into a pure router that hands each board event to a fresh subagent, so the main context stays flat however many events arrive.
 
@@ -77,7 +76,7 @@ Touched elsewhere:
 ## Verification
 
 - `tests/smoke.sh` green with the new cases.
-- A measured trial on `~/.pitcrew-ledger-rig/Pitlane/Scratch Pipeline.lanework` (never this board): one `/dispatch` session handling ≥ 20 owner events of mixed kinds (comments, rulings, a move into Approved, a BULK move), recording the main-context token count from `/context` before and after each event, and the same 20 events replayed under `/watch` for comparison. Numbers quoted in the closing comment.
+- A measured trial on `~/.pitcrew-ledger-rig/Pitlane/Scratch Pipeline.lanework` (never this board): one `/dispatch` session handling ≥ 20 owner events of mixed kinds (comments, rulings, a move into Approved, a BULK move), recording the main-context token count from `/context` before and after each event, and the same 20 events replayed under `/watch` for comparison. Each handler's tier is logged beside its token count. Numbers quoted in the closing comment.
 
 ## Done when
 
@@ -96,7 +95,4 @@ Touched elsewhere:
 ## Decided
 
 - **Entry point** (owner, 2026-10-25): a separate `/dispatch` beside `/watch` for the trial. `watch`'s events and responding fold into `dispatch` once the numbers hold.
-
-## Open calls
-
-- **Handler tiers**: per `work/references/tiers.md` as-is, or every handler on opus for the trial. **Recommended: tiers as-is (comments and ruling-folding on sonnet, build leads on opus, inherit only when the handler must make architectural calls).**
+- **Handler tiers** (owner, 2026-10-25): per `work/references/tiers.md` as-is. Comment replies, ruling folds and lane exits on sonnet; build leads and shaping with hard calls on opus; haiku for nothing that writes owner-facing prose; inherit only when the handler must make architectural calls.
