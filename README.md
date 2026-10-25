@@ -9,17 +9,19 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, healing a damaged board, the default lane sets, and founding a new board with a catalog of common label kinds (priority, component, type, size, platform, round, release, epic) to pick from |
 | `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `watch` | a standing watch on one or more boards, responding to changes as they arrive |
+| `dispatch` | the same watch for a session that runs for hours: the session only routes each change, and a fresh subagent reads the card, acts and reports back, so the session's context stays small |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce, filed as cards in a Decisions lane beside the questions |
 | `plan` | planning an idea too big for one session on a plan board: name the destination, chart the open decisions as ticket cards, then resolve one ticket per session until nothing is left to decide. It produces decisions, not deliverables, and files work cards only when you say so |
 | `merge` | resolves git merge, pull and rebase conflicts on a board with no human: a merge driver plus a placement pass, keeping both sides' content and the later stamp's state |
 | `heal` | brings existing boards up to the current skills and guide: repairs board damage, then makes each lane body and the pipeline board sheet name who acts and what starts it, keeping the owner's own wording |
 
-`discovery`, `plan`, `watch` and `heal` never start on their own. Type the command first in your message. Installed as the plugin they carry the `lanework:` prefix, as `plan` does below; installed by hand, the others are typed bare and `plan` as `/lanework-plan` (§ Install):
+`discovery`, `plan`, `watch`, `dispatch` and `heal` never start on their own. Type the command first in your message. Installed as the plugin they carry the `lanework:` prefix, as `plan` does below; installed by hand, the others are typed bare and `plan` as `/lanework-plan` (§ Install):
 
 - `/discovery <topic>` starts or resumes a discovery session.
 - `/lanework:plan <idea>` charts a plan for the idea, or resumes the idea's existing plan board.
 - `/lanework:plan <board> [T<n>]` works the next ticket on a plan board, or the one you name.
 - `/watch <board> [<board>...]` watches one or more boards, by name or path, until you say stop. With no board named, it watches the project's only board, or asks which.
+- `/dispatch <board> [<board>...]` watches the same way, handing each change to a fresh subagent and telling you in one line what it did.
 - `/heal <board> [<board>...]` shows what it would change on each board, then applies it when you say go, with one commit per board repo.
 
 ### Sizes
@@ -30,13 +32,14 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 |---|---|---|---|
 | `lanework` | 10 | 356 | 4,058 |
 | `work` | 16 | 397 | 6,289 |
-| `watch` | 4 | 162 | 1,316 |
+| `watch` | 4 | 186 | 1,340 |
+| `dispatch` | 5 | 210 | 1,558 |
 | `discovery` | 14 | 492 | 2,833 |
 | `plan` | 9 | 453 | 2,675 |
 | `merge` | 2 | 362 | 1,577 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10, over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -80,11 +83,22 @@ Measured with `wc -w` on 2026-10-10, over the Markdown an agent reads: `SKILL.md
 
 | file | words |
 |---|---|
-| `SKILL.md` | 162 |
+| `SKILL.md` | 186 |
 | `references/arming.md` | 400 |
 | `references/events.md` | 400 |
 | `references/responding.md` | 354 |
-| **total** | **1,316** |
+| **total** | **1,340** |
+
+#### `dispatch`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 210 |
+| `references/handler.md` | 408 |
+| `references/routing.md` | 732 |
+| `templates/handler-prompt.md` | 79 |
+| `templates/handler-report.md` | 129 |
+| **total** | **1,558** |
 
 #### `discovery`
 
@@ -139,7 +153,7 @@ Measured with `wc -w` on 2026-10-10, over the Markdown an agent reads: `SKILL.md
 
 ## Install
 
-As a Claude Code plugin, which installs all seven skills and updates with each release:
+As a Claude Code plugin, which installs all eight skills and updates with each release:
 
 ```
 /plugin marketplace add https://github.com/laneworkapp/lanework-skills.git
@@ -155,6 +169,7 @@ git clone https://github.com/laneworkapp/lanework-skills.git lanework-skills
 ln -s "$(pwd)/lanework-skills/skills/lanework" ~/.claude/skills/lanework
 ln -s "$(pwd)/lanework-skills/skills/work" ~/.claude/skills/work
 ln -s "$(pwd)/lanework-skills/skills/watch" ~/.claude/skills/watch
+ln -s "$(pwd)/lanework-skills/skills/dispatch" ~/.claude/skills/dispatch
 ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
 ln -s "$(pwd)/lanework-skills/skills/plan" ~/.claude/skills/lanework-plan
 ln -s "$(pwd)/lanework-skills/skills/merge" ~/.claude/skills/merge
@@ -163,9 +178,9 @@ ln -s "$(pwd)/lanework-skills/skills/heal" ~/.claude/skills/heal
 
 `plan` goes in as `lanework-plan`, typed `/lanework-plan`: a bare `plan` would replace Claude Code's built-in `/plan` in a local terminal.
 
-The skills cite and call each other by relative path, so install all seven side by side.
+The skills cite and call each other by relative path, so install all eight side by side.
 
-The skills are written for Claude Code, the one supported harness: `discovery`, `plan` and `watch` rely on its `disable-model-invocation` setting, and `watch` on its Monitor tool.
+The skills are written for Claude Code, the one supported harness: `discovery`, `plan`, `watch` and `dispatch` rely on its `disable-model-invocation` setting, and `watch` and `dispatch` on its Monitor tool.
 
 ## Repository layout
 
@@ -187,7 +202,7 @@ Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUD
 
 ## Names
 
-The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, `discovery` examines a problem space, `plan` finds the way from an idea to a destination one decision at a time, `merge` resolves git conflicts on a board, and `heal` brings existing boards up to date. The `Lanework/` folder is where a project keeps its boards. It was `Pitlane/` before, which is still found, and the agent offers once to rename it.
+The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, `dispatch` does the same by handing each change to a fresh agent, `discovery` examines a problem space, `plan` finds the way from an idea to a destination one decision at a time, `merge` resolves git conflicts on a board, and `heal` brings existing boards up to date. The `Lanework/` folder is where a project keeps its boards. It was `Pitlane/` before, which is still found, and the agent offers once to rename it.
 
 ## Credits
 
