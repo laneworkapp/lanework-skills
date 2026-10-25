@@ -5,8 +5,7 @@ title: "merge: a skill that resolves git merge conflicts on a board without a hu
 order: 1024
 labels: [{text: merge, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-06T22:44:23Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
-waiting: {for: rzen, since: 2026-10-25T01:14:06Z, comment: 49f716b6-9568-4973-9f67-97af7e38ca96}
-modified: {at: 2026-10-25T01:12:27Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-25T01:21:21Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Two people editing one board through git collide often: both restamp `modified`, both move the same card, both touch a body. Nearly every such conflict has a mechanical answer, so a new skill, `merge`, resolves them and lets the merge, pull or rebase finish. Its standing rule: when in doubt, keep both edits and move on. ~~It never stops for a human.~~ **ruled 2026-10-06: the driver stops the git merge whenever it would otherwise lose text, and `merge-board.sh` places it. Merges that lose nothing still finish on their own.**
 
@@ -69,15 +68,15 @@ A new smoke case founds a scratch board in a scratch repo, clones it twice, and 
 
 The skill shipped in `c2ab48b` and `tests/merge-case.sh` covers every row on scripted edits. What is left is a collision where one side is bytes the app wrote, which is what the hand check in Done when stands for.
 
-- **Ruled 2026-10-13: automated.** The hand check (C) is out. **Open**: A or B (ask `49f716b6`). **Recommendation: A**, with fixtures re-copied at each guide-version bump.
-- **A, app-written fixtures (recommended)**: a new `merge-case.sh` mode, `appside`. Side B is real app writes copied into `tests/fixtures/app-writes/`: an unstamped lane-file rewrite, a card moved between lanes, a comment the app posted (quoted `{name: "…", kind: "human"}` stamp), and a card title edit. They come from this board's own git history, so no new app session is needed. A `README` there names each file's source commit. Side A edits the same items by script, and the case asserts the merge resolves with no prompt and the board validates. It runs in smoke and CI. Limitation: it freezes the app's format as of the copy. Re-copying the fixtures is part of each guide-version bump, the moment smoke already flags.
-- **B, live app via Shortcuts**: `shortcuts run` drives Lanework's Shortcuts actions on clone B, then merges. It exercises the real app, but runs on this Mac only, not in CI, and needs a Shortcut built once. Checked 2026-10-25: the app's intents cover create card, move card, add comment and re-stamp labels. Not body edits, lane rewrites or title edits. No Lanework shortcut exists on this Mac yet.
-- **Touches (A)**: `tests/merge-case.sh` (an `appside` mode), `tests/fixtures/app-writes/` (new), `tests/smoke.sh` (calls the mode), `README.md` § Sizes only if a skill file changes (none expected).
+- **Ruled 2026-10-13: automated.** The hand check is out. **Ruled 2026-10-25: A**, app-written fixtures in smoke and CI, re-copied at each guide-version bump.
+- **A, app-written fixtures (chosen)**: a new `merge-case.sh` mode, `appside`. Side B is real app writes copied into `tests/fixtures/app-writes/`: an unstamped lane-file rewrite, a card moved between lanes, a comment the app posted (quoted `{name: "…", kind: "human"}` stamp), and a card title edit. They come from this board's own git history, so no new app session is needed. A `README` there names each file's source commit. Side A edits the same items by script, and the case asserts the merge resolves with no prompt and the board validates. It runs in smoke and CI. Limitation: it freezes the app's format as of the copy. Re-copying the fixtures is part of each guide-version bump, the moment smoke already flags.
+- **B, live app via Shortcuts (not chosen)**: `shortcuts run` drives Lanework's Shortcuts actions on clone B, then merges. It exercises the real app, but runs on this Mac only, not in CI, and needs a Shortcut built once. Checked 2026-10-25: the app's intents cover create card, move card, add comment and re-stamp labels. Not body edits, lane rewrites or title edits. No Lanework shortcut exists on this Mac yet.
+- **Touches (A)**: `tests/merge-case.sh` (an `appside` mode), `tests/fixtures/app-writes/` (new), `tests/smoke.sh` (calls the mode), the repo `CLAUDE.md` guide-bump line (re-copy the fixtures), `README.md` § Sizes only if a skill file changes (none expected).
 - **Done when (A)**: replaces the hand-check sentence below. `merge-case.sh <dir> appside` passes in smoke. A mutation that drops one fixture's quoted stamp handling turns it red. Not covered by any route: the app redrawing a merged board on screen.
 
 ## Done when
 
-The smoke case passes for every row, as a merge and as a rebase. A two-clone collision with app-written bytes on one side resolves with no prompt, by the automated route the owner picks (Remaining, above).
+The smoke case passes for every row, as a merge and as a rebase. A two-clone collision with app-written bytes on one side resolves with no prompt, as `merge-case.sh <dir> appside`, run in smoke and CI. A mutation that drops one fixture's quoted-stamp handling turns it red. The guide-bump step in the repo `CLAUDE.md` names re-copying the fixtures.
 
 ## Accepted limitations
 
