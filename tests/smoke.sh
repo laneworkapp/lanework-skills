@@ -570,7 +570,10 @@ K=c1000000-0000-4000-8000-000000000001
   [ "$("$ST" "$DST" finish "$K")" = 'ev four' ] && [ -z "$("$ST" "$DST" finish "$K")" ] && [ "$("$ST" "$DST" claim "$K" 'ev five')" = spawn ]; } \
   || { echo "state.sh in-flight / queue round-trip wrong:"; "$ST" "$DST" show; exit 1; }
 "$ST" "$DST" tag "$K" agent-123 lead; [ "$("$ST" "$DST" claim "$K" 'ev six')" = "relay agent-123" ] || { echo "a build lead's card is not relayed"; exit 1; }
-"$ST" "$DST" finish "$K" >/dev/null; [ "$("$ST" "$DST" claim "$K" 'ev seven')" = spawn ] && "$ST" "$DST" finish "$K" >/dev/null || { echo "finish did not clear a lead"; exit 1; }
+# B1: a relayed event is queued too, so the follow-up handler answers it if the lead did not
+[ "$("$ST" "$DST" finish "$K")" = 'ev six' ] && [ -z "$("$ST" "$DST" finish "$K")" ] || { echo "a relayed event was not queued for the follow-up"; exit 1; }
+[ "$("$ST" "$DST" claim "$K" 'ev seven')" = spawn ] && "$ST" "$DST" finish "$K" >/dev/null || { echo "finish did not clear a lead"; exit 1; }
+grep -q '^## Relayed events' "$SK/dispatch/references/handler.md" || { echo "handler.md says nothing about relayed events"; exit 1; }
 ok "state.sh: claim spawns, then queues; finish drains the queue into one follow-up and keeps the card in flight, then clears it; a lead's card relays"
 DISPATCH_NOW=1000 "$ST" "$DST" self /x/old.md; DISPATCH_NOW=1900 "$ST" "$DST" self /x/new.md
 DISPATCH_NOW=1100 "$ST" "$DST" is-self /x/old.md && ! DISPATCH_NOW=1100 "$ST" "$DST" is-self /x/other.md && ! DISPATCH_NOW=1400 "$ST" "$DST" is-self /x/old.md || { echo "state.sh is-self wrong"; exit 1; }
@@ -622,6 +625,27 @@ want "excluded $K10 Ideas owner" "$(rel "$LID/$K10/comments/d2000000-0000-4000-8
 ok "classify-event.sh: a change in a lane registered out of scope is excluded"
 want "$(printf 'comment %s Shaping owner\ncomment %s Shaping agent' $K1 $K3)" "$(rel "$LSH/$K1/comments/d2000000-0000-4000-8000-000000000001/index.md")" "$(rel "$LSH/$K3/comments/d2000000-0000-4000-8000-000000000003/index.md")" "CHANGED $DN/index.md"
 ok "classify-event.sh: one line per card in a mixed burst; a board-file change outside any card prints nothing"
+DISP='{name: handler, kind: agent, model: sonnet, session: "board dispatch"}'
+# B2: a stale dispatch-session stamp, then a bare mv: the owner's move, not self
+K11=c2000000-0000-4000-8000-00000000000b; dcard "$LSH" $K11 "Stale own stamp" "$OLD" "$DISP"; P11=$(rel "$LSH/$K11/index.md"); mv "$LSH/$K11" "$LAP/$K11"
+want "move $K11 Approved owner" "$P11" "$(rel "$LAP/$K11/index.md")"
+K12=c2000000-0000-4000-8000-00000000000c; dcard "$LSH" $K12 "Own fresh move" "$OLD"; P12=$(rel "$LSH/$K12/index.md"); mv "$LSH/$K12" "$LAP/$K12"; dcard "$LAP" $K12 "Own fresh move" "$NOWS" "$DISP"
+want "self $K12 Approved agent" "$P12" "$(rel "$LAP/$K12/index.md")"
+ok "classify-event.sh: a bare mv over a stale dispatch stamp is the owner's move; a handler's own fresh move is self"
+# B3: a card created straight into an agent lane arrives like a move
+K13=c2000000-0000-4000-8000-00000000000d; mkdir -p "$LAP/$K13"; printf -- '---\nschema: 1\nkind: card\ntitle: "Filed in place"\norder: 4096\ncreated:  {at: %s}\nmodified: {at: %s}\n---\nBody.\n' "$NOWS" "$NOWS" > "$LAP/$K13/index.md"
+want "move $K13 Approved owner" "$(rel "$LAP/$K13/index.md")"
+want "body $K9 Shaping owner" "$(rel "$LSH/$K9/index.md")"
+ok "classify-event.sh: a card created in place classes as a move; an edit to an older card stays body"
+# every column, and a two-card burst with one card moved
+K14=c2000000-0000-4000-8000-00000000000e; K15=c2000000-0000-4000-8000-00000000000f
+dcard "$LSH" $K14 "Burst: moved" "$OLD"; P14=$(rel "$LSH/$K14/index.md"); mv "$LSH/$K14" "$LAP/$K14"; dcard "$LAP" $K14 "Burst: moved" "$NOWS"
+dcard "$LSH" $K15 "Burst: commented" "$OLD"; dcomment "$LSH/$K15" d2000000-0000-4000-8000-00000000000f ""
+got=$("$DS/classify-event.sh" --state "$DST" "$DB" "$P14" "$(rel "$LAP/$K14/index.md")" "$(rel "$LSH/$K15/comments/d2000000-0000-4000-8000-00000000000f/index.md")")
+exp=$(printf 'move\t%s\t%s\tApproved\tBurst: moved\towner\t%s,%s\ncomment\t%s\t%s\tShaping\tBurst: commented\towner\t%s' \
+  "$DN" $K14 "${P14#"CHANGED $DN/"}" "${LAP#"$DB"/}/$K14/index.md" "$DN" $K15 "${LSH#"$DB"/}/$K15/comments/d2000000-0000-4000-8000-00000000000f/index.md")
+[ "$got" = "$exp" ] || { echo "classify-event.sh full lines:"; echo "want: $exp"; echo "got:  $got"; exit 1; }
+ok "classify-event.sh: every column (kind, board, card, lane, title, author, paths) in a two-card burst with one card moved"
 validate "$DB" >/dev/null; ok "the dispatch fixture board validates"
 
 # merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone

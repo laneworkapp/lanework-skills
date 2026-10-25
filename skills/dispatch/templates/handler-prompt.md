@@ -11,6 +11,7 @@ Events, verbatim:
 <line>
 [<line>...]
 Tier: <sonnet | opus>
+Relayed: owner event lines may arrive by SendMessage while you run; handler.md § Relayed events.
 Stamp: {name: handler, kind: agent, model: <tier>, session: "board dispatch"}
 Return: <skills root>/dispatch/templates/handler-report.md, filled, nothing else.
 ```

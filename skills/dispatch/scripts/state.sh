@@ -6,7 +6,7 @@
 #   boards                   print them, one per line
 #   claim <card> <event>     card idle -> mark it in flight, print `spawn`
 #                            in flight -> queue <event> for it, print `queued`
-#                            in flight under a build lead -> print `relay <agent-id>`, queue nothing
+#                            in flight under a build lead -> queue it too, print `relay <agent-id>`
 #   tag <card> <agent-id> [lead]   name the handler holding <card>; `lead` = a build lead
 #   finish <card>            the handler is done. Prints the card's queued events and clears the
 #                            queue; any printed = the card stays in flight for one follow-up
@@ -50,8 +50,10 @@ case "$CMD" in
     need $# 2; safe "$1"; lock
     row=$(awk -F'\t' -v k="$1" '$1 == k' "$DIR/inflight")
     if [ -z "$row" ]; then printf '%s\t%s\t-\thandler\n' "$1" "$(now)" >> "$DIR/inflight"; echo spawn
-    elif [ "$(cut -f4 <<<"$row")" = lead ]; then echo "relay $(cut -f3 <<<"$row")"
-    else printf '%s\n' "$2" >> "$DIR/queue/$1"; echo queued; fi ;;
+    else
+      printf '%s\n' "$2" >> "$DIR/queue/$1"   # a relayed event too: the follow-up answers what the lead did not
+      if [ "$(cut -f4 <<<"$row")" = lead ]; then echo "relay $(cut -f3 <<<"$row")"; else echo queued; fi
+    fi ;;
   tag)
     need $# 2; safe "$1"; lock
     awk -F'\t' -v k="$1" '$1 == k { f = 1 } END { exit !f }' "$DIR/inflight" || { echo "state.sh: $1 is not in flight" >&2; exit 1; }
