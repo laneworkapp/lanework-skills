@@ -4,18 +4,15 @@ kind: card
 title: "Label catalog: a glyph that says \"type\" for the type kind"
 order: 2048
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
-waiting: {for: rzen, since: 2026-10-13T15:17:14Z, comment: bf711988-e069-40ee-bdba-b02712d08c67}
 created: {at: 2026-10-13T15:16:10Z}
-modified: {at: 2026-10-13T15:17:13Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-25T01:11:32Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 The `type` kind in the label catalog draws as `square.grid.2x2`, a generic grid that says nothing about kinds of work. Its five values already have glyphs of their own (Bug `ladybug`, Feature `sparkles`, Chore `wrench`, Docs `doc.text`, Spike `magnifyingglass`). Only the kind's own glyph is in question.
 
 ## Proposal
 
-- ~~**Open call**~~, **open**: which glyph the kind gets. **Recommendation: A, `square.on.circle`.**
-- **A, `square.on.circle`** (recommended): two shapes, so "different kinds of thing". It reads at chip size and doesn't clash with any other catalog kind.
-- **B, `rectangle.3.group`**: three grouped tiles, so "sorted into groups". Close to the current grid in spirit, but less abstract.
-- **C, `cube`**: one solid form, so "what it's made of". Distinct, but reads more like a build artifact or release.
+- **Decided** (owner, 2026-10-13): the kind's glyph becomes `cube`, one solid form for "what it's made of".
+- **Considered**: `square.on.circle` (two shapes, kinds of thing) and `rectangle.3.group` (grouped tiles).
 - **Not offered**: `tag` (the built-in `text` kind uses it), `shippingbox` (`release`), `puzzlepiece` (`component`).
 
 ## Touches
@@ -28,7 +25,7 @@ The `type` kind in the label catalog draws as `square.grid.2x2`, a generic grid 
 
 ## Done when
 
-The catalog's `type` kind carries the chosen glyph, and smoke passes.
+The catalog's `type` kind carries `icon: {glyph: cube}`, and smoke passes.
 
 ## Out of scope
 
