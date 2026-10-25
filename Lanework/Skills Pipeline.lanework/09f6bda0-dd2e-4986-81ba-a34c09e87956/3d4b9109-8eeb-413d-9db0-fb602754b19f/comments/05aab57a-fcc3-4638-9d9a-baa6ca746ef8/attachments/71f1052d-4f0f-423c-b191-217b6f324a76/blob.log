@@ -1,0 +1,9 @@
+merge-case (merge): labels: a whole-number float not written as the heal writes it (2, not 2.0): labels:
+  - {text: "x", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "y", rank: 2.0, kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "z", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - text: "Low"
+    rank: 3
+    icon: {glyph: "arrow.down"}
+    kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}
+created:  {at: 2026-01-01T00:00:00Z, by: {name: owner, kind: human, card: "1a774342-7305-4698-9472-1ba43d71c174"}}

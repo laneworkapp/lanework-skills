@@ -1,0 +1,60 @@
+ok 1 - syntax check on every script, by its shebang
+ok 2 - no skill folder or plugin.json entry is named pitlane or pitwall
+ok 3 - legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop
+ok 4 - pipeline founded, 8 lanes read
+ok 5 - pipeline vars rendered
+ok 6 - pipeline lanes carry their template icons (Issues tinted, Ideas plain, all 8 set)
+ok 7 - pipeline board validates
+ok 8 - empty collapsed cell keeps the lane body in place
+ok 9 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 10 - collapsed: yes lane starts collapsed with its body; design-loop lanes carry icons, datapoint lanes none
+ok 11 - validator control: a bare-colon title fails
+ok 12 - refuses a non-empty board folder
+ok 13 - heal dry run lists every kind of damage and writes nothing
+ok 14 - heal --apply repairs each one and the board validates with no DEPRECATED line
+ok 15 - heal leaves a clean card, a foreign entry, an unknown key, a ` #` title and every stamp as written
+ok 16 - a second heal --apply changes nothing
+ok 17 - heal-board no longer takes --global: exit 64, the damaged board untouched
+ok 18 - an indented --- inside a block scalar does not end the frontmatter; the labels below it heal
+ok 19 - a board with its own .schema/ heals the same, against its own validator
+ok 20 - heal defers to the board's own .schema/bin/lanework-heal.py
+---
+schema: 1
+kind: board
+title: "Layout"
+id: aaaa0000-0000-4000-8000-0000000000a0
+config: {show-card-body: 3}   # the owner's note
+created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+modified: {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+---
+Body.
+---
+schema: 1
+kind: card
+title: "Verbose labels"
+order: 1024
+labels: [{text: "Low", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]
+created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+modified: {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+---
+Body.
+---
+schema: 1
+kind: card
+title: "Stamp over lines"
+order: 1024
+created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: on, session: Yes}}
+modified: {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+---
+Body.
+---
+schema: 1
+kind: card
+title: "Plain time in a collection"
+order: 1024
+waiting: {for: "rzen", since: 2026-10-01T00:00:00Z, comment: "c0000000-0000-4000-8000-0000000000ff"}
+created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+modified: {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+---
+Body.
+compact-collection: wrong rewrite
