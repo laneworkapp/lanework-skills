@@ -4,9 +4,9 @@ kind: card
 title: "Dispatch skill: a flat-context watch session"
 order: 3072
 labels: [{text: dispatch, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}]
-waiting: {for: rzen, since: 2026-10-25T01:06:28Z, comment: 1ebe6a1b-12e1-4cf0-b28a-44a7ea04976e}
 created:  {at: 2026-10-25T01:06:26Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "skills chat"}}
-modified: {at: 2026-10-25T01:06:28Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "skills chat"}}
+waiting: {for: rzen, since: 2026-10-25T01:09:53Z, comment: 1ebe6a1b-12e1-4cf0-b28a-44a7ea04976e}
+modified: {at: 2026-10-25T01:09:53Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 A new skill, `dispatch`, turns a long-running watch session into a pure router that hands each board event to a fresh subagent, so the main context stays flat however many events arrive.
 
@@ -70,7 +70,7 @@ New skill `skills/dispatch/`:
 
 Touched elsewhere:
 
-- `skills/watch/SKILL.md`: one line pointing at `dispatch` as the flat-context mode (see ask 1 for whether `watch` is folded).
+- `skills/watch/SKILL.md`: one line pointing at `dispatch` as the flat-context mode. `watch` itself is unchanged in this card; folding its events and responding into `dispatch` is a follow-up card once the trial numbers hold.
 - `.claude-plugin/plugin.json` `skills` list, `README.md` skills table and install commands, the board's `Skill` label value `dispatch`.
 - `tests/smoke.sh`: `classify-event.sh` on a throwaway board for an owner comment, an agent comment, a lane move, a BULK burst, a registered self-write and a change in an out-of-scope lane; `state.sh` round-trips (in-flight add/remove, queue drain, registry prune).
 
@@ -93,7 +93,10 @@ Touched elsewhere:
 - **Lost continuity**: the main session no longer remembers what happened on a card earlier in the day. By design: the thread is the record, and the handler reads it whole. The user-facing one-liners keep a skim-able log in chat.
 - **Handler cost**: each handler re-reads the authority chain and the card. That cost moves to disposable contexts, which is the point; tiers keep it cheap for comments and rulings.
 
+## Decided
+
+- **Entry point** (owner, 2026-10-25): a separate `/dispatch` beside `/watch` for the trial. `watch`'s events and responding fold into `dispatch` once the numbers hold.
+
 ## Open calls
 
-- **Entry point**: separate `/dispatch` beside `/watch` for a trial, or `/watch` adopts dispatch routing now. **Recommended: separate command for the trial, then fold `watch`'s events and responding into `dispatch` once the numbers hold.**
 - **Handler tiers**: per `work/references/tiers.md` as-is, or every handler on opus for the trial. **Recommended: tiers as-is (comments and ruling-folding on sonnet, build leads on opus, inherit only when the handler must make architectural calls).**
