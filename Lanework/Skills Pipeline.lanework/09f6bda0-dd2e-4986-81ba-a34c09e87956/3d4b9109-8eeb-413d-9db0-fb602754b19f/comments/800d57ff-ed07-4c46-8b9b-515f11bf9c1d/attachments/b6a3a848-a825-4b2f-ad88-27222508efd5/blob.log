@@ -1,0 +1,50 @@
+# reviewer runs at guide-v101 e58deea (scratch at 7c8a801)
+
+## smoke in the fixer worktree
+ok 120 - the stamp (lanework-agent-guide v101, lanework-schema v1) is not behind the board's guide v101 and schema v1
+ok 121 - plugin manifests match the skills folders and validate
+smoke: 121 passed
+__pycache__ under skills/: 0
+
+## OWN FAIL-BEFORE: branch tests/smoke.sh on 7c8a801 skills
+ok 20 - heal defers to the board's own .schema/bin/lanework-heal.py
+compact-collection dry run lacks: index.md: compact-collection config written in the compact form, 2 lines to 1
+0 repairs in 0 files
+
+## OWN FAIL-BEFORE: branch tests/merge-case.sh on 7c8a801 merge driver (merge, rebase)
+merge-case (merge): merged keys not in the compact form: .../index.md: H17 compact-collection labels written in the compact form, 5 lines to 8
+merge-case (rebase): same, 5 lines to 8
+
+## old writers (smoke at 7c8a801, stopped on the stamp gate): board heal H17 count per board
+Acme Pipeline 0, PL2 1, Sync: v2 Plan 4, Sync: v2 Discovery 3, D Discovery 1
+
+## new writers: board heal H17 over every board the branch smoke left (53 boards, 53 ran)
+1 hit: label-kinds/All.lanework card 67c6d578 (a hand-written smoke heredoc card, excluded by ok 119 by design)
+
+## parity on a copy of the Skills Pipeline board (.schema removed), skill heal vs board heal --apply
+skill: 35 repairs in 34 files (25 compact-collection + 10 pre-existing title-quote); board: 25 repairs in 25 files (25 H17)
+H17 lists identical; after --apply, the trees differ only on the 10 title lines
+
+## parity on an adversarial board (15 cards: unicode, quotes, #, empty, floats, nested lists, key-line comment, 120/121, multi-line flow, YAML words, quoted key, multi-line stamp, tabs)
+12 repairs each, same list. After --apply, one difference (stamp spacing normalised):
+173c173
+< created: {at: 2026-10-01T00:00:00Z, by: {name: yes, kind: agent, model: on, session: null}}
+---
+> created: {at: 2026-10-01T00:00:00Z, by: {name: "yes", kind: agent, model: "on", session: null}}
+seed line was:
+created:
+  at: 2026-10-01T00:00:00Z
+  by: {name: yes, kind: agent, model: "on", session: null}
+PyYAML reads the skill's output as:
+{'name': True, 'kind': 'agent', 'model': True, 'session': None}
+
+## H11 v2 skip change (labels bare, ~, null, [], comment-only, "") with priority: High
+skill and board: same 6 repairs and skips; trees identical after --apply
+
+## merge emitter vs heal emit_key, random nested values, PyYAML round trip
+cases 1858 line-count mismatches 0 invalid/value 0
+cases 1847 line-count mismatches 0 invalid/value 0
+with floats 2.0/1.5 in the mix:
+cases 1876 line-count mismatches 5 invalid/value 0
+cases 1916 line-count mismatches 1 invalid/value 0
+cases 1871 line-count mismatches 6 invalid/value 0
