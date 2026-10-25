@@ -5,7 +5,7 @@ title: "Label catalog: a glyph that says \"type\" for the type kind"
 order: 2048
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created: {at: 2026-10-13T15:16:10Z}
-modified: {at: 2026-10-25T01:11:32Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-25T01:13:09Z}
 ---
 The `type` kind in the label catalog draws as `square.grid.2x2`, a generic grid that says nothing about kinds of work. Its five values already have glyphs of their own (Bug `ladybug`, Feature `sparkles`, Chore `wrench`, Docs `doc.text`, Spike `magnifyingglass`). Only the kind's own glyph is in question.
 
