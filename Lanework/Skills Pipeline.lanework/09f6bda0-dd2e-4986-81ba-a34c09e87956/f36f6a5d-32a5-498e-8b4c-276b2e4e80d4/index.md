@@ -5,7 +5,7 @@ title: "Dispatch skill: a flat-context watch session"
 order: 1024
 labels: [{text: dispatch, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T01:06:26Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "skills chat"}}
-modified: {at: 2026-10-25T01:11:04Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-25T01:14:40Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 A new skill, `dispatch`, turns a long-running watch session into a pure router that hands each board event to a fresh subagent, so the main context stays flat however many events arrive.
 
