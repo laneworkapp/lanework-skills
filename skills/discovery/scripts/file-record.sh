@@ -50,6 +50,7 @@ C="$STAGE/$CARD_ID"; mkdir -p "$C"
 frontmatter_of "$TEMPLATES/record.md" > "$STAGE/fm.md"
 render "$STAGE/fm.md" kind "$KIND" rank "$RANK" title "$CTITLE" order "$(next_order "$DEC")" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-record.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
+compact_fm "$STAGE/fm.out"
 {
   cat "$STAGE/fm.out"
   printf 'Question: [%s](lanework://%s/%s)\n\n' "$QTITLE" "$BOARD_ID" "$QID"
