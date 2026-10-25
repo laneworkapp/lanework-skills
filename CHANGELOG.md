@@ -1,5 +1,23 @@
 **October 2026**
 
+Version 0.7.0: a new dispatch skill, started with /lanework:dispatch, watches your boards and hands each change to a fresh agent, so long watches stay fast.
+
+Questions on a card that offer options now end with a Recap button that asks the agent to explain them in plain terms first.
+
+Boards, tickets and decision records the skills write now use the compact layout Lanework writes, so /heal has nothing to tidy.
+
+/heal now tidies lists and settings written in an older, spread-out layout.
+
+Merging a board now keeps its labels and settings in the compact layout.
+
+/heal now reads a rank written as text, such as "2", the way Lanework does.
+
+/heal no longer accepts --global, since Lanework stopped reading machine-wide default labels.
+
+The Type label kind on new boards now shows a cube icon.
+
+Skills now follow version 101 of Lanework's agent guide.
+
 When /heal finds a card with several values of a one-value label kind, it now keeps the one Lanework shows (the lowest rank) instead of the first in the file.
 
 Version 0.6.0: a new plan skill, started with /lanework:plan, charts a big idea's open decisions as tickets on a board and settles one per session.
