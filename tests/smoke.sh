@@ -597,7 +597,7 @@ printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n\nIf no answer
 printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP" > "$T/opt-recap.md"
 { printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP"; } > "$T/opt-full.md"
 W=$(awk 'NR==1&&$0=="---"{f=1;next} f&&$0=="---"{f=0;next} !f' "$T/opt-full.md" | grep -v -x -F -e "$RECAP" | wc -w | tr -d ' ')
-pad=$(yes word | head -$((79 - W)) | tr '\n' ' ')
+pad=$(for _ in $(seq 1 $((79 - W))); do printf 'word '; done)
 printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body. %s\n' "$RECAP" "$pad" > "$T/opt-79.md"
 if "$SK/work/scripts/lint-ask.sh" "$T/opt-bare.md" >/dev/null; then echo "lint-ask passed options without the Recap line"; exit 1; fi
 "$SK/work/scripts/lint-ask.sh" "$T/opt-recap.md"; ok "lint-ask fails an ask with options but no Recap line, passes one with it"
