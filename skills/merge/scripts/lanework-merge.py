@@ -263,6 +263,8 @@ def dump(v):
         return 'true' if v else 'false'
     if v is None:
         return 'null'
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))             # as the heal and the app's emitter write it: 2.0 -> 2
     if isinstance(v, (int, float)):
         return repr(v)
     return json.dumps(v, ensure_ascii=False)

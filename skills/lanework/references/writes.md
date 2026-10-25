@@ -31,7 +31,7 @@ Guide § Moving and reordering has the full rules.
 ## Placing
 
 - Ladder: the guide's § Creating a card (1024 steps, midpoint between). Lanes use the same ladder; inserting changes no other file.
-- Lane has `card-defaults` → union its `labels` into the new card's yourself, case-insensitively (guide § Frontmatter, lanes): a bare name = free label, a kinded entry = stamped from the board's current `config.labels`. Your own value of a `single` kind wins over the lane's. The app applies them only to cards it makes.
+- Lane has `card-defaults` → union its `labels` into the new card's yourself, case-insensitively (guide § Frontmatter, lanes): a bare name = free label, a kinded entry = stamped from the board's current `config.labels`. Your own value of a `single` kind wins over the lane's; several lane values of one `single` kind → keep one (lowest `rank`, else the first). The app applies them only to cards it makes.
 
 ## Comments
 
