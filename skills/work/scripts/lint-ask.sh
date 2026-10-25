@@ -6,8 +6,9 @@
 # A body that mentions nobody is a record and passes untouched. A body that mentions the
 # human is an ask and must fit references/writing.md § The ask: handle on the first
 # line, under 80 words, one question, one clause per sentence (no em-dash, no semicolon),
-# no hedging, a blank line after any list, every card it names linked (`lanework://<board-id>/<card-id>` somewhere in the
-# body for each bare eight-hex id). One line per violation on stdout and exit 1; silent exit 0
+# no hedging, a blank line after any list, every card it names linked (`lanework://<board-id>/<card-id>`
+# somewhere in the body for each bare eight-hex id), and, when it lists options, the standing line
+# `- Recap: Explain this in plain terms first` last among them (that line is left out of the word count). One line per violation on stdout and exit 1; silent exit 0
 # when clean.
 set -u
 . "$(dirname "$0")/../../lanework/scripts/lib.sh"
@@ -23,7 +24,9 @@ printf '%s\n' "$body" | grep -q -i -E "$mention" || exit 0   # mentions someone 
 v=0; say() { echo "$1"; v=1; }
 first=$(printf '%s\n' "$body" | grep -v '^[[:space:]]*$' | head -1)
 printf '%s\n' "$first" | grep -q -i -E "$mention" || say "handle @$handle is not on the first line"
-words=$(printf '%s\n' "$body" | wc -w | tr -d ' ')
+recap='- Recap: Explain this in plain terms first'
+printf '%s\n' "$body" | grep -q -E '^[[:space:]]*- [A-Za-z][A-Za-z0-9 -]{0,20}: ' && ! printf '%s\n' "$body" | grep -q -x -F -e "$recap" && say "options lack the standing line: $recap"
+words=$(printf '%s\n' "$body" | grep -v -x -F -e "$recap" | wc -w | tr -d ' ')
 [ "$words" -le 80 ] || say "$words words; an ask stays under 80"
 q=$(printf '%s\n' "$body" | grep -o '?' | wc -l | tr -d ' ')
 [ "$q" -le 1 ] || say "$q question marks; two asks are two comments"
