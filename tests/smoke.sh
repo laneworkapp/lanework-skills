@@ -308,7 +308,7 @@ EOF
   lcard c0000000-0000-4000-8000-0000000000a2 "Stamp over lines" <<EOF
 created:
   at: 2026-10-01T00:00:00Z
-  by: {name: claude, kind: agent, model: test}
+  by: {name: claude, kind: agent, model: "on", session: "Yes"}
 modified: $STAMP
 EOF
   lcard c0000000-0000-4000-8000-0000000000a3 "Comment inside" <<EOF
@@ -349,7 +349,7 @@ for w in 'index.md: compact-collection config written in the compact form, 2 lin
 "$HEAL" "$HY" --apply --name fixer --model test >/dev/null
 grep -qxF "config: {show-card-body: 3}   # the owner's note" "$HY/index.md" \
   && grep -qxF 'labels: [{text: "Low", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]' "$HYL"/c*a1/index.md \
-  && grep -qxF "created:  $STAMP" "$HYL"/c*a2/index.md \
+  && grep -qxF 'created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: "on", session: "Yes"}}' "$HYL"/c*a2/index.md \
   && grep -qxF 'waiting: {for: "rzen", since: 2026-10-01T00:00:00Z, comment: "c0000000-0000-4000-8000-0000000000ff"}' "$HYL"/c*a6/index.md \
   || { cat "$HY/index.md" "$HYL"/c*a[126]/index.md; echo "compact-collection: wrong rewrite"; exit 1; }
 for c in a3 a4 a5; do cmp -s "$HYL"/c*$c/index.md "$T/layout-seed/${HYL##*/}"/c*$c/index.md || { echo "compact-collection touched card $c"; exit 1; }; done

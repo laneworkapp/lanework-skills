@@ -333,6 +333,8 @@ PLAIN_OK = re.compile(r"[A-Za-z][A-Za-z0-9._/-]*")
 TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|[+-][0-9:]+)?)?")
 # The instant as the app writes one: written plain in this form, it stays plain in a collection.
 APP_TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+# Words a stamp's value never writes plain (the app's `plainFlow`): YAML 1.1 reads them as a bool or null.
+YAML_WORDS = {"true", "false", "yes", "no", "on", "off", "null", "y", "n", "~"}
 
 
 def emit_str(s, plain_ok=False):
@@ -352,9 +354,12 @@ def emit_scalar(v, plain_ok=False):
         return str(v)
     if isinstance(v, float):
         return str(int(v)) if v.is_integer() else repr(v)
-    if isinstance(v, Plain) and APP_TIMESTAMP.fullmatch(v):
-        return str(v)
-    return emit_str(str(v), plain_ok)
+    s = str(v)
+    if plain_ok and (TIMESTAMP.fullmatch(s) or (PLAIN_OK.fullmatch(s) and s.lower() not in YAML_WORDS)):
+        return s
+    if isinstance(v, Plain) and APP_TIMESTAMP.fullmatch(s):
+        return s
+    return emit_str(s)
 
 
 def flow(v, plain_ok=False):
