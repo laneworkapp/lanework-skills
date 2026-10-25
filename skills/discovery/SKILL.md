@@ -40,7 +40,7 @@ Builds on **lanework**: read `lanework/references/authority.md` before any write
 From the board, never memory:
 
 1. `lanework/scripts/read-board.sh`, then the map card.
-2. Each Asked thread: owner comment newer than `waiting.since` = unrecorded answer → record it first.
+2. Each Asked thread: owner comment newer than `waiting.since` = unrecorded answer → record it first (a `Recap:` click is not an answer: `references/conduct.md`).
 3. No Decisions lane (older board) → add it and the `record` + `status` kinds → `references/board.md` § Older boards.
 4. Continue at Flow 5.
 

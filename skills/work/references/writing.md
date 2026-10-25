@@ -51,6 +51,15 @@ Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` =
 
 Options become buttons. A click posts `<label>: <option text>` as the human's comment.
 
+**The standing option.** An ask with options ends them with `- Recap: Explain this in plain terms first`; `lint-ask.sh` requires it and leaves it out of the 80 words. An ask with no options gets none. A click on it (`Recap: Explain this in plain terms first`) is a request, not a ruling. Same pass:
+
+1. Record, `in-reply-to` the click: the decision in everyday words (what is decided, why now, what each option does). No new options, no handle.
+2. One second later, re-post the same ask as a new comment, standing line included.
+3. Set `waiting` to the new ask (the app clears it on any human comment).
+4. Change nothing else: no body edit, no lane exit.
+
+A second click gets a second recap.
+
 ## The record
 
 - Line 1: the conclusion, bold, one sentence.

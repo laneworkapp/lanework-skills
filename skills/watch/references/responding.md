@@ -4,7 +4,7 @@ Only **new owner comments** get replies, on the card, including on a card anothe
 
 ## Ruling or discussion
 
-Answers a question, picks an option (a button click arrives as `<label>: <option text>`), gives an opinion. Handle it in the main session:
+Answers a question, picks an option (a button click arrives as `<label>: <option text>`), gives an opinion. A `Recap:` click is not a ruling: follow `work/references/writing.md` § The ask, and skip the rest of this section. Handle it in the main session:
 
 - Fold the ruling into the body (`writing.md` § Card bodies), restamping `modified` whole.
 - Last open call ruled → apply the card's lane exit (board and lane bodies) in the same pass.

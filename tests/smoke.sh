@@ -592,6 +592,19 @@ printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the commen
 printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/bad.md"
 "$SK/work/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes a clean ask"
 if "$SK/work/scripts/lint-ask.sh" "$T/bad.md" >/dev/null; then exit 1; fi; ok "lint-ask fails a hedged, chained ask"
+RECAP='- Recap: Explain this in plain terms first'
+printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n\nIf no answer: blocked.\nContext: body.\n' > "$T/opt-bare.md"
+printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP" > "$T/opt-recap.md"
+W=$(grep -v -x -F -e "$RECAP" "$T/opt-recap.md" | wc -w | tr -d ' ')
+pad=$(for _ in $(seq 1 $((79 - W))); do printf 'word '; done)
+printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body. %s\n' "$RECAP" "$pad" > "$T/opt-79.md"
+printf '@owner Which engine?\n\nOptions:\n- A: app\n%s\n- B: service\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP" > "$T/opt-mid.md"
+if "$SK/work/scripts/lint-ask.sh" "$T/opt-bare.md" >/dev/null; then echo "lint-ask passed options without the Recap line"; exit 1; fi
+if "$SK/work/scripts/lint-ask.sh" "$T/opt-mid.md" >/dev/null; then echo "lint-ask passed a Recap line that is not last"; exit 1; fi
+"$SK/work/scripts/lint-ask.sh" "$T/opt-recap.md"; ok "lint-ask fails an ask with options but no Recap line, passes one with it"
+"$SK/work/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes an ask with no options and no Recap line"
+[ "$(grep -v -x -F -e "$RECAP" "$T/opt-79.md" | wc -w | tr -d ' ')" -eq 79 ] && [ "$(wc -w < "$T/opt-79.md" | tr -d ' ')" -gt 80 ] || { echo "fixture is not 79 own words plus the line"; exit 1; }
+"$SK/work/scripts/lint-ask.sh" "$T/opt-79.md"; ok "lint-ask leaves the Recap line out of the 80-word count"
 
 # watch: two boards, one watcher; a comment posted by renaming .draft/ is reported with its board
 if command -v fswatch >/dev/null; then
