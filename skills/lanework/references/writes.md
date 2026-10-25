@@ -8,6 +8,7 @@ The guide has the full rules. These hold on every board and cost most when misse
 - **Stage outside the board, then `mv` in.** App reloads on every fs event and can read a half-written file. A temp left beside a card's `index.md` is relocated into its `attachments/`, not deleted (2026-09-08). After an aborted write, check `attachments/` for strays.
 - **Double-quote every string value** (guide § Frontmatter: "Quote any `title` containing a colon", "Keep every scalar on one line"). A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`.
 - **Labels, priority and component**: all `labels` entries; shape, kinds and the built-in `text` kind = the guide's § Frontmatter (`labels`) and `.schema/card.json`. A root `priority:` / `component:` key is reserved: never written. Copy an entry's shape from the guide, never from another card (2026-10-02: three cards copied a custom kind's entry shape).
+- **Lists and mappings: compact form** (guide § Frontmatter): one flow line up to 120 chars, strings quoted; longer → `key:` over a block, each entry one line where it fits, recursively. Stamps always one line. Other layouts read, but the heal rewrites them.
 - **Validate before committing**: `python3 "$BOARD/.schema/bin/lanework-validate.py" <file or board>` → exit 0 **and** no `DEPRECATED` line. No `.schema/` yet: `founding.md` § Validate.
 - **Stamp lines: rewrite whole, never regex-patch.** Nested braces corrupt. `grep '}}}'` every touched file after.
 - **Icons, colors**: the guide's § Colors and icons. `color` only when the tint says what the glyph can't.
@@ -30,7 +31,7 @@ Guide § Moving and reordering has the full rules.
 ## Placing
 
 - Ladder: the guide's § Creating a card (1024 steps, midpoint between). Lanes use the same ladder; inserting changes no other file.
-- Lane has `card-defaults` → union its labels into the new card's `labels` yourself (guide § Frontmatter, lanes). The app applies them only to cards it makes.
+- Lane has `card-defaults` → union its `labels` into the new card's yourself, case-insensitively (guide § Frontmatter, lanes): a bare name = free label, a kinded entry = stamped from the board's current `config.labels`. Your own value of a `single` kind wins over the lane's; several lane values of one `single` kind → keep one (lowest `rank`, else the first). The app applies them only to cards it makes.
 
 ## Comments
 
@@ -42,14 +43,14 @@ Guide § Moving and reordering has the full rules.
 
 ## Tracker keys
 
-The board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`, a lane's `remote-state`, a `labels` entry of kind `state`, `.tracker.nosync/`: left by builds that ran tracker sync. No build runs it now. **Never write, edit or copy one.** Keys a board already carries stay byte for byte.
+The board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`, a lane's `remote-state`, a `labels` entry of kind `state`, `.tracker.nosync/`: left by builds that ran tracker sync. No build runs it now. **Never write, edit or copy one.** Keys a board already carries stay byte for byte. The board's `.gitignore` no longer lists `.tracker.nosync/`: never stage it.
 
 ## Healing
 
 - **When**: the validator fails or prints `DEPRECATED` on files you didn't write; a guide-version move retired a spelling; a board worked without the app. Heal before fixing by hand.
 - **Which copy**: the board's `.schema/bin/lanework-heal.py` when present (it wins: the app ships it), else `scripts/heal-board.py`. The skill's copy refuses to run where the board ships one.
 - **Run**: `python3 scripts/heal-board.py <board>` → read the repair list (dry run, writes nothing) → `--apply --name <you> --model <model>` → validate. Commit the heal on its own.
-- **Repairs**: label stamps vs the board's `config.labels`, extra entries of a `single` kind, retired label and definition spellings, reserved root `priority:`/`component:` keys moved into `labels`, bare stamps, unquoted or multi-line titles, flat `icon`/`iconColor`, `modified-by`.
+- **Repairs**: label stamps vs the board's `config.labels`, extra entries of a `single` kind, retired label and definition spellings, reserved root `priority:`/`component:` keys moved into `labels`, bare stamps, unquoted or multi-line titles, flat `icon`/`iconColor`, `modified-by`, non-compact layouts.
 - **Whole board to currency** (lane bodies, pipeline sheet): the `heal` skill.
 - **Writes**: no `modified` restamp: a heal is upkeep, like the app's. A repair that drops a fact posts a record on the card, signed as you, before the file changes. `skip` lines = left for you by hand. Never `.trash/`, a foreign entry or an unknown key. A missing `by` stays missing: it means the owner.
 

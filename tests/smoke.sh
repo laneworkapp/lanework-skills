@@ -14,6 +14,33 @@ validate() {
   grep -o 'documents   [0-9]*' <<<"$out"
 }
 
+# flowed <file>: the frontmatter's config and labels, each on one unquoted flow line (a "#" string quoted), whatever
+# layout the compact form gave them, so a check can grep a catalog row or a template's entry as written there
+flowed() { python3 - "$1" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])
+def f(v):
+    if isinstance(v, dict): return "{" + ", ".join("%s: %s" % (k, f(x)) for k, x in v.items()) + "}"
+    if isinstance(v, list): return "[" + ", ".join(f(x) for x in v) + "]"
+    if isinstance(v, bool): return "true" if v else "false"
+    return '"%s"' % v if str(v).startswith("#") else str(v)
+for k in ("config", "labels"):
+    if k in d: print("%s: %s" % (k, f(d[k])))
+PY
+}
+# same_doc <a> <b>: the same frontmatter values (id and stamps aside) and the same body, whatever the layout
+same_doc() { python3 - "$1" "$2" <<'PY'
+import sys, yaml
+def read(p):
+    _, fm, body = open(p).read().split("---\n", 2)
+    d = yaml.safe_load(fm)
+    for k in ("id", "created", "modified"): d.pop(k, None)
+    return d, body
+a, b = read(sys.argv[1]), read(sys.argv[2])
+sys.exit(0 if a == b else 1)
+PY
+}
+
 for s in "$SK"/*/scripts/*.sh "$ROOT"/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;; *) bash -n "$s" ;; esac; done
 for s in "$SK"/*/scripts/*.py; do [ -e "$s" ] || continue; python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])' "$s"; done
 ok "syntax check on every script, by its shebang"
@@ -183,7 +210,9 @@ modified: $STAMP
 EOF
 hcard c0000000-0000-4000-8000-000000000009 <<EOF
 title: "Clean, with a foreign entry"
-labels: [{text: Weird, rank: 9, kind: {type: alien, text: Alien}}, {text: bug, kind: {type: text, text: Text, icon: {glyph: tag}}}]
+labels:
+  - {text: Weird, rank: 9, kind: {type: alien, text: Alien}}
+  - {text: bug, kind: {type: text, text: Text, icon: {glyph: tag}}}
 project: x
 created:  $STAMP
 modified: $STAMP
@@ -260,6 +289,79 @@ cp -R "$VAL" "$H/.schema"; touch "$H/.schema/bin/lanework-heal.py"
 if "$HEAL" "$H" 2>/dev/null; then echo "skill copy ran where the board ships its own"; exit 1; fi
 ok "heal defers to the board's own .schema/bin/lanework-heal.py"
 
+# heal-board compact-collection (the board heal's H17): one card per layout case
+layout_board() {
+  local B="$1" L="$1/aaaa0000-0000-4000-8000-0000000000a1"; mkdir -p "$L"
+  printf -- '---\nschema: 1\nkind: board\ntitle: "Layout"\nid: aaaa0000-0000-4000-8000-0000000000a0\nconfig:   # the owner'"'"'s note\n  show-card-body: 3\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$B/index.md"
+  printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$STAMP" "$STAMP" > "$L/index.md"
+  lcard() { mkdir -p "$L/$1"; { printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: 1024\n' "$2"; cat; printf -- '---\nBody.\n'; } > "$L/$1/index.md"; }
+  lcard c0000000-0000-4000-8000-0000000000a1 "Verbose labels" <<EOF
+labels:
+  - text: "Low"
+    kind:
+      type: "text"
+      text: "Text"
+      icon: {glyph: "tag"}
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a2 "Stamp over lines" <<EOF
+created:
+  at: 2026-10-01T00:00:00Z
+  by: {name: claude, kind: agent, model: "on", session: "Yes"}
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a3 "Comment inside" <<EOF
+labels:
+  # kept as written
+  - {text: "a", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a4 "Block scalar" <<EOF
+notes: |
+  one
+  two
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a5 "Already compact" <<EOF
+labels: [{text: "a", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]   # trailing note
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a6 "Plain time in a collection" <<EOF
+waiting:
+  for: rzen
+  since: 2026-10-01T00:00:00Z
+  comment: "c0000000-0000-4000-8000-0000000000ff"
+created:  $STAMP
+modified: $STAMP
+EOF
+}
+HY="$T/Layout.lanework"; layout_board "$HY"; cp -R "$HY" "$T/layout-seed"; HYL="$HY/aaaa0000-0000-4000-8000-0000000000a1"
+O=$("$HEAL" "$HY")
+for w in 'index.md: compact-collection config written in the compact form, 2 lines to 1' \
+  'c0000000-0000-4000-8000-0000000000a1/index.md: compact-collection labels written in the compact form, 6 lines to 1' \
+  'c0000000-0000-4000-8000-0000000000a2/index.md: compact-collection created written in the compact form, 3 lines to 1' \
+  'c0000000-0000-4000-8000-0000000000a6/index.md: compact-collection waiting written in the compact form, 4 lines to 1' \
+  '^4 repairs in 4 files'; do grep -q -- "$w" <<<"$O" || { echo "compact-collection dry run lacks: $w"; echo "$O"; exit 1; }; done
+"$HEAL" "$HY" --apply --name fixer --model test >/dev/null
+grep -qxF "config: {show-card-body: 3}   # the owner's note" "$HY/index.md" \
+  && grep -qxF 'labels: [{text: "Low", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]' "$HYL"/c*a1/index.md \
+  && grep -qxF 'created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: "on", session: "Yes"}}' "$HYL"/c*a2/index.md \
+  && grep -qxF 'waiting: {for: "rzen", since: 2026-10-01T00:00:00Z, comment: "c0000000-0000-4000-8000-0000000000ff"}' "$HYL"/c*a6/index.md \
+  || { cat "$HY/index.md" "$HYL"/c*a[126]/index.md; echo "compact-collection: wrong rewrite"; exit 1; }
+for c in a3 a4 a5; do cmp -s "$HYL"/c*$c/index.md "$T/layout-seed/${HYL##*/}"/c*$c/index.md || { echo "compact-collection touched card $c"; exit 1; }; done
+grep -q '^0 repairs' <<<"$("$HEAL" "$HY")" || { echo "compact-collection: not idempotent"; exit 1; }
+for f in "$HY/index.md" "$HYL"/c*a[12356]/index.md; do v=$(python3 "$VAL/bin/lanework-validate.py" --schema "$VAL" "$f") && ! grep -q 'FAIL\|DEPRECATED' <<<"$v" || { echo "compact-collection: $f fails validation: $v"; exit 1; }; done   # a4: a block scalar, outside the validator's dialect
+ok "heal: a list or mapping in another layout is rewritten compact, key-line comment kept; a comment inside, a block scalar, a compact key left alone"
+HZ="$T/Layout board-heal.lanework"; cp -R "$T/layout-seed" "$HZ"; python3 "$VAL/bin/lanework-heal.py" "$HZ" --apply --name fixer --model test >/dev/null
+diff <(cd "$HY" && find . -type f | sort | xargs sed -E 's/^(created|modified): +/\1: /') \
+  <(cd "$HZ" && find . -type f | sort | xargs sed -E 's/^(created|modified): +/\1: /') >/dev/null \
+  || { echo "skill heal and the board's lanework-heal.py disagree on compact-collection"; exit 1; }
+ok "heal's compact-collection matches the board's own heal (H17) byte for byte, stamp spacing aside"
+
 # discovery: found, file, settle, park
 D="$T/Sync: v2 Discovery.lanework"
 "$SK/discovery/scripts/found-discovery-board.sh" "$D" --model smoke >/dev/null
@@ -284,9 +386,9 @@ validate "$D" >/dev/null; ok "discovery board validates"
 lane_order() { sed -n 's/^order: //p' "$(grep -l "^title: \"$1\"\$" "$D"/*/index.md | head -1)"; }
 [ "$(lane_order Settled)" = 4096 ] && [ "$(lane_order Decisions)" = 4608 ] && [ "$(lane_order Parked)" = 5120 ] || { echo "Decisions lane missing or out of order"; exit 1; }
 ok "Decisions lane founded at 4608, between Settled and Parked"
-{ grep -q '{type: round, text: Round, single: true}' "$D/index.md" &&
-  grep -q '{type: record, text: Record, single: true, values: \[{text: ADR, rank: 1}, {text: PDR, rank: 2}\]}' "$D/index.md" &&
-  grep -q '{type: status, text: Status, single: true, values: \[{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}\]}' "$D/index.md"; } || { echo "record/status label kinds missing from config.labels"; exit 1; }
+DF=$(flowed "$D/index.md"); { grep -q '{type: round, text: Round, single: true}' <<<"$DF" &&
+  grep -q '{type: record, text: Record, single: true, values: \[{text: ADR, rank: 1}, {text: PDR, rank: 2}\]}' <<<"$DF" &&
+  grep -q '{type: status, text: Status, single: true, values: \[{text: accepted, rank: 1}, {text: deprecated, rank: 2}, {text: superseded, rank: 3}\]}' <<<"$DF"; } || { echo "record/status label kinds missing from config.labels"; exit 1; }
 ok "board config declares the round, record and status label kinds"
 printf 'Is sync metered [beta]?\n\n## Options\n\n- A: no\n- B: yes\n\n## Recommended\n\nA. Simple.\n' > "$T/q3.md"
 O3=$("$SK/discovery/scripts/file-question.sh" "$D" "Metering" --round 2 --body "$T/q3.md" --model smoke 2>&1)
@@ -304,8 +406,8 @@ n1="$DEC/$K1/index.md"; n2="$DEC/$K2/index.md"
 { [ "$(grep -m1 '^title:' "$DEC/index.md")" = 'title: "Decisions"' ] &&
   [ "$(grep -m1 '^title:' "$n1")" = 'title: "ADR: Sync engine: C:\\sync \"v2\" second line"' ] &&
   [ "$(grep -m1 '^title:' "$n2")" = 'title: "PDR: Sync is free"' ]; } || { echo "cards not filed into Decisions with prefixed, escaped, one-line titles"; exit 1; }
-{ grep -qx 'labels: \[{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}\]' "$n1" &&
-  grep -qx 'labels: \[{text: PDR, rank: 2, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}\]' "$n2"; } || { echo "record/status labels not flattened"; exit 1; }
+{ grep -qx 'labels: \[{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}\]' <(flowed "$n1") &&
+  grep -qx 'labels: \[{text: PDR, rank: 2, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}\]' <(flowed "$n2"); } || { echo "record/status labels not flattened"; exit 1; }
 [ "$(awk '/^---$/ { n++; next } n == 2 && NF { print; exit }' "$n1")" = "Question: [Q3: Metering](lanework://$BID/$C3)" ] || { echo "line 1 does not link the question"; exit 1; }
 grep -qx 'Sync is free for every user, because a paid tier would split the support load.' "$n1" && grep -qx -- '- Paid tier: rejected.' "$n1" || { echo "--body did not land in the card"; exit 1; }
 [ "$(sed -n 's/^order: //p' "$n2")" -gt "$(sed -n 's/^order: //p' "$n1")" ] || { echo "second card not at the bottom"; exit 1; }
@@ -873,9 +975,10 @@ CARD
 validate "$LD/All.lanework" >/dev/null; ok "a card carrying one flattened entry of each of the eight kinds validates with no DEPRECATED line"
 # discovery: the round kind comes from the catalog; the founded config is today's except round gains single: true
 "$SK/discovery/scripts/found-discovery-board.sh" "$LD/D Discovery.lanework" --model smoke >/dev/null
-[ "$(norm_index "$LD/D Discovery.lanework/index.md")" = "$(sed 's/{type: round, text: Round}/{type: round, text: Round, single: true}/' "$ROOT/tests/fixtures/founded-discovery-index.md")" ] || { norm_index "$LD/D Discovery.lanework/index.md"; exit 1; }
+sed 's/{type: round, text: Round}/{type: round, text: Round, single: true}/' "$ROOT/tests/fixtures/founded-discovery-index.md" > "$LD/want-discovery.md"
+same_doc "$LD/D Discovery.lanework/index.md" "$LD/want-discovery.md" || { cat "$LD/D Discovery.lanework/index.md"; exit 1; }
 validate "$LD/D Discovery.lanework" >/dev/null
-ok "a founded discovery board takes round from the catalog: config byte-identical to the pre-catalog founding except round gains single: true, and it validates"
+ok "a founded discovery board takes round from the catalog: config the same as the pre-catalog founding except round gains single: true (compact layout aside), and it validates"
 # discovery keeps round whatever the caller passes; slot and var guards in found-board.sh
 for lb in priority priority,round,type round; do
   rm -rf "$LD/DL.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$LD/DL.lanework" --model smoke --labels "$lb" >/dev/null
@@ -963,6 +1066,17 @@ S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$ROOT/CLAUDE.md" || true; })
 SV=$({ grep -o -E 'lanework-schema v[0-9]+' "$ROOT/CLAUDE.md" || true; })
 [ "$(printf '%s\n' "$SV" | grep -c .)" -eq 1 ] || { echo "CLAUDE.md must carry exactly one schema stamp, found: ${SV:-none}"; exit 1; }
 ok "no skill names a guide version; one stamp ($S, $SV), in CLAUDE.md"
+
+# compact form: what the skill scripts write is no repair for the board's own heal (H17), on boards founded
+# with catalog kinds and filed by the plan and discovery scripts; the layout seed is the positive control
+h17() { python3 "$VAL/bin/lanework-heal.py" "$1" | grep ' H17 ' || true; }
+[ -n "$(h17 "$T/layout-seed")" ] || { echo "compact-form control: the board's heal found nothing on the layout seed"; exit 1; }
+for b in "$T/Acme Pipeline.lanework" "$T/PL2.lanework" "$T/Sync: v2 Plan.lanework" "$T/Sync: v2 Discovery.lanework" "$T/label-kinds/D Discovery.lanework"; do
+  hits=$(h17 "$b"); [ -z "$hits" ] || { echo "${b##*/}: not in the compact form:"; echo "$hits"; exit 1; }
+done
+hits=$(h17 "$T/label-kinds/All.lanework" | grep '^index.md:' || true); [ -z "$hits" ] || { echo "All.lanework: $hits"; exit 1; }
+[ -z "$(find "$SK" -name __pycache__)" ] || { echo "a script left __pycache__ in the skill tree"; exit 1; }
+ok "founded boards, tickets and records are written in the compact form: the board's heal finds no H17 (control: the layout seed), and no __pycache__ in skills/"
 
 # release gate: the Skills Pipeline board's guide and schema must not be newer than the stamp
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)

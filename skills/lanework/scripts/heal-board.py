@@ -32,6 +32,10 @@ Repairs (the board's agent guide, then the app's LabelHealing / lanework-migrate
   retired-key       `modified-by`: folded into `modified.by` when that has none; dropped when it
                     names the same; else dropped with the name kept in a record on the card
   title-quote       a `title` that is not double-quoted, or that carries a line break
+  compact-collection a list or mapping stored in another layout than the writer's compact form: one flow
+                    line while it fits 120 characters, else a block whose entries each stay on one line
+                    where theirs fits; a stamp always one line. Left alone: a key written twice, a comment
+                    line inside the value, a block scalar, an anchor, an alias or a tag
 
 Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, any key or entry not named
 above, and a foreign entry's stamps (a kind the definitions don't name, or a closed kind's
@@ -43,9 +47,10 @@ the card, signed as the running agent, quoting what was dropped; it posts before
 is rewritten. Listed as `skip`, never rewritten: a file that can't be read or parsed, a title
 carrying ` #` (YAML reads the rest as a comment: quote it by hand), a title that isn't a scalar.
 
-Known limitations: a rewritten `labels` list or `config` comes back with every string
-double-quoted and in the guide's flow-or-block length rule, untouched entries included; a
-whole-number float in it comes back as an integer (`2.0` as `2`), as the app's emitter does.
+Every rewritten list or mapping comes back in the compact form, and a comment on its key's line
+stays on it. Known limitations: every string in it comes back double-quoted, untouched entries
+included (a timestamp written plain in the app's own form stays plain); a whole-number float
+comes back as an integer (`2.0` as `2`), as the app's emitter does.
 """
 
 import os
@@ -71,6 +76,11 @@ EMBEDDED_SUGGESTED = [
 RESERVED_KINDS = ("priority", "component")
 LABEL_KEYS = ("text", "rank", "color", "icon", "kind")
 KIND_KEYS = ("type", "text", "color", "icon")
+STAMP_KEYS = ("created", "modified")
+# compact-collection leaves alone a value holding what this reader doesn't model: a block scalar, an
+# anchor, an alias or a tag, tested on each line with its quoted strings taken out.
+QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'')
+UNREAD = re.compile(r"(?:^|[\s\[{,])[|>&*!]")
 
 
 class ParseError(Exception):
@@ -321,6 +331,10 @@ def block(lines, i, ind):
 
 PLAIN_OK = re.compile(r"[A-Za-z][A-Za-z0-9._/-]*")
 TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|[+-][0-9:]+)?)?")
+# The instant as the app writes one: written plain in this form, it stays plain in a collection.
+APP_TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+# Words a stamp's value never writes plain (the app's `plainFlow`): YAML 1.1 reads them as a bool or null.
+YAML_WORDS = {"true", "false", "yes", "no", "on", "off", "null", "y", "n", "~"}
 
 
 def emit_str(s, plain_ok=False):
@@ -340,7 +354,12 @@ def emit_scalar(v, plain_ok=False):
         return str(v)
     if isinstance(v, float):
         return str(int(v)) if v.is_integer() else repr(v)
-    return emit_str(str(v), plain_ok)
+    s = str(v)
+    if plain_ok and (TIMESTAMP.fullmatch(s) or (PLAIN_OK.fullmatch(s) and s.lower() not in YAML_WORDS)):
+        return s
+    if isinstance(v, Plain) and APP_TIMESTAMP.fullmatch(s):
+        return s
+    return emit_str(s)
 
 
 def flow(v, plain_ok=False):
@@ -386,6 +405,73 @@ def emit_stamp(key, v):
     return (key + ":" + (" " * max(1, 10 - len(key) - 1))) + flow(v, plain_ok=True)
 
 
+def end_of_quoted(s, i):
+    """One past the closing quote of the quoted scalar opening at s[i], or None when it doesn't close."""
+    q, i = s[i], i + 1
+    while i < len(s):
+        if q == '"' and s[i] == "\\":
+            i += 2; continue
+        if s[i] == q:
+            if q == "'" and s[i + 1:i + 2] == "'":
+                i += 2; continue
+            return i + 1
+        i += 1
+    return None
+
+
+def comment_index(s, i):
+    """Where the comment on a one-line value starting at s[i] begins, or None (the app's `commentIndex`)."""
+    while i < len(s) and s[i] in " \t":
+        i += 1
+    if i >= len(s):
+        return None
+    if s[i] in "\"'":
+        i = end_of_quoted(s, i)
+        if i is None:
+            return None
+    elif s[i] in "[{":
+        while i < len(s):
+            if s[i] in "\"'":
+                i = end_of_quoted(s, i)
+                if i is None:
+                    return None
+            elif s[i] == "#" and s[i - 1] in " \t":
+                return i
+            else:
+                i += 1
+        return None
+    while i < len(s):
+        if s[i] == "#" and i > 0 and s[i - 1] in " \t":
+            return i
+        i += 1
+    return None
+
+
+def key_comment(lines):
+    """The comment on a key's line, with the blanks before it, kept through a rewrite: a one-line
+    value's trailing comment, or the comment after a block's bare `key:`."""
+    first = lines[0]
+    if first[:1] in "\"'":
+        try:
+            _, colon = (read_double if first[0] == '"' else read_single)(first, 0)
+        except ParseError:
+            return ""
+    else:
+        colon = first.find(":")
+    if colon < 0 or first[colon:colon + 1] != ":":
+        return ""
+    if len(lines) > 1:
+        rest = first[colon + 1:]
+        h = rest.find("#")
+        return rest if h > 0 and not rest[:h].strip(" \t") else ""
+    h = comment_index(first, colon + 1)
+    if h is None:
+        return ""
+    while h > 0 and first[h - 1] in " \t":
+        h -= 1
+    return first[h:]
+
+
 # ---------------------------------------------------------------- frontmatter document
 
 class Doc:
@@ -428,6 +514,9 @@ class Doc:
     def has(self, key):
         return any(k == key for k, _ in self.spans)
 
+    def count(self, key):
+        return sum(1 for k, _ in self.spans if k == key)
+
     def raw_lines(self, key):
         return next((ls for k, ls in self.spans if k == key), None)
 
@@ -439,9 +528,10 @@ class Doc:
         return v[key]
 
     def set(self, key, lines):
+        """The key's lines replaced; a comment on its line comes back on the first new one."""
         for span in self.spans:
             if span[0] == key:
-                span[1] = lines; return
+                span[1] = [lines[0] + key_comment(span[1])] + lines[1:]; return
         # new key: before the stamps, else at the end
         at = next((n for n, (k, _) in enumerate(self.spans) if k in ("created", "modified")), len(self.spans))
         self.spans.insert(at, [key, lines])
@@ -924,6 +1014,31 @@ class Heal:
                 doc.remove("labels")
         return changed, dropped_facts
 
+    def heal_layout(self, doc):
+        """compact-collection: a list or mapping whose stored lines (blank and comment lines not counted)
+        number differently from the writer's compact form is rewritten in it."""
+        changed = False
+        for key in dict.fromkeys(k for k, _ in doc.spans if k is not None):
+            ls = doc.raw_lines(key)
+            if doc.count(key) > 1 or any(l.lstrip().startswith("#") for l in ls[1:]):
+                continue                   # a key written twice, or a comment inside it: left alone
+            content = [l for l in ls if l.strip() and not l.lstrip().startswith("#")]
+            if any(UNREAD.search(QUOTED.sub("", l)) for l in content):
+                continue                   # a block scalar, anchor, alias or tag: left alone
+            try:
+                v = doc.get(key)
+            except ParseError:
+                continue
+            if not isinstance(v, (dict, list)) or not v:
+                continue
+            want = [emit_stamp(key, v)] if key in STAMP_KEYS else emit_key(key, v)
+            if len(want) == len(content):
+                continue
+            doc.set(key, want)
+            self.note(doc.path, "compact-collection", "%s written in the compact form, %d lines to %d" % (key, len(content), len(want)))
+            changed = True
+        return changed
+
     def heal_file(self, path, role, added=()):
         try:
             doc = Doc(path)
@@ -941,6 +1056,7 @@ class Heal:
                 c, more = self.heal_labels(doc, os.path.dirname(path))
                 changed = c or changed
                 facts += more
+            changed = self.heal_layout(doc) or changed
         except ParseError as e:
             del self.repairs[mark:]
             self.skips.append((self.rel(path), "frontmatter does not parse (%s): left as written" % e)); return

@@ -183,7 +183,7 @@ card "$A" "$IDEAS" "$Y1" "Y1 base" "$TA" "$BYA" "Y1 body TOKEN_A_Y1."
 comment "$A/$BN/$IDEAS/$K1" "$KC" "$TA" "$BYA" "K1 comment TOKEN_A_K1."
 printf 'A-bytes' > "$A/$BN/$IDEAS/$AT1/attachments/$AT/blob.png"
 card "$A" "$IDEAS" "$L1" "L1 base" "$TA" "$BYA" "L1 base body." \
-  "labels: [{text: \"x\", $TXT}, {text: \"y\", $TXT}, {text: \"High\", rank: 1, color: \"#E07A1F\", $PRI}]"
+  "labels: [{text: \"x\", $TXT}, {text: \"y\", rank: 2.0, $TXT}, {text: \"High\", rank: 1, color: \"#E07A1F\", $PRI}]"
 ORD=100 card "$A" "$IDEAS" "$S1" "S1 base" "$TA" "$BYA" "S1 base body." \
   "hero: $(uuid)"$'\n'"waiting: {for: alice, since: $TA, comment: $(uuid)}"
 mvcard "$A" "$IDEAS" "$M1" "$APPROVED"; restamp "$A" "$TA" "$BYA" "$M1"; sed -i '' 's/^order: 1024$/order: 3000/' "$(cardfile "$A" "$M1")"
@@ -259,8 +259,11 @@ grep -q 'TOKEN_B_Y1' "$D/$IDEAS/$Y1/index.md" || fail "body: later wins"
 grep -q 'TOKEN_B_K1' "$D/$IDEAS/$K1/comments/$KC/index.md" || fail "comment: later wins"
 L=$(sed -n '/^labels:/,/^created:/p' "$D/$IDEAS/$L1/index.md"); for x in '"x"' '"y"' '"z"' '"Low"'; do grep -qF "$x" <<<"$L" || fail "labels: $x missing: $L"; done
 if grep -q High <<<"$L"; then fail "priority: earlier value kept: $L"; fi
+grep -qF '{text: "y", rank: 2, kind:' <<<"$L" || fail "labels: a whole-number float not written as the heal writes it (2, not 2.0): $L"
 grep -q '^order: 200$' "$D/$IDEAS/$S1/index.md" && grep -q 'for: bob' "$D/$IDEAS/$S1/index.md" || fail "state: later wins"
 for v in Open Doing Closed; do grep -q "text: \"$v\"" "$D/index.md" || fail "config.labels values: $v"; done
+# merged labels and config come back in the compact form: the board's own heal finds no layout repair (H17)
+H17=$(python3 "$D/.schema/bin/lanework-heal.py" "$D" | grep ' H17 ' || true); [ -z "$H17" ] || fail "merged keys not in the compact form: $H17"
 head -1 "$D/CLAUDE.md" | grep -q 'v901' || fail "guide: higher version wins"
 [ "$(sed -n 2p "$D/.log/2026-01-01.log" | cut -c1-10)$(sed -n 4p "$D/.log/2026-01-01.log" | cut -c1-10)" = 2026-01-012026-01-03 ] || fail ".log: union sorted"
 OURS=A; [ "$MODE" = rebase ] && OURS=B
