@@ -272,32 +272,37 @@ def dkey(k):
     return k if re.match(r'^[A-Za-z_][A-Za-z0-9_-]*$', str(k)) else json.dumps(str(k), ensure_ascii=False)
 
 
-def dump_block(v, ind):
-    sp, out = ' ' * ind, []
+def key_lines(key, v, ind=0):
+    """`key: value` in the writer's compact form (guide § Frontmatter): one flow line while it fits 120
+    characters, else `key:` over a block whose entries each stay on one line where theirs fits, the same
+    rule again one level down. Anything else, the board's heal rewrites (H17)."""
+    pad = ' ' * ind
+    one = '%s%s: %s' % (pad, dkey(key), dump(v))
+    if not isinstance(v, (dict, list)) or not v or len(one) <= 120:
+        return [one]
+    out = ['%s%s:' % (pad, dkey(key))]
     if isinstance(v, dict):
         for k, x in v.items():
-            if isinstance(x, (dict, list)) and x:
-                out.append('%s%s:' % (sp, dkey(k)))
-                out += dump_block(x, ind + 2)
-            else:
-                out.append('%s%s: %s' % (sp, dkey(k), dump(x)))
+            out += key_lines(k, x, ind + 2)
     else:
         for x in v:
-            if isinstance(x, dict) and x:
-                sub = dump_block(x, ind + 2)
-                sub[0] = sp + '- ' + sub[0][ind + 2:]
-                out += sub
-            else:
-                out.append('%s- %s' % (sp, dump(x)))
+            out += item_lines(x, ind + 2)
     return out
 
 
-def key_lines(key, v, block_style=False):
-    one = '%s: %s' % (key, dump(v))
-    if isinstance(v, (dict, list)) and v and (block_style or len(one) > 120):
-        if block_style:
-            return ['%s:' % key] + dump_block(v, 2)
-        return ['%s:' % key] + ['  - ' + dump(x) for x in v] if isinstance(v, list) else ['%s:' % key] + dump_block(v, 2)
+def item_lines(x, ind):
+    pad = ' ' * ind
+    one = pad + '- ' + dump(x)
+    if isinstance(x, dict) and x and len(one) > 120:
+        lines = []
+        for n, (k, y) in enumerate(x.items()):
+            sub = key_lines(k, y, ind + 2)
+            if n == 0:
+                sub[0] = pad + '- ' + sub[0][ind + 2:]
+            lines += sub
+        return lines
+    if isinstance(x, list) and x and len(one) > 120:
+        return [pad + '-'] + [l for y in x for l in item_lines(y, ind + 2)]
     return [one]
 
 
@@ -486,7 +491,7 @@ def merge_doc(base, ours, theirs, kind, singles):
         elif k == 'config' and kind == 'board' and lo and lt:
             try:
                 v = merge_config(parse_value(lb) if lb else {}, parse_value(lo), parse_value(lt), win)
-                pick = key_lines('config', v, block_style=True) if v else None
+                pick = key_lines('config', v) if v else None
             except (ValueError, IndexError):
                 pick = lt if win == 'theirs' else lo
         else:

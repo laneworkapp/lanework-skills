@@ -79,6 +79,7 @@ frontmatter_of "$TEMPLATES/ticket-card.md" > "$STAGE/fm.md"
 render "$STAGE/fm.md" n "$NEXTT" title "$(title_str "$TITLE")" order "$(next_order "$DEST")" \
   type "$LABEL" rank "$RANK" glyph "$GLYPH" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-ticket.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
+compact_fm "$STAGE/fm.out"
 {
   cat "$STAGE/fm.out"
   cat "$BODY_FILE"

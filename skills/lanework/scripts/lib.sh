@@ -94,6 +94,20 @@ render() {
 # frontmatter_of <file>: the frontmatter block, both --- lines included.
 frontmatter_of() { awk 'NR==1 && $0=="---" {print; fm=1; next} fm {print} fm && $0=="---" {exit}' "$1"; }
 
+# compact_fm <file>: rewrite a staged file's frontmatter collections in the writer's compact form (guide § Frontmatter):
+# one flow line while it fits 120 characters, else a block whose entries stay on one line where theirs fit.
+# heal-board.py's compact-collection pass, so a script's write is never a heal's next repair. Lines already compact stay.
+compact_fm() {
+  python3 -B - "$LIB_DIR/heal-board.py" "$1" <<'EOF'   # -B: no __pycache__ in the skill tree
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("heal_board", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
+path = sys.argv[2]; doc = hb.Doc(path)
+if hb.Heal(".", {}).heal_layout(doc):
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(doc.text())
+EOF
+}
+
 # comment_file <path> <created-at> <by> [in-reply-to] < body: write a comment index.md.
 comment_file() {
   {

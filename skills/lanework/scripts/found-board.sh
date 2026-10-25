@@ -5,6 +5,7 @@
 # Index template gets {{title}}, {{title_yaml}}, {{id}}, {{stamp}} plus each --var.
 # Slots: {{labels}} = ", labels: [rows]" (empty without --labels); {{label_entries}} = "row, row, " for a template that has labels of its own.
 # --labels: catalog kinds (templates/label-kinds.md) spliced into config.labels; unknown or empty kind -> exit 2, nothing written.
+#   The board's index.md is written in the compact form (lib.sh compact_fm): config opens into a block once it passes 120 characters.
 #   Repeated --labels accumulate (a kind repeated across flags is written once); a kind twice in one list -> exit 2.
 # Lanes table rows: | order | title | collapsed (yes) | icon (YAML flow mapping, or empty) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
@@ -68,6 +69,7 @@ mkdir -p "$BOARD"
 
 render "$INDEX" title "$(flat_str "$TITLE")" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
   stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" label_entries "$LABEL_ENTRIES" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
+compact_fm "$STAGE/index.md"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
 awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 6; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 "\037" $6 }' "$LANES" |
