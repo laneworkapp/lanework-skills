@@ -27,7 +27,7 @@ Then post the round in chat, each title linking its card:
 ## Answers
 
 - **Chat** → record comment quoting the owner verbatim, in reply to the ask (`templates/ruling.md`).
-- **Card** → app clears `waiting`. Re-read the whole thread.
+- **Card** → app clears `waiting`. Re-read the whole thread. A `Recap:` click is not an answer: `conduct.md`.
 
 A ruling that clears the bar: file its record first (`records.md` § Format). Then: ruling → body `## Ruling` (`templates/ruling.md`), card → bottom of Settled (`scripts/settle-question.sh`). Deferred or declined → Parked, reason = ruling.
 
