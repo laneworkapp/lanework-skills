@@ -181,7 +181,8 @@ appside)
   # Side B is real app writes (unstamped `modified`, keys in the app's order, a quoted human `created`), copied from this
   # board's git history; the base holds each item as it was just before the app wrote it, so git and the driver see the
   # same diffs the app made. Side A is a scripted edit to each of the same items.
-  FX="$ROOT/tests/fixtures/app-writes"; AE=2026-01-02T00:00:00Z; AL=2026-11-01T00:00:00Z
+  # AE sits after the retitled card's created (01:09:29Z) and before the app's unstamped modified (01:46:22Z), so only that modified decides the title
+  FX="$ROOT/tests/fixtures/app-writes"; AE=2026-10-10T01:30:00Z; AL=2026-11-01T00:00:00Z
   RECAP=5f372bd4-d140-46fa-9566-6ce1d628a728; DISC=4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03; CMT=2a3f847f-a281-42f9-9a52-146f2339e784
   SHAPING=$(lane "$O" Shaping); PROPOSED=$(lane "$O" Proposed); ISSUES=$(lane "$O" Issues)
   put() { mkdir -p "$(dirname "$2")"; cp "$FX/$1" "$2"; }
@@ -207,7 +208,7 @@ appside)
   G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1 || true
   pass "appside"
   [ -z "$(G "$M" diff --name-only --diff-filter=U)" ] || fail "appside: unmerged paths left"
-  if [ -f "$M/.git/MERGE_HEAD" ]; then G "$M" commit -q --no-edit; else G "$M" add -A -- "$BN"; G "$M" commit -qm "Re-home" ; fi
+  [ -f "$M/.git/MERGE_HEAD" ] || fail "appside: the merge should have stopped for the pass"; G "$M" commit -q --no-edit
   clean_status "appside"
   if grep -rIl '<<<<<<<\|>>>>>>>' "$D" >/dev/null; then fail "appside: a conflict marker survived"; fi
   validate_board "$M" "appside merged"

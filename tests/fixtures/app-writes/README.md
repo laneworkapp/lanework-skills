@@ -6,12 +6,12 @@ Paths below are under `Lanework/Skills Pipeline.lanework/`. `git show <sha>:"<pa
 
 | file | what the app did | before | after |
 |---|---|---|---|
-| `lane-rewrite.*.md` | rewrote the Shaping lane file with no `by`, adding `width: 2` | `3fcec39` | `6bbfd6e`, `64531dfc-77d6-4c1d-b07f-214c4d0d7658/index.md` |
+| `lane-rewrite.*.md` | rewrote the Shaping lane file with no `by`, adding `width: 2` | `3fcec39`, `64531dfc-77d6-4c1d-b07f-214c4d0d7658/index.md` | `6bbfd6e`, `64531dfc-77d6-4c1d-b07f-214c4d0d7658/index.md` |
 | `card-move.*.md` | moved the Recap card from Proposed to Approved: new `order`, unstamped `modified` | `4e94081`, `301eb20d-…/5f372bd4-d140-46fa-9566-6ce1d628a728/index.md` | `f0bb998`, `f2d53041-…/5f372bd4-d140-46fa-9566-6ce1d628a728/index.md` |
 | `card-title-edit.*.md` | retitled a card and moved it from Issues to Approved. The same commit also carries an agent's rewrite of its body, so the app's bytes and the body are one file | `ffea864`, `11a646f0-…/4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03/index.md` | `704f284`, `f2d53041-…/4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03/index.md` |
 | `comment-posted.md` | posted a comment: quoted `{name: "Rouslan Z", kind: "human"}` stamp, unstamped `modified` | none (new file) | `df595e2`, `301eb20d-…/8af64fdb-f1d4-42d9-89d9-5d63bf24a89b/comments/2a3f847f-a281-42f9-9a52-146f2339e784/index.md` |
 
-Each `before` file is the version at the parent of the commit shown in its column, so `before` and `after` are one app write apart.
+The `before` column is the parent of the `after` commit; each `before` file is its content at that commit, so `before` and `after` are one app write apart.
 
 Not here: the app clearing `waiting`. Every `waiting` removal in the history was an agent's write.
 
