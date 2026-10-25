@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 This session stays up, watches one or more boards, and acts on what the owner writes or moves, and on cards waiting in agent lanes, until told to stop. Runs only as `/watch <board> [<board>...]`: names or paths, none → `references/arming.md` § Boards.
 
+For a session that runs for hours, `dispatch` is the flat-context mode: the same watch, with each event handed to a fresh subagent (`dispatch/SKILL.md`).
+
 Builds on the `work` skill (working a board) and the `lanework` skill (reading and writing one). `watch` adds only the watch loop and the response policy.
 
 | step | file |
