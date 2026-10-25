@@ -832,6 +832,16 @@ ok "found-board.sh --labels naming all eight kinds founds a board whose config.l
 validate "$LD/Two.lanework" >/dev/null
 [ "$(python3 -c 'import sys,yaml; print(",".join(e["type"] for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]))' "$LD/Two.lanework/index.md")" = size,priority ] || exit 1
 ok "found-board.sh --labels takes any subset, in the order given, on the plain index template too"
+"$FB" "$LD/Type.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --labels type --model smoke >/dev/null
+validate "$LD/Type.lanework" >/dev/null
+python3 - "$LD/Type.lanework/index.md" <<'PY' || { echo "the type kind does not carry icon: {glyph: cube}"; exit 1; }
+import sys, yaml
+by = {e["type"]: e for e in yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["config"]["labels"]}
+t = by["type"]
+assert t["icon"] == {"glyph": "cube"}, t.get("icon")
+assert {v["text"]: v["icon"]["glyph"] for v in t["values"]} == {"Bug": "ladybug", "Feature": "sparkles", "Chore": "wrench", "Docs": "doc.text", "Spike": "magnifyingglass"}
+PY
+ok "found-board.sh --labels type stamps icon: {glyph: cube} on the type kind, leaves its five values' glyphs alone, and the board validates"
 for bad in "type,nonsense" "nonsense" "type,,size" ""; do
   rm -rf "$LD/Bad.lanework"; rc=0
   "$FB" "$LD/Bad.lanework" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --labels "$bad" --model smoke >/dev/null 2>"$LD/err" || rc=$?
@@ -849,7 +859,7 @@ order: 1024
 labels:
   - {text: Urgent, rank: 0, color: "#C8283C", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}
   - {text: core, color: aluminum, kind: {type: component, text: Component, color: aluminum, icon: {glyph: puzzlepiece}}}
-  - {text: Bug, rank: 1, icon: {glyph: ladybug}, kind: {type: type, text: Type, icon: {glyph: square.grid.2x2}}}
+  - {text: Bug, rank: 1, icon: {glyph: ladybug}, kind: {type: type, text: Type, icon: {glyph: cube}}}
   - {text: M, rank: 2, kind: {type: size, text: Size, icon: {glyph: ruler}}}
   - {text: '1', kind: {type: round, text: Round}}
   - {text: macOS, kind: {type: platform, text: Platform, icon: {glyph: laptopcomputer.and.iphone}}}
