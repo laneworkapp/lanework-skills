@@ -62,7 +62,7 @@ build_ask() {
   if [[ "$rec" =~ ^([A-Z])[.,] ]]; then def="${BASH_REMATCH[1]} stands when the round closes."
   else def="the recommendation stands when the round closes."; fi
   printf '@%s %s\n\n' "$HANDLE" "$para"
-  [ -n "$opts" ] && printf 'Options:\n%s\n\n' "$opts"
+  [ -n "$opts" ] && printf 'Options:\n%s\n- Recap: Explain this in plain terms first\n\n' "$opts"
   printf 'Recommended: %s\nIf no answer: %s\nContext: body.\n' "$rec" "$def"
 }
 
