@@ -5,8 +5,8 @@ title: "Dispatch arming: answer waiting owner comments in every lane, flag stale
 order: 1024
 labels: [{text: dispatch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T16:00:59Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-modified: {at: 2026-10-25T16:21:19Z, by: {name: shaper, kind: agent, model: sonnet, session: "board dispatch"}}
-waiting: {for: rzen, since: 2026-10-25T16:21:19Z, comment: 3bb86d7d-6249-4a16-9dce-491ae72f1c7b}
+modified: {at: 2026-10-25T16:23:08Z, by: {name: handler, kind: agent, model: sonnet, session: "board dispatch"}}
+waiting: {for: rzen, since: 2026-10-25T16:23:08Z, comment: e2aa2e62-ab6a-4009-b289-cbcf5ae99257}
 ---
 At arming, `/dispatch` sweeps only the agent lanes, and an `arm` event only checks for a work order. Owner comments left unanswered while no watch ran are never picked up.
 
@@ -24,7 +24,7 @@ At arming, `/dispatch` sweeps only the agent lanes, and an `arm` event only chec
 
 ## Proposal
 
-- **New script** `skills/dispatch/scripts/arm-pass.sh <board>`: one tab line per card to route, classed from the files (`in-reply-to` on comments, `created.by`, START comments), never by a model. `comment` for a card whose newest owner comment has no agent reply `in-reply-to` it, in any lane. `arm` for an unclaimed card in an `agent` lane (Approved: its top card only). A card with both gets the `comment` line only. Lane scope stays the handler's call: it reports `out-of-scope` and the router excludes the lane.
+- **New script** `skills/dispatch/scripts/arm-pass.sh <board>`: one tab line per card to route, classed from the files (`in-reply-to` on comments, `created.by`, START comments), never by a model. `comment` for a card whose newest owner comment has no agent reply `in-reply-to` it, in any lane except Done. `arm` for an unclaimed card in an `agent` lane (Approved: its top card only). A card with both gets the `comment` line only. Lane scope stays the handler's call: it reports `out-of-scope` and the router excludes the lane.
 - **Stale claims**: the same script prints a `stale` line for each claim it finds (a START comment with no later closing comment) that fits the rule in the open call below. The router adds the lines to its arming report and never routes them.
 - **`routing.md` § Arm step 3** swaps the `read-board.sh` loop for the script's lines and says what the report carries. **`handler.md` § Act** `arm` row: an `arm` on a card with an unanswered owner comment answers it first.
 
@@ -52,7 +52,7 @@ Build the script as above, skip the sweep in Done, and flag stale claims by age.
 ## Open calls
 
 - **Stale-claim rule**: when is a claim stale? See the ask on the thread. Recommended: A.
-- **Sweep scope**: does every lane include Done? See the ask on the thread. Recommended: A.
+- ~~**Sweep scope**: does every lane include Done? See the ask on the thread. Recommended: A.~~ **ruled 2026-10-25: every lane except Done.**
 
 ## Out of scope
 
