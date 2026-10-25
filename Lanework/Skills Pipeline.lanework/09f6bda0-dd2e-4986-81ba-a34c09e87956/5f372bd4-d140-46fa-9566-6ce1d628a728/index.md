@@ -4,7 +4,7 @@ title: "Standing Recap option on every ask"
 order: 4096
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}]
 created: {at: 2026-10-25T01:14:26Z}
-modified: {at: 2026-10-25T10:45:41Z, by: {name: handler, kind: agent, model: opus, session: "board dispatch"}}
+modified: {at: 2026-10-25T10:58:20Z, by: {name: handler, kind: agent, model: opus, session: "board dispatch"}}
 kind: card
 ---
 Every ask that offers options carries one standing last option, `Recap`, that the owner can click to get a plain-language recap of the question before answering.
@@ -32,6 +32,7 @@ The owner often finds an ask confusing and types "please explain in simple terms
 | `skills/work/scripts/lint-ask.sh` | require the line; exclude it from the word count |
 | `skills/watch/references/responding.md` | the Ruling bullet: a `Recap:` click is not a ruling, see `work/references/writing.md` |
 | `skills/discovery/scripts/file-question.sh` | append the line to the options of the asks it builds |
+| `skills/discovery/references/conduct.md`, `discovery/SKILL.md`, `discovery/references/rounds.md` | a `Recap:` click is not an answer, and the re-posted ask is the one live ask: rule in `conduct.md`, pointers in the other two |
 | `tests/smoke.sh`, `README.md` | new cases; word counts refreshed by `check-sizes.sh` |
 
 ## Verified by
