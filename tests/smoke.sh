@@ -768,6 +768,7 @@ for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/n
 "$ROOT/tests/merge-case.sh" "$T" clean >/dev/null; ok "merge case: git finishes a lossless merge alone, stops on a loss, and a comment left by a move is re-homed"
 "$ROOT/tests/merge-case.sh" "$T" rebasemove >/dev/null; ok "merge case: a rebase with a later move leaves no orphaned folder"
 "$ROOT/tests/merge-case.sh" "$T" dirty >/dev/null; ok "merge case: uncommitted edits in a conflicted card are carried as ours, never erased"
+"$ROOT/tests/merge-case.sh" "$T" appside >/dev/null; ok "merge case: bytes the app wrote (tests/fixtures/app-writes) collide with scripted edits and resolve with no prompt"
 
 # lane actors: every lane body names its actor and trigger; the lane -> actor table lives once; heal-descriptors brings old boards to currency
 lane_file() { grep -l "^title: \"$2\"\$" "$1"/*/index.md | head -1; }
