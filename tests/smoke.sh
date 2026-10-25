@@ -595,11 +595,12 @@ if "$SK/work/scripts/lint-ask.sh" "$T/bad.md" >/dev/null; then exit 1; fi; ok "l
 RECAP='- Recap: Explain this in plain terms first'
 printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n\nIf no answer: blocked.\nContext: body.\n' > "$T/opt-bare.md"
 printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP" > "$T/opt-recap.md"
-{ printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP"; } > "$T/opt-full.md"
-W=$(awk 'NR==1&&$0=="---"{f=1;next} f&&$0=="---"{f=0;next} !f' "$T/opt-full.md" | grep -v -x -F -e "$RECAP" | wc -w | tr -d ' ')
+W=$(grep -v -x -F -e "$RECAP" "$T/opt-recap.md" | wc -w | tr -d ' ')
 pad=$(for _ in $(seq 1 $((79 - W))); do printf 'word '; done)
 printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body. %s\n' "$RECAP" "$pad" > "$T/opt-79.md"
+printf '@owner Which engine?\n\nOptions:\n- A: app\n%s\n- B: service\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP" > "$T/opt-mid.md"
 if "$SK/work/scripts/lint-ask.sh" "$T/opt-bare.md" >/dev/null; then echo "lint-ask passed options without the Recap line"; exit 1; fi
+if "$SK/work/scripts/lint-ask.sh" "$T/opt-mid.md" >/dev/null; then echo "lint-ask passed a Recap line that is not last"; exit 1; fi
 "$SK/work/scripts/lint-ask.sh" "$T/opt-recap.md"; ok "lint-ask fails an ask with options but no Recap line, passes one with it"
 "$SK/work/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes an ask with no options and no Recap line"
 [ "$(grep -v -x -F -e "$RECAP" "$T/opt-79.md" | wc -w | tr -d ' ')" -eq 79 ] && [ "$(wc -w < "$T/opt-79.md" | tr -d ' ')" -gt 80 ] || { echo "fixture is not 79 own words plus the line"; exit 1; }
