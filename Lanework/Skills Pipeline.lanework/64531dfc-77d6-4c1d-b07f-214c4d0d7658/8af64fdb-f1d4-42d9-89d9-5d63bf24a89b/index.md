@@ -5,7 +5,7 @@ title: "merge: a skill that resolves git merge conflicts on a board without a hu
 order: 1024
 labels: [{text: merge, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-06T22:44:23Z, by: {name: claude, kind: agent, model: claude-fable-5-1, session: "Skill names"}}
-waiting: {for: rzen, since: 2026-10-25T01:12:27Z, comment: 49f716b6-9568-4973-9f67-97af7e38ca96}
+waiting: {for: rzen, since: 2026-10-25T01:14:06Z, comment: 49f716b6-9568-4973-9f67-97af7e38ca96}
 modified: {at: 2026-10-25T01:12:27Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Two people editing one board through git collide often: both restamp `modified`, both move the same card, both touch a body. Nearly every such conflict has a mechanical answer, so a new skill, `merge`, resolves them and lets the merge, pull or rebase finish. Its standing rule: when in doubt, keep both edits and move on. ~~It never stops for a human.~~ **ruled 2026-10-06: the driver stops the git merge whenever it would otherwise lose text, and `merge-board.sh` places it. Merges that lose nothing still finish on their own.**
