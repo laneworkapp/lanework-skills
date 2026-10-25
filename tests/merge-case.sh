@@ -6,10 +6,12 @@
 #   merge|rebase|nodriver: every row at once (nodriver: the pass alone, after git's markers)
 #   clean: git finishing by itself, then a loss it must stop for; rebasemove: a later move in a rebase;
 #   dirty: an uncommitted local edit in a conflicted card, carried as ours
+#   appside: side B is bytes the Lanework app wrote (tests/fixtures/app-writes/), side A is scripted edits to the same items
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Lanework/Skills Pipeline.lanework"
-T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove or dirty}"
+T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove, dirty or appside}"
+case "$MODE" in merge|rebase|nodriver|clean|rebasemove|dirty|appside) ;; *) echo "merge-case: unknown mode '$MODE'" >&2; exit 2 ;; esac
 . "$SK/lanework/scripts/lib.sh"
 MRG="$SK/merge/scripts/lanework-merge.py"
 fail() { echo "merge-case ($MODE): $*" >&2; exit 1; }
@@ -175,6 +177,56 @@ dirty)
   pass "dirty 2"; grep -q 'Uncommitted edits carried' <<<"$OUT" || { echo "$OUT"; fail "dirty 2: not reported"; }
   G "$M" commit -q --no-edit; clean_status "dirty 2"; inhead DIRTY_AGAIN_TOKEN TOKEN_A2_K1 TOKEN_B2_K1
   inhead TOKEN_A_K1; validate_board "$M" "dirty"; echo "$OUT"; exit 0 ;;
+appside)
+  # Side B is real app writes (unstamped `modified`, keys in the app's order, a quoted human `created`), copied from this
+  # board's git history; the base holds each item as it was just before the app wrote it, so git and the driver see the
+  # same diffs the app made. Side A is a scripted edit to each of the same items.
+  # AE sits after the retitled card's created (01:09:29Z) and before the app's unstamped modified (01:46:22Z), so only that modified decides the title
+  FX="$ROOT/tests/fixtures/app-writes"; AE=2026-10-10T01:30:00Z; AL=2026-11-01T00:00:00Z
+  RECAP=5f372bd4-d140-46fa-9566-6ce1d628a728; DISC=4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03; CMT=2a3f847f-a281-42f9-9a52-146f2339e784
+  SHAPING=$(lane "$O" Shaping); PROPOSED=$(lane "$O" Proposed); ISSUES=$(lane "$O" Issues)
+  put() { mkdir -p "$(dirname "$2")"; cp "$FX/$1" "$2"; }
+  put lane-rewrite.before.md "$O/$BN/$SHAPING/index.md"
+  put card-move.before.md "$O/$BN/$PROPOSED/$RECAP/index.md"
+  put card-title-edit.before.md "$O/$BN/$ISSUES/$DISC/index.md"
+  cm "$O" appbase; validate_board "$O" "appside base"; G "$A" pull -q; G "$B" pull -q
+  # side B: what the app wrote
+  put lane-rewrite.after.md "$B/$BN/$SHAPING/index.md"
+  G "$B" mv "$BN/$PROPOSED/$RECAP" "$BN/$APPROVED/$RECAP"; put card-move.after.md "$B/$BN/$APPROVED/$RECAP/index.md"
+  G "$B" mv "$BN/$ISSUES/$DISC" "$BN/$APPROVED/$DISC"; put card-title-edit.after.md "$B/$BN/$APPROVED/$DISC/index.md"
+  put comment-posted.md "$B/$BN/$IDEAS/$S1/comments/$CMT/index.md"
+  cm "$B" "app writes"
+  # side A: scripted edits to the same items
+  BASEL=$(awk 'f{print} /^---$/{n++; if(n==2) f=1}' "$A/$BN/$SHAPING/index.md")
+  lanebody "$A" "$SHAPING" "$AL" "$BYA" "$BASEL\n\nLANE_A_TOKEN."
+  printf '\nBODY_A_RECAP.\n' >> "$(cardfile "$A" "$RECAP")"; restamp "$A" "$AL" "$BYA" "$RECAP"
+  sed -i '' 's/^title: .*/title: "TITLE_A_DISC"/' "$(cardfile "$A" "$DISC")"; restamp "$A" "$AE" "$BYA" "$DISC"
+  mvcard "$A" "$IDEAS" "$S1" "$DONE"; restamp "$A" "$AL" "$BYA" "$S1"
+  cm "$A" "scripted edits"
+  validate_board "$A" "side A"; validate_board "$B" "side B"
+  mclone
+  G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1 || true
+  pass "appside"
+  [ -z "$(G "$M" diff --name-only --diff-filter=U)" ] || fail "appside: unmerged paths left"
+  [ -f "$M/.git/MERGE_HEAD" ] || fail "appside: the merge should have stopped for the pass"; G "$M" commit -q --no-edit
+  clean_status "appside"
+  if grep -rIl '<<<<<<<\|>>>>>>>' "$D" >/dev/null; then fail "appside: a conflict marker survived"; fi
+  validate_board "$M" "appside merged"
+  one() { [ -f "$D/$1/$2/index.md" ] && [ "$(find "$D" -type d -name "$2" -not -path '*/.trash/*' | wc -l | tr -d ' ')" = 1 ] || fail "appside: $3 is not in one place, $1 ($(cd "$D" && ls -d */"$2" 2>/dev/null))"; }
+  # the lane the app rewrote: its width and A's body line both survive
+  grep -q '^width: 2$' "$D/$SHAPING/index.md" && grep -q LANE_A_TOKEN "$D/$SHAPING/index.md" && grep -q '^The agent work lane\.' "$D/$SHAPING/index.md" || fail "appside lane: B's width and A's body must both survive"
+  # the card the app moved while A edited its body: at the new path, A's body, B's order
+  one "$APPROVED" "$RECAP" "moved by the app, edited by A"
+  grep -q BODY_A_RECAP "$D/$APPROVED/$RECAP/index.md" && grep -q '^order: 4096$' "$D/$APPROVED/$RECAP/index.md" || fail "appside move: A's body and B's order must both survive"
+  # the card the app retitled while A retitled it earlier: B's title kept, A's in the merge comment
+  one "$APPROVED" "$DISC" "retitled by the app"
+  grep -q '^title: "Discovery and founding scripts: escape titles, and stamp a real model"$' "$D/$APPROVED/$DISC/index.md" || fail "appside title: the later (app) title must win"
+  grep -rqF 'TITLE_A_DISC' "$D/$APPROVED/$DISC" || fail "appside title: A's title was lost"
+  grep -rqF 'Title: kept "Discovery and founding scripts: escape titles, and stamp a real model"' "$D/$APPROVED/$DISC/comments" || fail "appside title: the merge comment doesn't name the kept title"
+  # the comment the app posted on a card A moved: re-homed byte for byte
+  one "$DONE" "$S1" "moved by A"; [ ! -e "$D/$IDEAS/$S1" ] || fail "appside comment: an orphan folder is left in Ideas"
+  cmp -s "$FX/comment-posted.md" "$D/$DONE/$S1/comments/$CMT/index.md" || fail "appside comment: the app's comment is not in the moved card, byte for byte"
+  echo "$OUT"; exit 0 ;;
 esac
 
 # ---- side A (earlier, except TR2)
