@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Smoke is red: the board's guide moved to v101, the skills are stamped v93"
-order: 2048
+order: 49152
 labels: [{text: repo, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T10:44:08Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-modified: {at: 2026-10-25T11:07:45Z, by: {name: fixer, kind: agent, model: opus}}
+modified: {at: 2026-10-25T11:33:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 The Lanework app rewrote this board's guide to `lanework-agent-guide v101`, eight versions past the skills' `v93` stamp. Smoke's stamp gate now fails on main, and that blocks the 0.7.0 release.
 
