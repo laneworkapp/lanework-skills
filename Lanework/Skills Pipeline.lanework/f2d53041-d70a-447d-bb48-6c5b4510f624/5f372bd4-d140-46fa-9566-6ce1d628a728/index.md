@@ -1,10 +1,10 @@
 ---
 schema: 1
 title: "Standing Recap option on every ask"
-order: 1024
+order: 4096
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}]
 created: {at: 2026-10-25T01:14:26Z}
-modified: {at: 2026-10-25T01:23:49Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+modified: {at: 2026-10-25T01:24:01Z}
 kind: card
 ---
 Every ask that offers options carries one standing last option, `Recap`, that the owner can click to get a plain-language recap of the question before answering.
