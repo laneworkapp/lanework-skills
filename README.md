@@ -31,10 +31,10 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
 | `lanework` | 10 | 356 | 4,150 |
-| `work` | 16 | 397 | 6,289 |
-| `watch` | 4 | 186 | 1,340 |
+| `work` | 16 | 397 | 6,449 |
+| `watch` | 4 | 186 | 1,359 |
 | `dispatch` | 5 | 210 | 1,660 |
-| `discovery` | 14 | 492 | 2,833 |
+| `discovery` | 14 | 500 | 2,876 |
 | `plan` | 9 | 453 | 2,675 |
 | `merge` | 2 | 362 | 1,577 |
 | `heal` | 2 | 311 | 897 |
@@ -71,13 +71,13 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
-| `references/writing.md` | 1,028 |
-| `templates/ask.md` | 244 |
+| `references/writing.md` | 1,154 |
+| `templates/ask.md` | 278 |
 | `templates/farmed-prompt.md` | 154 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,289** |
+| **total** | **6,449** |
 
 #### `watch`
 
@@ -86,8 +86,8 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 | `SKILL.md` | 186 |
 | `references/arming.md` | 400 |
 | `references/events.md` | 400 |
-| `references/responding.md` | 354 |
-| **total** | **1,340** |
+| `references/responding.md` | 373 |
+| **total** | **1,359** |
 
 #### `dispatch`
 
@@ -104,12 +104,12 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 
 | file | words |
 |---|---|
-| `SKILL.md` | 492 |
+| `SKILL.md` | 500 |
 | `references/board.md` | 347 |
-| `references/conduct.md` | 126 |
+| `references/conduct.md` | 153 |
 | `references/corners.md` | 171 |
 | `references/records.md` | 544 |
-| `references/rounds.md` | 311 |
+| `references/rounds.md` | 319 |
 | `templates/fact-card.md` | 48 |
 | `templates/glossary.md` | 46 |
 | `templates/lanes.md` | 368 |
@@ -118,7 +118,7 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 66 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,833** |
+| **total** | **2,876** |
 
 #### `plan`
 
