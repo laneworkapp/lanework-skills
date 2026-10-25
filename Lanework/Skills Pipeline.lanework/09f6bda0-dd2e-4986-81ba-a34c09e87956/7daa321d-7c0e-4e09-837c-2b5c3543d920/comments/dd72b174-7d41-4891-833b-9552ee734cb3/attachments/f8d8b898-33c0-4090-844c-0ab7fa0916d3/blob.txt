@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+AssertionError: {'glyph': 'square.grid.2x2'}
+the type kind does not carry icon: {glyph: cube}
+rc=1

@@ -1,0 +1,120 @@
+ok 1 - syntax check on every script, by its shebang
+ok 2 - no skill folder or plugin.json entry is named pitlane or pitwall
+ok 3 - legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop
+ok 4 - pipeline founded, 8 lanes read
+ok 5 - pipeline vars rendered
+ok 6 - pipeline lanes carry their template icons (Issues tinted, Ideas plain, all 8 set)
+ok 7 - pipeline board validates
+ok 8 - empty collapsed cell keeps the lane body in place
+ok 9 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 10 - collapsed: yes lane starts collapsed with its body; design-loop lanes carry icons, datapoint lanes none
+ok 11 - validator control: a bare-colon title fails
+ok 12 - refuses a non-empty board folder
+ok 13 - heal dry run lists every kind of damage and writes nothing
+ok 14 - heal --apply repairs each one and the board validates with no DEPRECATED line
+ok 15 - heal leaves a clean card, a foreign entry, an unknown key, a ` #` title and every stamp as written
+ok 16 - a second heal --apply changes nothing
+ok 17 - heal-board no longer takes --global: exit 64, the damaged board untouched
+ok 18 - an indented --- inside a block scalar does not end the frontmatter; the labels below it heal
+ok 19 - a board with its own .schema/ heals the same, against its own validator
+ok 20 - heal defers to the board's own .schema/bin/lanework-heal.py
+ok 21 - discovery founded; colon title quoted; topic rendered; lanes carry icons
+ok 22 - Q1, Q2 filed, numbered, asks lint clean
+ok 23 - settled with chat record in reply to the ask; parked
+ok 24 - discovery board validates
+ok 25 - Decisions lane founded at 4608, between Settled and Parked
+ok 26 - board config declares the round, record and status label kinds
+ok 27 - file-record.sh filed one ADR and one PDR card in Decisions: title escaped, labels flattened, line 1 links the question, body lands, bottom order
+ok 28 - record filed before settling; the Settled question's ruling links both cards
+ok 29 - discovery board validates with the record cards
+ok 30 - file-record.sh refuses a settled question, a path, a record card, a short id, and a record kind that is not ADR or PDR
+ok 31 - file-question.sh: a title with a backslash, a quote and a newline round-trips and the board validates
+ok 32 - file-question, settle-question, file-record, found-board and found-discovery-board exit 2 with usage and write nothing when no model is given
+ok 33 - found-board.sh stamps CLAUDE_MODEL when no --model is given, and --model wins over it
+ok 34 - found-board.sh: a board and lane title with a backslash, a quote and a newline are escaped and the board validates
+ok 35 - found-board.sh and found-discovery-board.sh: a board title with LF, CR or CRLF founds a single '# title' heading and a matching frontmatter title, words joined by one space, and validates
+ok 36 - a title with a line break and a '## ' cannot open a body section (heading and the discovery topic line stay on one line); a title blank once flattened exits 2 and writes nothing
+ok 37 - plan board founded: colon title quoted, topic rendered, 7 lanes with icons, ticket/record/status kinds, validates
+ok 38 - found-plan-board.sh --labels adds catalog kinds after ticket; a kind outside the catalog or an empty list exits 2 and writes nothing
+ok 39 - file-ticket.sh mints T1..T4, flattened Ticket label, Depends on as named links, Frontier when free and Blocked while a dependency is open; validates, heal finds nothing
+ok 40 - file-ticket.sh refuses another board's link, a non-link, a missing card and a bad type, writing nothing
+ok 41 - claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one
+ok 42 - resolve-ticket.sh appends the resolution, drops waiting, moves to Resolved; unblocks exactly the tickets whose deps are all Resolved (two deps: only after both), to the bottom of Frontier
+ok 43 - resolve-ticket.sh --to out-of-scope moves a Frontier ticket; file-ticket.sh refuses a dependency on it; a Resolved ticket can't go out of scope
+ok 44 - frontier.sh prints Frontier, Blocked with open deps, Working; warns on a Blocked ticket with every dep Resolved and a dep on an Out of scope card; exits 0
+ok 45 - file-record.sh --from Working files a plan record linking its ticket; the default still demands Asked, and --from refuses a card outside that lane
+ok 46 - file-ticket, claim-ticket, resolve-ticket and found-plan-board exit 2 with usage and write nothing when no model is given
+ok 47 - lint-ask passes a clean ask
+ok 48 - lint-ask fails a hedged, chained ask
+ok 49 - watch-boards: comment post on the 2nd board reported with its board, draft not reported
+ok 50 - watch-boards refuses two boards with one folder name
+ok 51 - watch-boards: without --skills no .skills state file is written
+ok 52 - watch-boards --skills: a live rule-file edit emits SKILLS CHANGED once
+ok 53 - watch-boards --skills: an edit to a template or a non-rule reference emits nothing
+ok 54 - watch-boards --skills: a restart after a rule-file edit emits it at start, and a second restart emits nothing
+ok 55 - watch-boards --skills: a root of per-skill symlinks reports an edit made through the real path, once
+ok 56 - watch-boards --skills: a restart after an edit through a symlinked skill emits it at start
+ok 57 - watch-boards --skills: a root with no watch/SKILL.md is refused with exit 2, and the usage text prints
+ok 58 - state.sh: claim spawns, then queues; finish drains the queue into one follow-up and keeps the card in flight, then clears it; a lead's card relays
+ok 59 - state.sh: the self-writes registry answers within its TTL only, and prune drops exactly the stale entries
+ok 60 - classify-event.sh: an owner comment, unstamped or stamped human, is comment/owner
+ok 61 - classify-event.sh: an agent comment is comment/agent
+ok 62 - classify-event.sh: a comment stamped session "board dispatch" is self, with nothing registered
+ok 63 - classify-event.sh: a lane move is one move line (its travelling comments are not new); an app move or a bare mv of an old stamp is the owner's, a fresh agent stamp the agent's
+ok 64 - classify-event.sh: a BULK burst is one bulk line
+ok 65 - classify-event.sh: a registered self-write is self; an owner comment beside it still classes as a comment; an unregistered body edit is body
+ok 66 - classify-event.sh: a change in a lane registered out of scope is excluded
+ok 67 - classify-event.sh: one line per card in a mixed burst; a board-file change outside any card prints nothing
+ok 68 - classify-event.sh: a bare mv over a stale dispatch stamp is the owner's move; a handler's own fresh move is self
+ok 69 - classify-event.sh: a card created in place classes as a move; an edit to an older card stays body
+ok 70 - classify-event.sh: every column (kind, board, card, lane, title, author, paths) in a two-card burst with one card moved
+ok 71 - the dispatch fixture board validates
+ok 72 - merge case: every row resolves with no prompt, as a merge
+ok 73 - merge case: every row resolves with no prompt, as a rebase
+ok 74 - merge case: every row resolves with no prompt, as a nodriver
+ok 75 - merge case: git finishes a lossless merge alone, stops on a loss, and a comment left by a move is re-homed
+ok 76 - merge case: a rebase with a later move leaves no orphaned folder
+ok 77 - merge case: uncommitted edits in a conflicted card are carried as ours, never erased
+ok 78 - every lane of a founded pipeline, design-loop, datapoint, discovery and plan board has a body of two sentences or more
+ok 79 - Approved takes the top card unasked; Ideas, Issues and Tasks bodies have agents act on nothing; the sheet's Agent lanes line carries the rule
+ok 80 - the lane -> actor table lives only in board-kinds.md, with a row per pipeline lane
+ok 81 - watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move
+ok 82 - heal-descriptors dry run lists the old-template, customised and empty lane bodies and writes nothing
+ok 83 - heal-descriptors --apply without --model exits 2 and writes nothing
+ok 84 - heal-descriptors --apply replaces, extends in place and fills; touched lanes restamped with the agent, others untouched, board validates
+ok 85 - a second heal-descriptors --apply changes nothing
+ok 86 - heal-descriptors inserts the permission line into a board sheet that lacks it, restamps the board, then finds nothing
+ok 87 - a board matching no lane set gets no descriptor changes
+ok 88 - heal-descriptors puts the sentence above a heading, list or quote that opens a body, and leaves the markup as written
+ok 89 - heal-descriptors inserts the Agent lanes bullet after a wrapped Two human gates bullet's continuation lines
+ok 90 - the Agent lanes line names only the agent lanes the board has (no Tasks, or no Shaping either: the lane is left out)
+ok 91 - a depth-1 folder with no kind: lane is still a lane
+ok 92 - --skip leaves a lane out of the list, the digest and the apply
+ok 93 - --apply --expect refuses with exit 3 and writes nothing when the change list drifted; the fresh digest applies
+ok 94 - an empty --name is refused with a plain message
+ok 95 - heal-descriptors removes the released Tasks-passed-both sentence, swaps the released Flow bullet (a customised Flow keeps its prose), validates, and finds nothing the second time
+ok 96 - heal-descriptors drop-stale: removes an own bullet whole and an inline hit alone, never edits a fence or a quote, and a later real hit still goes
+ok 97 - found-board.sh without --labels founds an index byte-identical to the pre-catalog founding (pipeline and plain templates)
+ok 98 - found-board.sh --labels naming all eight kinds founds a board whose config.labels holds exactly those eight, in order, and it validates
+ok 99 - found-board.sh --labels takes any subset, in the order given, on the plain index template too
+ok 100 - found-board.sh --labels type stamps icon: {glyph: cube} on the type kind, leaves its five values' glyphs alone, and the board validates
+ok 101 - found-board.sh --labels with an unknown, empty or blank kind exits 2 with a message and writes nothing
+ok 102 - a card carrying one flattened entry of each of the eight kinds validates with no DEPRECATED line
+ok 103 - a founded discovery board takes round from the catalog: config byte-identical to the pre-catalog founding except round gains single: true, and it validates
+ok 104 - found-discovery-board.sh --labels adds kinds to round (round first, deduped) and never loses it
+ok 105 - found-board.sh and found-discovery-board.sh: repeated --labels accumulate in order, and a kind repeated across flags is written once
+ok 106 - found-board.sh and found-discovery-board.sh: an empty --labels list, alone or among others, exits 2 and writes nothing
+ok 107 - found-board.sh with the discovery template and no --labels exits 2 and writes nothing (round cannot be lost)
+ok 108 - found-board.sh --labels with an index that has neither {{labels}} nor {{label_entries}} exits 2 and writes nothing; without --labels such an index still founds
+ok 109 - found-board.sh --labels naming a kind twice exits 2 and writes nothing
+ok 110 - found-board.sh --var naming a slot or built-in key (labels, label_entries, title, title_yaml, id, stamp) exits 2 and writes nothing
+ok 111 - heal-board.py's embedded SUGGESTED priority and component equal the label-kinds.md rows
+ok 112 - heal-board.py run from a copy outside the skill tree (no catalog beside it) uses the embedded copy and heals a missing priority definition
+ok 113 - every cited skill file exists
+check-sizes: 62 rows, 0 wrong
+ok 114 - README sizes match wc -w, rows, totals and summary
+ok 115 - no skill prescribes priority: or component: as a card key
+ok 116 - no skill names a guide version; one stamp (lanework-agent-guide v93, lanework-schema v1), in CLAUDE.md
+ok 117 - the stamp (lanework-agent-guide v93, lanework-schema v1) is not behind the board's guide v93 and schema v1
+ok 118 - plugin manifests match the skills folders and validate
+smoke: 118 passed
