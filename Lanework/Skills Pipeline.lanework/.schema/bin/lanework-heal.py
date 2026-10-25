@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# lanework-heal v1
+# lanework-heal v2
 """lanework-heal: repair the known kinds of damage on a Lanework board. Python 3, standard library only.
 
-    python3 .schema/bin/lanework-heal.py <board> [--apply --model M [--name N] [--session S]] [--global FILE] [--ignore-board-copy]
+    python3 .schema/bin/lanework-heal.py <board> [--apply --model M [--name N] [--session S]] [--ignore-board-copy]
 
 Every repair is a rule of the heal catalog, `.schema/HEAL.md` beside this folder, and carries its
 rule id: the catalog is the specification, and a repair it doesn't list doesn't exist. The app's own
@@ -14,8 +14,7 @@ Dry run by default: one line per repair, `<file>: <rule id> <code> <what>`, noth
 edit. `--name`/`--model` sign the records a heal posts. Idempotent: a second run finds nothing.
 
 Definitions healed against: the built-in `text` kind, plus the board's own `config.labels` (its
-retired `config.priorities` read as its `priority` kind), plus `--global FILE`'s
-`config.default-labels` when given. The machine-level config is read only through `--global`.
+retired `config.priorities` read as its `priority` kind).
 
 Rules (`.schema/HEAL.md` has each one in full, with its before and after):
   H01 title-quote       a `title` that is not double-quoted, or that carries a line break
@@ -34,6 +33,7 @@ Rules (`.schema/HEAL.md` has each one in full, with its before and after):
   H14 single-kind       several entries of a `single` kind: the value readers show stays
   H15 config-priorities the retired `config.priorities` roster, converted into a `priority` definition
   H16 config-collapse-empty the retired `config.collapse-empty`, removed whatever its value
+  H17 compact-collection a list or mapping stored in another layout than the writer's compact form
 
 The board's copy wins: a copy of this script outside a board (an agent skill's) exits 2 where the
 board ships `.schema/bin/lanework-heal.py`, unless `--ignore-board-copy` is given.
@@ -44,9 +44,11 @@ missing `by` is not damage: it says the owner wrote the file, so no heal invents
 drops a fact (H04's third case, H12, H14) posts a comment on the card, signed as the running agent,
 quoting what was dropped; it posts before the file is rewritten.
 
-Known limitations: a rewritten `labels` list or `config` comes back with every string double-quoted
-and in the guide's flow-or-block length rule, untouched entries included; a whole-number float in it
-comes back as an integer (`2.0` as `2`), as the app's emitter does.
+Every rewritten list or mapping comes back in the writer's compact form: one flow line while it fits
+120 characters, else a block whose entries each stay on one line where theirs fits, and a stamp always
+on one line. A comment on the key's line stays on it. Known limitations: every string in it comes back
+double-quoted, untouched entries included (a timestamp written plain in the app's own form stays
+plain); a whole-number float comes back as an integer (`2.0` as `2`), as the app's emitter does.
 """
 
 import os
@@ -77,6 +79,11 @@ ICON_KEYS = ("glyph", "color")
 # H15: the subkeys of `config` no build reads.
 RETIRED_PRIORITIES = "priorities"
 RETIRED_COLLAPSE_EMPTY = "collapse-empty"   # H16
+STAMP_KEYS = ("created", "modified")
+# H17 leaves alone a value holding what this reader doesn't model: a block scalar, an anchor, an alias
+# or a tag, tested on each line with its quoted strings taken out.
+QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'')
+UNREAD = re.compile(r"(?:^|[\s\[{,])[|>&*!]")
 
 
 class ParseError(Exception):
@@ -327,6 +334,10 @@ def block(lines, i, ind):
 
 PLAIN_OK = re.compile(r"[A-Za-z][A-Za-z0-9._/-]*")
 TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|[+-][0-9:]+)?)?")
+# The instant as the app writes one: a timestamp written plain in this form stays plain in a collection.
+APP_TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+# Words a stamp's value never writes plain (the app's `plainFlow`): YAML would read them as a bool or null.
+YAML_WORDS = {"true", "false", "yes", "no", "on", "off", "null", "y", "n", "~"}
 
 
 def emit_str(s, plain_ok=False):
@@ -336,6 +347,8 @@ def emit_str(s, plain_ok=False):
 
 
 def emit_scalar(v, plain_ok=False):
+    """One value. `plain_ok` is a stamp's rule (the app's `plainFlow`): a timestamp or a bare word stays
+    plain. Anywhere else a string is double-quoted, but for a timestamp written plain in the app's form."""
     if v is None:
         return "null"
     if v is True:
@@ -346,7 +359,12 @@ def emit_scalar(v, plain_ok=False):
         return str(v)
     if isinstance(v, float):
         return str(int(v)) if v.is_integer() else repr(v)
-    return emit_str(str(v), plain_ok)
+    s = str(v)
+    if plain_ok and (TIMESTAMP.fullmatch(s) or (PLAIN_OK.fullmatch(s) and s.lower() not in YAML_WORDS)):
+        return s
+    if isinstance(v, Plain) and APP_TIMESTAMP.fullmatch(s):
+        return s
+    return emit_str(s)
 
 
 def flow(v, plain_ok=False):
@@ -388,48 +406,77 @@ def emit_item(x, ind):
     return [pad + "- " + flow(x)]
 
 
-def block_lines(key, v, ind=0):
-    """`key:` with the value written fully block, the app's own style: one subkey or item per line,
-    nested collections indented two spaces, strings double-quoted."""
-    pad = " " * ind
-    if isinstance(v, dict) and v:
-        out = [pad + emit_str(key, True) + ":"]
-        for k, x in v.items():
-            out += block_lines(k, x, ind + 2)
-        return out
-    if isinstance(v, list) and v:
-        out = [pad + emit_str(key, True) + ":"]
-        for x in v:
-            out += block_item(x, ind + 2)
-        return out
-    return [pad + emit_str(key, True) + ": " + flow(v)]
-
-
-def block_item(x, ind):
-    pad = " " * ind
-    if isinstance(x, dict) and x:
-        lines = []
-        for n, (k, y) in enumerate(x.items()):
-            sub = block_lines(k, y, ind + 2)
-            if n == 0:
-                sub[0] = pad + "- " + sub[0][ind + 2:]
-            lines += sub
-        return lines
-    if isinstance(x, list) and x:
-        return [pad + "-"] + [l for y in x for l in block_item(y, ind + 2)]
-    return [pad + "- " + flow(x)]
-
-
-def emit_kept(doc, key, v):
-    """A rewritten key in the form the file already had it: a block collection stays block (the
-    guide: a hand-written form is left as written), anything else takes the flow-or-block length rule."""
-    ls = [l for l in (doc.raw_lines(key) or []) if l.strip() and not l.lstrip().startswith("#")]
-    was_block = len(ls) > 1 and ls[0].split(":", 1)[1].strip() == ""
-    return block_lines(key, v) if was_block else emit_key(key, v)
-
-
 def emit_stamp(key, v):
-    return (key + ":" + (" " * max(1, 10 - len(key) - 1))) + flow(v, plain_ok=True)
+    """A stamp, always one line, as the app writes it (`created: {at: …, by: {…}}`)."""
+    return key + ": " + flow(v, plain_ok=True)
+
+
+def end_of_quoted(s, i):
+    """One past the closing quote of the quoted scalar opening at s[i], or None when it doesn't close."""
+    q, i = s[i], i + 1
+    while i < len(s):
+        if q == '"' and s[i] == "\\":
+            i += 2; continue
+        if s[i] == q:
+            if q == "'" and s[i + 1:i + 2] == "'":
+                i += 2; continue
+            return i + 1
+        i += 1
+    return None
+
+
+def comment_index(s, i):
+    """Where the comment on a one-line value starting at s[i] begins, or None (the app's `commentIndex`)."""
+    if i >= len(s):
+        return None
+    if s[i] in "\"'":
+        i = end_of_quoted(s, i)
+        if i is None:
+            return None
+    elif s[i] in "[{":
+        while i < len(s):
+            if s[i] in "\"'":
+                i = end_of_quoted(s, i)
+                if i is None:
+                    return None
+            elif s[i] == "#" and s[i - 1] in " \t":
+                return i
+            else:
+                i += 1
+        return None
+    while i < len(s):
+        if s[i] == "#" and i > 0 and s[i - 1] in " \t":
+            return i
+        i += 1
+    return None
+
+
+def key_comment(lines):
+    """The comment on a key's line, with the blanks before it, as the app's writer keeps it through a
+    rewrite: a one-line value's trailing comment, or the comment after a block's bare `key:`."""
+    first = lines[0]
+    if first[:1] in "\"'":
+        try:
+            _, colon = (read_double if first[0] == '"' else read_single)(first, 0)
+        except ParseError:
+            return ""
+    else:
+        colon = first.find(":")
+    if colon < 0 or first[colon:colon + 1] != ":":
+        return ""
+    if len(lines) > 1:
+        rest = first[colon + 1:]
+        h = rest.find("#")
+        return rest if h > 0 and not rest[:h].strip(" \t") else ""
+    i = colon + 1
+    while i < len(first) and first[i] in " \t":
+        i += 1
+    h = comment_index(first, i)
+    if h is None:
+        return ""
+    while h > 0 and first[h - 1] in " \t":
+        h -= 1
+    return first[h:]
 
 
 # ---------------------------------------------------------------- frontmatter document
@@ -474,6 +521,9 @@ class Doc:
     def has(self, key):
         return any(k == key for k, _ in self.spans)
 
+    def count(self, key):
+        return sum(1 for k, _ in self.spans if k == key)
+
     def raw_lines(self, key):
         return next((ls for k, ls in self.spans if k == key), None)
 
@@ -485,9 +535,11 @@ class Doc:
         return v[key]
 
     def set(self, key, lines):
+        """The key's lines replaced; a comment on its line comes back on the first new one."""
         for span in self.spans:
             if span[0] == key:
-                span[1] = lines; return
+                comment = key_comment(span[1])
+                span[1] = [lines[0] + comment] + lines[1:]; return
         # new key: before the stamps, else at the end
         at = next((n for n, (k, _) in enumerate(self.spans) if k in ("created", "modified")), len(self.spans))
         self.spans.insert(at, [key, lines])
@@ -990,7 +1042,7 @@ class Heal:
         if entries is not None:
             cfg["labels"] = entries
         if cfg:
-            doc.set("config", emit_kept(doc, "config", cfg))
+            doc.set("config", emit_key("config", cfg))
         else:
             doc.remove("config")
         return True
@@ -1094,10 +1146,35 @@ class Heal:
             dropped_facts.insert(0, "```yaml\n" + "\n".join(doc.raw_lines("labels") or []) + "\n```")
         if changed:
             if kept:
-                doc.set("labels", emit_kept(doc, "labels", kept))
+                doc.set("labels", emit_key("labels", kept))
             else:
                 doc.remove("labels")
         return changed, dropped_facts
+
+    def heal_layout(self, doc):
+        """H17 compact-collection: a list or mapping whose stored lines (blank and comment lines not
+        counted) number differently from the writer's compact form is rewritten in it."""
+        changed = False
+        for key in dict.fromkeys(k for k, _ in doc.spans if k is not None):
+            ls = doc.raw_lines(key)
+            if doc.count(key) > 1 or any(l.lstrip().startswith("#") for l in ls[1:]):
+                continue                   # a key written twice, or a comment inside it: left alone
+            content = [l for l in ls if l.strip() and not l.lstrip().startswith("#")]
+            if any(UNREAD.search(QUOTED.sub("", l)) for l in content):
+                continue                   # a block scalar, anchor, alias or tag: left alone
+            try:
+                v = doc.get(key)
+            except ParseError:
+                continue
+            if not isinstance(v, (dict, list)) or not v:
+                continue
+            want = [emit_stamp(key, v)] if key in STAMP_KEYS else emit_key(key, v)
+            if len(want) == len(content):
+                continue
+            doc.set(key, want)             # H17
+            self.note(doc.path, "H17", "compact-collection", "%s written in the compact form, %d lines to %d" % (key, len(content), len(want)))
+            changed = True
+        return changed
 
     def heal_file(self, path, role, added=()):
         try:
@@ -1116,6 +1193,7 @@ class Heal:
                 c, more = self.heal_labels(doc, os.path.dirname(path))
                 changed = c or changed
                 facts += more
+            changed = self.heal_layout(doc) or changed
         except ParseError as e:
             del self.repairs[mark:]
             self.skips.append((self.rel(path), "frontmatter does not parse (%s): left as written" % e)); return
@@ -1254,12 +1332,12 @@ def post_record(board, card_dir, facts, at, by):
 
 
 def main(argv):
-    args = {"apply": False, "name": "claude", "model": None, "session": None, "global": None, "ignore": False, "board": None}
+    args = {"apply": False, "name": "claude", "model": None, "session": None, "ignore": False, "board": None}
     it = iter(argv)
     for a in it:
         if a == "--apply":
             args["apply"] = True
-        elif a in ("--name", "--model", "--session", "--global"):
+        elif a in ("--name", "--model", "--session"):
             args[a[2:]] = next(it, None)
         elif a == "--ignore-board-copy":
             args["ignore"] = True
@@ -1271,7 +1349,7 @@ def main(argv):
             print("%s: unknown argument %s" % (SCRIPT, a), file=sys.stderr); return 64
     board = args["board"]
     if not board or not os.path.isfile(os.path.join(board, "index.md")):
-        print("usage: %s.py <board> [--apply --model M [--name N] [--session S]] [--global FILE]" % SCRIPT, file=sys.stderr)
+        print("usage: %s.py <board> [--apply --model M [--name N] [--session S]]" % SCRIPT, file=sys.stderr)
         return 64
     board = os.path.abspath(board)
     own = os.path.join(board, ".schema", "bin", "lanework-heal.py")
@@ -1284,8 +1362,6 @@ def main(argv):
         if canon(args["name"] or "") in RESERVED_NAMES or not args["name"]:
             print("%s: %s is reserved for the app; sign as yourself" % (SCRIPT, args["name"]), file=sys.stderr); return 64
 
-    glob_entries = config_labels(args["global"], "default-labels") if args["global"] else []
-    glob_defs = definitions_of(glob_entries)
     board_index = os.path.join(board, "index.md")
     board_entries = config_labels(board_index, "labels")
     board_defs = definitions_of(board_entries)
@@ -1296,11 +1372,10 @@ def main(argv):
     docs = list(documents(board))
     used = used_root_kinds(p for p, r in docs if r == "card")
     added = []
-    for s in SUGGESTED:                      # H06: the machine's definition where --global has one, else the suggested
+    for s in SUGGESTED:                      # H06: the suggested definition
         if s["type"] in used and s["type"] not in board_defs:
-            added.append(next((e for e in glob_entries if isinstance(e, dict) and canon(e.get("type", "")) == s["type"]), s))
+            added.append(s)
     defs = {}
-    defs.update(glob_defs)
     defs.update(board_defs)
     defs.update(definitions_of(added))
 
