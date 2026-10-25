@@ -261,6 +261,8 @@ L=$(sed -n '/^labels:/,/^created:/p' "$D/$IDEAS/$L1/index.md"); for x in '"x"' '
 if grep -q High <<<"$L"; then fail "priority: earlier value kept: $L"; fi
 grep -q '^order: 200$' "$D/$IDEAS/$S1/index.md" && grep -q 'for: bob' "$D/$IDEAS/$S1/index.md" || fail "state: later wins"
 for v in Open Doing Closed; do grep -q "text: \"$v\"" "$D/index.md" || fail "config.labels values: $v"; done
+# merged labels and config come back in the compact form: the board's own heal finds no layout repair (H17)
+H17=$(python3 "$D/.schema/bin/lanework-heal.py" "$D" | grep ' H17 ' || true); [ -z "$H17" ] || fail "merged keys not in the compact form: $H17"
 head -1 "$D/CLAUDE.md" | grep -q 'v901' || fail "guide: higher version wins"
 [ "$(sed -n 2p "$D/.log/2026-01-01.log" | cut -c1-10)$(sed -n 4p "$D/.log/2026-01-01.log" | cut -c1-10)" = 2026-01-012026-01-03 ] || fail ".log: union sorted"
 OURS=A; [ "$MODE" = rebase ] && OURS=B
