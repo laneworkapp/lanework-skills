@@ -29,6 +29,10 @@ Per event kind:
 | `bulk` | the diagnosis in `watch/references/events.md` item 5. Each card it finds moved into an agent lane → act on it here as a move. Into any other lane → `GATE` |
 | `chat` | answer the owner's question from the board in `ANSWER`. Write nothing |
 
+## Relayed events
+
+A build lead gets owner event lines by SendMessage while it works (`routing.md` § Route). On each one: re-read the thread, and answer every owner comment that has no agent reply `in-reply-to` it yet, then go on with the build. The router has queued the line too, so a follow-up handler answers whatever this lead didn't. The same rule keeps that idempotent.
+
 ## Escalate
 
 On sonnet, and the work needs opus (a spec that still leaves hard calls: `work/references/tiers.md`) → before any write, report `ACTION: escalate: <why>`. The router re-spawns at opus.

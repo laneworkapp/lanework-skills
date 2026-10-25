@@ -11,7 +11,8 @@
 # kind:
 #   comment   a comment file under the card that did not just travel with a move
 #   move      the card's paths name a lane it is no longer in (lane title = where it is now,
-#             `.trash`, or `-` when gone)
+#             `.trash`, or `-` when gone), or the card was just created: its index.md is in the
+#             burst and `created.at` is under MOVE_FRESH seconds old (filed straight into a lane)
 #   body      the card's own files changed, no move and no new comment
 #   bulk      a BULK line: card, lane, title, author `-`; the paths field is the file count
 #   self      every path is in the registry (`state.sh is-self`), or the stamp that changed
@@ -19,7 +20,9 @@
 #   excluded  the card's lane is recorded out of scope (`state.sh is-excluded`)
 # author: owner (no `by`, or `kind: human`), agent (any other `by`), `-` (bulk).
 # A move's author reads `modified.by`, and is the owner unless that stamp is under MOVE_FRESH
-# seconds old (default 120): a bare mv leaves the previous writer's stamp in place.
+# seconds old (default 120): a bare mv leaves the previous writer's stamp in place, whoever
+# wrote it, so a stale agent or dispatch stamp is the owner's move too. A created card's author
+# reads `created.by`.
 # Registered paths are dropped before classing, so an owner comment beside a self-write
 # still prints as a comment. Board files outside any card print nothing.
 # Needs yq (mikefarah v4).
@@ -98,10 +101,16 @@ for card in ${CARDS[@]+"${CARDS[@]}"}; do
     who=owner
     if [ -n "$now_dir" ]; then
       IFS=$'\t' read -r w at < <(stamp "$now_dir/index.md" modified; echo)
-      if [ "$w" = self ]; then who=self
-      elif [ "$w" = agent ] && [ $(( $(date +%s) - $(epoch "${at:-}") )) -le "$FRESH" ]; then who=agent; fi
+      [ "$w" = owner ] || [ $(( $(date +%s) - $(epoch "${at:-}") )) -gt "$FRESH" ] || who=$w
     fi
     out move "$who"
+  elif [ -n "$now_dir" ]; then
+    for e in "${live[@]}"; do
+      IFS=$'\t' read -r _ sub _ <<<"$e"; [ "$sub" = index.md ] || continue
+      IFS=$'\t' read -r w at < <(stamp "$now_dir/index.md" created; echo)
+      if [ $(( $(date +%s) - $(epoch "${at:-}") )) -le "$FRESH" ]; then moved=1; out move "$w"; fi
+      break
+    done
   fi
   # a new comment: under the card's lane now, existing, and not one that travelled with the move
   cw=

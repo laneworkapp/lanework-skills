@@ -9,7 +9,7 @@ The main session routes and never handles. Per event: one classify call, one sta
 - A board write, a ruling fold, a commit, a build lead, an evidence review.
 - An answer to an owner comment, on the card or in chat.
 
-`watch/references/events.md` items 1–7 and all of `watch/references/responding.md` run in a handler (`handler.md`). The router writes nothing on a board, so the authority chain binds handlers only.
+`watch/references/events.md` items 1–2 (skip own writes, skip excluded lanes) are `scripts/classify-event.sh`'s. Items 3–7 and all of `watch/references/responding.md` run in a handler (`handler.md`). The router writes nothing on a board, so the authority chain binds handlers only.
 
 ## Arm
 
@@ -42,7 +42,7 @@ A Monitor notification carries one or more lines.
 4. Handler event → `scripts/state.sh <state> claim <key> '<the line>'`. Key = card uuid, or `bulk:<Board>.lanework`.
    - `spawn` → § Spawn.
    - `queued` → nothing. The follow-up handler gets it.
-   - `relay <agent-id>` → SendMessage the line to that build lead. It owns the card.
+   - `relay <agent-id>` → SendMessage the line to that build lead, which owns the card (`handler.md` § Relayed events). The line is queued too, for the follow-up.
 5. `scripts/state.sh <state> prune`, once per notification.
 
 ## Spawn

@@ -33,7 +33,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `lanework` | 10 | 356 | 4,058 |
 | `work` | 16 | 397 | 6,289 |
 | `watch` | 4 | 186 | 1,340 |
-| `dispatch` | 5 | 210 | 1,558 |
+| `dispatch` | 5 | 210 | 1,660 |
 | `discovery` | 14 | 492 | 2,833 |
 | `plan` | 9 | 453 | 2,675 |
 | `merge` | 2 | 362 | 1,577 |
@@ -94,11 +94,11 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25), over
 | file | words |
 |---|---|
 | `SKILL.md` | 210 |
-| `references/handler.md` | 408 |
-| `references/routing.md` | 732 |
-| `templates/handler-prompt.md` | 79 |
+| `references/handler.md` | 473 |
+| `references/routing.md` | 754 |
+| `templates/handler-prompt.md` | 94 |
 | `templates/handler-report.md` | 129 |
-| **total** | **1,558** |
+| **total** | **1,660** |
 
 #### `discovery`
 
