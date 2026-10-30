@@ -4,9 +4,9 @@ kind: card
 title: "Q2: Where lane rules come from"
 order: 2048
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
-waiting: {for: rzen, since: 2026-10-30T13:49:16Z, comment: 8fc3ea5a-f343-4a2d-833f-ca8c7597c05f}
 created:  {at: 2026-10-30T13:49:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
-modified: {at: 2026-10-30T13:49:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
+modified: {at: 2026-10-30T14:08:36Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+waiting: {for: rzen, since: 2026-10-30T14:08:36Z, comment: b307f0a5-153c-4139-b97a-69318fe85847}
 ---
 With no model in the loop, how does the runner know what a lane asks of it?
 
