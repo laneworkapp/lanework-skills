@@ -5,8 +5,8 @@ title: "Q8: What the owner sees of a job"
 order: 8192
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
 created:  {at: 2026-10-30T13:49:18Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
-modified: {at: 2026-10-30T15:21:37Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-waiting: {for: rzen, since: 2026-10-30T15:21:37Z, comment: ebcd093e-a35d-43fe-ac96-487bd4aad223}
+modified: {at: 2026-10-30T15:23:37Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+waiting: {for: rzen, since: 2026-10-30T15:23:37Z, comment: 242dce64-0908-4f26-a465-1b7e89945b0e}
 ---
 What does the owner see of each job?
 
