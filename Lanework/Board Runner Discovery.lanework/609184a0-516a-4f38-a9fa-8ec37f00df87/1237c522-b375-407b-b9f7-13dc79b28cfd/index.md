@@ -4,9 +4,8 @@ kind: card
 title: "Q3: What starts a job"
 order: 3072
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
-waiting: {for: rzen, since: 2026-10-30T13:49:16Z, comment: 6dc2f3fa-b15b-43da-a90a-700732847179}
 created:  {at: 2026-10-30T13:49:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
-modified: {at: 2026-10-30T13:49:16Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
+modified: {at: 2026-10-30T14:52:35Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
 ---
 Which board events start a job?
 
@@ -23,3 +22,8 @@ A. Reusing the classifier and routing table means only the spawn changes, from a
 ## Depends on
 
 - [Fact: dispatch already routes board events by script](lanework://d7e27581-ac3c-4bb3-ab2c-41c3333416d6/c03c4d8d-fd90-4522-a663-81f5ce48b634)
+
+## Ruling
+
+**2026-10-30**: C, over the recommended A. "rules in the run skill should be it own. the skill should be self suffcient. reason for that, if successful this skill will be the primary "watch" skill displacing /watch and /dispatch"
+ADR: [ADR: The run skill owns its trigger rules](lanework://d7e27581-ac3c-4bb3-ab2c-41c3333416d6/816c8c63-5a22-40bb-8da0-1cb56825958b)
