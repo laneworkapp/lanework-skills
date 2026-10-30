@@ -4,9 +4,9 @@ kind: card
 title: "Q5: Fresh job or resumed session"
 order: 5120
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
-waiting: {for: rzen, since: 2026-10-30T13:49:17Z, comment: ba5ad8ed-6993-43ad-8484-90876a2bd66f}
 created:  {at: 2026-10-30T13:49:17Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
-modified: {at: 2026-10-30T13:49:17Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
+modified: {at: 2026-10-30T14:56:55Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+waiting: {for: rzen, since: 2026-10-30T14:56:55Z, comment: d7153939-83e2-40a8-8a2c-933b7b04492a}
 ---
 When the owner replies to an ask, does the next job resume the earlier session or start fresh?
 
