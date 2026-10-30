@@ -4,9 +4,9 @@ kind: card
 title: "Q8: What the owner sees of a job"
 order: 8192
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
-waiting: {for: rzen, since: 2026-10-30T13:49:18Z, comment: f412350c-6d94-4393-8b78-3f14a32fdf37}
 created:  {at: 2026-10-30T13:49:18Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
-modified: {at: 2026-10-30T13:49:18Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
+modified: {at: 2026-10-30T15:21:37Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
+waiting: {for: rzen, since: 2026-10-30T15:21:37Z, comment: ebcd093e-a35d-43fe-ac96-487bd4aad223}
 ---
 What does the owner see of each job?
 
