@@ -1,9 +1,9 @@
 ---
 schema: 1
 title: "Cut reviewer verdicts down to what their readers use"
-order: 1024
+order: 2048
 created: {at: 2026-11-07T02:58:36Z}
-modified: {at: 2026-11-07T13:21:48Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-11-07T13:34:53Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 kind: card
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 ---
@@ -23,7 +23,7 @@ Replace the fence in `work/templates/review-verdict.md` with this order, in plai
 4. **Notes**: only something a person could act on, one line each. A check that came up clean isn't a note.
 5. **Evidence**: the fail-before mark and its failure line, the gate's own line with its population, and any checklist item that failed, was skipped or was weaker than asked. Adversarial reviews add how many hypotheses were written first and which held.
 
-Clean checklist items are not listed, because the verdict itself claims them. Target: about 150 words for a clean APPROVE, plus a line per finding. Cards named are links, and anchors sit in inline code.
+Clean checklist items are not listed, because the verdict itself claims them. An adversarial review attaches its full check walk to the verdict comment as `review-trace.md`, and a standard review writes none. Target: about 150 words for a clean APPROVE, plus a line per finding. Cards named are links, and anchors sit in inline code.
 
 The same verdict from the screenshot, 889 words before:
 
@@ -44,15 +44,14 @@ The same verdict from the screenshot, 889 words before:
 
 - **In**: reviewer verdicts on card threads, and the copy sent to the lead.
 - **Out**: the review checklist and read order, the review stance rules, verdicts already posted.
-- **Open call, the check walk**: A (recommended) attach it as a file on adversarial reviews, B a separate comment, C stop writing it.
-- **Open call, the fixer's phase reports**: A (recommended) leave them out, B give them the same shape.
+- ~~**Open call, the check walk**: A (recommended) attach it as a file on adversarial reviews, B a separate comment, C stop writing it.~~ **ruled 2026-11-07: attach it to the verdict as a file, on adversarial reviews only.**
+- ~~**Open call, the fixer's phase reports**: A (recommended) leave them out, B give them the same shape.~~ **ruled 2026-11-07: reviewer verdicts only.**
 
 ## Files
 
 - `skills/work/templates/review-verdict.md`: the new shape.
 - `skills/work/references/reviewer.md` § Verdict: the word target, what counts as a note, and the check-walk ruling.
 - `README.md` § Sizes: the word counts.
-- If the phase reports are ruled in: `skills/work/templates/fixer-phase1-report.md`, `skills/work/templates/fixer-phase2-report.md`, and `skills/work/references/fixer.md`.
 
 ## Risks
 
@@ -69,6 +68,6 @@ The same verdict from the screenshot, 889 words before:
 ## Done when
 
 - `review-verdict.md` has no fence around the verdict, and its order is the one above.
-- Each of the three rewrites keeps every BLOCKING finding, every actionable note and the fail-before and gate lines of its original. The clean APPROVE comes in under 200 words, excluding any attached walk.
+- Each of the three rewrites keeps every BLOCKING finding, every actionable note and the fail-before and gate lines of its original. The clean APPROVE comes in under 200 words, excluding the attached walk.
 - `tests/smoke.sh` passes, or fails only on the guide gate, named as such in the closing comment.
 - The owner has looked at a rewrite in the app and the thread records it.
