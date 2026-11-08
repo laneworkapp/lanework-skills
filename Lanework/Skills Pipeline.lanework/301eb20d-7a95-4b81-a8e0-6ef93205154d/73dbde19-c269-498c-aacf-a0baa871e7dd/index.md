@@ -1,13 +1,13 @@
 ---
 schema: 1
-title: "Cut reviewer verdicts down to what their readers use"
+title: "Write reviewer verdicts as Markdown, not a code fence"
 order: 2048
 created: {at: 2026-11-07T02:58:36Z}
-modified: {at: 2026-11-07T13:34:53Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-11-08T00:09:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
 kind: card
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 ---
-Reviewer verdicts become a short Markdown comment that opens with the result and carries only findings, questions and the evidence someone will cite. The full check walk leaves the thread.
+Reviewer verdicts become plain Markdown comments that keep the whole check walk, laid out to read in a card-width column instead of as one code fence.
 
 ## Problem
 
@@ -15,48 +15,35 @@ A verdict is the longest thing on a card and the hardest to read. The median run
 
 ## Proposal
 
-Replace the fence in `work/templates/review-verdict.md` with this order, in plain Markdown:
+Replace the fence in `work/templates/review-verdict.md` with this order, in plain Markdown with no hard line breaks:
 
-1. **Result**: `**Verdict: APPROVE.**` or `**Verdict: REQUEST-CHANGES.**`, then the round, the stance with its trigger, and the head and branch. No `CARD:` line, because the thread already says which card and a lane name goes stale.
-2. **Blocking**: only when there is any. One item each: anchor, failure scenario, fix direction.
-3. **Questions for the lead**: only when there are any, above the evidence so they can't be missed.
-4. **Notes**: only something a person could act on, one line each. A check that came up clean isn't a note.
-5. **Evidence**: the fail-before mark and its failure line, the gate's own line with its population, and any checklist item that failed, was skipped or was weaker than asked. Adversarial reviews add how many hypotheses were written first and which held.
+1. **Result**: `**Verdict: APPROVE.**` or `**Verdict: REQUEST-CHANGES.**` and one sentence, then short labelled bullets for stance with its trigger, round, the card as a link and the head on its branch.
+2. **Blocking**: one numbered item each: anchor, failure scenario, fix direction. `**Blocking**: none.` when clean.
+3. **Questions for the lead**: moved up from the bottom, so they can't be missed under the walk. Left out when there are none.
+4. **Notes**: numbered. Only something a person could act on, or a result someone will cite. A check that came up clean belongs under Checked.
+5. **Checked**: the whole walk, one bullet per checklist item with its label in bold, and nested bullets where an item has several facts.
+6. **Hypotheses**: adversarial reviews only, numbered, under a line saying they were written before the reports and how many held.
 
-Clean checklist items are not listed, because the verdict itself claims them. An adversarial review attaches its full check walk to the verdict comment as `review-trace.md`, and a standard review writes none. Target: about 150 words for a clean APPROVE, plus a line per finding. Cards named are links, and anchors sit in inline code.
+Throughout: anchors, symbols, shas and paths in inline code, every card and comment named as a link, a blank line after every list. Nothing is cut for length.
 
-The same verdict from the screenshot, 889 words before:
-
-> **Verdict: APPROVE.** Round 1, adversarial (removes partial trees on disk). Head `89a78ecb4` on `card/65ff6238-staging-partial`.
->
-> **Notes**
->
-> - `ClipboardStore.swift:917 @ ad0da6c` "the sweep removes whole": not true of a partial in a copy the pasteboard still names. It costs disk only, and a paste still refuses. Doc-comment fix at most.
->
-> **Evidence**
->
-> - Fail-before: own run agrees with the fixer's, 5 issues, all in `aFailedCopyRefusesThePaste`.
-> - Gate: 8306 tests in 1316 suites passed, on this head.
-> - The base really pasted hollow: a rename mid-copy left `index.md` and 46 of 150 files at the destination.
-> - Hypotheses: 10 written before the reports, none held.
+The worked example is [the sample comment](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/73dbde19-c269-498c-aacf-a0baa871e7dd/dbada9ba-c8b5-4bf4-8e5a-45bb646b87b9), the screenshot's verdict with every line kept.
 
 ## Scope
 
 - **In**: reviewer verdicts on card threads, and the copy sent to the lead.
 - **Out**: the review checklist and read order, the review stance rules, verdicts already posted.
-- ~~**Open call, the check walk**: A (recommended) attach it as a file on adversarial reviews, B a separate comment, C stop writing it.~~ **ruled 2026-11-07: attach it to the verdict as a file, on adversarial reviews only.**
+- ~~**Open call, the check walk**: A (recommended) attach it as a file on adversarial reviews, B a separate comment, C stop writing it.~~ ~~**ruled 2026-11-07: attach it to the verdict as a file, on adversarial reviews only.**~~ **re-ruled 2026-11-07: keep the walk in the verdict, no attachment.**
 - ~~**Open call, the fixer's phase reports**: A (recommended) leave them out, B give them the same shape.~~ **ruled 2026-11-07: reviewer verdicts only.**
 
 ## Files
 
 - `skills/work/templates/review-verdict.md`: the new shape.
-- `skills/work/references/reviewer.md` § Verdict: the word target, what counts as a note, and the check-walk ruling.
+- `skills/work/references/reviewer.md` § Verdict: the Markdown shape, what counts as a note, and questions above the walk.
 - `README.md` § Sizes: the word counts.
 
 ## Risks
 
-- A short report is easier to claim falsely than a long walk. The fail-before run, the population and the hypothesis count stay in it.
-- Reviewers may pad back up. The word target is a target, and nothing enforces it.
+- Verdicts stay as long as they are now, so the thread reads no faster for an agent. The gain is for a person reading the card.
 - Smoke is red today on the guide gate until [2c29a34f](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/2c29a34f-fde2-4a44-8a3b-94157a320609) lands.
 
 ## Verification
@@ -68,6 +55,6 @@ The same verdict from the screenshot, 889 words before:
 ## Done when
 
 - `review-verdict.md` has no fence around the verdict, and its order is the one above.
-- Each of the three rewrites keeps every BLOCKING finding, every actionable note and the fail-before and gate lines of its original. The clean APPROVE comes in under 200 words, excluding the attached walk.
+- Each of the three rewrites keeps every line of its original, with no code fence and no hard line breaks inside a paragraph or list item.
 - `tests/smoke.sh` passes, or fails only on the guide gate, named as such in the closing comment.
 - The owner has looked at a rewrite in the app and the thread records it.
