@@ -91,6 +91,9 @@ def doc_kind(within):
         return 'card'
     if len(w) == 3 and w[0] == 'comments' and w[2] == 'index.md':
         return 'comment'
+    # a relation, live or in relations/.trash: merged as a comment is
+    if w[:1] == ['relations'] and w[-1:] == ['index.md'] and (len(w) == 3 or (len(w) == 4 and w[1] == '.trash')):
+        return 'relation'
     if len(w) in (3, 5) and w[-3] == 'attachments' and w[-1] == 'index.md':
         return 'attachment'
     return None
@@ -461,7 +464,7 @@ def merge_doc(base, ours, theirs, kind, singles):
     eo, bo = split_doc(ours)
     et, bt = split_doc(theirs)
     if not base:
-        what = {'card': 'This card', 'comment': 'A comment', 'attachment': 'An attachment'}.get(kind, 'This file')
+        what = {'card': 'This card', 'comment': 'A comment', 'attachment': 'An attachment', 'relation': 'A relation'}.get(kind, 'This file')
         return ours, [{'line': '%s was added on both sides under one id: ours kept, the other side\'s copy is below.' % what,
                        'label': 'The other side\'s copy', 'text': bt if et is not None else theirs}], 'ours'
     eb, bb = split_doc(base)
@@ -526,7 +529,7 @@ def merge_doc(base, ours, theirs, kind, singles):
         body = bt if win == 'theirs' else bo
         lost_e, lost_b = (eo, bo) if win == 'theirs' else (et, bt)
         kept_e = et if win == 'theirs' else eo
-        noun = 'comment' if kind == 'comment' else 'body'
+        noun = kind if kind in ('comment', 'relation') else 'body'
         losses.append({'line': 'The %s: kept the later edit (%s); the earlier (%s) is below.' % (
             noun, stamp_desc(kept_e), stamp_desc(lost_e)),
             'label': 'The earlier %s' % noun, 'text': lost_b})
@@ -608,11 +611,12 @@ def merge_bytes(repo, c, b, o, t):
             if kind == 'attachment':
                 for l in losses:
                     l['line'] = 'Attachment %s: %s' % (c['within'][-2][:8], l['line'])
-            if kind == 'comment':
+            if kind in ('comment', 'relation'):
+                noun, short = kind, c['within'][-2][:8]
                 for l in losses:
-                    l['line'] = 'Comment %s: %s' % (c['within'][1][:8], l['line'].replace('The comment: ', ''))
+                    l['line'] = '%s %s: %s' % (noun.capitalize(), short, l['line'].replace('The %s: ' % noun, ''))
                     if 'label' in l:
-                        l['label'] = '%s, comment %s' % (l['label'], c['within'][1][:8])
+                        l['label'] = '%s, %s %s' % (l['label'], noun, short)
             return text.encode('utf-8'), losses, {}, win
     w = c['within'] or []
     if w and w[-1].startswith('blob') and 'attachments' in w and o is not None and t is not None:
