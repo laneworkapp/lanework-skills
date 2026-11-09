@@ -508,6 +508,10 @@ def merge_doc(base, ours, theirs, kind, singles):
                     lost_title = lost
                 else:
                     losses.append({'line': 'Title: kept "%s"; the other side\'s was "%s".' % (kept, lost)})
+            elif k in ('rel', 'to') and kind == 'relation' and lo and lt:
+                # what a relation states: the earlier value goes in the merge comment, as a title does
+                lost = parse_value(lo if win == 'theirs' else lt)
+                losses.append({'line': '%s: kept "%s"; the other side\'s was "%s".' % (k, parse_value(pick), lost)})
         if pick:
             out.append((k, pick))
     if kind in ('lane', 'board') and not (bo == bt or bt == bb or bo == bb):

@@ -31,7 +31,7 @@ T0=2026-01-01T00:00:00Z; TA=2026-01-02T00:00:00Z; TB=2026-01-03T00:00:00Z; TA2=2
 BY0='{name: owner, kind: human}'; BYA='{name: alice, kind: human}'; BYB='{name: bob, kind: human}'
 TXT='kind: {type: text, text: Text, icon: {glyph: tag}}'
 PRI='kind: {type: priority, text: Priority, icon: {glyph: flag}}'
-for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT AA D1 KC AT R1 RL RT RNA RNB; do eval "$n=$(uuid)"; done
+for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT AA D1 KC AT R1 RL RT RNA RNB RR RTO; do eval "$n=$(uuid)"; done
 
 # card <repo> <lane> <id> <title> <at> <by> <body> [extra frontmatter lines]
 card() {
@@ -46,10 +46,10 @@ comment() { # <card dir> <id> <at> <by> <body>
   printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n%s\n' \
     "$T0" "$BY0" "$3" "$4" "$5" > "$1/comments/$2/index.md"
 }
-relation() { # <card dir> <id> <at> <by> <body> [.trash/]
+relation() { # <card dir> <id> <at> <by> <body> [.trash/]; REL= and TO= (a card id) override rel and to
   local d="$1/relations/${6:-}$2"; mkdir -p "$d"
-  printf -- '---\nschema: 1\nkind: relation\nrel: "traces-to"\nto: "lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/%s"\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n%s\n' \
-    "$K1" "$T0" "$BY0" "$3" "$4" "$5" > "$d/index.md"
+  printf -- '---\nschema: 1\nkind: relation\nrel: "%s"\nto: "lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/%s"\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n%s\n' \
+    "${REL:-traces-to}" "${TO:-$K1}" "$T0" "$BY0" "$3" "$4" "$5" > "$d/index.md"
 }
 setboard() { # <repo> <at> <by> <value:rank>...
   local f="$1/$BN/index.md" at="$2" by="$3" vals="" v; shift 3
@@ -66,6 +66,8 @@ done
 comment "$O/$BN/$IDEAS/$K1" "$KC" "$T0" "$BY0" "K1 base comment."
 relation "$O/$BN/$IDEAS/$R1" "$RL" "$T0" "$BY0" "R1 base relation."
 relation "$O/$BN/$IDEAS/$R1" "$RT" "$T0" "$BY0" "R1 base trashed relation." .trash/
+relation "$O/$BN/$IDEAS/$R1" "$RR" "$T0" "$BY0" "R1 rel relation."
+relation "$O/$BN/$IDEAS/$R1" "$RTO" "$T0" "$BY0" "R1 to relation."
 A="$O/$BN/$IDEAS/$AT1/attachments/$AT"; mkdir -p "$A"; printf 'base-bytes' > "$A/blob.png"
 printf -- '---\nschema: 1\nkind: attachment\ntitle: "shot"\nextension: png\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n' "$T0" "$BY0" "$T0" "$BY0" > "$A/index.md"
 setboard "$O" "$T0" "$BY0" Open:1
@@ -244,6 +246,8 @@ printf 'A-bytes' > "$A/$BN/$IDEAS/$AT1/attachments/$AT/blob.png"
 relation "$A/$BN/$IDEAS/$R1" "$RL" "$TA" "$BYA" "R1 relation TOKEN_A_RL."
 relation "$A/$BN/$IDEAS/$R1" "$RT" "$TA" "$BYA" "R1 trashed relation TOKEN_A_RT." .trash/
 relation "$A/$BN/$IDEAS/$R1" "$RNA" "$TA" "$BYA" "R1 new relation TOKEN_A_RNA."
+REL=depends-on relation "$A/$BN/$IDEAS/$R1" "$RR" "$TA" "$BYA" "R1 rel relation."
+TO=$Y1 relation "$A/$BN/$IDEAS/$R1" "$RTO" "$TA" "$BYA" "R1 to relation."
 card "$A" "$IDEAS" "$L1" "L1 base" "$TA" "$BYA" "L1 base body." \
   "labels: [{text: \"x\", $TXT}, {text: \"y\", rank: 2.0, $TXT}, {text: \"High\", rank: 1, color: \"#E07A1F\", $PRI}]"
 ORD=100 card "$A" "$IDEAS" "$S1" "S1 base" "$TA" "$BYA" "S1 base body." \
@@ -268,6 +272,8 @@ printf 'B-bytes' > "$B/$BN/$IDEAS/$AT1/attachments/$AT/blob.png"
 relation "$B/$BN/$IDEAS/$R1" "$RL" "$TB" "$BYB" "R1 relation TOKEN_B_RL."
 relation "$B/$BN/$IDEAS/$R1" "$RT" "$TB" "$BYB" "R1 trashed relation TOKEN_B_RT." .trash/
 relation "$B/$BN/$IDEAS/$R1" "$RNB" "$TB" "$BYB" "R1 new relation TOKEN_B_RNB."
+REL=supersedes relation "$B/$BN/$IDEAS/$R1" "$RR" "$TB" "$BYB" "R1 rel relation."
+TO=$T1 relation "$B/$BN/$IDEAS/$R1" "$RTO" "$TB" "$BYB" "R1 to relation."
 card "$B" "$IDEAS" "$L1" "L1 base" "$TB" "$BYB" "L1 base body." \
   "labels: [{text: \"x\", $TXT}, {text: \"z\", $TXT}, {text: \"Low\", rank: 3, icon: {glyph: arrow.down}, $PRI}]"
 ORD=200 card "$B" "$IDEAS" "$S1" "S1 base" "$TB" "$BYB" "S1 base body." \
@@ -330,6 +336,13 @@ grep -qF "Relation ${RL:0:8}: kept the later edit" "$D/$IDEAS/$R1"/comments/*/in
 grep -qF "Relation ${RT:0:8}: kept the later edit" "$D/$IDEAS/$R1"/comments/*/index.md || fail "trashed relation: the merge comment doesn't name it"
 [ -z "$(find "$R" -name '*.theirs*')" ] || fail "relation: a file beside it, as if unclassified: $(find "$R" -name '*.theirs*')"
 grep -q TOKEN_A_RNA "$R/$RNA/index.md" && grep -q TOKEN_B_RNB "$R/$RNB/index.md" || fail "relation: one added on each side, not both kept"
+# a rel or to changed on both sides: the later in place, the earlier value in the merge comment
+grep -q '^rel: "supersedes"$' "$R/$RR/index.md" || fail "relation rel: later wins"
+grep -qF "Relation ${RR:0:8}: rel: kept \"supersedes\"; the other side's was \"depends-on\"." "$D/$IDEAS/$R1"/comments/*/index.md \
+  || fail "relation rel: the losing value is not in the merge comment"
+grep -q "^to: \"lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/$T1\"$" "$R/$RTO/index.md" || fail "relation to: later wins"
+grep -qF "Relation ${RTO:0:8}: to: kept \"lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/$T1\"; the other side's was \"lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/$Y1\"." \
+  "$D/$IDEAS/$R1"/comments/*/index.md || fail "relation to: the losing value is not in the merge comment"
 L=$(sed -n '/^labels:/,/^created:/p' "$D/$IDEAS/$L1/index.md"); for x in '"x"' '"y"' '"z"' '"Low"'; do grep -qF "$x" <<<"$L" || fail "labels: $x missing: $L"; done
 if grep -q High <<<"$L"; then fail "priority: earlier value kept: $L"; fi
 grep -qF '{text: "y", rank: 2, kind:' <<<"$L" || fail "labels: a whole-number float not written as the heal writes it (2, not 2.0): $L"
