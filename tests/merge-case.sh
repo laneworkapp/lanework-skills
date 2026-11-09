@@ -31,7 +31,7 @@ T0=2026-01-01T00:00:00Z; TA=2026-01-02T00:00:00Z; TB=2026-01-03T00:00:00Z; TA2=2
 BY0='{name: owner, kind: human}'; BYA='{name: alice, kind: human}'; BYB='{name: bob, kind: human}'
 TXT='kind: {type: text, text: Text, icon: {glyph: tag}}'
 PRI='kind: {type: priority, text: Priority, icon: {glyph: flag}}'
-for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT AA D1 KC AT; do eval "$n=$(uuid)"; done
+for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT AA D1 KC AT R1 RL RT RNA RNB; do eval "$n=$(uuid)"; done
 
 # card <repo> <lane> <id> <title> <at> <by> <body> [extra frontmatter lines]
 card() {
@@ -46,6 +46,11 @@ comment() { # <card dir> <id> <at> <by> <body>
   printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n%s\n' \
     "$T0" "$BY0" "$3" "$4" "$5" > "$1/comments/$2/index.md"
 }
+relation() { # <card dir> <id> <at> <by> <body> [.trash/]
+  local d="$1/relations/${6:-}$2"; mkdir -p "$d"
+  printf -- '---\nschema: 1\nkind: relation\nrel: "traces-to"\nto: "lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/%s"\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n%s\n' \
+    "$K1" "$T0" "$BY0" "$3" "$4" "$5" > "$d/index.md"
+}
 setboard() { # <repo> <at> <by> <value:rank>...
   local f="$1/$BN/index.md" at="$2" by="$3" vals="" v; shift 3
   for v in "$@"; do vals="$vals        - text: \"${v%:*}\"\n          rank: ${v#*:}\n"; done
@@ -54,11 +59,13 @@ setboard() { # <repo> <at> <by> <value:rank>...
 cardfile() { echo "$1/$BN/$(cd "$1/$BN" && ls -d */"$2" .trash/"$2" 2>/dev/null | head -1)/index.md"; }
 
 # ---- base
-for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT D1; do
+for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT D1 R1; do
   extra=""; [ "$n" = L1 ] && extra="labels: [{text: \"x\", $TXT}]"; ORD=1024; [ "$n" = S1 ] && ORD=5000
   ORD=$ORD card "$O" "$IDEAS" "${!n}" "$n base" "$T0" "$BY0" "$n base body." "$extra"
 done
 comment "$O/$BN/$IDEAS/$K1" "$KC" "$T0" "$BY0" "K1 base comment."
+relation "$O/$BN/$IDEAS/$R1" "$RL" "$T0" "$BY0" "R1 base relation."
+relation "$O/$BN/$IDEAS/$R1" "$RT" "$T0" "$BY0" "R1 base trashed relation." .trash/
 A="$O/$BN/$IDEAS/$AT1/attachments/$AT"; mkdir -p "$A"; printf 'base-bytes' > "$A/blob.png"
 printf -- '---\nschema: 1\nkind: attachment\ntitle: "shot"\nextension: png\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n' "$T0" "$BY0" "$T0" "$BY0" > "$A/index.md"
 setboard "$O" "$T0" "$BY0" Open:1
@@ -234,6 +241,9 @@ card "$A" "$IDEAS" "$T1" "T1 alpha" "$TA" "$BYA" "T1 base body."
 card "$A" "$IDEAS" "$Y1" "Y1 base" "$TA" "$BYA" "Y1 body TOKEN_A_Y1."
 comment "$A/$BN/$IDEAS/$K1" "$KC" "$TA" "$BYA" "K1 comment TOKEN_A_K1."
 printf 'A-bytes' > "$A/$BN/$IDEAS/$AT1/attachments/$AT/blob.png"
+relation "$A/$BN/$IDEAS/$R1" "$RL" "$TA" "$BYA" "R1 relation TOKEN_A_RL."
+relation "$A/$BN/$IDEAS/$R1" "$RT" "$TA" "$BYA" "R1 trashed relation TOKEN_A_RT." .trash/
+relation "$A/$BN/$IDEAS/$R1" "$RNA" "$TA" "$BYA" "R1 new relation TOKEN_A_RNA."
 card "$A" "$IDEAS" "$L1" "L1 base" "$TA" "$BYA" "L1 base body." \
   "labels: [{text: \"x\", $TXT}, {text: \"y\", rank: 2.0, $TXT}, {text: \"High\", rank: 1, color: \"#E07A1F\", $PRI}]"
 ORD=100 card "$A" "$IDEAS" "$S1" "S1 base" "$TA" "$BYA" "S1 base body." \
@@ -255,6 +265,9 @@ card "$B" "$IDEAS" "$T1" "T1 beta" "$TB" "$BYB" "T1 base body."
 card "$B" "$IDEAS" "$Y1" "Y1 base" "$TB" "$BYB" "Y1 body TOKEN_B_Y1."
 comment "$B/$BN/$IDEAS/$K1" "$KC" "$TB" "$BYB" "K1 comment TOKEN_B_K1."
 printf 'B-bytes' > "$B/$BN/$IDEAS/$AT1/attachments/$AT/blob.png"
+relation "$B/$BN/$IDEAS/$R1" "$RL" "$TB" "$BYB" "R1 relation TOKEN_B_RL."
+relation "$B/$BN/$IDEAS/$R1" "$RT" "$TB" "$BYB" "R1 trashed relation TOKEN_B_RT." .trash/
+relation "$B/$BN/$IDEAS/$R1" "$RNB" "$TB" "$BYB" "R1 new relation TOKEN_B_RNB."
 card "$B" "$IDEAS" "$L1" "L1 base" "$TB" "$BYB" "L1 base body." \
   "labels: [{text: \"x\", $TXT}, {text: \"z\", $TXT}, {text: \"Low\", rank: 3, icon: {glyph: arrow.down}, $PRI}]"
 ORD=200 card "$B" "$IDEAS" "$S1" "S1 base" "$TB" "$BYB" "S1 base body." \
@@ -296,7 +309,7 @@ if [ "$MODE" != rebase ]; then G "$M" commit -q --no-edit; else GIT_EDITOR=true 
 D="$M/$BN"
 if grep -rIl '<<<<<<<\|>>>>>>>' "$D" >/dev/null; then fail "a conflict marker survived"; fi
 validate_board "$M" "merged"
-for tok in TOKEN_A_Y1 TOKEN_B_Y1 TOKEN_A_K1 TOKEN_B_K1 TOKEN_B_M2 TOKEN_A_TR1 TOKEN_A_TR2 TOKEN_A_AA TOKEN_B_AA TOKEN_A_D1 \
+for tok in TOKEN_A_RL TOKEN_B_RL TOKEN_A_RT TOKEN_B_RT TOKEN_A_Y1 TOKEN_B_Y1 TOKEN_A_K1 TOKEN_B_K1 TOKEN_B_M2 TOKEN_A_TR1 TOKEN_A_TR2 TOKEN_A_AA TOKEN_B_AA TOKEN_A_D1 \
   '"T1 alpha"' 'T1 beta' A-bytes B-bytes; do grep -rqF -- "$tok" "$D" || fail "lost: $tok"; done
 at() { [ -f "$D/$1/$2/index.md" ] || fail "$3: not in $1 ($(cd "$D" && ls -d */"$2" .trash/"$2" 2>/dev/null))"; }
 at "$ACTIVE" "$M1" "moved both ways: later lane"; at "$DONE" "$M2" "moved one side, edited other"
@@ -309,6 +322,14 @@ grep -q TOKEN_A_TR1 "$D/.trash/$TR1/index.md" || fail "later trash: the trashed 
 grep -q '^title: "T1 beta"$' "$D/$IDEAS/$T1/index.md" || fail "title: later wins"
 grep -q 'TOKEN_B_Y1' "$D/$IDEAS/$Y1/index.md" || fail "body: later wins"
 grep -q 'TOKEN_B_K1' "$D/$IDEAS/$K1/comments/$KC/index.md" || fail "comment: later wins"
+# a relation merges as a comment does, live or in relations/.trash: the later edit in place, the earlier body in the merge comment
+R="$D/$IDEAS/$R1/relations"
+grep -q 'TOKEN_B_RL' "$R/$RL/index.md" || fail "relation: later wins"
+grep -q 'TOKEN_B_RT' "$R/.trash/$RT/index.md" || fail "trashed relation: later wins"
+grep -qF "Relation ${RL:0:8}: kept the later edit" "$D/$IDEAS/$R1"/comments/*/index.md || fail "relation: the merge comment doesn't name the relation"
+grep -qF "Relation ${RT:0:8}: kept the later edit" "$D/$IDEAS/$R1"/comments/*/index.md || fail "trashed relation: the merge comment doesn't name it"
+[ -z "$(find "$R" -name '*.theirs*')" ] || fail "relation: a file beside it, as if unclassified: $(find "$R" -name '*.theirs*')"
+grep -q TOKEN_A_RNA "$R/$RNA/index.md" && grep -q TOKEN_B_RNB "$R/$RNB/index.md" || fail "relation: one added on each side, not both kept"
 L=$(sed -n '/^labels:/,/^created:/p' "$D/$IDEAS/$L1/index.md"); for x in '"x"' '"y"' '"z"' '"Low"'; do grep -qF "$x" <<<"$L" || fail "labels: $x missing: $L"; done
 if grep -q High <<<"$L"; then fail "priority: earlier value kept: $L"; fi
 grep -qF '{text: "y", rank: 2, kind:' <<<"$L" || fail "labels: a whole-number float not written as the heal writes it (2, not 2.0): $L"
@@ -323,7 +344,7 @@ grep -q "$OURS-bytes" "$D/$IDEAS/$AT1/attachments/$AT/blob.png" || fail "attachm
 [ -f "$D/$IDEAS/$AT1/attachments/$AT/blob.theirs.png" ] || fail "attachment: theirs beside it"
 cat "$D/notes.txt" "$D/notes.theirs.txt" | tr '\n' ' ' | grep -q "NOTES_$OURS NOTES_" || fail "unclassified file: ours kept, theirs beside it"
 # one merge comment per card that lost something, none elsewhere
-want=" $T1 $Y1 $K1 $AT1 $AA $D1 "
+want=" $T1 $Y1 $K1 $AT1 $AA $D1 $R1 "
 for c in $(cd "$D" && ls -d */*/ .trash/*/ 2>/dev/null | sed 's#/$##'); do
   id=${c##*/}; is_uuid=$(echo "$id" | grep -c '^[0-9a-f-]\{36\}$' || true); [ "$is_uuid" = 1 ] || continue
   n=$({ grep -l 'session: "merge"' "$D/$c"/comments/*/index.md 2>/dev/null || true; } | wc -l | tr -d ' ')
