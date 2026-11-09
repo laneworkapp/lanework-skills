@@ -25,7 +25,7 @@ Every rule is 3-way against the merge base: a key changed on one side only → t
 | `created`, `schema`, `kind`, `id`, tracker keys | ours |
 | card body | later wins; the earlier body whole in the merge comment, in a `markdown` fence |
 | a comment's `index.md` | later `modified` wins; the other body in a merge comment on the card |
-| a relation's `index.md` (`relations/<uuid>/`, `relations/.trash/<uuid>/`) | as a comment: later `modified` wins, `rel` and `to` included; the other body in the merge comment, named by the relation's id |
+| a relation's `index.md` (`relations/<uuid>/`, `relations/.trash/<uuid>/`) | as a comment: later `modified` wins, `rel` and `to` included; the other body, and an earlier `rel` or `to`, in the merge comment, named by the relation's id |
 | lane or board body | no thread to hold a loser: git's clean 3-way merge (`git merge-file`). Overlapping edits → both inline: the later body, then the earlier under `## Merged from the earlier edit (<stamp>)`. Nothing is lost, so no stop |
 | an attachment blob | ours; theirs copied beside it as `blob.theirs.<ext>`, named in the merge comment. `thumb.*` → ours |
 | any other board file | ours; theirs beside it as `<name>.theirs.<ext>`, named in the report |
