@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Discovery map: 💬 for frontier questions, ⏳ for not yet askable"
-order: 1024
+order: 51200
 labels: [{text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-11T23:22:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Main"}}
-modified: {at: 2026-11-11T23:22:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Main"}}
+modified: {at: 2026-11-11T23:24:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Main"}}
 ---
 Change two of the discovery map's three status marks. ❓ is a red emoji and reads as an alarm, not "open, your turn". ◦ is a faint text glyph that looks like a second bullet after the list's own.
 
