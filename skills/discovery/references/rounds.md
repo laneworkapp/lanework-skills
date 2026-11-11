@@ -19,7 +19,7 @@ Per question, one card in Asked: `scripts/file-question.sh`, or by hand from `te
 Then post the round in chat, each title linking its card:
 
 ```
-❓ **Q7** - **Edition placement** [7c0e12a4](lanework://<board-id>/<card-id>): <question, options>
+💬 **Q7** - **Edition placement** [7c0e12a4](lanework://<board-id>/<card-id>): <question, options>
 
 ➡️ <recommendation>
 ```
