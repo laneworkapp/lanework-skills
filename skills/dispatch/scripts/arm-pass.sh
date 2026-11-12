@@ -18,7 +18,8 @@
 # comment opens `Merged`, `Closed`, `Shipped`, `Done`, `Confirmed done`, `Released`, `Landed` or `Abandoned`
 # (bold or plain); a closing comment in any other shape reads as still claimed.
 # A comment signed `board` (the app's move receipt, a `moved:` key) counts for nothing: not a reply, a claim, a closing or newer activity.
-# Owner = no `by`, or `by.kind: human`, as classify-event.sh reads it. Every comment's `created.at` orders the thread.
+# Owner = no `by`, or `by.kind: human` (either quote), as classify-event.sh reads it. CRLF files are read; fractional seconds are dropped; a `created.at` that is
+# not plain `...Z` (an offset, a space) is never judged stale. Every comment's `created.at` orders the thread.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE="usage: arm-pass.sh <board> [<agent lane title>...]"
@@ -34,15 +35,16 @@ else
   [ -f "$KINDS" ] || { echo "arm-pass.sh: no $KINDS: pass the agent lane titles" >&2; exit 2; }
   AGENT_LANES+="$(awk -F'|' '$3 ~ /^ *agent *$/ { t=$2; gsub(/^ +| +$/, "", t); print t }' "$KINDS")"$'\n'
 fi
-epoch() { date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || echo 0; }
+epoch() { date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || echo; }   # empty = a stamp that is not plain ...Z (an offset, a space)
 title_of() { local t; t=$(strip_quotes "$(fm_value "$1" title)"); printf '%s' "${t:--}"; }
 
 # row <comment index.md>: "<at>|<author>|<in-reply-to>|<first body line>"
 row() {
   awk '
-    function flush() { if (key == "created") { at = ""; if (match(blk, /at: *"?[0-9T:Z-]+/)) { at = substr(blk, RSTART, RLENGTH); sub(/at: *"?/, "", at) }
-      who = (blk !~ /by:/ || blk ~ /kind: *"?human/) ? "owner" : (blk ~ /name: *"?board"?[ ,}]/ ? "board" : "agent") } key = ""; blk = "" }
+    function flush() { if (key == "created") { at = ""; if (match(blk, /at: *["\x27]?[^,}"\x27 ]+/)) { at = substr(blk, RSTART, RLENGTH); sub(/at: *["\x27]?/, "", at); sub(/\.[0-9]+Z$/, "Z", at) }
+      who = (blk !~ /by:/ || blk ~ /kind: *["\x27]?human/) ? "owner" : (blk ~ /name: *["\x27]?board["\x27]?[ ,}]/ ? "board" : "agent") } key = ""; blk = "" }
     BEGIN { n = 0 }
+    { sub(/\r$/, "") }
     /^---[ \t]*$/ { n++; if (n == 2) { flush(); infm = 0 } next }
     n == 1 { if ($0 ~ /^[A-Za-z-]+:/) { flush(); key = $0; sub(/:.*/, "", key); blk = $0
                if (key == "in-reply-to") { rep = $0; sub(/^in-reply-to: */, "", rep); gsub(/["\r]/, "", rep) } }
@@ -97,7 +99,8 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
       printf 'arm\t%s\t%s\t%s\t%s\t-\t-\n' "$NAME" "$id" "$lt" "$ct"
     fi
     if [ -n "$claimed" ]; then
-      quiet=$(( (now - $(epoch "$newest")) / 60 ))
+      ne=$(epoch "$newest"); [ -n "$ne" ] || continue   # never judge a stamp we cannot read
+      quiet=$(( (now - ne) / 60 ))
       [ "$quiet" -lt "$STALE_MIN" ] || printf 'stale\t%s\t%s\t%s\t%s\t-\t%sm\n' "$NAME" "$id" "$lt" "$ct" "$quiet"
     fi
   done
