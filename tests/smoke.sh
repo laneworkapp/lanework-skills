@@ -162,7 +162,6 @@ EOF
 hcard c0000000-0000-4000-8000-000000000005 <<EOF
 title: "Root keys"
 priority: High
-component: {text: Sync}
 created:  $STAMP
 modified: $STAMP
 EOF
@@ -235,7 +234,7 @@ c 2 | grep -q '^labels: \[{text: "Open"' && ! c 2 | grep -q Closed && grep -q 'K
 c e | grep -q '^labels: \[{text: "Zed", rank: 2' && ! c e | grep -q 'Mud\|Yak\|rank: 1' && grep -q 'Kept `Zed`; dropped `Mud`, `Zed`, `Yak`' "$HL"/c*0e/comments/*/index.md || hfail single-kind-reader-pick
 c 3 | grep -qF 'labels: [{text: "bug", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]' || hfail bare-labels
 c 4 | grep -qF '{text: "Closed", rank: 2, kind: {type: "status"' || hfail string-kind
-for p in 'text: "High"' 'rank: 1' 'color: "#E07A1F"' 'glyph: "exclamationmark"' 'type: "priority"' 'text: "Sync"' 'color: "aluminum"' 'type: "component"'; do
+for p in 'text: "High"' 'rank: 1' 'color: "#E07A1F"' 'glyph: "exclamationmark"' 'type: "priority"'; do
   c 5 | grep -qF "$p" || hfail "root-key ($p)"; done
 ! c 5 | grep -q '^priority:' && ! c 6 | grep -q '^priority:' && c 6 | grep -q 'text: "Low"' && ! c 6 | grep -q Urgent \
   && grep -q 'because `labels` already carries a `priority` entry, `Low`' "$HL"/c*06/comments/*/index.md || hfail root-key-dropped
@@ -249,7 +248,7 @@ c c | grep -qxF 'title: "Plain title"' && c c | grep -qxF '# a yaml comment the 
 for n in 1 5; do f="${HL##*/}/c0000000-0000-4000-8000-00000000000$n/index.md"
   [ "$(awk 'n>=2{print} /^---$/{n++}' "$H/$f")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/heal-seed/$f")" ] || hfail "body of card $n"; done
 c a | grep -qxF 'title: "A long title over two lines"' || hfail title-fold
-sed -n '/^config:/,/^created:/p' "$H/index.md" | grep -q 'type: "component"' && ! grep -q 'default\|glyph: circle$\|value:' "$H/index.md" || hfail definition
+sed -n '/^config:/,/^created:/p' "$H/index.md" | grep -q 'type: "priority"' && ! grep -q 'component' "$H/index.md" && ! grep -q 'default\|glyph: circle$\|value:' "$H/index.md" || hfail definition
 ok "heal --apply repairs each one and the board validates with no DEPRECATED line"
 grep -q "^modified: $STAMP$" "$HL"/c*08/comments/d*/index.md && grep -q 'type: alien' "$HL"/c*09/index.md && grep -q '^project: x$' "$HL"/c*09/index.md && grep -q "^modified: $STAMP$" "$HL"/c*09/index.md \
   && grep -q "^modified: $STAMP$" "$HL/index.md" && grep -q "^modified: $STAMP$" "$H/index.md" \
@@ -376,10 +375,11 @@ grep -q 'lint-ask warning\|warning: no lint-ask.sh' <<<"$O1$O2" && { echo "$O1$O
 C1=$(head -1 <<<"$O1" | sed 's#.*/##'); A1=$(sed -n 's/^ask comment //p' <<<"$O1"); C2=$(head -1 <<<"$O2" | sed 's#.*/##')
 grep -q '^title: "Q2: Engine: placement"$' "$D"/*/"$C2"/index.md; ok "Q1, Q2 filed, numbered, asks lint clean"
 printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner answered in chat.** "A."\n' > "$T/rec.md"
+CF1="$(ls "$D"/*/"$C1"/index.md)"; sed -i '' -E 's/^(waiting: \{for: )[^,]*/\1[owner, bob]/' "$CF1"; grep -q '^waiting: {for: \[owner, bob\], since: ' "$CF1"   # several people (guide v105+)
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C1" --ruling "$T/r1.md" --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --model smoke >/dev/null
 ! grep -q '^waiting:' "$D"/*/"$C1"/index.md && grep -q "in-reply-to: $A1" "$D"/*/"$C1"/comments/*/index.md
-ok "settled with chat record in reply to the ask; parked"
+ok "settled with chat record in reply to the ask, a list-form waiting dropped; parked"
 validate "$D" >/dev/null; ok "discovery board validates"
 
 # discovery: Decisions lane founded in order, record + status kinds declared, file-record.sh files ADR and PDR cards
@@ -535,7 +535,7 @@ grep -q 'is in Working, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1
 if "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/t.md" --model smoke 2>/dev/null; then echo "resolved an unclaimed ticket"; exit 1; fi
 ok "claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one"
 # a Working ticket wearing waiting loses it on resolve; one of two deps resolved keeps T3 Blocked, unblocks T4
-TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk '{print} /^order:/ {print "waiting: {for: human, since: 2026-10-10T00:00:00Z, comment: 11111111-1111-4111-8111-111111111111}"}' "$TF1" > "$T/w.md" && mv "$T/w.md" "$TF1"
+TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk '{print} /^order:/ {print "waiting: {for: [rzen, bob], since: 2026-10-10T00:00:00Z, comment: 11111111-1111-4111-8111-111111111111}"}' "$TF1" > "$T/w.md" && mv "$T/w.md" "$TF1"
 printf '**2026-10-10**: In the app, as recommended. "Yes."\n' > "$T/res1.md"
 RO1=$("$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/res1.md" --model smoke)
 TF1="$(ls "$PL"/*/"$T1"/index.md)"
@@ -545,7 +545,7 @@ TF1="$(ls "$PL"/*/"$T1"/index.md)"
 RO2=$("$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/res1.md" --model smoke)
 [ "$(plane "$T3")" = Frontier ] && grep -qx 'unblocked T3' <<<"$RO2" || { echo "T3 not unblocked once both deps resolved: $RO2"; exit 1; }
 [ "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T3"/index.md)")" -gt "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T4"/index.md)")" ] || { echo "unblocked ticket not at the bottom of Frontier"; exit 1; }
-validate "$PL" >/dev/null; ok "resolve-ticket.sh appends the resolution, drops waiting, moves to Resolved; unblocks exactly the tickets whose deps are all Resolved (two deps: only after both), to the bottom of Frontier"
+validate "$PL" >/dev/null; ok "resolve-ticket.sh appends the resolution, drops a list-form waiting, moves to Resolved; unblocks exactly the tickets whose deps are all Resolved (two deps: only after both), to the bottom of Frontier"
 # out of scope: from Frontier; a new ticket depending on it is refused; Resolved can't go out of scope
 printf '**2026-10-10**: Out of scope: past the destination.\n' > "$T/oos.md"
 "$PS/resolve-ticket.sh" "$PL" "$T4" --resolution "$T/oos.md" --to out-of-scope --model smoke >/dev/null
@@ -1040,7 +1040,7 @@ for rv in labels label_entries title title_yaml id stamp; do
   [ "$rc" -eq 2 ] && [ ! -e "$LD/Rv.lanework" ] || { echo "--var $rv: rc=$rc"; exit 1; }
 done
 ok "found-board.sh --var naming a slot or built-in key (labels, label_entries, title, title_yaml, id, stamp) exits 2 and writes nothing"
-# heal-board.py: embedded SUGGESTED priority and component equal the catalog rows; a copy with no catalog beside it still heals
+# heal-board.py: embedded SUGGESTED priority equals the catalog row (component is a catalog kind only, guide v114); a copy with no catalog beside it still heals
 python3 - "$SK/lanework/scripts/heal-board.py" "$LK" <<'PY' || { echo "heal's embedded SUGGESTED differs from the catalog rows"; exit 1; }
 import importlib.util, sys; sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("hb", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
@@ -1050,11 +1050,11 @@ for line in open(sys.argv[2]):
         cells = [c.strip() for c in line.strip().strip("|").split("|", 1)]
         if cells[0] in ("priority", "component"): rows[cells[0]] = hb.inline(cells[1])
 assert sorted(rows) == ["component", "priority"], rows
-assert [s["type"] for s in hb.EMBEDDED_SUGGESTED] == ["priority", "component"]
+assert [s["type"] for s in hb.EMBEDDED_SUGGESTED] == ["priority"]
 assert all(s == rows[s["type"]] for s in hb.EMBEDDED_SUGGESTED), (hb.EMBEDDED_SUGGESTED, rows)
 assert hb.SUGGESTED == hb.EMBEDDED_SUGGESTED
 PY
-ok "heal-board.py's embedded SUGGESTED priority and component equal the label-kinds.md rows"
+ok "heal-board.py's embedded SUGGESTED priority equals the label-kinds.md row"
 mkdir -p "$LD/solo"; cp "$SK/lanework/scripts/heal-board.py" "$LD/solo/lanework-heal.py"
 "$FB" "$LD/Solo.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --model smoke >/dev/null
 SC="$LD/Solo.lanework/$(ls "$LD/Solo.lanework" | grep -v -E '^(index.md|\.)' | head -1)"; SCD="$SC/$(uuidgen | tr A-Z a-z)"; mkdir -p "$SCD"
@@ -1064,6 +1064,46 @@ grep -q 'type: "\?priority"\?' "$LD/Solo.lanework/index.md" && grep -q 'Urgent' 
 validate "$LD/Solo.lanework" >/dev/null
 ok "heal-board.py run from a copy outside the skill tree (no catalog beside it) uses the embedded copy and heals a missing priority definition"
 
+# guide v114: several people on one ask, a root component: left alone, relations walked, the board name reserved
+printf '@owner @bob Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/two-handles.md"
+printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above. Ask @bob too.\n' > "$T/late-handle.md"
+"$SK/work/scripts/lint-ask.sh" "$T/two-handles.md"
+O=$("$SK/work/scripts/lint-ask.sh" "$T/late-handle.md") && { echo "lint-ask passed an ask whose second handle is not on line 1"; exit 1; }
+grep -qx 'handle @bob is not on the first line' <<<"$O" || { echo "$O"; exit 1; }
+ok "lint-ask passes an ask naming two handles on line 1, and fails one whose second handle is only on a later line"
+HV="$T/V114.lanework"; HVL="$HV/aaaa0000-0000-4000-8000-0000000000b1"; HVC="$HVL/c0000000-0000-4000-8000-0000000000b1"
+HVR="aaaa0000-0000-4000-8000-0000000000b2"; HVT="aaaa0000-0000-4000-8000-0000000000b3"; mkdir -p "$HVC/relations/$HVR" "$HVC/relations/.trash/$HVT"
+printf -- '---\nschema: 1\nkind: board\ntitle: "V114"\nid: aaaa0000-0000-4000-8000-0000000000b0\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$HV/index.md"
+printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$STAMP" "$STAMP" > "$HVL/index.md"
+printf -- '---\nschema: 1\nkind: card\ntitle: "Root component"\norder: 1024\ncomponent: {text: Sync}\nlabels: [{text: "core", kind: {type: "component", text: "Component"}}]\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$HVC/index.md"
+for r in "$HVR" ".trash/$HVT"; do
+  printf -- '---\nschema: 1\nkind: relation\nrel: "depends-on"\nto: "lanework://aaaa0000-0000-4000-8000-0000000000b0/aaaa0000-0000-4000-8000-0000000000b1"\ncreated:  %s\nmodified: 2026-10-01T00:00:00Z\n---\nWhy.\n' "$STAMP" > "$HVC/relations/$r/index.md"
+done
+cp "$HVC/index.md" "$T/v114-card.md"; cp "$HVC/relations/.trash/$HVT/index.md" "$T/v114-trashed.md"
+O=$("$HEAL" "$HV")
+{ grep -q "^aaaa0000-0000-4000-8000-0000000000b1/c0000000-0000-4000-8000-0000000000b1/relations/$HVR/index.md: bare-stamp modified" <<<"$O" \
+  && ! grep -q '\.trash' <<<"$O" && ! grep -q 'c0000000-0000-4000-8000-0000000000b1/index.md' <<<"$O" && grep -q '^1 repairs in 1 files' <<<"$O"; } \
+  || { echo "heal on the v114 board:"; echo "$O"; exit 1; }
+"$HEAL" "$HV" --apply --name fixer --model test >/dev/null
+cmp -s "$HVC/index.md" "$T/v114-card.md" && cmp -s "$HVC/relations/.trash/$HVT/index.md" "$T/v114-trashed.md" && ! grep -q component "$HV/index.md" \
+  && grep -qx 'modified: {at: 2026-10-01T00:00:00Z}' "$HVC/relations/$HVR/index.md" || { echo "heal touched the root component:, the trashed relation or the config, or missed the live one"; exit 1; }
+ok "heal-board leaves a root component: as written and adds no component definition, repairs a live relation, never walks relations/.trash"
+for s in "$HEAL" "$HD"; do
+  S0=$(sum "$HV"); rc=0; "$s" "$HV" --apply --name board --model test >/dev/null 2>"$T/board.err" || rc=$?
+  [ "$rc" -eq 64 ] && grep -q 'board is reserved for the app' "$T/board.err" && [ "$S0" = "$(sum "$HV")" ] || { echo "$s --name board: rc=$rc"; cat "$T/board.err"; exit 1; }
+done
+ok "heal-board and heal-descriptors refuse --name board (app-reserved, move receipts), writing nothing"
+mkdir -p "$T/singles/one.lanework" "$T/singles/two.lanework"
+printf -- '---\nschema: 1\nkind: board\nconfig: {labels: [{type: "component", text: "Component"}]}\n---\n' > "$T/singles/one.lanework/index.md"
+printf -- '---\nschema: 1\nkind: board\nconfig: {labels: [{type: "component", text: "Component", single: true}]}\n---\n' > "$T/singles/two.lanework/index.md"
+python3 - "$SK/merge/scripts/lanework-merge.py" "$T/singles" <<'PY' || { echo "lanework-merge.py: component single where the board does not say so"; exit 1; }
+import importlib.util, sys; sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("lm", sys.argv[1]); lm = importlib.util.module_from_spec(spec); spec.loader.exec_module(lm)
+one, two = lm.board_singles(sys.argv[2], "one.lanework"), lm.board_singles(sys.argv[2], "two.lanework")
+assert "priority" in one and "component" not in one, one
+assert "component" in two, two
+PY
+ok "lanework-merge.py treats component as single only where the board marks it single; priority always"
 "$ROOT/tests/check-refs.sh" >/dev/null; ok "every cited skill file exists"
 "$ROOT/tests/check-sizes.sh" || { echo "README § Sizes is out of date: fix the rows named above"; exit 1; }; ok "README sizes match wc -w, rows, totals and summary"
 

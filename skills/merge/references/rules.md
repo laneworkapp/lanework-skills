@@ -20,7 +20,7 @@ Every rule is 3-way against the merge base: a key changed on one side only → t
 | `modified` | the later stamp, `at` and `by` together |
 | `title` | later wins; the other title in the merge comment (an attachment's: named by its id). A lane or board title: the earlier inline, `Earlier title: "…"` under the body's merged-from heading |
 | `labels`, board `config.labels` values | union, by `text` within a kind. A removal on one side holds |
-| single-valued label kinds: priority, component, any kind the board marks `single` | state: the later side's entries of that kind, whole |
+| single-valued label kinds: priority, any kind the board marks `single` | state: the later side's entries of that kind, whole |
 | `order`, `waiting`, `hero`, `collapsed`, any other key | later `modified` side wins |
 | `created`, `schema`, `kind`, `id`, tracker keys | ours |
 | card body | later wins; the earlier body whole in the merge comment, in a `markdown` fence |

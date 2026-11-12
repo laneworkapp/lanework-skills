@@ -1,8 +1,8 @@
 ---
 schema: 1
-created: {at: 2026-10-25T01:20:56Z, by: {name: "Rouslan Z", kind: "human"}}
-modified: {at: 2026-10-25T01:20:56Z}
+created: {at: 2026-11-12T00:43:59Z, by: {name: "Rouslan Z", kind: "human"}}
+modified: {at: 2026-11-12T00:43:59Z}
 kind: comment
-in-reply-to: 49f716b6-9568-4973-9f67-97af7e38ca96
+in-reply-to: a94351d3-999b-4324-9772-73f81714cd5a
 ---
-A: app-written fixtures in smoke and CI, re-copied at each guide bump
+A: never (recommended: a date is your call)

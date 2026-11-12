@@ -36,7 +36,7 @@ A call only the owner can make (between options, taste, scope, anything a done-w
 
 Fill `templates/ask.md`. Hard budget:
 
-- handle on line 1, ask in that sentence: a question mark or an imperative
+- every handle on line 1, ask in that sentence: a question mark or an imperative
 - one ask per comment; two asks = two comments
 - under 80 words; one clause per sentence (no em-dash, no semicolon)
 - no hashes, counts, log names or paths; those live in the record the ask points at
@@ -47,7 +47,7 @@ Fill `templates/ask.md`. Hard budget:
 
 Lint before the `mv`: `scripts/lint-ask.sh <file> <board>` fails on each mechanical item, silent on a record.
 
-Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never clears it. Never remove it yourself. Cleared before the reply you needed → set it again.
+Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. Several people → `for: [a, b]`, each `@`-named on line 1; only on a board whose guide line reads v105+ (older builds never clear a list). Any one answer clears it. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never clears it. Never remove it yourself. Cleared before the reply you needed → set it again.
 
 Options become buttons. A click posts `<label>: <option text>` as the human's comment.
 
@@ -71,7 +71,7 @@ A second click gets a second recap.
 
 ## Card references
 
-Every card named, anywhere (comment, body, commit, report), is `[<short id or title>](lanework://<board-id>/<card-id>)`. A bare id is a search; a link is a click.
+Every card named, anywhere (comment, body, commit, report), is `[<short id or title>](lanework://<board-id>/<card-id>)`. A bare id is a search; a link is a click. A link may arrive short (each segment 8+ hex digits): read it by prefix, write the full form.
 
 ```bash
 bid=$(awk '/^id:/{print $2}' "$BOARD/index.md"); cid=$(basename "$CARD")
