@@ -220,7 +220,7 @@ cp -R "$H" "$T/heal-seed"
 sum() { find "$1" -type f -print0 | sort -z | xargs -0 shasum | shasum; }
 if validate "$H" >/dev/null 2>&1; then echo "seeded damage passed the validator"; exit 1; fi
 S0=$(sum "$H"); O=$("$HEAL" "$H")
-for k in stale-label single-kind bare-labels string-kind root-key root-key-dropped text-kind bare-glyph bare-stamp title-quote definition added-definition bare-icon retired-key; do
+for k in stale-label single-kind bare-labels string-kind root-key root-key-dropped text-kind bare-glyph bare-stamp title-quote definition bare-icon retired-key; do   # added-definition: the Solo case below
   grep -q " $k " <<<"$O" || { echo "dry run did not list $k:"; echo "$O"; exit 1; }
 done
 [ "$S0" = "$(sum "$H")" ]; ok "heal dry run lists every kind of damage and writes nothing"
@@ -1059,6 +1059,7 @@ mkdir -p "$LD/solo"; cp "$SK/lanework/scripts/heal-board.py" "$LD/solo/lanework-
 "$FB" "$LD/Solo.lanework" --index "$LD/idx.md" --lanes "$SK/lanework/templates/datapoint-lanes.md" --model smoke >/dev/null
 SC="$LD/Solo.lanework/$(ls "$LD/Solo.lanework" | grep -v -E '^(index.md|\.)' | head -1)"; SCD="$SC/$(uuidgen | tr A-Z a-z)"; mkdir -p "$SCD"
 printf '%s\n' '---' 'schema: 1' 'kind: card' 'title: "Old"' 'order: 1024' 'priority: High' 'created:  {at: 2026-10-10T00:00:00Z}' 'modified: {at: 2026-10-10T00:00:00Z}' '---' 'Body.' > "$SCD/index.md"
+grep -q " added-definition config.labels gains \`priority\`" <<<"$("$HEAL" "$LD/Solo.lanework")" || { echo "the skill heal did not list the missing priority definition"; exit 1; }
 python3 "$LD/solo/lanework-heal.py" "$LD/Solo.lanework" --apply --name fixer --model smoke >/dev/null
 grep -q 'type: "\?priority"\?' "$LD/Solo.lanework/index.md" && grep -q 'Urgent' "$LD/Solo.lanework/index.md" && ! grep -q '^priority:' "$SCD/index.md" || { cat "$LD/Solo.lanework/index.md"; exit 1; }
 validate "$LD/Solo.lanework" >/dev/null
