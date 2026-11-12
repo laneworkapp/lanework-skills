@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Shaping: assign a label from the kind the lane is grouped by"
-order: 6144
+order: 5120
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T00:35:26Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-11-12T00:45:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-12T00:54:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 The owner asked on 2026-11-11 that when a card is shaped, the agent read what the Shaping lane is grouped by and try to give the card a fitting label of that kind. The card then lands in a real section, not the trailing "No <kind>" one.
 

@@ -1,9 +1,9 @@
 ---
 schema: 1
 title: "Write reviewer verdicts as Markdown, not a code fence"
-order: 2048
+order: 6144
 created: {at: 2026-11-07T02:58:36Z}
-modified: {at: 2026-11-12T00:40:22Z}
+modified: {at: 2026-11-12T00:54:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 kind: card
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 ---
