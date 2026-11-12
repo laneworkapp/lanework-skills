@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Point the README install at lanework-marketplace"
-order: 2048
+order: 4096
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-05T00:31:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "marketplace chat"}}
-modified: {at: 2026-11-12T00:42:19Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5, session: "board watch"}}
+modified: {at: 2026-11-12T00:44:11Z}
 ---
 Plugin users should add the new central marketplace, `laneworkapp/lanework-marketplace`, instead of this repo's own `.claude-plugin/marketplace.json`.
 
