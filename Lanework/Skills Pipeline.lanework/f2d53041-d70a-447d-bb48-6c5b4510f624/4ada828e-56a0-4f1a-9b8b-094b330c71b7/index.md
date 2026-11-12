@@ -5,7 +5,7 @@ title: "Dispatch arming: answer waiting owner comments in every lane, flag stale
 order: 1024
 labels: [{text: dispatch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T16:00:59Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-modified: {at: 2026-10-25T16:33:00Z, by: {name: handler, kind: agent, model: sonnet, session: "board dispatch"}}
+modified: {at: 2026-11-12T00:40:22Z}
 ---
 At arming, `/dispatch` sweeps only the agent lanes, and an `arm` event only checks for a work order. Owner comments left unanswered while no watch ran are never picked up.
 
