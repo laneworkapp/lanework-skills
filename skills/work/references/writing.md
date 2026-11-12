@@ -45,7 +45,7 @@ Fill `templates/ask.md`. Hard budget:
 - the default and when it applies, or "blocked"
 - blank line after every list: Markdown folds the next line into the last item (2026-09-14)
 
-Lint before the `mv`: `scripts/lint-ask.sh <file> <board>` fails on each mechanical item, silent on a record.
+Lint before the `mv`: `scripts/lint-ask.sh <file> <board>` fails on each mechanical item, silent on a record. `scripts/post-comment.sh <board> <card> --body F --model m [--ahead 1]` lints, stamps from the clock (`--ahead` 0-30), lands the comment and prints its uuid (for `waiting.comment`). It refuses a second already on the card, a check not a lock: concurrent posters can collide.
 
 Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. Several people → `for: [a, b]`, each `@`-named on line 1; only where the board's guide § Mentions allows a list (older builds never clear one). Any one answer clears it. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never clears it. Never remove it yourself. Cleared before the reply you needed → set it again.
 
