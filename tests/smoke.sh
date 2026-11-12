@@ -1306,6 +1306,21 @@ setdef "$DP" Blocked '={labels: [mixed, MIXED, other]}'
 setdef "$DP" Blocked -
 ok "union_lane_defaults: 'extra', 'EXTRA' and 'Extra' in the lane make one label; a default equal to the card's own free label, case aside, is not added"
 
+# 8. typed text applies to names only: a kinded default's numeric rank stays a number on the card
+setdef "$DP" Frontier '={labels: [{text: Critical, rank: 5, kind: {type: priority}}, {text: Odd, rank: 2, kind: {type: epic}}, 2026, {text: 1.10, kind: {type: text}}]}'
+DT9=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Ranked" --type task --body "$T/t.md" --model smoke | head -1); DT9=${DT9##*/}
+python3 - "$(ls "$DP"/*/"$DT9"/index.md)" <<'PYEND' || { echo "a kinded default's rank or a typed name came out wrong:"; labels_of "$DP" "$DT9"; exit 1; }
+import sys, yaml
+L = yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["labels"]
+by = {l["text"]: l for l in L}
+assert [l["text"] for l in L] == ["Task", "Critical", "Odd", "2026", "1.10"], [l["text"] for l in L]
+assert by["Critical"]["rank"] == 5 and type(by["Critical"]["rank"]) is int, by["Critical"]
+assert by["Odd"]["rank"] == 2 and type(by["Odd"]["rank"]) is int, by["Odd"]
+assert by["Critical"]["kind"]["type"] == "priority" and by["Odd"]["kind"]["type"] == "epic"
+PYEND
+setdef "$DP" Frontier -
+ok "card-defaults: a kinded entry's rank stays an integer on the card (listed-kind and undefined-kind alike), while bare 2026 and {text: 1.10} still read as typed names"
+
 # release gate: the Skills Pipeline board's guide and schema must not be newer than the stamp
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
 BS=$(head -1 "$VAL/VERSION" | tr -d '\r' | grep -o -E 'lanework-schema v[0-9]+ *$' | grep -o -E '[0-9]+' || true)

@@ -123,16 +123,34 @@ spec = importlib.util.spec_from_file_location("heal_board", sys.argv[1]); hb = i
 lane, board, staged = sys.argv[2:5]
 def die(msg):
     print("union_lane_defaults: " + msg, file=sys.stderr); sys.exit(1)
-_scalar = hb.scalar
-def typed(text):   # a bare number or boolean is the label's text as typed (1.10, true): the parser's coercion would lose it
-    v = _scalar(text)
-    return hb.Plain(text.strip()) if isinstance(v, (bool, int, float)) else v
+def read_lane(typed):
+    # Depends on heal-board.py's `scalar` (it coerces a bare 1.10 to 1.1 and true to True, losing the text) and `Plain`: the lane is read twice,
+    # once as the parser gives it, once with `scalar` keeping a bare number or boolean as its text, and only label NAME positions take the second.
+    orig = hb.scalar
+    if typed:
+        hb.scalar = lambda t: hb.Plain(t.strip()) if isinstance(orig(t), (bool, int, float)) else orig(t)
+    try:
+        return hb.Doc(os.path.join(lane, "index.md")).get("card-defaults")
+    finally:
+        hb.scalar = orig
+def named(n, t):   # the entry as parsed, with its text and kind.type/kind.text taken from the typed read
+    if not (isinstance(n, dict) and isinstance(t, dict)):
+        return t if isinstance(n, (bool, int, float)) else n
+    out = dict(n)
+    if "text" in t: out["text"] = t["text"]
+    if isinstance(n.get("kind"), dict) and isinstance(t.get("kind"), dict):
+        out["kind"] = dict(n["kind"], **{k: t["kind"][k] for k in ("type", "text") if k in t["kind"]})
+    return out
 try:
-    hb.scalar = typed
-    cd = hb.Doc(os.path.join(lane, "index.md")).get("card-defaults")
-    hb.scalar = _scalar
+    cd, td = read_lane(False), read_lane(True)
 except (OSError, hb.ParseError, UnicodeDecodeError) as e:
     die("%s: unreadable lane: %s" % (lane, e))
+if isinstance(cd, dict) and isinstance(td, dict) and cd.get("labels") is not None:
+    nl, tl = cd["labels"], td.get("labels")
+    if isinstance(nl, list) and isinstance(tl, list) and len(nl) == len(tl):
+        cd = dict(cd, labels=[named(n, t) for n, t in zip(nl, tl)])
+    elif isinstance(nl, (bool, int, float)):
+        cd = dict(cd, labels=tl)
 if cd is None:
     sys.exit(0)
 if not isinstance(cd, dict):
