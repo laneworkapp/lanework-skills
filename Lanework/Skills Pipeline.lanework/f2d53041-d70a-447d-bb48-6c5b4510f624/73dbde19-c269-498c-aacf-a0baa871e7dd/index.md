@@ -3,7 +3,7 @@ schema: 1
 title: "Write reviewer verdicts as Markdown, not a code fence"
 order: 2048
 created: {at: 2026-11-07T02:58:36Z}
-modified: {at: 2026-11-08T00:09:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-11-12T00:40:22Z}
 kind: card
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 ---
