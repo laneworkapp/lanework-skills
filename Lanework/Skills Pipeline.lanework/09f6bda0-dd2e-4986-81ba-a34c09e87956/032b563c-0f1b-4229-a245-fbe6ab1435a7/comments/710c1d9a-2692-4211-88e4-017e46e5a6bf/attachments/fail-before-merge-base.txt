@@ -1,0 +1,36 @@
+file-record: lane defaults not unioned:
+labels: [{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}]
+FAIL
+ok 1 - file-record.sh: the Decisions lane's free label is added, its Proposed status is left out for the card's own accepted; validates, heal finds nothing
+file-question: lane defaults not unioned:
+labels: [{text: Round 1, kind: {type: round, text: Round}}]
+FAIL
+ok 2 - file-question.sh: 'urgent' is added, 'ROUND 1' of the same kind is not repeated; the ask lints clean and waiting stays; validates, heal finds nothing
+file-ticket: lane defaults not unioned:
+labels: [{text: Research, rank: 2, icon: {glyph: magnifyingglass}, kind: {type: ticket, text: Ticket}}]
+FAIL
+ok 3 - file-ticket.sh: Frontier's 'urgent' is stamped from the board's priority kind (rank, colour, glyph), 'extra' is a free label, the single-kind ticket default yields to the card's own; Blocked adds nothing
+single kind: wrong pick:
+labels: [{text: Prototype, rank: 3, icon: {glyph: hammer}, kind: {type: ticket, text: Ticket}}]
+FAIL
+ok 4 - single kind: of High and Urgent the lower rank (Urgent) is kept; the card's own accepted beats superseded and deprecated; heal finds nothing
+file-ticket accepted card-defaults nope
+FAIL
+file-question accepted card-defaults nope
+FAIL
+file-record accepted card-defaults nope
+FAIL
+a refused filing wrote something (nope)
+FAIL
+file-ticket accepted card-defaults {labels: nope}
+FAIL
+file-question accepted card-defaults {labels: nope}
+FAIL
+file-record accepted card-defaults {labels: nope}
+FAIL
+a refused filing wrote something ({labels: nope})
+FAIL
+the refusal does not name card-defaults:
+FAIL
+ok 5 - no card-defaults, none with labels, or an empty list: the card is the template's own; a scalar card-defaults or labels exits non-zero naming card-defaults, in all three scripts, and writes nothing
+scoped: 5 passed
