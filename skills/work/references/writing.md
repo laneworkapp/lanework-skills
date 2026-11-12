@@ -47,7 +47,7 @@ Fill `templates/ask.md`. Hard budget:
 
 Lint before the `mv`: `scripts/lint-ask.sh <file> <board>` fails on each mechanical item, silent on a record.
 
-Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. Several people → `for: [a, b]`, each `@`-named on line 1; only on a board whose guide line reads v105+ (older builds never clear a list). Any one answer clears it. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never clears it. Never remove it yourself. Cleared before the reply you needed → set it again.
+Same pass: set the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid), restamping `modified`. Several people → `for: [a, b]`, each `@`-named on line 1; only where the board's guide § Mentions allows a list (older builds never clear one). Any one answer clears it. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never clears it. Never remove it yourself. Cleared before the reply you needed → set it again.
 
 Options become buttons. A click posts `<label>: <option text>` as the human's comment.
 

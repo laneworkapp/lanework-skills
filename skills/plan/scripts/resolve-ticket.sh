@@ -47,7 +47,9 @@ deps_of() {  # deps_of <card index.md>: card uuids linked under "## Depends on"
 restamp() {  # restamp <src> <order> <dest>: fresh order + modified, waiting dropped
   awk -v o="order: $2" -v m="modified: {at: $NOW, by: $BY}" '
     /^---[ \t]*$/ { n++ }
-    n==1 && /^waiting:/ { next }
+    n==1 && drop && /^[ \t]/ { next }          # its block lines, where the compact form opened it out
+    { drop = 0 }
+    n==1 && /^waiting:/ { drop = 1; next }
     n==1 && /^order:/ { print o; next }
     n==1 && /^modified:/ { print m; next }
     { print }' "$1" > "$3"
