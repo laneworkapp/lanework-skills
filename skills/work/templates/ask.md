@@ -1,9 +1,9 @@
 # Ask
 
-The one comment that mentions the human. Rules: `references/writing.md` § The ask. `@<handle>` = the human's handle from the guide's Mentions section: per machine, and there is no reserved `@owner`. Posting it also sets the card's `waiting` (`writing.md` § The ask).
+The one comment that mentions the human. Rules: `references/writing.md` § The ask. `@<handle>` = the human's handle from the guide's Mentions section: per machine, and there is no reserved `@owner`. Several people: every handle on line 1 (`@a @b <the ask>`). Posting it also sets the card's `waiting` (`writing.md` § The ask).
 
 ```markdown
-@<handle> <the ask in one sentence: a question, or an imperative>
+@<handle> [@<handle>…] <the ask in one sentence: a question, or an imperative>
 
 Options, only when choosing (the `Recap` line ends them, always):
 - A: <one line>

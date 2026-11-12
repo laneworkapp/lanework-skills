@@ -59,7 +59,7 @@ One card per value that exists whether or not anyone is working on it (listing f
 | Pushed | gate | the owner pushes. An agent moves the card in only after a read-back that agrees |
 
 - **Default label kinds**: none.
-- **Optional task lanes**: `Checklist` 6144, `Active` 7168, `Done` 8192, for release steps. Mark task cards with a label kind. Group Filed / Pushed by `component` (guide § Frontmatter, lanes).
+- **Optional task lanes**: `Checklist` 6144, `Active` 7168, `Done` 8192, for release steps. Mark task cards with a label kind. Group Filed / Pushed by a kind: `group: {by: label, kind: <kind>, direction: descending}` (guide § Frontmatter, lanes).
 
 ## Discovery
 

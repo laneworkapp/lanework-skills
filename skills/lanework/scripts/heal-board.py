@@ -15,13 +15,14 @@ Definitions healed against: the built-in `text` kind, plus the board's own
 Repairs (the board's agent guide, then the app's LabelHealing / lanework-migrate-labels where the guide is silent):
   definition        a `config.labels` entry in a retired spelling: `kind:` for `type:`, a bare `glyph:`,
                     the retired `default` kind, `value:` or a bare string in `values`
-  added-definition  a `priority`/`component` kind the board's cards use and its vocabulary lacks
+  added-definition  the `priority` kind, when the board's cards use it and its vocabulary lacks it
                     (the suggested one)
   bare-labels       `labels: <scalar>`, or a bare string entry
   string-kind       an entry's `kind: <name>` where the kind object belongs
   text-kind         a free label with no `kind`, or the retired `default` kind
   bare-glyph        a bare `glyph:` on an entry or its kind where `icon` belongs
-  root-key          a reserved root `priority:`/`component:` key moved into `labels`
+  root-key          the reserved root `priority:` key moved into `labels` (a root `component:` is an
+                    unknown key, left as written)
   root-key-dropped  the same key, dropped: `labels` already carries an entry of that kind (it wins)
   stale-label       a recognised entry whose stamps disagree with the current definition
   single-kind       several entries of a `single` kind: the one a reader picks stays (the lowest `rank`,
@@ -37,8 +38,8 @@ Repairs (the board's agent guide, then the app's LabelHealing / lanework-migrate
                     where theirs fits; a stamp always one line. Left alone: a key written twice, a comment
                     line inside the value, a block scalar, an anchor, an alias or a tag
 
-Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, any key or entry not named
-above, and a foreign entry's stamps (a kind the definitions don't name, or a closed kind's
+Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, `relations/.trash`, any key or
+entry not named above, and a foreign entry's stamps (a kind the definitions don't name, or a closed kind's
 unlisted value). The single-kind reduction counts every entry of a defined single kind,
 an unlisted value included, as the app's does.
 A missing `by` is not damage: it says the owner wrote the file, so no heal invents one.
@@ -62,7 +63,7 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 
-RESERVED_NAMES = {"healer", "shortcuts", "tracker"}
+RESERVED_NAMES = {"board", "healer", "shortcuts", "tracker"}
 FLOW_LIMIT = 120
 TEXT_KIND = {"type": "text", "text": "Text", "icon": {"glyph": "tag"}}
 EMBEDDED_SUGGESTED = [
@@ -71,9 +72,8 @@ EMBEDDED_SUGGESTED = [
         {"text": "High", "rank": 1, "color": "#E07A1F", "icon": {"glyph": "exclamationmark"}},
         {"text": "Medium", "rank": 2},
         {"text": "Low", "rank": 3, "icon": {"glyph": "arrow.down"}}]},
-    {"type": "component", "text": "Component", "color": "aluminum", "icon": {"glyph": "puzzlepiece"}, "single": True},
 ]
-RESERVED_KINDS = ("priority", "component")
+RESERVED_KINDS = ("priority",)
 LABEL_KEYS = ("text", "rank", "color", "icon", "kind")
 KIND_KEYS = ("type", "text", "color", "icon")
 STAMP_KEYS = ("created", "modified")
@@ -223,7 +223,7 @@ KIND_CATALOG = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "
 
 
 def load_suggested(path=KIND_CATALOG):
-    """The suggested priority and component kinds: their rows in templates/label-kinds.md when that file
+    """The suggested priority kind: its row in templates/label-kinds.md when that file
     sits beside the skill, else the embedded copy (the app ships this script alone as `.schema/bin/lanework-heal.py`).
     smoke asserts the embedded copy equals the rows, so the two cannot drift."""
     try:
@@ -1087,7 +1087,7 @@ def uuid_dirs(d):
 
 
 def documents(board):
-    """(path, role) for every live document; .trash/ and the comment drafts are never walked."""
+    """(path, role) for every live document; .trash/, the comment drafts and relations/.trash are never walked."""
     yield os.path.join(board, "index.md"), "board"
     for lane in uuid_dirs(board):
         yield os.path.join(lane, "index.md"), "lane"
@@ -1101,6 +1101,8 @@ def documents(board):
                 yield os.path.join(c, "index.md"), "comment"
                 for a in uuid_dirs(os.path.join(c, "attachments")):
                     yield os.path.join(a, "index.md"), "attachment"
+            for r in uuid_dirs(os.path.join(card, "relations")):
+                yield os.path.join(r, "index.md"), "relation"
 
 
 def config_labels(path, key):
