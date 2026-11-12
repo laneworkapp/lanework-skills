@@ -1,0 +1,47 @@
+# reviewer round 2 evidence, 360edc1c, clock-stamps-360edc1c @ f84017f (minimum 270c28f), origin/main a7c1cf2
+# scoped runner = head tests/smoke.sh: ok/validate/fm_parses/sum helpers, discovery founding block, refused(), the lint-stamps and post-comment blocks
+
+## head, run 1 (first run, cold)
+ok 14 - post-comment.sh lands one comment stamped by the clock, ...
+same second: want exit 1 naming --ahead 1 and nothing written, got 0:
+## head, runs 2-9
+SCOPED DONE 18
+SCOPED DONE 18
+SCOPED DONE 18
+SCOPED DONE 18
+SCOPED DONE 18
+SCOPED DONE 18
+SCOPED DONE 18
+SCOPED DONE 18
+## head under TZ=America/Los_Angeles, TZ=Asia/Tokyo
+SCOPED DONE 18
+SCOPED DONE 18
+## 270c28f alone
+SCOPED DONE 13
+## round-1 lint-stamps.sh (2c2383d) on the head cases
+lint-stamps . inside a board: want exit 1, got 0:
+## round-1 post-comment.sh (b3ac9db) on the head cases
+an unknown card: want exit 2, got 1
+## mutant: post-comment NOW = typed 2026-01-01T00:00:00Z + ahead
+created.at 2026-01-01T00:00:10Z is not the clock + 10 s (<clock window>)
+## check-sizes / check-refs
+check-sizes: 62 rows, 0 wrong
+check-refs: 252 references, 0 missing
+check-sizes: 62 rows, 0 wrong
+check-refs: 252 references, 0 missing
+
+## lint-stamps anchoring, +120 s modified on a card: new = f84017f, old = b3ac9db (exit 1 = caught)
+[by before at: {by: {...}, at: X}] new rc=0 old rc=1
+[tab after modified:] new rc=0 old rc=1
+[tab after at:] new rc=0 old rc=0
+[double quoted] new 1 old 0; [single quoted] new 1 old 0; [3 spaces] new 1 old 0; [no by] new 1 old 1; [space after brace] new 1 old 1
+[block form, by first, quoted at] new 1 old 0; [block form, two spaces] new 1 old 0; [waiting since quoted] new 1 old 0; [waiting since first] new 1 old 1
+[by.session "at: <future>"] new 0 old 1 (fixed false failure); [relation created] new 1 old 1; [moved receipt at] new 0 old 0; [bare stamp] new 0 old 0; [fractional .5Z] new 0 old 0
+validator on {by: ..., at: <+120>}: deprecated 0, failures 0. Flow stamps on this repo's boards with by before at: 0 of 1488.
+
+## post-comment edges (f84017f)
+--ahead 30 rc=0; lint-stamps immediately after rc=0
+--ahead 31 / 3600 / 99999999999999999999 -> rc 2 'over the 30 s cap', nothing written; -1 / abc / '' / ' 5' / no value -> rc 2, nothing written; 007 -> rc 0 (7 s)
+uuid with trailing slash / given as a path -> rc 1, nothing written; card only in .trash -> rc 2 '0 cards'; two real cards -> rc 2 '2 cards', nothing written
+ghost <uuid>/comments/ (no index.md) in another lane -> rc 0, lands in the real card, ghost comments/ still empty
+real card with no comments/ -> comments/ made under the real card only; card index.md byte-identical after every post
