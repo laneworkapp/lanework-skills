@@ -23,10 +23,19 @@ Per board, after the authority chain:
 | **Approved, unstarted** | Approved | farm: build |
 | **Approved, unruled** | Approved or Active, with an open call and no ruling | don't build; post or re-post the ask (`writing.md` § When to ask), report it |
 | **Active, stalled** | Active, no thread movement | resume, or report why stuck |
-| **Shaping to advance** | Shaping, below the board's proposal bar | farm: shape; an open call → ask |
+| **Shaping to advance** | Shaping, below the board's proposal bar | farm: shape (label rule below); an open call → ask |
 | **At a human gate** | `gate` lanes (pipeline: Proposed, review) | report; move only as the `gate` key allows (`lanework/references/board-kinds.md`) |
 | **Holding** | Ideas (triage), Issues, Tasks | report; research or answer only (`lanework/references/board-kinds.md`) |
 | **Hygiene** | Done / Rejected overdue for archive | only on the owner's explicit ask |
+
+**Shaping in a grouped lane** (Shaping lane `group: {by: label, kind: K}`, K not `priority`; guide § Frontmatter, lanes). Shaping only: filing and moves into other lanes are unchanged. The lane sections on K and a drop assigns it; a file write assigns nothing, so write it yourself:
+
+- Card has an entry of K (kind matched case-insensitively on `kind.type`) → leave it. Never overwrite the owner's value.
+- Else pick one value that fits: closed kind → one listed in `config.labels`; open kind → a value already on a board card, never a new spelling.
+- Write it as a drop would: the flattened `labels` entry of K, stamped from `config.labels` if K is defined there, else copy the shape from the board card the value came from.
+- Unsure → leave it off, say so in the record. The trailing "No K" section beats a wrong one.
+- Nothing to do: `by: modified`/`created`, no `group`, `by: label` without `kind`.
+- Never assign (owner's call): `by: priority` or `kind: priority` → no priority; `by: due` → no date.
 
 ## 3. Triage report
 
