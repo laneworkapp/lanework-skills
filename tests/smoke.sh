@@ -528,7 +528,7 @@ ok "file-ticket.sh refuses another board's link, a non-link, a missing card and 
 if "$PS/claim-ticket.sh" "$PL" "$T3" --model smoke 2>"$T/err.txt"; then echo "claimed a Blocked ticket"; exit 1; fi
 grep -q 'is in Blocked, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
 "$PS/claim-ticket.sh" "$PL" "$T1" --model smoke --session s1 >/dev/null
-[ "$(plane "$T1")" = Working ] && cat "$PL"/*/"$T1"/comments/*/index.md | grep -qx '\*\*Claimed\*\* by claude, session s1.' || { echo "claim did not move to Working with a Claimed comment"; exit 1; }
+[ "$(plane "$T1")" = Working ] && grep -qx '\*\*Claimed\*\* by claude, session s1.' "$PL"/*/"$T1"/comments/*/index.md || { echo "claim did not move to Working with a Claimed comment"; exit 1; }
 grep -q 'modified: {at: .*, by: {name: claude, kind: agent, model: smoke, session: "s1"}}' "$(ls "$PL"/*/"$T1"/index.md)" || { echo "claim did not restamp modified"; exit 1; }
 if "$PS/claim-ticket.sh" "$PL" "$T1" --model smoke 2>"$T/err.txt"; then echo "claimed a Working ticket twice"; exit 1; fi
 grep -q 'is in Working, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
