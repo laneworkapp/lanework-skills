@@ -6,7 +6,7 @@ Post everything below the line as the comment body: plain Markdown, no code fenc
 
 - `**Blocking**: none.` on one line when clean.
 - **Questions for the lead** sits above Notes and Checked; leave it out when none.
-- **Notes**: only what a person could act on, or a result someone will cite. A clean check goes under Checked.
+- **Notes**: only what a person could act on, or a result someone will cite. A clean check goes under Checked. `**Notes**: none.` on one line when empty.
 - **Checked**: the whole walk, one bullet per checklist item (`references/reviewer.md` § Checklist); nested bullets where an item has several facts.
 - **Hypotheses**: adversarial reviews only; leave it out otherwise.
 
