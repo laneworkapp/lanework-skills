@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Shaping: assign a label from the kind the lane is grouped by"
-order: 4096
+order: 6144
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T00:35:26Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-11-12T00:44:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-12T00:45:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 The owner asked on 2026-11-11 that when a card is shaped, the agent read what the Shaping lane is grouped by and try to give the card a fitting label of that kind. The card then lands in a real section, not the trailing "No <kind>" one.
 
@@ -15,12 +15,12 @@ The owner asked on 2026-11-11 that when a card is shaped, the agent read what th
 
 The bullet, in the skills' telegraphic style:
 
-- **Shaping in a grouped lane** (the Shaping lane's `group: {by: label, kind: K}`, or `by: priority`, or `kind: priority`; guide § Frontmatter, lanes): the lane sections on kind K, and a drop assigns it. A file write assigns nothing, so write it yourself.
+- **Shaping in a grouped lane** (the Shaping lane's `group: {by: label, kind: K}`, K not `priority`; guide § Frontmatter, lanes): the lane sections on kind K, and a drop assigns it. A file write assigns nothing, so write it yourself.
   - Card already has an entry of K → leave it. Never overwrite the owner's value.
   - Else pick one value that fits the card: closed kind → one of its listed values in `config.labels`; open kind → a value already on a card in the board, never a new spelling.
   - Write it as a drop would: the flattened `labels` entry of K, stamped from the board's current `config.labels` (guide § Frontmatter, `labels`).
   - Unsure → leave it off and say so in the record. A wrong section is worse than the trailing one.
-  - `by: modified` / `created`, no `group`, or `by: label` without `kind` → nothing to do. `by: due` → never assign a date: a date is the owner's call (owner ruling, 2026-11-12).
+  - `by: modified` / `created`, no `group`, or `by: label` without `kind` → nothing to do. `by: priority` or `kind: priority` → never assign a priority: off limits, the owner's call (owner ruling, 2026-11-12). `by: due` → never assign a date: a date is the owner's call (owner ruling, 2026-11-12).
 
 **Scope**: a prose change to one skill file. No script writes labels for a shaped card (`grep card-defaults` finds only `writes.md`), so there is no code and no smoke case.
 
@@ -32,7 +32,7 @@ The bullet, in the skills' telegraphic style:
 
 ## Risks
 
-- **An agent guesses a priority.** Priority is a judgment. Mitigated by "unsure → leave off, say so", but the owner may want `priority` carved out. Not raised by the owner; left as is.
+- **An agent guesses a priority.** Ruled out: priority is never assigned.
 - **Collides with the owner's drop.** A shaped card keeps the owner's value (never overwrite), so no.
 - **Skills Pipeline's Shaping lane has no `group` today**, so nothing here changes how this board runs until the owner sets one. The rule is for boards that do.
 - **Version stamp**: the board's guide is v114, the repo stamps v101 (`CLAUDE.md`), and smoke fails when the board's guide is newer. That drift predates this card and is not fixed here.
@@ -50,9 +50,10 @@ Prose change, so verified = read through against the guide's `group` section (CL
 
 ## Recommendation
 
-Build it as ruled: Shaping only, `due` never assigned. It is trivial (one prose file plus the README counts, no script), so it can ride 0.8.0 if approved in time. Deferred: a carve-out for `priority`, and any script that stamps the label.
+Build it as ruled: Shaping only, `due` and `priority` never assigned. It is trivial (one prose file plus the README counts, no script), so it can ride 0.8.0 if approved in time. Deferred: any script that stamps the label.
 
 ## Rulings
 
 - **Scope**: Shaping only (owner, 2026-11-12, comment 7d30bca0).
 - **Due grouping**: an agent never assigns a due date (owner, 2026-11-12, comment 2bbea8c7).
+- **Priority grouping**: off limits, an agent never assigns a priority (owner, 2026-11-12, comment f088fd85).
