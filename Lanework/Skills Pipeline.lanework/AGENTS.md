@@ -1,4 +1,4 @@
-<!-- lanework-agent-guide v101 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
+<!-- lanework-agent-guide v114 — created and kept up to date by the Lanework app. This guide is written at two names, CLAUDE.md and AGENTS.md, kept byte-identical. Don't edit either file: both are overwritten on upgrades. Board-specific instructions live in this board's own index.md body, below its first ## heading. -->
 
 # This folder is a Lanework kanban board
 
@@ -15,7 +15,7 @@ heading at all is entirely description.
 **Before you write anything to a board**, four rules (each is explained in its own section below):
 
 - **Stamp every file you write** with `by`. A missing `by` claims the owner wrote it (Stamping your work).
-- **An ask to the human sets `waiting` on the card in the same pass**: `waiting: {for: rzen, since: <now>, comment: <the ask's uuid>}`. Without it the card wears no mark and the lane header does not count it (Mentions).
+- **An ask to the human sets `waiting` on the card in the same pass**: `waiting: {for: rzen, since: <now>, comment: <the ask's uuid>}` (`for: [a, b]` for several people). Without it the card wears no mark and the lane header does not count it (Mentions).
 - **Find the card's `index.md` fresh before every write**, and stage only your own paths in git (Comments, Git).
 - **Run `lanework-validate.py` on what you hand-wrote** before you commit (Frontmatter).
 
@@ -41,7 +41,8 @@ heading at all is entirely description.
 │   ├── <uuid>/              a CARD
 │   │   ├── index.md         card title + order; body = the card's content
 │   │   ├── attachments/     the card's files, one uuid folder each
-│   │   └── comments/        the card's comment thread (see Comments)
+│   │   ├── comments/        the card's comment thread (see Comments)
+│   │   └── relations/       the card's relations, one uuid folder each (see Relations)
 │   └── <uuid>/              another card
 └── <uuid>/                  another lane
 ```
@@ -91,6 +92,12 @@ heading at all is entirely description.
   in a comment or a card body, by title or by its short id (the uuid's first
   eight characters): a bare `572e3b41` is a search the reader has to run,
   `[572e3b41](lanework://…)` is a click.
+  A link may arrive short: each segment only the first eight or more hex
+  digits of its id (`lanework://6c887de3/418c0af0`), as the app's Copy
+  Lanework Link rows write it. Read it by prefix: the board whose `id`
+  starts with them, then the one lane, card or comment folder whose name
+  does. Write the full form yourself: a short link can become ambiguous as
+  a board grows, and scripts that scan for links match full ids only.
 
 ## Frontmatter
 
@@ -112,7 +119,9 @@ A failing document prints one line naming the rule and the run exits 1; a
 `DEPRECATED` line names the retired branch a value matched and the run
 still exits 0; a clean file prints nothing, while a board walk always
 ends with a population summary, and a `WARN` line (a dangling `hero` or
-`in-reply-to`) prints and fails nothing. Exit 0 with no `DEPRECATED`
+`in-reply-to`, or an `unknown-value`: a `short-id`, `perspective`,
+`presentation` or `logging` word outside the ones the schema lists as
+known, which a newer app may define) prints and fails nothing. Exit 0 with no `DEPRECATED`
 line is the check to make before committing a hand-written file.
 `.schema/VERSION` is the set's own version marker, `lanework-schema vN` on
 line 1 — the same shebang the guide's own first line carries, and its own
@@ -128,7 +137,9 @@ writes nothing; add `--apply --name <you> --model <model>` to make them,
 then validate. Run it when the validator fails or prints `DEPRECATED` on
 files you didn't write, before fixing anything by hand. `.schema/HEAL.md`
 is its catalog: every repair it makes, under a rule id, with a before and
-after, which makes it the place to look up a retired spelling. A heal never
+after, which makes it the place to look up a retired spelling. H13 and H14
+re-apply the board's definitions to existing cards, so run them only when
+the board's owner asks, and read the dry run first. A heal never
 restamps `modified`, and a repair that drops something a person wrote posts
 a comment on the card first, signed with the `--name` you give. **This
 board's copy wins**: the copy an agent skill carries refuses a board that
@@ -141,10 +152,10 @@ optional below it — a lane or card without one is read as schema 1), `title`
 (optional — an item without one renders as untitled, so give cards real
 titles), `created` and `modified` (**mappings** — see Stamping your work
 below), and `icon` (**a mapping** — the symbol and its tint; see Colors and
-icons below). Lanes and cards may additionally set `background` (**a mapping**,
+icons below). Cards may additionally set `background` (**a mapping**,
 `{color: …}` — see Colors and icons below) — an edge
-accent, a band along a lane's top and a stripe down a card's left side. **Not
-the board's**: a `background` at the board root has no reading at all, so
+accent, a stripe down the card's left side. **Not a lane's or the board's**:
+a `background` on a lane or at the board root has no reading at all, so
 writing one there paints nothing (one already in a file is left exactly as
 written, like any key the app does not read). Lanes and cards may set `order`
 (a number; floats are fine) — **optional, and the way to control position**:
@@ -155,11 +166,20 @@ lane, remove the `collapsed` key** rather than writing `collapsed: false` —
 an absent key is the default, and the app removes it too. A lane's `width`
 rides along untouched while it is folded.
 
+Lanes may set `presentation` — how the lane draws its cards: `list` draws
+one full-width, one-line row per card (the icon, the title, the chips, the
+paperclip and the comment count, with no body preview), and `card`, the
+default, draws the usual faces. **To go back to cards, remove the
+`presentation` key** rather than writing `presentation: card` — an absent
+key is the default, and the app removes it too. A name the app does not know
+reads as cards, and the app leaves it as written. A list lane still takes
+`group` and drops, and its `width` still sets how wide its rows are.
+
 Lanes may set `group` — how the lane's cards are sectioned on screen —
 as a mapping with two subkeys, always written together: `group: {by:
 modified, direction: descending}` (three under `label`, below).
-`by` is `modified`, `created`, `due`, `priority`, `component` or
-`label`. The first three read as day buckets
+`by` is `modified`, `created`, `due`, `priority` or `label`. The
+first three read as day buckets
 and draw newest section first (`due`'s undated cards fall into a
 trailing "No due date" section). `priority` instead sections on the
 stamped `rank` of the card's own `labels` entry of kind `priority`
@@ -169,14 +189,8 @@ labelling each section with the `text` of its own first card's
 priority. A priority with no readable rank has no section of its
 own: it falls, with a card that has no priority at all, into a
 trailing "No priority" section. No definition is consulted, so this
-works on a board that defines no `priority` kind. `component`
-sections by the card's `labels` entry of kind `component`
-instead — freeform, so there is no roster to order by;
-sections are the distinct component values that actually occur,
-ordered **alphabetical case-insensitive**, labelled with the
-**first-seen spelling** of each case-insensitive group (the first card,
-in the lane's own order, to carry it); a componentless card falls into
-a trailing "No component" section. `label` sections on any one label
+works on a board that defines no `priority` kind.
+`label` sections on any one label
 kind, named in a third subkey: `group: {by: label, kind: status,
 direction: descending}`. The `kind` is a kind's `type`, matched
 case-insensitively against each card's stamped `kind.type`, and no
@@ -191,13 +205,13 @@ ranked sections first. A card with no entry of the kind falls into
 a trailing "No <kind>" section, named from the first stamped
 `kind.text` in the lane, else the `kind` as written. `by: label`
 with no `kind` reads as no grouping and keeps its bytes, and `kind:
-priority` or `kind: component` reads as that `by`. A `kind` beside
+priority` reads as that `by`. A `kind` beside
 any other `by` is ignored and left where it is. The Group
 By menu lists None, Modified, Created and Due, then one row per
 `single: true` kind the board's vocabulary defines, in vocabulary
-order, `priority` and `component` among them like any other and
-absent on a board that defines neither. Picking any kind row writes
-`{by: label, kind: <type>}`, those two included, and re-picking the
+order, `priority` among them like any other and absent on a board
+that does not define it. Picking any kind row writes
+`{by: label, kind: <type>}`, `priority` included, and re-picking the
 lane's checked row writes nothing, so a lane already written `by:
 priority` keeps its bytes until it is picked onto another row; a
 hand-written `group` may name any kind. `direction` is `ascending` or
@@ -206,17 +220,14 @@ hand-written `group` may name any kind. `direction` is `ascending` or
 lowest/highest priority first — `descending` always means "the
 reading a person would call *first*", whichever `by` is active, not
 literally "biggest number first" (a lower `rank` is a higher
-priority). For `component` there is no rank to invert:
-`descending` draws A→Z and `ascending` flips to Z→A, the literal
-dictionary reading, since a freeform value has no "prominence" for
-the words to mean anything other than themselves. For `label`,
+priority). For `label`,
 `descending` draws the lowest rank first and then A to Z, and
 `ascending` flips both, ranked sections still ahead of unranked
 ones. Under `modified`
 and `created` this is presentation only — nothing about a card's
 own file changes because a lane groups, and a drag only ever
 changes a card's `order`, exactly as an ungrouped lane's does. Under
-`priority`, `component`, `label` and `due` **a drop into a section assigns
+`priority`, `label` and `due` **a drop into a section assigns
 that section's value to the card**: it writes the flattened `labels`
 entry of that kind in place of any the card had, or the bare `due`
 day, exactly as the card window's own rows do, and a drop under the
@@ -228,7 +239,7 @@ drop section for every value that kind lists and no card holds, read
 as a write-time palette: they vanish when the drag ends, no file
 carries them, and a drop into one assigns that value. Direction only reorders sections
 against each other; the rank order cards keep within one section
-never changes, and the undated/no-priority/no-component tail stays
+never changes, and the undated/no-priority/no-value tail stays
 last either way. Full words are canonical for `direction`;
 `asc`/`desc` read leniently as synonyms. Absent, `none`, or any `by`
 this version doesn't recognize all read as no grouping, and an
@@ -270,19 +281,19 @@ a label name, matched case-insensitively; `not-equal` also matches a
 card with no labels at all. Priority clauses: `by: priority`, the
 identical `equal`/`not-equal` grammar, matching the card's `labels`
 entry of kind `priority` (its lowest-ranked, where it carries
-several). Component clauses: `by: component`, that grammar once more,
-against its entry of kind `component`. **All three match the stamped
+several). **Both match the stamped
 `text`** and consult no vocabulary at all: there is nothing for a
 value to be "unrecognized" against, so `not-equal` matches any card
 that carries no such value.
 Waiting clauses: `by: waiting`, `op` is `equal` or `not-equal`,
 `value` is `me` or a literal handle. `me` means this machine's own
 human; `human`, `operator` and an absent `for` all count as that same
-human too. `not-equal` matches a card carrying no `waiting` at all,
+human too. A literal handle also matches a card whose `for` lists it
+among several. `not-equal` matches a card carrying no `waiting` at all,
 the same no-value rule as `label`'s restated for this one flag.
 `author` is not yet a usable `by` — identity matching is
 deferred, and the waiting clause above does not lift that: `waiting.for`
-is one stamped string, `created.by`/`modified.by` a stamped identity
+is stamped handles, `created.by`/`modified.by` a stamped identity
 mapping, a different question this clause never touches. This is
 presentation only, as `group` is under `modified` and `created`:
 a filtered-out card is hidden, never touched, and it composes with
@@ -332,6 +343,19 @@ writes as bare names. An entry whose kind the board does not define is
 kept, and so is any other subkey you add to the mapping, each with its
 value and place, though the app writes the key in its compact form. Writing the key by hand or by agent stays just as valid.
 
+Lanes may set `locked` — what the app's own editing may not change in
+that lane, a list of names: `locked: [content, comments]`. `content`
+covers a card's title, body, attachments and relations, and `comments`
+covers its comment thread. Absent or empty is unlocked. **The key binds
+only the app's own editing.** Files are not policed: nothing stops a
+write to a locked lane's files, and the board's own instructions govern
+agents, so its `index.md` body says what a lock asks of you. A name the
+app does not know is ignored and left as written, and `move` is reserved
+for a later version. The app enforces the lock on its own editing and
+shows a padlock on a locked lane; a person sets it from the lane's Lock
+Lane menu or the padlock's popover, which keep any name the app does not
+know. What a lock asks of an agent is still the board's instructions.
+
 The board's own `index.md` also carries `id` — a lowercase UUID that is the
 board's identity, written by the app the first time it opens a board without
 one. **Never change it**; write a fresh one when you create a board by hand,
@@ -341,16 +365,16 @@ The board's own `index.md` may set `config` — a mapping holding the
 board's settings, `config: {show-card-body: 3, due-soon: 2, show-trash:
 true}`. **Edit one subkey and leave the rest alone**: the app does exactly
 that, so a setting you write by hand survives every change the user makes
-to another one. Ten subkeys have a bullet below and **eight of them are
+to another one. Eleven subkeys have a bullet below and **nine of them are
 read**: `priorities` and `collapse-empty` are retired and no longer read
 anywhere, and the app drops both when it rewrites this file. Any other
 subkey in there is preserved and ignored like any key the app does not know.
 
 This machine also has its own global config file, one level above every
 board, at `/Users/rzen/Library/Containers/dev.rzen.indie.Lanework/Data/Library/Application Support/Lanework/Config/index.md` — its own `config:` block sets
-an app-wide default three of the subkeys below fall back to (`due-soon`,
-`thumb-sizes` and `logging` do — `logging` per subkey, so a board can
-set only `level` and still inherit the machine's `retain`), and a
+an app-wide default four of the subkeys below fall back to (`due-soon`,
+`thumb-sizes`, `short-id` and `logging` do — `logging` per subkey, so a
+board can set only `level` and still inherit the machine's `retain`), and a
 board's own subkey wins wherever it is set. To change one board, write
 that board's subkey; edit this machine's file only when you are asked
 to. Its `handle` is this machine's human's mention handle, the one the
@@ -358,11 +382,12 @@ Mentions section below names.
 Label kinds are never set here: a `default-labels` key in this file
 is retired and not read, and a board's vocabulary is its own
 `config.labels` plus the built-in `text` kind.
-Its other keys — `restore-open-boards`, `templates-repo` and
-`waiting-signpost` — are the app's own settings: whether it reopens the
-boards that were open at launch, the repository the New Board Gallery
-reads, and whether it signals when a card starts waiting on this
-machine's human. None of them changes what a board's files say or how
+Its other keys — `restore-open-boards`, `templates-repo`,
+`waiting-signpost` and `return-posts-comment` — are the app's own
+settings: whether it reopens the boards that were open at launch, the
+repository the New Board Gallery reads, whether it signals when a card
+starts waiting on this machine's human, and whether Return (rather than
+Shift-Return) posts a comment in a card window. None of them changes what a board's files say or how
 they read. A key not named here changes nothing on a board,
 `priorities` included: it is retired at this level exactly as on a
 board, and a roster written here does nothing.
@@ -413,11 +438,9 @@ board, and a roster written here does nothing.
   tint. `single: true` constrains **writers** and nothing else: a picker
   replaces rather than accumulates, no card entry ever stamps `single`,
   and a card that has somehow collected several values of a single kind
-  draws every one of them until the on-command pass (Board ▸ Re-stamp
-  Labels from Definitions, or its shortcut) reduces it to the one a
-  reader picks (the lowest `rank`, the first in file order where ranks
-  tie or none is ranked) and a comment signed `healer` records what was
-  dropped (Stamping your work, below).
+  draws every one of them until a card-level edit replaces them (a
+  picker does) or an agent reduces them with the heal
+  (`lanework-heal.py`, rule H14), which records what it dropped.
   **The effective vocabulary is this board's own `labels` plus the
   built-in `text` kind**, and nothing on this machine adds to it.
   **One kind is built in and always present** —
@@ -426,28 +449,27 @@ board, and a roster written here does nothing.
   them like any other kind's and offered as the card menu's Labels ▸
   Text submenu on every board; it can be recoloured or given another
   icon or name by naming it here, and never removed.
-  **`priority` and `component` are ordinary kinds**, present only
-  where this board defines them — a board usually gets them from its
-  template. The suggested definitions are
+  **`priority` is an ordinary kind**, present only
+  where this board defines it — a board usually gets it from its
+  template. The suggested definition is
   `{type: priority, text: Priority, icon: {glyph: flag}, single: true,
   values: [{text: Urgent, rank: 0, color: "#C8283C", icon: {glyph:
   exclamationmark.2}}, {text: High, rank: 1, color: "#E07A1F", icon:
   {glyph: exclamationmark}}, {text: Medium, rank: 2}, {text: Low, rank:
   3, icon: {glyph: arrow.down}}]}` — Urgent and High carry a colour of
-  their own, the other two none — and `{type: component, text:
-  Component, color: aluminum, icon: {glyph: puzzlepiece}, single:
-  true}`, an open kind. Reshaping the `priority` definition here is how
-  a board changes its own priority scale.
+  their own, the other two none. Every other kind — a `component` kind
+  included — is a label like any other. Reshaping the `priority`
+  definition here is how a board changes its own priority scale.
   **A definition is a write-time palette, never a read-time authority**:
   it is what a writer picks from and stamps in full onto the card, and
   nothing that draws, sorts, filters or groups a card ever consults it,
   so recolouring a kind here changes new writes and leaves every card
   already written saying exactly what it says. The owner makes, edits
   and removes kinds in Board ▸ Board Settings…, under Label Kinds, and
-  its Save re-stamps every card that uses a changed kind; writing the
-  subkey by hand is the same change to the palette, and the cards it
-  reaches are re-stamped as they are next written or on the
-  on-command pass.
+  its Save writes only this subkey. A card keeps the label stamps it was
+  given until a card-level edit changes them: the app never re-applies a
+  changed definition to existing cards. To bring existing cards forward,
+  edit the files, or run the heal's H13 and H14 when the owner asks.
 - `thumb-sizes` — the square sizes this board offers when you embed one of
   a card's images, a list of positive whole numbers (`thumb-sizes: [200,
   400]`). Each number names a square an image is **fitted into**, never
@@ -465,6 +487,16 @@ board, and a roster written here does nothing.
   because prose may still point at them. The owner sets it in the app's
   Board ▸ Board Settings… window, which writes this subkey; writing it here
   is the same change.
+- `short-id` — whether a card's face shows its short id, the first eight
+  characters of its uuid: `show` draws it on every face as a caption on the
+  face's last row, `option` draws it over each face only while ⌥ alone is
+  held, and `hide` draws nothing. Absent falls back to the app-wide default
+  set on this machine (above), and both absent falls back to `hide`; `hide`
+  is a real value, so a board can turn off what this machine's default
+  shows. `true` reads `show` and `false` reads `hide`, and a value that is
+  none of the three is treated as absent and its bytes are kept. The owner
+  sets it in the app's Board ▸ Board Settings… window, which writes this
+  subkey; writing it here is the same change.
 - `logging` — the board's own activity log (`.log/`, above), **off unless
   this key or the app-wide default turns it on**. Canonically a mapping,
   `logging: {level: info, retain: 30}`. `level` is `off`, `error`,
@@ -595,18 +627,18 @@ one. An entry is `{text, rank?, color?, icon?, kind}`:
   redundancy is deliberate and is what makes each entry readable and
   removable on its own. **Every entry stamps its kind**, the built-in
   `text` kind — free labels — included: `{text: bug, kind: {type:
-  text, text: Text, icon: {glyph: tag}}}`, and `priority` and
-  `component` like any other.
+  text, text: Text, icon: {glyph: tag}}}`, and `priority` like any
+  other.
 
-**A card's priority and component are `labels` entries, never root
-keys.** A priority is an entry of kind `priority`, stamping its kind
+**A card's priority is a `labels` entry, never a root key.** A
+priority is an entry of kind `priority`, stamping its kind
 like any other: `labels: [{text: High, rank: 1, color: "#E07A1F",
 icon: {glyph: exclamationmark}, kind: {type: priority, text: Priority,
-icon: {glyph: flag}}}]`, and a component one of kind `component`.
-**`priority:` and `component:` at a card's root are reserved**: never
-write either. One still found there is not read; the one-time
+icon: {glyph: flag}}}]`. **`priority:` at a card's root is reserved**:
+never write it. One still found there is not read; the one-time
 migration moves it into `labels`, and an entry already in the list
-wins over it.
+wins over it. A root `component:` is no reserved key: it is an unknown
+key like any other, preserved and not read.
 
 **Flatten as you write.** Resolve each property against the effective
 definitions (`config.labels`, above) and stamp the answer: the value's
@@ -627,7 +659,7 @@ rather than living on as a tolerance: a bare string entry, a bare
 scalar at `labels:`, a `value:` key standing in for `text`, a bare
 `kind: epic` string where the kind object belongs, a bare `glyph:`
 on a label or a kind where the `icon` mapping does, a root
-`priority:` or `component:` key where a `labels` entry belongs, and
+`priority:` key where a `labels` entry belongs, and
 an entry with no `kind` at all — a free label written before
 2026-10-05, when `text` replaced `default` as the built-in kind.
 Nothing is refused
@@ -672,21 +704,6 @@ an already-written card says. Where the board's vocabulary defines
 the kind, the card window has a Priority row for it and the card
 menu's Labels ▸ a Priority submenu, both in the vocabulary's own
 order; Create Card refuses a priority on a board that defines none.
-
-A card's **component** is its `labels` entry of kind `component`,
-`priority`'s rules for the other kind. The suggested kind is **open**,
-so a flattened value normally carries its own `text` plus the kind's
-colour and no `rank`, and a board that gives `component` a `values`
-list closes it, after which its values stamp `rank` like priority's.
-It draws the same two-segment capsule as priority, sitting adjacent
-to it and sharing its exact chrome — but always **untinted**: "no
-color semantics" is this kind's own standing ruling, so the stamped
-`color` travels with the value and the chip draws it in the ordinary
-ink regardless, on a card's face and in the card window alike. In a
-lane grouped by `component` the chip is hidden. Grouping and
-filtering both work off the stamped `text` alone, case-insensitively.
-The card window's Component row and the card menu's Labels ▸ write
-it where the board's vocabulary defines the kind.
 
 Unknown keys are preserved verbatim by the app and invisible in its UI —
 custom metadata (`project:`, `tags:`, `claimed-by:` …) is safe to add and
@@ -755,10 +772,9 @@ you to do differently, and nothing here for you to write: this is a name
 the app reserves for that one writer.
 
 **A second name the app reserves: `healer`.** A comment signed `by: {name:
-healer, kind: agent}` is the app's own repair writing down what it changed
-and why — today, a card that had collected several values of a kind the
-board defines as `single`, reduced to the one a reader picks (the
-lowest `rank`), with the original list quoted in the comment.
+healer, kind: agent}` is the name a repair the app makes signs when it
+writes down what it changed and why, with the original quoted in the comment.
+No repair the app runs today signs it.
 The next repair that destroys a fact a person
 wrote, on a card or lane, on a command somebody ran, signs `healer`
 too and posts the same record; a repair that only re-spells, adds,
@@ -767,6 +783,16 @@ It is a record, not a request: nothing is owed in
 reply, and the card's own `modified` is deliberately untouched, because a
 heal is upkeep rather than an edit. Like `shortcuts`, this is a name for
 you to read and never to write.
+
+**One more name the app reserves: `board`.** A comment signed `by: {name:
+board, kind: agent}` that carries a `moved:` key is a move receipt. On a
+board whose `config` sets `move-receipts: true`, the app writes one when
+a card moves to another lane in the app or through its Shortcuts action,
+saying which lane it left, which it arrived in, and who moved it
+(`moved.by`). It is a record,
+not a request: nothing is owed in reply, and it never answers a `waiting`
+ask. Like `shortcuts` and `healer`, this is a name for you to read and
+never to write.
 
 On a board that lives in a git repository of the user's own, committing
 your changes yourself (see Git below) records exact authorship as well.
@@ -1022,7 +1048,14 @@ not an error, it is just an unusually short sentence.
 `waiting: {for: rzen, since: 2026-09-13T01:29:48Z, comment: 973cda84-…}`.**
 Write it in the same pass as the ask it points at — `for` is the handle
 you addressed, or the word `human` (or `operator`) for any human, and
-an absent `for` means any human too; `since` is when you set it, in the
+an absent `for` means any human too. **To ask several people, make `for`
+a list: `for: [rzen, bob]`** — every listed handle's machine draws the
+mark, counts the card and chimes; nobody else's does. A list with a
+`human` entry or a blank entry, or an empty list, is any human. Name each of them with an
+`@` on the ask's first line as well, so their option buttons draw. The
+list only widens who is alerted: any person's answer clears the whole
+flag. Only write a list on a board whose guide line reads v105 or later
+— an older build reads a list as no one and never clears it. `since` is when you set it, in the
 stamps' own timestamp grammar; `comment` is the ask's own comment uuid,
 bare, never a path. A mapping is the only shape. **Only the app clears
 it**: once a human's comment lands on the card later than `since`, or
@@ -1035,6 +1068,50 @@ whose handle it names — a card waiting on somebody else's handle wears
 nothing on this machine. If the app cleared it before the reply you
 needed, set it again; do not remove it yourself when the reply lands,
 the app already has.
+
+## Relations
+
+A card can state typed, directed facts about other items: this card
+`traces-to` a requirement, `depends-on` another card, `supersedes` an old
+one. Each relation is a document of its own at
+`<card>/relations/<uuid>/index.md`, stored once, on the card that makes the
+statement:
+
+```
+---
+schema: 1
+kind: relation
+created: {at: 2026-11-09T10:00:00Z, by: {name: claude, kind: agent}}
+rel: depends-on
+to: lanework://<board-id>/<item-id>
+---
+Optional rationale, in Markdown.
+```
+
+- `schema`, `kind`, `rel` and `to` are required. There is no `title` and no
+  `order`. Stamp it like any file you write.
+- `rel` is free text. The app attaches no meaning to it and shows it as
+  written; reuse the words the board already uses.
+- **Write `to` as the full link**, the form Reading the board gives: a card
+  usually, but a board, lane, comment or attachment too. A short link
+  (each segment the first eight or more hex digits of its id) is legal and
+  resolves by prefix, but write the full form.
+- **`to` resolves exactly as written**: there is no fallback search, and a
+  target the app cannot find is shown as unresolved. Nothing ever rewrites
+  `to`; if the target moved, write the new link yourself.
+- `suspect: {since, by, cause}` says the relation needs re-checking because
+  something it depends on changed: `since` is when you set it, `by` is you,
+  in the stamps' identity shape, and `cause` is the full link to the
+  comment that made it suspect. Agents set and remove it; the app only
+  shows it.
+- **Delete a relation by moving its folder into `relations/.trash/`**, as a
+  comment goes into `comments/.trash/`. Don't rewrite one into a different
+  statement; delete it and state the new one.
+- **No inverse is ever stored.** The target's side is derived by reading
+  the boards, so never write a matching relation back on the target.
+- **`cite-as` is for display only.** A card's `cite-as` is the name people
+  cite it by, such as `FR123`, never an identity: `to` always carries
+  the uuids.
 
 ## Hard rules (the app fails loudly on violations)
 
@@ -1052,7 +1129,7 @@ the app already has.
 
 ## Colors and icons
 
-`background` is a **mapping** too, on a lane or a card, never the board:
+`background` is a **mapping** too, on a card only, never a lane or the board:
 
 ```yaml
 background: {color: coral}

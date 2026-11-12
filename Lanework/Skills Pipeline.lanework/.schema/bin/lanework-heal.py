@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# lanework-heal v2
+# lanework-heal v5
 """lanework-heal: repair the known kinds of damage on a Lanework board. Python 3, standard library only.
 
     python3 .schema/bin/lanework-heal.py <board> [--apply --model M [--name N] [--session S]] [--ignore-board-copy]
@@ -22,12 +22,12 @@ Rules (`.schema/HEAL.md` has each one in full, with its before and after):
   H03 bare-icon         `icon: <glyph>` and `iconColor:` folded into the `icon` mapping (the mapping wins)
   H04 retired-key       `modified-by`: folded into `modified.by`, dropped, or dropped with a record
   H05 definition        a `config.labels` entry in a retired spelling
-  H06 added-definition  a `priority`/`component` kind the board's cards use and its vocabulary lacks
+  H06 added-definition  the `priority` kind, when the board's cards use it and its vocabulary lacks it
   H07 bare-labels       `labels: <scalar>`, a bare string entry, or a `value:` entry
   H08 string-kind       an entry's `kind: <name>` where the kind object belongs
   H09 text-kind         a free label with no `kind`, or the retired `default` kind
   H10 bare-glyph        a bare `glyph:` on an entry or its kind where `icon` belongs
-  H11 root-key          a reserved root `priority:`/`component:` key moved into `labels`
+  H11 root-key          the reserved root `priority:` key moved into `labels`
   H12 root-key-dropped  the same key, dropped: `labels` already carries an entry of that kind (it wins)
   H13 stale-label       a recognised entry whose stamps disagree with the current definition
   H14 single-kind       several entries of a `single` kind: the value readers show stays
@@ -38,11 +38,11 @@ Rules (`.schema/HEAL.md` has each one in full, with its before and after):
 The board's copy wins: a copy of this script outside a board (an agent skill's) exits 2 where the
 board ships `.schema/bin/lanework-heal.py`, unless `--ignore-board-copy` is given.
 
-Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, any key or entry no rule names, and a
-foreign entry's stamps (a kind the definitions don't name, or a closed kind's unlisted value). A
-missing `by` is not damage: it says the owner wrote the file, so no heal invents one. A repair that
-drops a fact (H04's third case, H12, H14) posts a comment on the card, signed as the running agent,
-quoting what was dropped; it posts before the file is rewritten.
+Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, `relations/.trash`, any key or
+entry no rule names, and a foreign entry's stamps (a kind the definitions don't name, or a closed
+kind's unlisted value). A missing `by` is not damage: it says the owner wrote the file, so no heal
+invents one. A repair that drops a fact (H04's third case, H12, H14) posts a comment on the card,
+signed as the running agent, quoting what was dropped; it posts before the file is rewritten.
 
 Every rewritten list or mapping comes back in the writer's compact form: one flow line while it fits
 120 characters, else a block whose entries each stay on one line where theirs fits, and a stamp always
@@ -61,7 +61,7 @@ import uuid
 from datetime import datetime, timezone
 
 SCRIPT = "lanework-heal"
-RESERVED_NAMES = {"healer", "shortcuts", "tracker"}
+RESERVED_NAMES = {"board", "healer", "shortcuts", "tracker"}
 FLOW_LIMIT = 120
 TEXT_KIND = {"type": "text", "text": "Text", "icon": {"glyph": "tag"}}
 EMBEDDED_SUGGESTED = [
@@ -70,9 +70,8 @@ EMBEDDED_SUGGESTED = [
         {"text": "High", "rank": 1, "color": "#E07A1F", "icon": {"glyph": "exclamationmark"}},
         {"text": "Medium", "rank": 2},
         {"text": "Low", "rank": 3, "icon": {"glyph": "arrow.down"}}]},
-    {"type": "component", "text": "Component", "color": "aluminum", "icon": {"glyph": "puzzlepiece"}, "single": True},
 ]
-RESERVED_KINDS = ("priority", "component")
+RESERVED_KINDS = ("priority",)
 LABEL_KEYS = ("text", "rank", "color", "icon", "kind")
 KIND_KEYS = ("type", "text", "color", "icon")
 ICON_KEYS = ("glyph", "color")
@@ -226,7 +225,7 @@ KIND_CATALOG = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "
 
 
 def load_suggested(path=KIND_CATALOG):
-    """The suggested priority and component kinds: their rows in templates/label-kinds.md when that file
+    """The suggested priority kind: its row in templates/label-kinds.md when that file
     sits beside the script (an agent skill's copy), else the embedded copy (a board's own copy, which the
     app ships alone as `.schema/bin/lanework-heal.py`)."""
     try:
@@ -1224,7 +1223,7 @@ def uuid_dirs(d):
 
 
 def documents(board):
-    """(path, role) for every live document; .trash/ and the comment drafts are never walked."""
+    """(path, role) for every live document; .trash/, the comment drafts and relations/.trash are never walked."""
     yield os.path.join(board, "index.md"), "board"
     for lane in uuid_dirs(board):
         yield os.path.join(lane, "index.md"), "lane"
@@ -1238,6 +1237,8 @@ def documents(board):
                 yield os.path.join(c, "index.md"), "comment"
                 for a in uuid_dirs(os.path.join(c, "attachments")):
                     yield os.path.join(a, "index.md"), "attachment"
+            for r in uuid_dirs(os.path.join(card, "relations")):
+                yield os.path.join(r, "index.md"), "relation"
 
 
 def config_of(path):

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-# lanework-validate v1
+# lanework-validate v4
 """lanework-validate — a board, or one index.md, checked against the schema set beside this script.
 
     python3 .schema/bin/lanework-validate.py <path> [<path> ...]
 
 A path naming a FILE validates that one document against the schema its position selects — the
 first ancestor whose name ends `.lanework` is its board, and the folder depth below that picks
-board, lane, card, comment or attachment, exactly as the board walk would; a file outside any
-board is read by its own `kind`. A path naming a `.lanework` DIRECTORY walks the whole board: every
-lane, card, comment and attachment, `.trash/` included and `comments/.draft` excluded. Any other
+board, lane, card, comment, attachment or relation, exactly as the board walk would; a file outside
+any board is read by its own `kind`. A path naming a `.lanework` DIRECTORY walks the whole board:
+every lane, card, comment, attachment and relation, `.trash/` included and `comments/.draft`,
+`comments/.trash` and `relations/.trash` excluded. Any other
 directory is searched one level down for boards.
 
 Three kinds of line, and an exit code that reads only the first:
@@ -16,6 +17,12 @@ Three kinds of line, and an exit code that reads only the first:
     FAIL <file>: <rule> at <schema locator> (instance <document locator>) — <why>     exit 1
     WARN <file>: <rule> — <why>                                            reported, exit 0
     DEPRECATED <file>: deprecated at <locator> (instance <locator>) — <branch>: <why>   exit 0
+
+A WARN line is a dangling `hero` or `in-reply-to`, or an `unknown-value`: a text value for `short-id`,
+`perspective`, a lane's `presentation` or `logging` that is not one of the words the schema lists
+in `examples` on its short-id-mode, board-perspective, lane-presentation and log-level definitions
+(compared after trim and case fold; booleans and numbers are never warned). The app keeps the bytes,
+and a newer app may define more words, so it is a warning and never a failure.
 
 A DEPRECATED line names a value the app still READS but no longer WRITES — the `deprecated: true`
 branch of the schema the value matched. A clean run prints no FAIL and no DEPRECATED line; that is
@@ -50,13 +57,14 @@ INDEX_FILE = "index.md"
 TRASH_FOLDER = ".trash"
 ATTACHMENTS_FOLDER = "attachments"
 COMMENTS_FOLDER = "comments"
+RELATIONS_FOLDER = "relations"
 BOARD_SUFFIX = ".lanework"
 
 # The app's own supported format version (`BoardLoader.supportedSchema`).
 SUPPORTED_SCHEMA = 1
 
 # The kinds the format knows, in the format's own order, and the emitted file each validates against.
-KINDS = ("board", "lane", "card", "comment", "attachment", "config")
+KINDS = ("board", "lane", "card", "comment", "attachment", "config", "relation")
 SCHEMA_FILENAMES = {
     "board": "board.json",
     "lane": "lane.json",
@@ -64,8 +72,12 @@ SCHEMA_FILENAMES = {
     "comment": "comment.json",
     "attachment": "attachment.json",
     "config": "config-document.json",
+    "relation": "relation.json",
 }
 COMMON_FILENAME = "common.json"
+# The kinds a set may lack (`SchemaSet.optionalKinds`): a board's `.schema/` installed before
+# `relation.json` existed loads, and fails only at a `relations/` document (Pipeline card fe00d484).
+OPTIONAL_KINDS = ("relation",)
 
 # The identity predicate (`IntegrityRules.isIdentityShaped`): hex, 8-4-4-4-12, any case, any version.
 IDENTITY = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -863,7 +875,7 @@ class FlowScanner:
 # refused on load: silently ignoring `required` or `const` would be a validator that passes documents
 # the reference refuses, which is the one failure a second implementation must never have.
 IMPLEMENTED_KEYWORDS = frozenset(
-    ["$ref", "type", "additionalProperties", "anyOf", "items", "pattern", "enum", "not", "properties"]
+    ["$ref", "type", "additionalProperties", "anyOf", "items", "pattern", "enum", "not", "properties", "required"]
 )
 ANNOTATION_KEYWORDS = frozenset(
     ["$schema", "$id", "$defs", "title", "description", "deprecated", "$comment", "default", "examples",
@@ -900,6 +912,8 @@ class SchemaSet:
                 with open(path, "rb") as handle:
                     document = json.loads(handle.read().decode("utf-8"))
             except OSError:
+                if filename in [SCHEMA_FILENAMES[kind] for kind in OPTIONAL_KINDS]:
+                    continue
                 raise UsageError("the schema set at %s is missing %s" % (directory, filename))
             except (UnicodeDecodeError, ValueError) as error:
                 raise UsageError("%s could not be read as JSON: %s" % (filename, error))
@@ -911,7 +925,8 @@ class SchemaSet:
             self.filename_by_id[identifier] = filename
         unsupported = []
         for filename in filenames:
-            self.collect_unsupported(self.by_filename[filename], filename + "#", unsupported)
+            if filename in self.by_filename:
+                self.collect_unsupported(self.by_filename[filename], filename + "#", unsupported)
         if unsupported:
             raise UsageError(
                 "the schema set uses %s, which this script does not implement — run scripts/validate-schema.sh"
@@ -938,6 +953,10 @@ class SchemaSet:
             if keyword in IMPLEMENTED_KEYWORDS or keyword in ANNOTATION_KEYWORDS:
                 continue
             found.append((keyword, child_pointer))
+
+    def covers(self, kind):
+        """Whether the set carries `kind`'s file — false only for an optional kind it lacks."""
+        return SCHEMA_FILENAMES[kind] in self.by_filename
 
     def schema_for(self, kind):
         filename = SCHEMA_FILENAMES[kind]
@@ -1045,6 +1064,35 @@ class Outcome:
     def __init__(self):
         self.complaints = []
         self.deprecated = []
+        self.warnings = []   # (instance location, message): non-failing, from `examples` on KNOWN_VALUE_DEFS
+
+
+# The words a person knows a key by, for the unknown-value WARN: the last instance segment, except
+# that `logging` (a bare scalar) and its `level` subkey are both the logging level.
+KNOWN_VALUE_NAMES = {"level": "logging level", "logging": "logging level"}
+
+# The only definitions whose `examples` is a roster of known words rather than a plain annotation.
+KNOWN_VALUE_DEFS = frozenset([
+    "common.json#/$defs/short-id-mode", "common.json#/$defs/board-perspective",
+    "common.json#/$defs/lane-presentation", "common.json#/$defs/log-level",
+])
+
+
+def unknown_value_message(known, instance, iloc):
+    """The known-words check (`examples` on KNOWN_VALUE_DEFS): a STRING outside the list, after trim and case fold, and
+    nothing else — booleans and numbers have readings of their own (`short-id: true`) and are never
+    warned. Returns the WARN text, or None when the value is known or not a string."""
+    if not isinstance(instance, str) or not isinstance(known, list):
+        return None
+    folded = instance.strip().casefold()
+    if any(isinstance(word, str) and word.casefold() == folded for word in known):
+        return None
+    segment = str(iloc[-1]) if iloc else "value"
+    if KNOWN_VALUE_NAMES.get(segment) == "logging level" and folded in ("true", "false"):
+        return None   # the app reads the quoted words as info and off
+    return '%s is %s; known: %s (a newer app may define more)' % (
+        KNOWN_VALUE_NAMES.get(segment, segment), json.dumps(instance, ensure_ascii=False),
+        ", ".join(str(word) for word in known))
 
 
 def pointer(segments):
@@ -1102,12 +1150,26 @@ class Validator:
                     Complaint("enum", pointer(kloc + ["enum"]), pointer(iloc),
                               "Value %s is not one of the allowed values" % describe(instance)))
 
+        known_values = schema.get("examples") if absolute in KNOWN_VALUE_DEFS else None
+        if known_values is not None:
+            message = unknown_value_message(known_values, instance, iloc)
+            if message is not None and (pointer(iloc), message) not in outcome.warnings:
+                outcome.warnings.append((pointer(iloc), message))
+
         regex = schema.get("pattern")
         if isinstance(regex, str) and isinstance(instance, str):
             if not pattern_matches(regex, instance):
                 outcome.complaints.append(
                     Complaint("pattern", pointer(kloc + ["pattern"]), pointer(iloc),
                               "String %s does not match pattern '%s'" % (describe(instance), regex)))
+
+        required = schema.get("required")
+        if isinstance(required, list) and isinstance(instance, dict):
+            missing = [name for name in required if isinstance(name, str) and name not in instance]
+            if missing:
+                outcome.complaints.append(
+                    Complaint("required", pointer(kloc + ["required"]), pointer(iloc),
+                              "required key(s) missing: %s" % ", ".join("`%s`" % name for name in missing)))
 
         properties = schema.get("properties")
         if isinstance(properties, dict) and isinstance(instance, dict):
@@ -1150,6 +1212,9 @@ class Validator:
                 if valid:
                     matched = True
                     outcome.deprecated.extend(trial.deprecated)
+                    for warning in trial.warnings:
+                        if warning not in outcome.warnings:
+                            outcome.warnings.append(warning)
             if not matched:
                 outcome.complaints.append(
                     Complaint("anyOf", pointer(kloc + ["anyOf"]), pointer(iloc),
@@ -1300,6 +1365,12 @@ def validate_document(index_path, kind, is_board_root, display_path, validator, 
     whose kind came from its own `kind` key.
     """
     report.populations.count(kind)
+    if not validator.schemas.covers(kind):
+        # A set without `relation.json` cannot judge one: a failure here, at the document, rather
+        # than a silent pass (`BoardWalk`'s `relation-schema`).
+        report.findings.append(Finding(display_path, "relation-schema", "#/", "#/",
+                                       "this schema set has no relation.json, so a relations/ entry cannot be validated — use a set that carries it (Schema/1/, or a board whose .schema/ is current)"))
+        return None
     try:
         document = read_document(index_path)
     except FrontmatterFailure as failure:
@@ -1312,6 +1383,8 @@ def validate_document(index_path, kind, is_board_root, display_path, validator, 
                                        complaint.instance_location, complaint.message))
     for match in outcome.deprecated:
         report.deprecations.append(Deprecation(display_path, match))
+    for _, message in outcome.warnings:
+        report.warnings.append(Warning(display_path, "unknown-value", message))
 
     check_schema_version(document, display_path, is_board_root, report)
     if not trusted:
@@ -1450,6 +1523,7 @@ class BoardWalk:
             self.report.populations.indexless_identity_folders += 1
         attachments = self.walk_attachments(os.path.join(card, ATTACHMENTS_FOLDER))
         self.walk_comments(card)
+        self.walk_relations(card)
         # `hero` names one of that card's own attachments, and a dangling one warns.
         hero = text_of(document.get("hero")) if document else None
         if hero:
@@ -1491,6 +1565,25 @@ class BoardWalk:
             self.report.warnings.append(Warning(self.display(index), "in-reply-to",
                                                 "names %s, which is not one of the %d comments on this card" % (target, len(identities))))
         return identities
+
+    def walk_relations(self, card):
+        """`<card>/relations/<uuid>/index.md`, each against `relation.json` (Pipeline card 4f0d9f15).
+        `relations/.trash` and every other hidden entry skip, as in `comments/`."""
+        folder = os.path.join(card, RELATIONS_FOLDER)
+        if not os.path.isdir(folder):
+            return
+        for entry in self.children(folder):
+            name = os.path.basename(entry)
+            if name.startswith(".") or not os.path.isdir(entry):
+                continue
+            if not is_identity_shaped(name):
+                self.report.populations.stray_folders += 1
+                continue
+            index = os.path.join(entry, INDEX_FILE)
+            if not os.path.isfile(index):
+                self.report.populations.indexless_identity_folders += 1
+                continue
+            self.validate(index, "relation")
 
     def walk_attachments(self, folder):
         if not os.path.isdir(folder):
@@ -1550,6 +1643,7 @@ class BoardWalk:
             else:
                 self.walk_attachments(os.path.join(entry, ATTACHMENTS_FOLDER))
                 self.walk_comments(entry)
+                self.walk_relations(entry)
 
     def validate(self, index, kind, is_board_root=False, trusted=False):
         return validate_document(index, kind, is_board_root, self.display(index), self.validator,
@@ -1656,6 +1750,8 @@ def placement_of_file(path, board):
         return "attachment", False, False, "an `attachments/` entry"
     if parent_name.lower() == COMMENTS_FOLDER:
         return "comment", False, False, "a `comments/` entry"
+    if parent_name.lower() == RELATIONS_FOLDER:
+        return "relation", False, False, "a `relations/` entry"
     if parent_name.lower() == TRASH_FOLDER:
         kind_value = None
         try:

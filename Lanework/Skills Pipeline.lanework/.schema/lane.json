@@ -41,6 +41,10 @@
       "$ref" : "common.json#/$defs/lenient-bool",
       "description" : "Folds the lane to a slim strip. Absent is expanded, and the app removes the key rather than writing false."
     },
+    "presentation" : {
+      "$ref" : "common.json#/$defs/lane-presentation",
+      "description" : "How the lane draws its cards: `list` for one-line rows, `card` (the default, absent) for faces. A name this version does not draw reads as cards and keeps its bytes. The app removes the key rather than writing `card`."
+    },
     "group" : {
       "$ref" : "common.json#/$defs/group",
       "description" : "How the lane's cards are sectioned on screen. Presentation-only: nothing writes the datapoint a lane groups by."
@@ -58,8 +62,8 @@
       "type" : "object",
       "properties" : {
         "labels" : {
-          "$ref" : "common.json#/$defs/label-names",
-          "description" : "The labels a fresh card born into this lane starts with, unioned case-insensitively into its own."
+          "$ref" : "common.json#/$defs/card-default-labels",
+          "description" : "The labels a fresh card born into this lane starts with: bare names (free labels) or label entries of the board's own kinds, unioned into its own."
         }
       },
       "additionalProperties" : true,
@@ -67,7 +71,12 @@
     },
     "background" : {
       "$ref" : "common.json#/$defs/background",
-      "description" : "The lane's background colour."
+      "deprecated" : true,
+      "description" : "Reserved (owner ruling 2026-11-09): neither read nor written. A lane carrying it keeps its bytes."
+    },
+    "locked" : {
+      "$ref" : "common.json#/$defs/lane-locks",
+      "description" : "What the app's own editing may not change in this lane: `content` (title, body, attachments, relations) and `comments` (the thread). A name this version does not know is kept as written and ignored; `move` is reserved. Binds the app only; files are not policed."
     },
     "iconColor" : {
       "$ref" : "common.json#/$defs/lenient-text",
@@ -82,12 +91,12 @@
     "author" : {
       "$ref" : "common.json#/$defs/lenient-text",
       "deprecated" : true,
-      "description" : "Retired: folds into `created.by` as `{name: …}` by a scheduled heal at every level."
+      "description" : "Reserved: never written. Folds into `created.by` as `{name: …}` by a scheduled heal at every level."
     },
     "deleted" : {
       "$ref" : "common.json#/$defs/timestamp",
       "deprecated" : true,
-      "description" : "Retired: the tombstone model. Deletion is a move into `.trash/`; a present key relocates the item."
+      "description" : "Retired: the tombstone model. Deletion is a move into `.trash/`; a lane carrying it loads live, the key ignored and logged."
     }
   },
   "additionalProperties" : true

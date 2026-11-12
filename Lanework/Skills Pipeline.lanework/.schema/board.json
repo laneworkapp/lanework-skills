@@ -47,7 +47,7 @@
         "priorities" : {
           "$ref" : "common.json#/$defs/legacy-priority-roster",
           "deprecated" : true,
-          "description" : "Retired 2026-09-01, and not read at all since 2026-09-07: not at render, not as a fallback, not folded on a rewrite. A board still carrying it keeps its bytes until the one-time migration rewrites it as a `priority` kind under `config.labels`."
+          "description" : "Reserved since 2026-09-07: not read. A board carrying it drops it, unconverted, on its next `index.md` rewrite. The one-time migration is its only reader."
         },
         "labels" : {
           "$ref" : "common.json#/$defs/label-kinds",
@@ -57,6 +57,10 @@
           "$ref" : "common.json#/$defs/thumb-sizes",
           "description" : "The board's thumbnail size roster; overrides the global one, which overrides the built-in [200, 400]."
         },
+        "short-id" : {
+          "$ref" : "common.json#/$defs/short-id-mode",
+          "description" : "Whether a card's face carries its short id (the first eight characters of its uuid): `show` (always), `option` (while ⌥ alone is held) or `hide`. Absent inherits this Mac's value, then hide; `true` reads show and `false` reads hide, and a value with no reading is treated as absent and keeps its bytes."
+        },
         "show-statusbar" : {
           "$ref" : "common.json#/$defs/lenient-bool",
           "description" : "Shows the board window's status bar. Absent is hidden, and the app removes the subkey rather than writing false."
@@ -65,8 +69,12 @@
           "$ref" : "common.json#/$defs/lenient-bool",
           "description" : "Puts the trash column on screen as the board's last lane. Absent is hidden; the app removes the subkey rather than writing false."
         },
+        "move-receipts" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Has the app write a move receipt: one quiet comment, carrying `moved`, on a card moved to another lane in the app. Absent is off; the app removes the subkey rather than writing false."
+        },
         "perspective" : {
-          "$ref" : "common.json#/$defs/lenient-text",
+          "$ref" : "common.json#/$defs/board-perspective",
           "description" : "Which perspective the window presents — `kanban` (the default, absent) or a name a later version draws. An unknown name reads as kanban and keeps its bytes."
         },
         "logging" : {
@@ -77,17 +85,14 @@
       "additionalProperties" : true,
       "description" : "The board's settings block. Written per subkey: every sibling rides through untouched, and the last subkey leaving removes the mapping."
     },
-    "background" : {
-      "$ref" : "common.json#/$defs/background",
-      "description" : "Lane and card only since the board background excision of 2026-08-14. At a board root the key is preserved verbatim and read by nothing."
-    },
     "template" : {
       "$ref" : "common.json#/$defs/template",
       "description" : "Picker metadata when this board lives in a template store (09-templates.md). Read by the template store, not modeled by BoardModel; carried onto instantiated boards, where it rides along inert like any unknown key."
     },
     "workspace" : {
       "$ref" : "common.json#/$defs/workspace",
-      "description" : "Proposed, unruled — not read by this build. The roof over the board's place in a multi-board workspace."
+      "deprecated" : true,
+      "description" : "Reserved (owner ruling 2026-11-09): neither read nor written. A board carrying it keeps its bytes."
     },
     "show-trash" : {
       "$ref" : "common.json#/$defs/lenient-bool",
@@ -107,12 +112,12 @@
     "author" : {
       "$ref" : "common.json#/$defs/lenient-text",
       "deprecated" : true,
-      "description" : "Retired: folds into `created.by` as `{name: …}` by a scheduled heal at every level."
+      "description" : "Reserved: never written. Folds into `created.by` as `{name: …}` by a scheduled heal at every level."
     },
     "deleted" : {
       "$ref" : "common.json#/$defs/timestamp",
       "deprecated" : true,
-      "description" : "Retired: the tombstone model. Deletion is a move into `.trash/`; a present key relocates the item."
+      "description" : "Retired: the tombstone model. At a board root a present key is ignored and logged."
     }
   },
   "additionalProperties" : true
