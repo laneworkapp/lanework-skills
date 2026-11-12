@@ -1,0 +1,4 @@
+typed scalars in card-defaults.labels not read as typed:
+labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: v1, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: 2027, kind: {type: text, text: Text, icon: {glyph: tag}}}]
+FAIL
+union_lane_defaults: /private/tmp/claude-501/-Users-rzen-Indie-Shared-lanework-skills/9aee3c0f-725c-4271-b6c9-c924e53cd5a4/scratchpad/fx/run7/Defaults Plan.lanework/be1b3bf7-f067-4551-b255-5cb156847685: card-defaults.labels is nei
