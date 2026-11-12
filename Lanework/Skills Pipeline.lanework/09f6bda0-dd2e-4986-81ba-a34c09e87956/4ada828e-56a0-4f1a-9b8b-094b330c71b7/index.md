@@ -5,8 +5,7 @@ title: "Dispatch arming: answer waiting owner comments in every lane, flag stale
 order: 9216
 labels: [{text: dispatch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T16:00:59Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board watch"}}
-waiting: {for: rzen, since: 2026-11-12T01:50:54Z, comment: 93356fd7-96d5-4adc-b6ff-0ccb32516045}
-modified: {at: 2026-11-12T01:50:54Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-12T02:02:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 At arming, `/dispatch` sweeps only the agent lanes, and an `arm` event only checks for a work order. Owner comments left unanswered while no watch ran are never picked up.
 
@@ -53,6 +52,7 @@ Build the script as above, skip the sweep in Done, and flag stale claims by age.
 
 - ~~**Stale-claim rule**: when is a claim stale? See the ask on the thread. Recommended: A.~~ **ruled 2026-10-25: A, a START with no later comment on the card for 30 minutes.**
 - ~~**Sweep scope**: does every lane include Done? See the ask on the thread. Recommended: A.~~ **ruled 2026-10-25: every lane except Done.**
+- **When the live trial runs**: after 0.8.0 is released, or before it? **ruled 2026-11-12: before. 0.8.0 holds until the trial has run from a local install.**
 
 ## Out of scope
 
