@@ -622,6 +622,62 @@ if "$SK/work/scripts/lint-ask.sh" "$T/opt-mid.md" >/dev/null; then echo "lint-as
 [ "$(grep -v -x -F -e "$RECAP" "$T/opt-79.md" | wc -w | tr -d ' ')" -eq 79 ] && [ "$(wc -w < "$T/opt-79.md" | tr -d ' ')" -gt 80 ] || { echo "fixture is not 79 own words plus the line"; exit 1; }
 "$SK/work/scripts/lint-ask.sh" "$T/opt-79.md"; ok "lint-ask leaves the Recap line out of the 80-word count"
 
+# work: lint-stamps (a copy of the discovery board, so the board under test is never edited in place)
+LS="$SK/work/scripts/lint-stamps.sh"; SB="$T/Stamps.lanework"; cp -R "$D" "$SB"
+SC=$(ls "$SB"/*/*/index.md | head -1)
+# setstamp <card file> modified|waiting <seconds-ahead>: set that stamp from the clock, ahead by N seconds
+setstamp() { local ts; ts=$(date -u -v+${3}S +%FT%TZ)
+  if [ "$2" = modified ]; then sed -i '' -E "s/^modified: \{at: [^,}]*/modified: {at: $ts/" "$1"
+  else awk -v w="waiting: {for: rzen, since: $ts, comment: 11111111-1111-4111-8111-111111111111}" '/^waiting:/ {next} {print} /^modified:/ && !d {print w; d=1}' "$1" > "$1.new" && mv "$1.new" "$1"; fi; }
+rc=0; out=$("$LS" "$SB" 2>&1) || rc=$?; [ "$rc" -eq 0 ] && [ -z "$out" ] || { echo "lint-stamps on a clean board: want silent exit 0, got $rc:"; echo "$out"; exit 1; }
+ok "lint-stamps is silent and exits 0 on a clean board"
+setstamp "$SC" modified 120
+rc=0; out=$("$LS" "$SB") || rc=$?
+[ "$rc" -eq 1 ] && grep -q "$(basename "$(dirname "$SC")").*modified" <<<"$out" && grep -q 'ahead' <<<"$out" || { echo "want exit 1 naming the card and modified, got $rc:"; echo "$out"; exit 1; }
+ok "lint-stamps fails a modified.at 2 minutes ahead, naming the file and the field"
+"$LS" "$SB" --slack 300 >/dev/null; ok "lint-stamps --slack 300 passes the 120 s case"
+setstamp "$SC" modified 1; "$LS" "$SB"; ok "lint-stamps passes a stamp 1 s ahead (the ask offset stays legal)"
+setstamp "$SC" waiting 120
+rc=0; out=$("$LS" "$SB") || rc=$?
+[ "$rc" -eq 1 ] && grep -q 'waiting' <<<"$out" || { echo "want exit 1 naming waiting, got $rc:"; echo "$out"; exit 1; }
+rc=0; "$LS" "$SC" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "single-file argument: want exit 1, got $rc"; exit 1; }
+ok "lint-stamps fails a future waiting.since, and takes a single file"
+rc=0; "$LS" "$T/no-such-board" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "missing path: want exit 2, got $rc"; exit 1; }
+ok "lint-stamps exits 2 on a missing path"
+# waiting in its other layouts: list-form for (flow) and the block form both read; neither crashes
+ts=$(date -u -v+120S +%FT%TZ); setstamp "$SC" modified 0
+awk -v t="$ts" '/^waiting:/ {next} /^  (for|since|comment):/ {next} {print} /^modified:/ && !d {printf "waiting:\n  for: [rzen, kim]\n  since: %s\n  comment: 11111111-1111-4111-8111-111111111111\n", t; d=1}' "$SC" > "$SC.new" && mv "$SC.new" "$SC"
+rc=0; out=$("$LS" "$SB") || rc=$?; [ "$rc" -eq 1 ] && grep -q 'waiting.since' <<<"$out" || { echo "block-form waiting: want exit 1 naming waiting.since, got $rc:"; echo "$out"; exit 1; }
+awk -v t="$(date -u +%FT%TZ)" '/^waiting:/ {next} /^  (for|since|comment):/ {next} {print} /^modified:/ && !d {print "waiting: {for: [rzen, kim], since: " t ", comment: 11111111-1111-4111-8111-111111111111}"; d=1}' "$SC" > "$SC.new" && mv "$SC.new" "$SC"
+"$LS" "$SB"; ok "lint-stamps reads waiting.since in the block form, and passes a list-form for with a current since"
+
+# lint-stamps: the forms a literal reader writes, and the argument edges
+SB2="$T/Stamps2.lanework"; cp -R "$D" "$SB2"; SC2=$(ls "$SB2"/*/*/index.md | head -1); ahead=$(date -u -v+120S +%FT%TZ)
+# putmod <file> <modified line>: replace the first modified line whole
+putmod() { awk -v l="$2" '/^modified:/ && !d {print l; d=1; next} {print}' "$1" > "$1.new" && mv "$1.new" "$1"; }
+BY='by: {name: x, kind: agent, model: m}'
+rc=0; out=$(cd "$SB2" && sed -i '' -E "s/^modified: \{at: [^,}]*/modified: {at: $ahead/" "$SC2" && "$LS" . 2>&1) || rc=$?
+[ "$rc" -eq 1 ] || { echo "lint-stamps . inside a board: want exit 1, got $rc:"; echo "$out"; exit 1; }
+for form in "modified: {at: \"$ahead\", $BY}" "modified: {at: '$ahead', $BY}" "modified: {at:   $ahead, $BY}"; do
+  putmod "$SC2" "$form"; rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps missed: $form (rc $rc)"; exit 1; }
+done
+putmod "$SC2" "modified: {at: $(date -u +%FT%TZ), by: {name: x, kind: agent, model: m, session: \"at: $ahead\"}}"
+"$LS" "$SB2"; ok "lint-stamps: target '.', a quoted or double-spaced stamp are caught; an \"at: <future>\" inside by.session is not a stamp"
+putmod "$SC2" "modified: {at: $ahead, $BY}"; sed -i '' $'s/$/\r/' "$SC2"
+rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps skipped a CRLF file (rc $rc)"; exit 1; }
+ok "lint-stamps reads a CRLF file"
+sed -i '' $'s/\r$//' "$SC2"
+putmod "$SC2" "modified: {by: {name: x, kind: agent, model: m, session: \"s\"}, at: $ahead}"
+rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps missed a stamp with by before at (rc $rc)"; exit 1; }
+putmod "$SC2" "$(printf 'modified:\t{at:\t%s, %s}' "$ahead" "$BY")"
+rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps missed a stamp after tabs (rc $rc)"; exit 1; }
+putmod "$SC2" "modified: {by: {name: x, kind: agent, model: m, session: \"at: $ahead\"}, at: $(date -u +%FT%TZ)}"
+"$LS" "$SB2"; ok "lint-stamps finds at: anywhere at the top of the flow mapping (by first, tabs), and still ignores one inside a quoted string"
+rc=0; perl -e 'alarm 5; exec @ARGV' "$LS" "$SB2" --slack >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "--slack with no value: want exit 2, got $rc"; exit 1; }
+rc=0; "$LS" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: want exit 2, got $rc"; exit 1; }
+[ -z "$("$LS" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
+ok "lint-stamps: --slack with no value and no arguments exit 2, and the error goes to stderr"
+
 # watch: two boards, one watcher; a comment posted by renaming .draft/ is reported with its board
 if command -v fswatch >/dev/null; then
   C=$(ls -d "$D"/*/"$C1"); W="$T/watch.log"

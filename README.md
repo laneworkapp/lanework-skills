@@ -30,8 +30,8 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 356 | 4,236 |
-| `work` | 16 | 397 | 6,892 |
+| `lanework` | 10 | 356 | 4,314 |
+| `work` | 16 | 406 | 6,914 |
 | `watch` | 4 | 186 | 1,359 |
 | `dispatch` | 5 | 228 | 1,797 |
 | `discovery` | 14 | 500 | 2,876 |
@@ -52,16 +52,16 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 1,041 |
+| `references/writes.md` | 1,119 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **4,236** |
+| **total** | **4,314** |
 
 #### `work`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 397 |
+| `SKILL.md` | 406 |
 | `references/companions.md` | 213 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
@@ -73,11 +73,11 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 | `references/traps.md` | 377 |
 | `references/writing.md` | 1,204 |
 | `templates/ask.md` | 290 |
-| `templates/farmed-prompt.md` | 154 |
+| `templates/farmed-prompt.md` | 167 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **6,892** |
+| **total** | **6,914** |
 
 #### `watch`
 
