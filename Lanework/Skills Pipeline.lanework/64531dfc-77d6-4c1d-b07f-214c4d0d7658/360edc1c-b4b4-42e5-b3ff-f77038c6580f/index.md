@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Agents write future timestamps: the work skill never says a stamp comes from the clock"
-order: 2048
+order: 4096
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-11T23:17:38Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Main"}}
-modified: {at: 2026-11-11T23:17:38Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Main"}}
+modified: {at: 2026-11-12T00:39:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 Agents working cards with the `work` skill type `created`, `modified` and `waiting.since` by hand, and some of those values are in the future. A later agent then bumps its own stamps past them to stay "later", so the error spreads. Threads sort by `created.at`, so an owner's answer can sort above the question it answers.
 

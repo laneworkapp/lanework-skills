@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Skills target agent guide v107: waiting.for lists, short lanework links"
-order: 5120
+order: 3072
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}, {text: plan, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-06T00:08:54Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
-modified: {at: 2026-11-06T00:08:54Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
+modified: {at: 2026-11-12T00:39:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 The skills are stamped `lanework-agent-guide v101`, and this board's guide is v106, so smoke fails on the stamp gate. Two app changes since then need skill wording. The owner asked for both through the Lanework Pitwall session on 2026-11-05, from Lanework Pipeline cards 37a19646 and 418c0af0.
 
