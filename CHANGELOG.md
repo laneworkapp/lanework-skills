@@ -1,3 +1,7 @@
+**November 2026**
+
+Existing plugin users: Lanework now installs from a central marketplace, so run `/plugin marketplace remove lanework` (it also uninstalls the plugin), then `/plugin marketplace add https://github.com/laneworkapp/lanework-marketplace.git`, then `/plugin install lanework@lanework`.
+
 **October 2026**
 
 Version 0.7.0: a new dispatch skill, started with /lanework:dispatch, watches your boards and hands each change to a fresh agent, so long watches stay fast.

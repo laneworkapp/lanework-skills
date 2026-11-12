@@ -156,7 +156,7 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 As a Claude Code plugin, which installs all eight skills and updates with each release:
 
 ```
-/plugin marketplace add https://github.com/laneworkapp/lanework-skills.git
+/plugin marketplace add https://github.com/laneworkapp/lanework-marketplace.git
 /plugin install lanework@lanework
 ```
 
