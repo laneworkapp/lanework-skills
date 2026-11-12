@@ -1,0 +1,74 @@
+# reviewer evidence, 360edc1c, branch clock-stamps-360edc1c @ b3ac9db (minimum 2c2383d), merge-base 8849c03
+# scoped runner = branch tests/smoke.sh lines 1-15, 66, 229, 374-393, 452-453, 625-683 (discovery founding + the new cases)
+
+## AFTER: branch scripts
+ok 3 - lint-stamps is silent and exits 0 on a clean board
+ok 4 - lint-stamps fails a modified.at 2 minutes ahead, naming the file and the field
+ok 5 - lint-stamps --slack 300 passes the 120 s case
+ok 6 - lint-stamps passes a stamp 1 s ahead (the ask offset stays legal)
+ok 7 - lint-stamps fails a future waiting.since, and takes a single file
+ok 8 - lint-stamps exits 2 on a missing path
+ok 9 - lint-stamps reads waiting.since in the block form, and passes a list-form for with a current since
+ok 10 - post-comment.sh lands one comment stamped by the clock, prints its uuid, and the board validates and lints clean
+ok 11 - post-comment.sh refuses a second comment in the same second, and with --ahead and --in-reply-to lands it, still within the stamp slack
+ok 12 - post-comment.sh refuses an ask that fails lint-ask, a body with frontmatter, an unknown card, and no model (exit 2), writing nothing
+SCOPED DONE 12
+
+## AFTER under TZ=America/Los_Angeles
+SCOPED DONE 12
+## AFTER under TZ=Asia/Tokyo
+SCOPED DONE 12
+
+## BEFORE: merge-base 8849c03 scripts, same cases
+ok 2 - Q1, Q2 filed, numbered, asks lint clean
+lint-stamps on a clean board: want silent exit 0, got 127:
+<scratch>/scoped.sh: line 41: <scratch>/base/skills/work/scripts/lint-stamps.sh: No such file or directory
+
+## 2c2383d alone (b3ac9db dropped)
+SCOPED DONE 9
+
+## mutants of the branch scripts, same scoped cases
+m1 post-comment NOW = typed 2026-01-01T00:00:00Z + ahead:
+SCOPED DONE 12
+m2 lint-stamps prints nothing (exit kept):
+want exit 1 naming the card and modified, got 1:
+
+m3 post-comment same-second check disabled:
+same second: want exit 1 naming --ahead 1 and nothing written, got 0:
+
+## lint-stamps probes (card modified.at set from the clock + N s; board = copy of the smoke discovery board)
+[+60 (slack boundary)] rc=0 
+[+62] rc=1 <A>/13853cd8-44dd-46de-826f-f13e96073c17/1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb/index.md: modified.at 2026-11-12T01:46:01Z is 62s ahead
+[+1 TZ=Asia/Tokyo] rc=0 
+[+1 TZ=America/Los_Angeles] rc=0 
+[+120 TZ=Asia/Tokyo] rc=1 <A>/13853cd8-44dd-46de-826f-f13e96073c17/1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb/index.md: modified.at 2026-11-12T01:46:59Z is 120s ahead
+[+120 TZ=America/Los_Angeles] rc=1 <A>/13853cd8-44dd-46de-826f-f13e96073c17/1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb/index.md: modified.at 2026-11-12T01:46:59Z is 120s ahead
+[+120, target '.' (cd into the board)] rc=0 
+[+120, target '<A>/'] rc=1 <A>/13853cd8-44dd-46de-826f-f13e96073c17/1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb/index.md: modified.at 2026-11-12T01:46:59Z is 120s ahead
+[+120 modified with no by] rc=1 <A>/13853cd8-44dd-46de-826f-f13e96073c17/1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb/index.md: modified.at 2026-11-12T01:46:59Z is 120s ahead
+[+120 double-quoted at] rc=0 
+   validator on it: deprecated  0 failures    0 over 0 of 14 documents 
+[+120 single-quoted at] rc=0 
+[+120 two spaces after at:] rc=0 
+[+120 fractional seconds] rc=0 
+[+120 bare stamp] rc=0 
+   validator on it: deprecated  1 failures    0 over 0 of 14 documents 
+[+120 CRLF file] rc=0 
+   validator on it: deprecated  0 failures    0 over 0 of 14 documents 
+[--slack with no value] rc=142 (142 = killed by a 5 s alarm: loops)
+[no arguments] rc=1
+
+## post-comment probes
+[--ahead 3600] rc=0 lands created:  {at: 2026-11-12T02:45:05Z, by: {name: claude, kind: agent, model: m}}
+[  then lint-stamps] rc=1 <A>/13853cd8-44dd-46de-826f-f13e96073c17/1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb/comments/5fa3f908-03e1-47da-9561-1dda82722e45/index.md: created.at 2026-11-12T02:45:05Z is 3600s ahead
+[card index.md after posting] byte-identical (no restamp, no waiting)
+[ghost: index-less 1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb dir in an earlier lane, real card in a later one] rc=0 landed at 13853cd8-44dd-46de-826f-f13e96073c17/1e2ed304-ec18-4bf6-bda5-1b3fc8a923fb/comments/c32fd937-1c58-43bc-ae90-6c7577b23386; ghost has index.md: no
+[two posts started together, trial 1] landed 2
+[two posts started together, trial 2] landed 2
+[two posts started together, trial 3] landed 2
+[two posts started together, trial 4] landed 2
+[two posts started together, trial 5] landed 2
+   duplicate created seconds: 5
+[one post wall time] real 0.07
+[one post wall time] real 0.09
+[one post wall time] real 0.10
