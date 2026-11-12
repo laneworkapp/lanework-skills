@@ -59,7 +59,7 @@ TEMPLATES = {
 PIPELINE_INDEX = os.path.join(SKILLS, "lanework", "templates", "pipeline-index.md")
 PERMISSION_MARK = "- **Agent lanes**"
 ANCHOR_MARK = "- **Two human gates**"
-RESERVED_NAMES = {"healer", "shortcuts", "tracker"}
+RESERVED_NAMES = {"board", "healer", "shortcuts", "tracker"}
 MATCH = 0.75
 
 # Bodies earlier templates shipped, per lane set and lane title. A board founded before a template changed

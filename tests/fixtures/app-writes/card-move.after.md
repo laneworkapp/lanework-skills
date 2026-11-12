@@ -1,63 +1,30 @@
 ---
 schema: 1
-title: "Standing Recap option on every ask"
-order: 4096
-labels: [{text: work, kind: {type: skill, text: Skill}}, {text: watch, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}]
-created: {at: 2026-10-25T01:14:26Z}
-modified: {at: 2026-10-25T01:24:01Z}
 kind: card
+title: "Shaping: assign a label from the kind the lane is grouped by"
+order: 1024
+labels: [{text: work, kind: {type: skill, text: Skill}}]
+created:  {at: 2026-11-12T00:35:26Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+modified: {at: 2026-11-12T00:36:42Z}
 ---
-Every ask that offers options carries one standing last option, `Recap`, that the owner can click to get a plain-language recap of the question before answering.
+The owner asked on 2026-11-11 that when a card is shaped, the agent read what the Shaping lane is grouped by and try to give the card a fitting label of that kind. The card then lands in a real section, not the trailing "No <kind>" one.
 
-## Problem
+## Idea
 
-The owner often finds an ask confusing and types "please explain in simple terms" as a comment. A button does the same in one click and phrases it the same way every time.
+- **Read the lane's `group`** when shaping (`group: {by, kind, direction}`, guide § lanes; the retired `group-by` is read where `group` is absent).
+- **Pick a value for the grouped kind:**
+  - `by: label` + `kind` → choose one value of that kind. Closed kind = one of its listed values. Open kind = reuse a value already on the board before inventing one.
+  - `by: priority` / `by: component` → the same, for that kind.
+  - `modified` / `created` / none → nothing to do. `due` → leave it, since a date is the owner's call.
+- **Write it the way a drop would**: the flattened `labels` entry of that kind, replacing any the card had (the kinds are `single: true`).
+- **When unsure, ask instead of guessing.** Leave the label off and say so in the shaping record, or offer options in the shaping ask.
+- **Never overwrite** a value of that kind that the owner already set.
 
-## What changes
+## Open questions for shaping
 
-- **The option**: every ask with options ends them with the line `- Recap: Explain this in plain terms first`. The label starts with a letter, as the guide's option rule requires (a `?` label is illegal). A click posts `Recap: Explain this in plain terms first` as the owner's comment.
-- **What an agent does on a click**: it is a request, not a ruling.
-  1. Post a record, `in-reply-to` the click: the decision in everyday words (what is being decided, why now, what each option does), no new options, no handle.
-  2. One second later re-post the same ask as a new comment, with the standing line again.
-  3. Set `waiting` to the new ask in the same pass, because the app clears it on any human comment.
-  4. Change nothing else: no body edit, no lane exit.
-- **The lint**: `lint-ask.sh` fails an ask whose options lack the standing line, and leaves that line out of the 80-word count. An ask with no options needs no line.
+- Does this apply only to Shaping, or to any lane the agent writes a card into (filing to Ideas or Issues, moving to Proposed)?
+- Does it also apply to the `due` grouping, or never?
 
-## Files touched
+## Touches
 
-| file | change |
-|---|---|
-| `skills/work/templates/ask.md` | standing line in the shape and the filled example |
-| `skills/work/references/writing.md` | § The ask: the standing option and the click rule (the one place the rule lives) |
-| `skills/work/scripts/lint-ask.sh` | require the line; exclude it from the word count |
-| `skills/watch/references/responding.md` | the Ruling bullet: a `Recap:` click is not a ruling, see `work/references/writing.md` |
-| `skills/discovery/scripts/file-question.sh` | append the line to the options of the asks it builds |
-| `tests/smoke.sh`, `README.md` | new cases; word counts refreshed by `check-sizes.sh` |
-
-## Verified by
-
-- `tests/smoke.sh` green, including `check-refs.sh` and `check-sizes.sh`.
-- New smoke cases: `lint-ask.sh` fails an ask with options but no line, passes one with it, passes an ask with no options and no line, and passes an ask with 79 words of its own plus the line. The discovery case already lints `file-question.sh` output, so it fails until the script adds the line.
-- Prose (`ask.md`, `writing.md`, `responding.md`) read against `lanework-agent-guide` § Use the thread ▸ Questions: label shape, blank line after the list, one clause per sentence.
-
-## Done when
-
-1. `work/templates/ask.md` shows the `Recap` line in both the shape and the filled example.
-2. `lint-ask.sh` exits 1 on an ask whose options lack the line, and 0 on a clean ask that has it (including one at 79 words of its own) and on an ask with no options.
-3. `file-question.sh` output with options carries the line and lints clean.
-4. `work/references/writing.md` § The ask holds the click rule (record, re-post, reset `waiting`, no ruling), and `responding.md` only links to it.
-5. `tests/smoke.sh` passes and the README counts match.
-
-## Risks
-
-- **Guide drift**: the in-board guide's ask shape does not list a standing option. This extends the shape and contradicts nothing, but the guide wins if it ever says otherwise.
-- **Tighter asks**: with the line excluded from the count, no ask shrinks. If the owner wants it counted, authors lose about 9 words.
-- **Loop**: a second click on the re-posted ask gets a second recap. Fine, but each click costs an agent turn.
-
-## Decided
-
-- **Scope** (owner, 2026-10-25): only asks that already have options carry the line. Yes/no and free-text asks don't get a lone button.
-
-## Recommendation
-
-Build it as above.
+`skills/work/` shaping flow (the shaper's reference), possibly `lanework/` § write rules for the label-entry shape, plus a smoke case if a script writes it.

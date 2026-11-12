@@ -40,7 +40,9 @@ STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-settle.XXXXXX"); trap 'rm -rf "$STA
 
 awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" '
   /^---[ \t]*$/ { n++ }
-  n==1 && /^waiting:/ { next }
+  n==1 && drop && /^[ \t]/ { next }          # its block lines, where the compact form opened it out
+  { drop = 0 }
+  n==1 && /^waiting:/ { drop = 1; next }
   n==1 && /^order:/ { print o; next }
   n==1 && /^modified:/ { print m; next }
   { print }' "$CARD/index.md" > "$STAGE/index.md"

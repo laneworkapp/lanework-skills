@@ -1,6 +1,6 @@
 # Label kinds
 
-Read by `scripts/found-board.sh --labels` and `scripts/heal-board.py`. One row per kind: the entry is a one-line flow mapping for the board's `config.labels`, in the guide's key order. `priority` and `component` are the guide's suggested definitions, verbatim. Closed kinds list `values`, each with its `rank`; open kinds have none. No `|` in an entry.
+Read by `scripts/found-board.sh --labels` and `scripts/heal-board.py`. One row per kind: the entry is a one-line flow mapping for the board's `config.labels`, in the guide's key order. `priority` is the guide's suggested definition, verbatim; every other row is this catalog's own. Closed kinds list `values`, each with its `rank`; open kinds have none. No `|` in an entry.
 
 | type | entry |
 |---|---|

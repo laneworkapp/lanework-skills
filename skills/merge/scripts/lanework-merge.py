@@ -17,7 +17,7 @@ import datetime, json, os, re, shutil, subprocess, sys, tempfile, uuid as uuidli
 UUID = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 HEADER = '**Merged two edits to this card.**'
 ATTR = '**/*.lanework/** merge=lanework'
-SINGLE_KINDS = {'priority', 'component'}          # the guide's suggested definitions are single
+SINGLE_KINDS = {'priority'}                       # the guide's suggested definition is single
 OURS_KEYS = {'schema', 'kind', 'id', 'created', 'remote', 'remote-state'}
 VERSIONED = {'CLAUDE.md', 'AGENTS.md', '.gitignore'}
 

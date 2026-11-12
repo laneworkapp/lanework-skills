@@ -19,7 +19,7 @@ Per board, after the authority chain:
 
 | workload | shows up | who acts |
 |---|---|---|
-| **Unanswered question** | any lane: `waiting` in the frontmatter, or a thread ending in a question. `waiting.for` / the mention names the human → on them; addressed to an agent → on you | answer, or surface |
+| **Unanswered question** | any lane: `waiting` in the frontmatter, or a thread ending in a question. `waiting.for` (or a list holding it) / the mention names the human → on them; addressed to an agent → on you | answer, or surface |
 | **Approved, unstarted** | Approved | farm: build |
 | **Approved, unruled** | Approved or Active, with an open call and no ruling | don't build; post or re-post the ask (`writing.md` § When to ask), report it |
 | **Active, stalled** | Active, no thread movement | resume, or report why stuck |
