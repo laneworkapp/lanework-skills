@@ -4,12 +4,12 @@ The guide has the full rules. These hold on every board and cost most when misse
 
 ## Every write
 
-- **Stamp it**: shape = the guide's § Stamping your work; `by.name` = you or your role. **Missing `by` claims the owner wrote it.** Never sign `shortcuts`, `healer`, `board` or `tracker`: app-reserved.
+- **Stamp it**: shape = the guide's § Stamping your work; `by.name` = you or your role. **Missing `by` claims the owner wrote it.** Never sign `shortcuts`, `healer`, `board` or `tracker`: app-reserved. **Every stamp (`created`, `modified`, `waiting.since`) comes from the clock**, taken in the same command as the write: `now_utc` from `lanework/scripts/lib.sh`, or `date -u +%FT%TZ`. Never type, copy or bump one past another to stay "later" (2026-10-11, 2026-11-10: typed stamps up to 26 min ahead, threads sorted wrong). One deliberate offset: an ask goes 1s after its record (`work/references/writing.md`), as `now_utc 1`.
 - **Stage outside the board, then `mv` in.** App reloads on every fs event and can read a half-written file. A temp left beside a card's `index.md` is relocated into its `attachments/`, not deleted (2026-09-08). After an aborted write, check `attachments/` for strays.
 - **Double-quote every string value** (guide § Frontmatter: "Quote any `title` containing a colon", "Keep every scalar on one line"). A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`.
 - **Labels and priority**: all `labels` entries; shape, kinds and the built-in `text` kind = the guide's § Frontmatter (`labels`) and `.schema/card.json`. A root `priority:` key is reserved: never written. A root `component:` is no reserved key, just an unknown one: left as written. Copy an entry's shape from the guide, never from another card (2026-10-02: three cards copied a custom kind's entry shape).
 - **Lists and mappings: compact form** (guide § Frontmatter): one flow line up to 120 chars, strings quoted; longer → `key:` over a block, each entry one line where it fits, recursively. Stamps always one line. Other layouts read, but the heal rewrites them.
-- **Validate before committing**: `python3 "$BOARD/.schema/bin/lanework-validate.py" <file or board>` → exit 0 **and** no `DEPRECATED` line. No `.schema/` yet: `founding.md` § Validate.
+- **Validate before committing**: `python3 "$BOARD/.schema/bin/lanework-validate.py" <file or board>` → exit 0 **and** no `DEPRECATED` line. No `.schema/` yet: `founding.md` § Validate. Then `work/scripts/lint-stamps.sh <board>` → silent (no stamp over 60s ahead; restamp the named file from the clock).
 - **Stamp lines: rewrite whole, never regex-patch.** Nested braces corrupt. `grep '}}}'` every touched file after.
 - **Icons, colors**: the guide's § Colors and icons. `color` only when the tint says what the glyph can't.
 

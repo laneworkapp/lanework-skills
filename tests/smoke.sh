@@ -622,6 +622,126 @@ if "$SK/work/scripts/lint-ask.sh" "$T/opt-mid.md" >/dev/null; then echo "lint-as
 [ "$(grep -v -x -F -e "$RECAP" "$T/opt-79.md" | wc -w | tr -d ' ')" -eq 79 ] && [ "$(wc -w < "$T/opt-79.md" | tr -d ' ')" -gt 80 ] || { echo "fixture is not 79 own words plus the line"; exit 1; }
 "$SK/work/scripts/lint-ask.sh" "$T/opt-79.md"; ok "lint-ask leaves the Recap line out of the 80-word count"
 
+# work: lint-stamps (a copy of the discovery board, so the board under test is never edited in place)
+LS="$SK/work/scripts/lint-stamps.sh"; SB="$T/Stamps.lanework"; cp -R "$D" "$SB"
+SC=$(ls "$SB"/*/*/index.md | head -1)
+# setstamp <card file> modified|waiting <seconds-ahead>: set that stamp from the clock, ahead by N seconds
+setstamp() { local ts; ts=$(date -u -v+${3}S +%FT%TZ)
+  if [ "$2" = modified ]; then sed -i '' -E "s/^modified: \{at: [^,}]*/modified: {at: $ts/" "$1"
+  else awk -v w="waiting: {for: rzen, since: $ts, comment: 11111111-1111-4111-8111-111111111111}" '/^waiting:/ {next} {print} /^modified:/ && !d {print w; d=1}' "$1" > "$1.new" && mv "$1.new" "$1"; fi; }
+rc=0; out=$("$LS" "$SB" 2>&1) || rc=$?; [ "$rc" -eq 0 ] && [ -z "$out" ] || { echo "lint-stamps on a clean board: want silent exit 0, got $rc:"; echo "$out"; exit 1; }
+ok "lint-stamps is silent and exits 0 on a clean board"
+setstamp "$SC" modified 120
+rc=0; out=$("$LS" "$SB") || rc=$?
+[ "$rc" -eq 1 ] && grep -q "$(basename "$(dirname "$SC")").*modified" <<<"$out" && grep -q 'ahead' <<<"$out" || { echo "want exit 1 naming the card and modified, got $rc:"; echo "$out"; exit 1; }
+ok "lint-stamps fails a modified.at 2 minutes ahead, naming the file and the field"
+"$LS" "$SB" --slack 300 >/dev/null; ok "lint-stamps --slack 300 passes the 120 s case"
+setstamp "$SC" modified 1; "$LS" "$SB"; ok "lint-stamps passes a stamp 1 s ahead (the ask offset stays legal)"
+setstamp "$SC" waiting 120
+rc=0; out=$("$LS" "$SB") || rc=$?
+[ "$rc" -eq 1 ] && grep -q 'waiting' <<<"$out" || { echo "want exit 1 naming waiting, got $rc:"; echo "$out"; exit 1; }
+rc=0; "$LS" "$SC" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "single-file argument: want exit 1, got $rc"; exit 1; }
+ok "lint-stamps fails a future waiting.since, and takes a single file"
+rc=0; "$LS" "$T/no-such-board" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "missing path: want exit 2, got $rc"; exit 1; }
+ok "lint-stamps exits 2 on a missing path"
+# waiting in its other layouts: list-form for (flow) and the block form both read; neither crashes
+ts=$(date -u -v+120S +%FT%TZ); setstamp "$SC" modified 0
+awk -v t="$ts" '/^waiting:/ {next} /^  (for|since|comment):/ {next} {print} /^modified:/ && !d {printf "waiting:\n  for: [rzen, kim]\n  since: %s\n  comment: 11111111-1111-4111-8111-111111111111\n", t; d=1}' "$SC" > "$SC.new" && mv "$SC.new" "$SC"
+rc=0; out=$("$LS" "$SB") || rc=$?; [ "$rc" -eq 1 ] && grep -q 'waiting.since' <<<"$out" || { echo "block-form waiting: want exit 1 naming waiting.since, got $rc:"; echo "$out"; exit 1; }
+awk -v t="$(date -u +%FT%TZ)" '/^waiting:/ {next} /^  (for|since|comment):/ {next} {print} /^modified:/ && !d {print "waiting: {for: [rzen, kim], since: " t ", comment: 11111111-1111-4111-8111-111111111111}"; d=1}' "$SC" > "$SC.new" && mv "$SC.new" "$SC"
+"$LS" "$SB"; ok "lint-stamps reads waiting.since in the block form, and passes a list-form for with a current since"
+
+# lint-stamps: the forms a literal reader writes, and the argument edges
+SB2="$T/Stamps2.lanework"; cp -R "$D" "$SB2"; SC2=$(ls "$SB2"/*/*/index.md | head -1); ahead=$(date -u -v+120S +%FT%TZ)
+# putmod <file> <modified line>: replace the first modified line whole
+putmod() { awk -v l="$2" '/^modified:/ && !d {print l; d=1; next} {print}' "$1" > "$1.new" && mv "$1.new" "$1"; }
+BY='by: {name: x, kind: agent, model: m}'
+rc=0; out=$(cd "$SB2" && sed -i '' -E "s/^modified: \{at: [^,}]*/modified: {at: $ahead/" "$SC2" && "$LS" . 2>&1) || rc=$?
+[ "$rc" -eq 1 ] || { echo "lint-stamps . inside a board: want exit 1, got $rc:"; echo "$out"; exit 1; }
+for form in "modified: {at: \"$ahead\", $BY}" "modified: {at: '$ahead', $BY}" "modified: {at:   $ahead, $BY}"; do
+  putmod "$SC2" "$form"; rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps missed: $form (rc $rc)"; exit 1; }
+done
+putmod "$SC2" "modified: {at: $(date -u +%FT%TZ), by: {name: x, kind: agent, model: m, session: \"at: $ahead\"}}"
+"$LS" "$SB2"; ok "lint-stamps: target '.', a quoted or double-spaced stamp are caught; an \"at: <future>\" inside by.session is not a stamp"
+putmod "$SC2" "modified: {at: $ahead, $BY}"; sed -i '' $'s/$/\r/' "$SC2"
+rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps skipped a CRLF file (rc $rc)"; exit 1; }
+ok "lint-stamps reads a CRLF file"
+sed -i '' $'s/\r$//' "$SC2"
+putmod "$SC2" "modified: {by: {name: x, kind: agent, model: m, session: \"s\"}, at: $ahead}"
+rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps missed a stamp with by before at (rc $rc)"; exit 1; }
+putmod "$SC2" "$(printf 'modified:\t{at:\t%s, %s}' "$ahead" "$BY")"
+rc=0; "$LS" "$SB2" >/dev/null || rc=$?; [ "$rc" -eq 1 ] || { echo "lint-stamps missed a stamp after tabs (rc $rc)"; exit 1; }
+putmod "$SC2" "modified: {by: {name: x, kind: agent, model: m, session: \"at: $ahead\"}, at: $(date -u +%FT%TZ)}"
+"$LS" "$SB2"; ok "lint-stamps finds at: anywhere at the top of the flow mapping (by first, tabs), and still ignores one inside a quoted string"
+rc=0; perl -e 'alarm 5; exec @ARGV' "$LS" "$SB2" --slack >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "--slack with no value: want exit 2, got $rc"; exit 1; }
+rc=0; "$LS" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: want exit 2, got $rc"; exit 1; }
+[ -z "$("$LS" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
+ok "lint-stamps: --slack with no value and no arguments exit 2, and the error goes to stderr"
+
+# work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
+PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"
+PCARD=$(basename "$(dirname "$(ls "$PB"/*/*/index.md | head -1)")")
+printf 'Checked the clock rule.\n\n**Evidence**: none yet.\n' > "$T/pc.md"
+NC() { { ls "$PB"/*/"$PCARD"/comments 2>/dev/null || true; } | wc -l | tr -d ' '; }   # the first card may have no comments yet
+n0=$(NC); LANE=$(dirname "$(dirname "$(ls "$PB"/*/"$PCARD"/index.md)")")
+# refuse_same_second <real|flow|block> <ahead>: a comment already carries the second a post --ahead N will stamp (a real post, or a
+# seeded flow-form line without by, or a block-form one); the next post must exit 1 naming --ahead. Aligned to the start of a second;
+# if the clock still ticks between the two, both are undone and it retries, so the case does not depend on machine speed.
+refuse_same_second() { local form=$1 a=$2 try rc seed id="" sid=00000000-1111-4111-8111-00000000000$2 d="$LANE/$PCARD/comments"
+  for try in 1 2 3 4 5; do
+    perl -MTime::HiRes=time,sleep -e '$t = time; sleep(1.02 - ($t - int $t))'
+    seed=$(date -u -v+${a}S +%FT%TZ)
+    case $form in
+      real)  id=$("$PC" "$PB" "$PCARD" --body "$T/pc.md" --model smoke --ahead "$a") ;;
+      flow)  mkdir -p "$d/$sid"; printf -- '---\nschema: 1\nkind: comment\ncreated: {at: %s}\nmodified: {at: %s}\n---\nseed\n' "$seed" "$seed" > "$d/$sid/index.md" ;;
+      block) mkdir -p "$d/$sid"; printf -- '---\nschema: 1\nkind: comment\ncreated:\n  at: %s\n  by: {name: x, kind: agent, model: m}\nmodified: {at: %s}\n---\nseed\n' "$seed" "$seed" > "$d/$sid/index.md" ;;
+    esac
+    rc=0; "$PC" "$PB" "$PCARD" --body "$T/pc.md" --model smoke --ahead "$a" 2>"$T/err.txt" >"$T/out.txt" || rc=$?
+    [ "$rc" -eq 0 ] && rm -rf "$d/$(cat "$T/out.txt")"
+    rm -rf "$d/$sid" ${id:+"$d/$id"}; id=""
+    [ "$rc" -eq 1 ] && grep -q -- '--ahead' "$T/err.txt" && return 0
+  done; echo "same second ($form): want exit 1 naming --ahead, got $rc:"; cat "$T/err.txt"; exit 1; }
+perl -MTime::HiRes=time,sleep -e '$t = time; sleep(1.02 - ($t - int $t))'   # start of a second, so the stamp check below holds
+t0=$(date -u -v+10S +%FT%TZ)
+U1=$("$PC" "$PB" "$PCARD" --body "$T/pc.md" --model smoke --session smoke --ahead 10) || { echo "post-comment failed"; exit 1; }
+t1=$(date -u -v+10S +%FT%TZ)
+CF=$(ls "$PB"/*/"$PCARD"/comments/"$U1"/index.md)
+[ "$(NC)" -eq $((n0 + 1))  ] && [[ "$U1" =~ ^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$ ]] && grep -q 'kind: comment' "$CF" \
+  && grep -q 'by: {name: claude, kind: agent, model: smoke, session: "smoke"}' "$CF" && grep -q 'Checked the clock rule' "$CF" || { echo "bad comment:"; cat "$CF"; exit 1; }
+[ "$(grep -o "^created:  {at: [^,]*" "$CF" | sed "s/.*at: //")" = "$(grep -o "^modified: {at: [^,]*" "$CF" | sed "s/.*at: //")" ] || { echo "created and modified differ"; exit 1; }
+CA=$(grep -o "^created:  {at: [^,]*" "$CF" | sed "s/.*at: //")
+[[ ! "$CA" < "$t0" && ! "$CA" > "$t1" ]] || { echo "created.at $CA is not the clock + 10 s ($t0 .. $t1)"; exit 1; }
+validate "$PB" >/dev/null; "$SK/work/scripts/lint-stamps.sh" "$PB"
+ok "post-comment.sh lands one comment stamped by the clock, prints its uuid, and the board validates and lints clean"
+refuse_same_second real 20; [ "$(NC)" -eq $((n0 + 1)) ] || { echo "a refused post wrote something"; exit 1; }
+U2=$("$PC" "$PB" "$PCARD" --body "$T/pc.md" --model smoke --ahead 11 --in-reply-to "$U1")
+grep -q "^in-reply-to: $U1\$" "$PB"/*/"$PCARD"/comments/"$U2"/index.md && [ "$(NC)" -eq $((n0 + 2)) ] || { echo "--ahead 1 / --in-reply-to not honoured"; exit 1; }
+validate "$PB" >/dev/null; "$SK/work/scripts/lint-stamps.sh" "$PB"
+ok "post-comment.sh refuses a second comment in the same second, and with --ahead and --in-reply-to lands it, still within the stamp slack"
+PH=$(. "$SK/lanework/scripts/lib.sh"; owner_handle "$PB" || echo owner)
+printf '@%s maybe ship it; worth a try? and also this?\n' "$PH" > "$T/badask.md"; printf -- '---\nkind: comment\n---\nx\n' > "$T/fm.md"
+S5=$(sum "$PB")
+rc=0; "$PC" "$PB" "$PCARD" --body "$T/badask.md" --model smoke --ahead 12 >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "a failing ask: want exit 1, got $rc"; exit 1; }
+rc=0; "$PC" "$PB" "$PCARD" --body "$T/fm.md" --model smoke --ahead 12 >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "a body with frontmatter: want exit 1, got $rc"; exit 1; }
+rc=0; "$PC" "$PB" 00000000-0000-4000-8000-000000000000 --body "$T/pc.md" --model smoke --ahead 12 >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "an unknown card: want exit 2, got $rc"; exit 1; }
+refused post-comment "$PC" "$PB" "$PCARD" --body "$T/pc.md" --ahead 12
+[ "$S5" = "$(sum "$PB")" ] || { echo "a refused post wrote something"; exit 1; }
+ok "post-comment.sh refuses an ask that fails lint-ask, a body with frontmatter, an unknown card, and no model (exit 2), writing nothing"
+
+# post-comment: the stamp stays near the clock, the card is found by its index.md, the same-second check is a check
+S6=$(sum "$PB")
+for a in 31 3600 -5 abc ""; do rc=0; "$PC" "$PB" "$PCARD" --body "$T/pc.md" --model smoke --ahead "$a" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "--ahead '$a': want exit 2, got $rc"; exit 1; }; done
+[ "$S6" = "$(sum "$PB")" ] || { echo "a refused --ahead wrote something"; exit 1; }
+GH="$PB/00000000-0000-4000-8000-000000000000"; mkdir -p "$GH/$PCARD"
+U3=$("$PC" "$PB" "$PCARD" --body "$T/pc.md" --model smoke --ahead 13)
+[ -f "$LANE/$PCARD/comments/$U3/index.md" ] && [ ! -e "$GH/$PCARD/comments" ] || { echo "the comment did not land in the real card, or went into the ghost folder"; exit 1; }
+DUP="$PB/00000000-0000-4000-8000-000000000001"; mkdir -p "$DUP"; cp -R "$LANE/$PCARD" "$DUP/$PCARD"; S7=$(sum "$PB")
+rc=0; "$PC" "$PB" "$PCARD" --body "$T/pc.md" --model smoke --ahead 14 >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] && [ "$S7" = "$(sum "$PB")" ] || { echo "two cards with one uuid: want exit 2 and nothing written, got $rc"; exit 1; }
+rm -rf "$DUP" "$GH"
+ok "post-comment.sh caps --ahead at 30 s (exit 2 above it, negative or not a number), finds the card by its index.md past an index-less folder, and refuses two cards with one uuid"
+refuse_same_second flow 21; refuse_same_second block 22
+ok "post-comment.sh's same-second check reads a created line with one space and no by, and in block form"
+
 # watch: two boards, one watcher; a comment posted by renaming .draft/ is reported with its board
 if command -v fswatch >/dev/null; then
   C=$(ls -d "$D"/*/"$C1"); W="$T/watch.log"

@@ -27,4 +27,4 @@ On a pipeline, agents **shape** Shaping cards into proposals that meet the board
 | a command about to do something subtle | `references/traps.md` |
 | ask, farmed prompt, phase reports, verdict | `templates/` |
 
-Fill templates with the structure they give, not free-form prose. `scripts/lint-ask.sh <file> <board>` checks an ask before it lands.
+Fill templates with the structure they give, not free-form prose. `scripts/lint-ask.sh <file> <board>` checks an ask before it lands. `scripts/lint-stamps.sh <board>` checks no stamp is in the future.
