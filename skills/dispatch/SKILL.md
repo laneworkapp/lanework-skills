@@ -16,5 +16,6 @@ Builds on `watch` (the watcher, the responding policy), `work` (tiers, the build
 | what a handler reads, does and returns | `references/handler.md` |
 | the handler's brief, filled by the router | `templates/handler-prompt.md` |
 | the handler's report | `templates/handler-report.md` |
+| class every card at arming: owner comments to answer, cards to arm, stale claims | `scripts/arm-pass.sh` |
 | class a burst from paths and stamps | `scripts/classify-event.sh` |
 | in-flight set, per-card queues, self-writes registry, excluded lanes | `scripts/state.sh` |

@@ -779,6 +779,57 @@ exp=$(printf 'move\t%s\t%s\tApproved\tBurst: moved\towner\t%s,%s\ncomment\t%s\t%
 ok "classify-event.sh: every column (kind, board, card, lane, title, author, paths) in a two-card burst with one card moved"
 validate "$DB" >/dev/null; ok "the dispatch fixture board validates"
 
+# arm-pass.sh: the arming pass classes each card from its files; Done is never swept, a claim is flagged and never routed
+AB="$T/Arm Pipeline.lanework"; AN="${AB##*/}"
+"$SK/lanework/scripts/found-board.sh" "$AB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Arm --var verified=make --model smoke >/dev/null
+alane() { dirname "$(lane_of "$AB" "$1")"; }
+OLD2H=$(date -u -v-2H +%FT%TZ); OLD3H=$(date -u -v-3H +%FT%TZ); HUMAN='{name: "Rouslan Z", kind: "human"}'
+# acard <lane> <uuid> <title> <order>; acom <lane> <card> <uuid> <at> <by or ""> <in-reply-to or ""> <body>
+acard() { mkdir -p "$(alane "$1")/$2"; printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: %s\ncreated:  {at: %s}\nmodified: {at: %s}\n---\nBody.\n' "$3" "$4" "$OLD" "$OLD" > "$(alane "$1")/$2/index.md"; }
+acom() { local d; d="$(alane "$1")/$2/comments/$3"; mkdir -p "$d"; printf -- '---\nschema: 1\nkind: comment\n%screated:  {at: %s%s}\nmodified: {at: %s%s}\n---\n%s\n' "${6:+in-reply-to: $6
+}" "$4" "${5:+, by: $5}" "$4" "${5:+, by: $5}" "$7" > "$d/index.md"; }
+A1=e1000000-0000-4000-8000-000000000001; acard Ideas $A1 "Ideas: owner question" 1024;   acom Ideas $A1 f1000000-0000-4000-8000-000000000001 "$OLD2H" "" "" "Why?"
+A2=e1000000-0000-4000-8000-000000000002; acard Ideas $A2 "Ideas: answered" 2048;         acom Ideas $A2 f1000000-0000-4000-8000-000000000002 "$OLD3H" "$HUMAN" "" "Why?"; acom Ideas $A2 f1000000-0000-4000-8000-000000000003 "$OLD2H" "$AGENT" f1000000-0000-4000-8000-000000000002 "Because."
+A3=e1000000-0000-4000-8000-000000000003; acard Proposed $A3 "Proposed: owner question" 1024; acom Proposed $A3 f1000000-0000-4000-8000-000000000004 "$OLD2H" "" "" "Why?"
+A4=e1000000-0000-4000-8000-000000000004; acard Done $A4 "Done: old question" 1024;       acom Done $A4 f1000000-0000-4000-8000-000000000005 "$OLD2H" "" "" "Why?"; acom Done $A4 f1000000-0000-4000-8000-000000000006 "$OLD3H" "$AGENT" "" "**START: never closed.**"
+A5=e1000000-0000-4000-8000-000000000005; acard Shaping $A5 "Shaping: dead claim" 1024;   acom Shaping $A5 f1000000-0000-4000-8000-000000000007 "$OLD2H" "$AGENT" "" "**START: shaping.**"
+A6=e1000000-0000-4000-8000-000000000006; acard Shaping $A6 "Shaping: fresh claim" 2048;  acom Shaping $A6 f1000000-0000-4000-8000-000000000008 "$NOWS" "$AGENT" "" "**START: shaping.**"
+A7=e1000000-0000-4000-8000-000000000007; acard Shaping $A7 "Shaping: unclaimed" 3072
+A8=e1000000-0000-4000-8000-000000000008; acard Shaping $A8 "Shaping: claimed, owner waiting" 4096; acom Shaping $A8 f1000000-0000-4000-8000-000000000009 "$OLD3H" "$AGENT" "" "START: plain"; acom Shaping $A8 f1000000-0000-4000-8000-00000000000a "$OLD2H" "" "" "Status?"
+A9=e1000000-0000-4000-8000-000000000009; acard Approved $A9 "Approved: top" 1024;        acard Approved e1000000-0000-4000-8000-00000000000a "Approved: second" 2048
+AB1=e1000000-0000-4000-8000-00000000000b; acard Active $AB1 "Active: closed claim" 1024; acom Active $AB1 f1000000-0000-4000-8000-00000000000b "$OLD3H" "$AGENT" "" "**START: building.**"; acom Active $AB1 f1000000-0000-4000-8000-00000000000c "$OLD2H" "$AGENT" "" "**Merged: landed.**"
+# a by-stamped owner comment is an owner's whatever the quote (the app writes kind: "human"; YAML allows 'human'); a CRLF file is read;
+# a fractional-second stamp parses and a stamp that is not plain ...Z is never judged stale
+A10=e1000000-0000-4000-8000-000000000010; acard Issues $A10 "Issues: app-stamped owner" 1024; acom Issues $A10 f1000000-0000-4000-8000-000000000010 "$OLD2H" '{name: Bob, kind: "human"}' "" "Why?"
+A11=e1000000-0000-4000-8000-000000000011; acard Issues $A11 "Issues: single-quoted owner" 2048; acom Issues $A11 f1000000-0000-4000-8000-000000000011 "$OLD2H" "{name: Bob, kind: 'human'}" "" "Why?"
+A12=e1000000-0000-4000-8000-000000000012; acard Issues $A12 "Issues: fractional fresh claim" 3072; acom Issues $A12 f1000000-0000-4000-8000-000000000012 "${NOWS%Z}.123Z" "$AGENT" "" "**START: x.**"
+A13=e1000000-0000-4000-8000-000000000013; acard Issues $A13 "Issues: offset claim" 4096; acom Issues $A13 f1000000-0000-4000-8000-000000000013 "2026-10-01T00:00:00+00:00" "$AGENT" "" "**START: x.**"
+A14=e1000000-0000-4000-8000-000000000014; acard Tasks $A14 "Tasks: CRLF owner" 1024; acom Tasks $A14 f1000000-0000-4000-8000-000000000014 "$OLD2H" "" "" "Why?"
+sed -i '' 's/$/\r/' "$(alane Tasks)/$A14/comments/f1000000-0000-4000-8000-000000000014/index.md"
+# an app move receipt (signed board, with a moved: key) is no reply, claim or activity: it neither clears an owner comment nor freshens a dead claim
+AR='{name: board, kind: agent}'
+acom Shaping $A5 f1000000-0000-4000-8000-00000000000d "$NOWS" "$AR" "" "moved"
+acom Ideas $A1 f1000000-0000-4000-8000-00000000000e "$NOWS" "$AR" f1000000-0000-4000-8000-000000000001 "moved"
+AO=$("$DS/arm-pass.sh" "$AB")
+exp=$(printf 'comment\t%s\t%s\tIdeas\tIdeas: owner question\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000001/index.md\n' "$AN" $A1 "$(basename "$(alane Ideas)")" $A1
+  printf 'comment\t%s\t%s\tIssues\tIssues: app-stamped owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000010/index.md\n' "$AN" $A10 "$(basename "$(alane Issues)")" $A10
+  printf 'comment\t%s\t%s\tIssues\tIssues: single-quoted owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000011/index.md\n' "$AN" $A11 "$(basename "$(alane Issues)")" $A11
+  printf 'comment\t%s\t%s\tTasks\tTasks: CRLF owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000014/index.md\n' "$AN" $A14 "$(basename "$(alane Tasks)")" $A14
+  printf 'stale\t%s\t%s\tShaping\tShaping: dead claim\t-\tXm\n' "$AN" $A5
+  printf 'arm\t%s\t%s\tShaping\tShaping: unclaimed\t-\t-\n' "$AN" $A7
+  printf 'comment\t%s\t%s\tShaping\tShaping: claimed, owner waiting\towner\t%s/%s/comments/f1000000-0000-4000-8000-00000000000a/index.md\n' "$AN" $A8 "$(basename "$(alane Shaping)")" $A8
+  printf 'stale\t%s\t%s\tShaping\tShaping: claimed, owner waiting\t-\tXm\n' "$AN" $A8
+  printf 'comment\t%s\t%s\tProposed\tProposed: owner question\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000004/index.md\n' "$AN" $A3 "$(basename "$(alane Proposed)")" $A3
+  printf 'arm\t%s\t%s\tApproved\tApproved: top\t-\t-\n' "$AN" $A9
+  printf 'arm\t%s\t%s\tActive\tActive: closed claim\t-\t-\n' "$AN" $AB1)
+got=$(sed -E 's/\t(1[12][0-9])m$/\tXm/' <<<"$AO")
+[ "$got" = "$exp" ] || { echo "arm-pass.sh lines:"; echo "want:"; echo "$exp"; echo "got:"; echo "$got"; exit 1; }
+ok "arm-pass.sh: an unanswered owner comment is a comment line in any lane but Done (a reply in-reply-to clears it); an unclaimed agent-lane card is an arm line, Approved its top card only; a closed claim does not hold a card; a board move receipt is no reply and no activity; a by-stamped owner comment (either quote) and a CRLF one answer; a fractional or offset stamp is never stale; comment wins over arm; Done prints nothing"
+[ "$(STALE_MINUTES=240 "$DS/arm-pass.sh" "$AB" | grep -c '^stale')" = 0 ] && [ "$("$DS/arm-pass.sh" "$AB" Ideas | grep '^arm' | cut -f3-4)" = "$(printf '%s\tIdeas' $A2)" ] || { echo "arm-pass.sh: STALE_MINUTES or the agent lane titles ignored"; exit 1; }
+! "$DS/arm-pass.sh" "$T" 2>/dev/null || { echo "arm-pass.sh accepted a non-board"; exit 1; }
+ok "arm-pass.sh: STALE_MINUTES moves the stale line; lane titles on the command line replace the board-kinds.md agent rows; a non-board exits non-zero"
+validate "$AB" >/dev/null; ok "the arm-pass fixture board validates"
+
 # merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
 for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/null; ok "merge case: every row resolves with no prompt, as a $m"; done
 "$ROOT/tests/merge-case.sh" "$T" clean >/dev/null; ok "merge case: git finishes a lossless merge alone, stops on a loss, and a comment left by a move is re-homed"
