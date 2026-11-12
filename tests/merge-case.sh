@@ -191,24 +191,24 @@ appside)
   # board's git history; the base holds each item as it was just before the app wrote it, so git and the driver see the
   # same diffs the app made. Side A is a scripted edit to each of the same items.
   # AE sits after the retitled card's created (01:09:29Z) and before the app's unstamped modified (01:46:22Z), so only that modified decides the title
-  FX="$ROOT/tests/fixtures/app-writes"; AE=2026-10-10T01:30:00Z; AL=2026-11-01T00:00:00Z
-  RECAP=5f372bd4-d140-46fa-9566-6ce1d628a728; DISC=4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03; CMT=2a3f847f-a281-42f9-9a52-146f2339e784
-  SHAPING=$(lane "$O" Shaping); PROPOSED=$(lane "$O" Proposed); ISSUES=$(lane "$O" Issues)
+  FX="$ROOT/tests/fixtures/app-writes"; AE=2026-10-10T01:30:00Z; AL=2026-11-13T00:00:00Z
+  MOVED=f322abdb-5f60-40c0-80df-da30b2a03b33; DISC=4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03; CMT=2bbea8c7-8147-4bcc-aa8a-ce8dd41e9598
+  SHAPING=$(lane "$O" Shaping); ISSUES=$(lane "$O" Issues)
   put() { mkdir -p "$(dirname "$2")"; cp "$FX/$1" "$2"; }
   put lane-rewrite.before.md "$O/$BN/$SHAPING/index.md"
-  put card-move.before.md "$O/$BN/$PROPOSED/$RECAP/index.md"
+  put card-move.before.md "$O/$BN/$IDEAS/$MOVED/index.md"
   put card-title-edit.before.md "$O/$BN/$ISSUES/$DISC/index.md"
   cm "$O" appbase; validate_board "$O" "appside base"; G "$A" pull -q; G "$B" pull -q
   # side B: what the app wrote
   put lane-rewrite.after.md "$B/$BN/$SHAPING/index.md"
-  G "$B" mv "$BN/$PROPOSED/$RECAP" "$BN/$APPROVED/$RECAP"; put card-move.after.md "$B/$BN/$APPROVED/$RECAP/index.md"
+  G "$B" mv "$BN/$IDEAS/$MOVED" "$BN/$SHAPING/$MOVED"; put card-move.after.md "$B/$BN/$SHAPING/$MOVED/index.md"
   G "$B" mv "$BN/$ISSUES/$DISC" "$BN/$APPROVED/$DISC"; put card-title-edit.after.md "$B/$BN/$APPROVED/$DISC/index.md"
   put comment-posted.md "$B/$BN/$IDEAS/$S1/comments/$CMT/index.md"
   cm "$B" "app writes"
   # side A: scripted edits to the same items
   BASEL=$(awk 'f{print} /^---$/{n++; if(n==2) f=1}' "$A/$BN/$SHAPING/index.md")
   lanebody "$A" "$SHAPING" "$AL" "$BYA" "$BASEL\n\nLANE_A_TOKEN."
-  printf '\nBODY_A_RECAP.\n' >> "$(cardfile "$A" "$RECAP")"; restamp "$A" "$AL" "$BYA" "$RECAP"
+  printf '\nBODY_A_MOVED.\n' >> "$(cardfile "$A" "$MOVED")"; restamp "$A" "$AL" "$BYA" "$MOVED"
   sed -i '' 's/^title: .*/title: "TITLE_A_DISC"/' "$(cardfile "$A" "$DISC")"; restamp "$A" "$AE" "$BYA" "$DISC"
   mvcard "$A" "$IDEAS" "$S1" "$DONE"; restamp "$A" "$AL" "$BYA" "$S1"
   cm "$A" "scripted edits"
@@ -223,10 +223,10 @@ appside)
   validate_board "$M" "appside merged"
   one() { [ -f "$D/$1/$2/index.md" ] && [ "$(find "$D" -type d -name "$2" -not -path '*/.trash/*' | wc -l | tr -d ' ')" = 1 ] || fail "appside: $3 is not in one place, $1 ($(cd "$D" && ls -d */"$2" 2>/dev/null))"; }
   # the lane the app rewrote: its width and A's body line both survive
-  grep -q '^width: 2$' "$D/$SHAPING/index.md" && grep -q LANE_A_TOKEN "$D/$SHAPING/index.md" && grep -q '^The agent work lane\.' "$D/$SHAPING/index.md" || fail "appside lane: B's width and A's body must both survive"
+  grep -q '^width: 3$' "$D/$SHAPING/index.md" && grep -q LANE_A_TOKEN "$D/$SHAPING/index.md" && grep -q '^The agent work lane\.' "$D/$SHAPING/index.md" || fail "appside lane: B's width and A's body must both survive"
   # the card the app moved while A edited its body: at the new path, A's body, B's order
-  one "$APPROVED" "$RECAP" "moved by the app, edited by A"
-  grep -q BODY_A_RECAP "$D/$APPROVED/$RECAP/index.md" && grep -q '^order: 4096$' "$D/$APPROVED/$RECAP/index.md" || fail "appside move: A's body and B's order must both survive"
+  one "$SHAPING" "$MOVED" "moved by the app, edited by A"
+  grep -q BODY_A_MOVED "$D/$SHAPING/$MOVED/index.md" && grep -q '^order: 1024$' "$D/$SHAPING/$MOVED/index.md" || fail "appside move: A's body and B's order must both survive"
   # the card the app retitled while A retitled it earlier: B's title kept, A's in the merge comment
   one "$APPROVED" "$DISC" "retitled by the app"
   grep -q '^title: "Discovery and founding scripts: escape titles, and stamp a real model"$' "$D/$APPROVED/$DISC/index.md" || fail "appside title: the later (app) title must win"

@@ -30,13 +30,13 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 356 | 4,150 |
-| `work` | 16 | 397 | 6,449 |
+| `lanework` | 10 | 356 | 4,217 |
+| `work` | 16 | 397 | 6,516 |
 | `watch` | 4 | 186 | 1,359 |
 | `dispatch` | 5 | 210 | 1,660 |
 | `discovery` | 14 | 500 | 2,876 |
 | `plan` | 9 | 453 | 2,675 |
-| `merge` | 2 | 362 | 1,613 |
+| `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
 
 Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-10-25), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
@@ -47,15 +47,15 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 |---|---|
 | `SKILL.md` | 356 |
 | `references/authority.md` | 129 |
-| `references/board-kinds.md` | 1,233 |
+| `references/board-kinds.md` | 1,241 |
 | `references/finding.md` | 386 |
-| `references/format.md` | 137 |
+| `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 974 |
+| `references/writes.md` | 1,022 |
 | `templates/index.md` | 76 |
-| `templates/label-kinds.md` | 249 |
-| **total** | **4,150** |
+| `templates/label-kinds.md` | 254 |
+| **total** | **4,217** |
 
 #### `work`
 
@@ -67,17 +67,17 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 | `references/fixer.md` | 391 |
 | `references/lead.md` | 977 |
 | `references/reviewer.md` | 376 |
-| `references/sweep.md` | 543 |
+| `references/sweep.md` | 548 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
-| `references/writing.md` | 1,154 |
-| `templates/ask.md` | 278 |
+| `references/writing.md` | 1,204 |
+| `templates/ask.md` | 290 |
 | `templates/farmed-prompt.md` | 154 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 173 |
-| **total** | **6,449** |
+| **total** | **6,516** |
 
 #### `watch`
 
@@ -140,8 +140,8 @@ Measured with `wc -w` on 2026-10-10 (`lanework`, `watch` and `dispatch` on 2026-
 | file | words |
 |---|---|
 | `SKILL.md` | 362 |
-| `references/rules.md` | 1,251 |
-| **total** | **1,613** |
+| `references/rules.md` | 1,250 |
+| **total** | **1,612** |
 
 #### `heal`
 
