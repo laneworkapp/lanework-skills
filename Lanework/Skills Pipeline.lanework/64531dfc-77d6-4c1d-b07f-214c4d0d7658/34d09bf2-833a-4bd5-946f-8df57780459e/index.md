@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Smoke case 40 flakes on SIGPIPE in a cat | grep -q pipe"
-order: 1024
+order: 2048
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T11:08:17Z, by: {name: handler, kind: agent, model: opus, session: "board dispatch"}}
-modified: {at: 2026-10-25T11:08:17Z, by: {name: handler, kind: agent, model: opus, session: "board dispatch"}}
+modified: {at: 2026-11-12T00:39:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 Smoke case 40 sometimes fails with "claim did not move to Working with a Claimed comment" even though the claim worked.
 
