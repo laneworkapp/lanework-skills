@@ -25,7 +25,7 @@ Per event kind:
 | kind | action |
 |---|---|
 | `comment` | answer each owner comment with no agent reply `in-reply-to` it yet. Queued events → one pass, each answered once. All answered → no-op |
-| `move`, `arm` | a work order only when the card is unclaimed (`work/references/companions.md`) and its lane is an agent lane by the board and lane bodies. Lane order rules hold: Approved takes only its top card. Else no-op, reason in `ACTION` |
+| `move`, `arm` | an `arm` first answers any owner comment with no agent reply `in-reply-to` it, as `comment` does, on any card. Then a work order only when the card is unclaimed (`work/references/companions.md`) and its lane is an agent lane by the board and lane bodies. Lane order rules hold: Approved takes only its top card. Else no-op, reason in `ACTION` |
 | `bulk` | the diagnosis in `watch/references/events.md` item 5. Each card it finds moved into an agent lane → act on it here as a move. Into any other lane → `GATE` |
 | `chat` | answer the owner's question from the board in `ANSWER`. Write nothing |
 

@@ -17,9 +17,12 @@ Once. `<state>` = `<scratchpad>/dispatch`. Read this file, `templates/handler-pr
 
 1. **Boards**: each argument per `watch/references/arming.md` § Boards (resolution only: the per-board reading there is the handlers').
 2. `scripts/state.sh <state> init <board>...`
-3. **Arming pass**: `lanework/scripts/read-board.sh <board>`. Each card under a lane whose title is an `agent` row → one event line, `arm<TAB><Board>.lanework<TAB><card uuid><TAB><lane title><TAB><card title><TAB>-<TAB>-`, routed as a handler event (§ Route). The handler checks the claim and the lane body.
+3. **Arming pass**: `scripts/arm-pass.sh <board>` per board. Classed from the files, never by reading a card; its `agent` lanes are the `board-kinds.md` rows. Each line is already an event line (`classify-event.sh`'s seven fields), routed as a handler event (§ Route):
+   - `comment`: the card's newest owner comment has no agent reply `in-reply-to` it. Any lane but Done.
+   - `arm`: an unclaimed card in an `agent` lane, Approved its top card only. The handler checks the claim and the lane body.
+   - `stale`: a START with nothing newer on the card for 30 minutes (`STALE_MINUTES`). Never routed, never released: step 5 reports each with its lane, title and minutes of silence.
 4. **Monitor**: `watch/references/arming.md` § Monitor as written, state file `<state>/board-snapshot.txt`.
-5. **Tell the user**: `watch/references/arming.md` § Tell the user, with `/dispatch` for `/watch`.
+5. **Tell the user**: `watch/references/arming.md` § Tell the user, with `/dispatch` for `/watch`, then the `stale` lines: claims whose handler may have died with its session (a quit or a resume; a `/clear` kills none), for the owner to free or leave.
 
 ## Route
 
