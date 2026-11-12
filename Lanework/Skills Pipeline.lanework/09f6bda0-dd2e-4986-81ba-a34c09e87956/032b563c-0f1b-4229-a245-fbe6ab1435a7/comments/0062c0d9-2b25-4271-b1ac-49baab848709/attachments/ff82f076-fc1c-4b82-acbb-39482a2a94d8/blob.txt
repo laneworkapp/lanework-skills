@@ -1,0 +1,72 @@
+# Round 2 reviewer evidence, card 032b563c, branch card-defaults-032b563c @ 89be02d (skills/tests identical to 7d4a1c9)
+
+## 1. Scoped run: smoke's preamble + the branch's card-defaults block (cases 1-7 of the block), branch scripts
+ok 1 - file-record.sh: the Decisions lane's free label is added, its Proposed status is left out for the card's own accepted; validates, heal finds nothing
+ok 2 - file-question.sh: 'urgent' is added, 'ROUND 1' of the same kind is not repeated; the ask lints clean and waiting stays; validates, heal finds nothing
+ok 3 - file-ticket.sh: Frontier's 'urgent' is stamped from the board's priority kind (rank, colour, glyph), 'extra' is a free label, the single-kind ticket defa
+ok 4 - single kind: of High and Urgent the lower rank (Urgent) is kept; the card's own accepted beats superseded and deprecated; heal finds nothing
+ok 5 - no card-defaults, none with labels, or an empty list; labels: <name> is one free label: the card is the template's own; a card-defaults that is a scalar 
+ok 6 - card-defaults.labels: a bare 2026, 1.10 or true is the label as typed, in a list and as the lone name; each validates and heal finds nothing
+ok 7 - union_lane_defaults: 'extra', 'EXTRA' and 'Extra' in the lane make one label; a default equal to the card's own free label, case aside, is not added
+ALL 7 ok
+
+## 2. Mutants on lib.sh (scratch copies), same scoped run, failing lines
+### have
+a default equal to the card's own free label (case aside) was added:
+labels: [{text: Mixed, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: mixed, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: other, kind: {type: text, text: Text, icon: {glyph: tag}}}]
+### seen
+case-variants not merged:
+labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: extra, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: EXTRA, kind: {type: text, text: Text, icon: {glyph: 
+### both
+case-variants not merged:
+labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: extra, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: EXTRA, kind: {type: text, text: Text, icon: {glyph: 
+a default equal to the card's own free label (case aside) was added:
+labels: [{text: Mixed, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: mixed, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: MIXED, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: oth
+### r1
+typed scalars in card-defaults.labels not read as typed:
+labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: v1, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: 2027, kind: {type: text, text: Text, icon: {glyph: tag}
+(have = 'k in have' check off; seen = 'k in seen' off; both = both off; r1 = round-1 lib.sh from 6b1bf92)
+
+## 3. Typed scalars through union_lane_defaults (hand board: area open, priority closed single, size open single)
+### lane: card-defaults: {labels: [v1, 2026, 1.10, true, "2027"]}
+rc=0
+labels:
+  - {text: "v1", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "2026", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "1.10", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "true", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "2027", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+### lane: card-defaults: {labels: 2026}
+rc=0
+labels: [{text: "2026", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]
+### lane: card-defaults: {labels: [null, ~, 0x1F, 1e3, -5, yes, no, 2026-11-12, "true", False, +1, .5]}
+rc=0
+labels:
+  - {text: "0x1F", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "1e3", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "-5", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "yes", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "no", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "2026-11-12", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "true", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "False", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "+1", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: ".5", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+### lane: card-defaults: {labels: [{text: 1.10, kind: {type: area}}, {text: Critical, rank: 5, kind: {type: priority}}, {text: Odd, rank: 2, kind: {type: nodef}}, {text: wide, rank: 1, kind: {type: area}}]}
+rc=0
+labels:
+  - {text: "1.10", color: "tan", kind: {type: "area", text: "Area", color: "tan"}}
+  - {text: "Critical", rank: "5", kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}}
+  - {text: "Odd", rank: "2", kind: {type: "nodef"}}
+  - {text: "wide", color: "tan", kind: {type: "area", text: "Area", color: "tan"}}
+
+## 4. rank regression end to end: file-ticket.sh on a founded plan board, Frontier card-defaults: {labels: [{text: Critical, rank: 5, kind: {type: priority}}, {text: Odd, rank: 2, kind: {type: epic}}]}
+== scripts from 6b1bf92
+  - {text: "Task", rank: 4, icon: {glyph: "checklist"}, kind: {type: "ticket", text: "Ticket"}}
+  - {text: "Critical", rank: 5, kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}}
+  - {text: "Odd", rank: 2, kind: {type: "epic"}}
+== scripts from 89be02d
+  - {text: "Task", rank: 4, icon: {glyph: "checklist"}, kind: {type: "ticket", text: "Ticket"}}
+  - {text: "Critical", rank: "5", kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}}
+  - {text: "Odd", rank: "2", kind: {type: "epic"}}
+Board validator (lenient-integer) and both heals accept the string rank: 0 failures, 0 card repairs.
