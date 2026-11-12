@@ -1,0 +1,63 @@
+# Review evidence, guide-v114-2c29a34f at 25a7cbe
+
+## OWN RUN fail-before: the four new smoke cases (tests/smoke.sh at 25a7cbe), each run alone
+merge-base 4e6d022 (scratch worktree): case 1 lint-ask passes the late-handle ask; case 2 heal adds a component definition, drops the root component:, lists no relation repair; case 3 heal-board --name board rc=0; case 4 board_singles = {'priority', 'component'}. All four fail.
+branch 25a7cbe (fixer worktree, read-only): all four ok.
+
+## BLOCKING repro: block-form list waiting through the settle/resolve awk
+input (line 6 is 121 chars):
+---
+schema: 1
+kind: card
+title: "Q1: Engine"
+order: 1024
+waiting: {for: [rzen, bobsmith, carol, dave], since: 2026-10-10T00:00:00Z, comment: 11111111-1111-4111-8111-111111111111}
+created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+modified: {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+---
+Body.
+
+after lib.sh compact_fm (the skill's own compact form):
+---
+schema: 1
+kind: card
+title: "Q1: Engine"
+order: 1024
+waiting:
+  for: ["rzen", "bobsmith", "carol", "dave"]
+  since: 2026-10-10T00:00:00Z
+  comment: "11111111-1111-4111-8111-111111111111"
+created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+modified: {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+---
+Body.
+
+after the awk of settle-question.sh:41-46 / resolve-ticket.sh:48-53 (waiting line dropped):
+---
+schema: 1
+kind: card
+title: "Q1: Engine"
+order: 1024
+  for: ["rzen", "bobsmith", "carol", "dave"]
+  since: 2026-10-10T00:00:00Z
+  comment: "11111111-1111-4111-8111-111111111111"
+created:  {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+modified: {at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}
+---
+Body.
+
+yaml.safe_load: mapping values are not allowed here (line 5, column 6)
+
+## lint-ask.sh at 25a7cbe vs 4e6d022, board handle rzen
+dots '@rzen @bob.smith ...' pass/pass; dash on line 1 pass/pass; '@bob-smith' only later FAIL/pass (correct)
+email 'bob@example.com' later pass/pass; record mentioning nobody pass/pass; '@RZEN' again later pass/pass
+option line with code span `@types/node` FAIL 'handle @types is not on the first line' / pass
+link https://mastodon.social/@someone/123 later FAIL 'handle @someone ...' / pass
+
+## heal-board relations walk at 25a7cbe (scratch board)
+live relation with bare by, modified-by, long suspect: bare-stamp, retired-key, compact-collection, 3 repairs in 1 file
+relation under a comment folder, and under a card in the board .trash: not walked
+
+## fixtures: cmp against the named git sources
+lane-rewrite.before = d14e3d6, lane-rewrite.after = dc404fe, card-move.before = 8e7fd1e (cdcc9364 lane), card-move.after = 99ac340 (64531dfc lane), comment-posted = 281c22a (301eb20d lane): 5 of 5 byte-identical
+check-refs: 248 references, 0 missing. check-sizes: 62 rows, 0 wrong.
