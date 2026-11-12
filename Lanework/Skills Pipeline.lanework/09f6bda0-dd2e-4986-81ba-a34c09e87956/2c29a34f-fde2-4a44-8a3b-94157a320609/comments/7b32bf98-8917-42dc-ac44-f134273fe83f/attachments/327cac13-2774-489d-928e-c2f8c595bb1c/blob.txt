@@ -1,0 +1,57 @@
+# round 2 FAIL-BEFORE: smoke excerpts run alone against the scripts at 25a7cbe (tests at the round-2 head), via /private/tmp/claude-501/-Users-rzen-Indie-Shared-lanework-skills/9aee3c0f-725c-4271-b6c9-c924e53cd5a4/scratchpad/fixer-2c29a34f/scoped-r2.sh
+== heal-root-key-mapping
+ok 4 - heal dry run lists every kind of damage and writes nothing
+ok 5 - heal --apply repairs each one and the board validates with no DEPRECATED line
+ok 6 - heal leaves a clean card, a foreign entry, an unknown key, a ` #` title and every stamp as written
+ok 7 - a second heal --apply changes nothing
+exit 0
+== settle-block-waiting
+  comment: a22e47be-d730-48e5-b3c9-c709c5e02e28
+created:  {at: 2026-11-12T01:25:33Z, by: {name: claude, kind: agent, model: smoke}}
+modified: {at: 2026-11-12T01:25:34Z, by: {name: claude, kind: agent, model: smoke}}
+---
+exit 1
+== lint-ask-at-in-code-and-url
+handle @other is not on the first line
+handle @someone is not on the first line
+handle @types is not on the first line
+lint-ask failed an @ inside a code span or a link target
+exit 1
+== version-floor-check
+a skill names a guide version (the stamp lives only in CLAUDE.md): /Users/rzen/Indie/Shared/lanework-skills/.claude/worktrees/guide-v114-2c29a34f/skills/work/references/writing.md
+exit 1
+== resolve-block-waiting
+ok 11 - claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one
+resolve/unblock wrong: resolved 9914f099 -> Resolved (order 1024)
+unblocked T4
+lanework://f3be3a51-b0e8-42fa-a3dc-0808e1413b48/9914f099-7cc4-4ff4-9daf-ec53df11a104
+exit 1
+== frontier-block-waiting
+    waits on T3: Both [x] "q" (Working)
+    waits on T4: After one (Out of scope)
+== Working
+T3: Both [x] "q"  [35f5ef49](lanework://92a7d160-1456-4ea0-8fe6-3dbff867ff47/35f5ef49-c6d9-4909-87d5-8287149a8ada)
+exit 1
+
+# the harness
+#!/bin/bash
+# scoped-r2.sh <worktree> <scratch>: the round-2 cases, each excerpt alone, against the worktree's scripts
+W=$1; SP=$2; S=$W/tests/smoke.sh
+ln() { grep -n -F -- "$1" $S | head -1 | cut -d: -f1; }
+pre=$(( $(ln '# lanework: pipeline founding') - 1 ))
+A1=$(ln '# lanework: heal-board, one card per kind'); A2=$(ln 'ok "a second heal --apply changes nothing"')
+B1=$(ln '# discovery: found, file, settle, park'); B2=$(ln 'ok "settled with chat record')
+C1=$(ln '# plan: found, file, claim'); C2=$(ln 'frontier.sh marks a block-form waiting"')
+D1=$(ln '# guide v114: several people'); D2=$(ln 'ignores an @ in a code span or a URL"')
+E1=$(ln '# versions: no skill names a guide version'); E2=$(ln 'ok "no skill names a guide version')
+R1=$(ln "RECAP='- Recap")
+mk() { { sed -n "1,${pre}p" $S | sed "s#^ROOT=.*#ROOT=$W; SK=\$ROOT/skills#; s#^T=.*#T=$SP/sc-$3; rm -rf \$T; mkdir -p \$T#"; echo 'sum() { find "$1" -type f -print0 | sort -z | xargs -0 shasum | shasum; }'; sed -n "${R1}p" $S; shift 3; while [ $# -gt 0 ]; do sed -n "$1,$2p" $S; shift 2; done; } > $SP/x.sh; }
+run() { echo "== $1"; bash $SP/x.sh 2>&1 | grep -v -E '^ok [0-9]+ - (syntax|no skill folder|legacy folder)' | tail -4; echo "exit ${PIPESTATUS[0]}"; }
+mk 0 0 heal $A1 $A2; run heal-root-key-mapping
+mk 0 0 settle $B1 $B2; run settle-block-waiting
+
+mk 0 0 lint $D1 $D2; run lint-ask-at-in-code-and-url
+mk 0 0 vers $E1 $E2; run version-floor-check
+# the plan cases sit behind the settle case: neutralise earlier assertions to reach each one
+mk 0 0 plan $B1 $B2 $C1 $C2; perl -0pi -e 's/\|\| \{ echo "settle-question left[^\n]*exit 1; \}/|| true/' $SP/x.sh; run resolve-block-waiting
+perl -0pi -e 's/\|\| \{ echo "resolve\/unblock wrong: \$RO1"; exit 1; \}/|| true/' $SP/x.sh; sed -i '' 's/validate "$PL" >\/dev\/null;/true;/' $SP/x.sh; run frontier-block-waiting  # T1 no longer parses, so the plan board's validate is skipped here
