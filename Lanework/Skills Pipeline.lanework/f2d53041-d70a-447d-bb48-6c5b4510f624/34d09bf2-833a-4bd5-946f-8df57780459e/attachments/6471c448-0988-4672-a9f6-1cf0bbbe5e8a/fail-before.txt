@@ -1,0 +1,6 @@
+old run 1:      235 failures/1500
+old run 2:      177 failures/1500
+old run 3:      174 failures/1500
+new:        0 failures/1500
+control: PASSED (match)
+control: absent pattern fails (ok)
