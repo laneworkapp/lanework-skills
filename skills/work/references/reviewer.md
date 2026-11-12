@@ -20,7 +20,8 @@ One card's branch, read-only. Verdict: **APPROVE** or **REQUEST-CHANGES**. Stanc
 
 ## Verdict
 
-- Fill `templates/review-verdict.md`. **Post it on the card thread** (stamp `reviewer`), then send the same text to the lead. The thread is the durable copy; a message-only verdict dies at teardown.
-- A record (`writing.md`). Owner-only questions go under UNRESOLVED, for the lead to ask.
+- Fill `templates/review-verdict.md`: Markdown, no fence. **Post it on the card thread** (stamp `reviewer`), then send the same text to the lead. The thread is the durable copy; a message-only verdict dies at teardown.
+- A record (`writing.md`). Owner-only questions go under Questions for the lead, above Notes and Checked, for the lead to ask.
+- **Notes** = something a person could act on, or a result someone will cite. A check that came up clean goes under Checked, which keeps the whole walk.
 - **Anchor findings** `file:line @ <short sha> "<quoted fragment>"`. Line numbers drift; sha + fragment stay checkable (E9).
 - Re-review: read the **new** head, re-check each open BLOCKING finding by its quoted text, review only the diff since your last sha.
