@@ -2,14 +2,14 @@
 schema: 1
 kind: card
 title: "Skills target agent guide v114: waiting lists, short links, relations, component retired"
-order: 7168
+order: 3072
 labels:
   - {text: lanework, kind: {type: skill, text: Skill}}
   - {text: work, kind: {type: skill, text: Skill}}
   - {text: merge, kind: {type: skill, text: Skill}}
   - {text: heal, kind: {type: skill, text: Skill}}
 created:  {at: 2026-11-06T00:08:54Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
-modified: {at: 2026-11-12T00:49:29Z}
+modified: {at: 2026-11-12T00:54:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 The skills are stamped `lanework-agent-guide v101` (`CLAUDE.md:29`), and this board's guide is now v114, so `tests/smoke.sh` fails only on its stamp gate (`tests/smoke.sh:1095-1101`; every other check passes on `main` today). This card is the catch-up: read every skill against v114, fix the drift below, re-copy the app-write fixtures, bump the stamp. It blocks release 0.8.0.
 

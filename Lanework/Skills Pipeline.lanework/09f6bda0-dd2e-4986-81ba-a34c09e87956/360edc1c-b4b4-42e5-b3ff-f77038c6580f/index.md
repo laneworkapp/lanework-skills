@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Agents write future timestamps: the work skill never says a stamp comes from the clock"
-order: 5120
+order: 8192
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-11T23:17:38Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Main"}}
-modified: {at: 2026-11-12T00:44:11Z}
+modified: {at: 2026-11-12T00:54:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
 Agents type `created`, `modified` and `waiting.since` by hand, some land in the future, and the skills never say a stamp comes from the clock. This adds that rule once, a linter that catches a future stamp, and a script that posts a comment with a clock-taken stamp.
 

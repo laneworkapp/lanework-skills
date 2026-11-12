@@ -1,0 +1,62 @@
+# FAIL-BEFORE at ed4cc29 (merge-base), each new smoke case run alone: /private/tmp/claude-501/-Users-rzen-Indie-Shared-lanework-skills/9aee3c0f-725c-4271-b6c9-c924e53cd5a4/scratchpad/fixer-2c29a34f/each.sh
+== case 1
+lint-ask passed an ask whose second handle is not on line 1
+exit 1
+== case 2
+heal on the v114 board:
+index.md: added-definition config.labels gains `component`, which the board's cards use
+aaaa0000-0000-4000-8000-0000000000b1/c0000000-0000-4000-8000-0000000000b1/index.md: root-key-dropped component: "Sync" dropped, labels already carries "core"
+aaaa0000-0000-4000-8000-0000000000b1/c0000000-0000-4000-8000-0000000000b1/index.md: stale-label "core" re-stamped from the component definition
+3 repairs in 2 files (dry run: --apply to write)
+exit 1
+== case 3
+/Users/rzen/Indie/Shared/lanework-skills/.claude/worktrees/guide-v114-2c29a34f/skills/lanework/scripts/heal-board.py --name board: rc=0
+exit 1
+== case 4
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+AssertionError: {'priority', 'component'}
+lanework-merge.py: component single where the board does not say so
+exit 1
+
+# the cases
+# guide v114: several people on one ask, a root component: left alone, relations walked, the board name reserved
+printf '@owner @bob Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/two-handles.md"
+printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above. Ask @bob too.\n' > "$T/late-handle.md"
+"$SK/work/scripts/lint-ask.sh" "$T/two-handles.md"
+O=$("$SK/work/scripts/lint-ask.sh" "$T/late-handle.md") && { echo "lint-ask passed an ask whose second handle is not on line 1"; exit 1; }
+grep -qx 'handle @bob is not on the first line' <<<"$O" || { echo "$O"; exit 1; }
+ok "lint-ask passes an ask naming two handles on line 1, and fails one whose second handle is only on a later line"
+HV="$T/V114.lanework"; HVL="$HV/aaaa0000-0000-4000-8000-0000000000b1"; HVC="$HVL/c0000000-0000-4000-8000-0000000000b1"
+HVR="aaaa0000-0000-4000-8000-0000000000b2"; HVT="aaaa0000-0000-4000-8000-0000000000b3"; mkdir -p "$HVC/relations/$HVR" "$HVC/relations/.trash/$HVT"
+printf -- '---\nschema: 1\nkind: board\ntitle: "V114"\nid: aaaa0000-0000-4000-8000-0000000000b0\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$HV/index.md"
+printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$STAMP" "$STAMP" > "$HVL/index.md"
+printf -- '---\nschema: 1\nkind: card\ntitle: "Root component"\norder: 1024\ncomponent: {text: Sync}\nlabels: [{text: "core", kind: {type: "component", text: "Component"}}]\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$HVC/index.md"
+for r in "$HVR" ".trash/$HVT"; do
+  printf -- '---\nschema: 1\nkind: relation\nrel: "depends-on"\nto: "lanework://aaaa0000-0000-4000-8000-0000000000b0/aaaa0000-0000-4000-8000-0000000000b1"\ncreated:  %s\nmodified: 2026-10-01T00:00:00Z\n---\nWhy.\n' "$STAMP" > "$HVC/relations/$r/index.md"
+done
+cp "$HVC/index.md" "$T/v114-card.md"; cp "$HVC/relations/.trash/$HVT/index.md" "$T/v114-trashed.md"
+O=$("$HEAL" "$HV")
+{ grep -qx "aaaa0000-0000-4000-8000-0000000000b1/c0000000-0000-4000-8000-0000000000b1/relations/$HVR/index.md: bare-stamp modified" <<<"$O" \
+  && ! grep -q '\.trash' <<<"$O" && ! grep -q 'c0000000-0000-4000-8000-0000000000b1/index.md' <<<"$O" && grep -q '^1 repairs in 1 files' <<<"$O"; } \
+  || { echo "heal on the v114 board:"; echo "$O"; exit 1; }
+"$HEAL" "$HV" --apply --name fixer --model test >/dev/null
+cmp -s "$HVC/index.md" "$T/v114-card.md" && cmp -s "$HVC/relations/.trash/$HVT/index.md" "$T/v114-trashed.md" && ! grep -q component "$HV/index.md" \
+  && grep -qx 'modified: {at: 2026-10-01T00:00:00Z}' "$HVC/relations/$HVR/index.md" || { echo "heal touched the root component:, the trashed relation or the config, or missed the live one"; exit 1; }
+ok "heal-board leaves a root component: as written and adds no component definition, repairs a live relation, never walks relations/.trash"
+for s in "$HEAL" "$HD"; do
+  S0=$(sum "$HV"); rc=0; "$s" "$HV" --apply --name board --model test >/dev/null 2>"$T/board.err" || rc=$?
+  [ "$rc" -eq 64 ] && grep -q 'board is reserved for the app' "$T/board.err" && [ "$S0" = "$(sum "$HV")" ] || { echo "$s --name board: rc=$rc"; cat "$T/board.err"; exit 1; }
+done
+ok "heal-board and heal-descriptors refuse --name board (app-reserved, move receipts), writing nothing"
+mkdir -p "$T/singles/one.lanework" "$T/singles/two.lanework"
+printf -- '---\nschema: 1\nkind: board\nconfig: {labels: [{type: "component", text: "Component"}]}\n---\n' > "$T/singles/one.lanework/index.md"
+printf -- '---\nschema: 1\nkind: board\nconfig: {labels: [{type: "component", text: "Component", single: true}]}\n---\n' > "$T/singles/two.lanework/index.md"
+python3 - "$SK/merge/scripts/lanework-merge.py" "$T/singles" <<'PY' || { echo "lanework-merge.py: component single where the board does not say so"; exit 1; }
+import importlib.util, sys; sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("lm", sys.argv[1]); lm = importlib.util.module_from_spec(spec); spec.loader.exec_module(lm)
+one, two = lm.board_singles(sys.argv[2], "one.lanework"), lm.board_singles(sys.argv[2], "two.lanework")
+assert "priority" in one and "component" not in one, one
+assert "component" in two, two
+PY
+ok "lanework-merge.py treats component as single only where the board marks it single; priority always"
