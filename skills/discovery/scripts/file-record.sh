@@ -4,7 +4,7 @@
 #          [--from <lane title>] --model m [--name n] [--session s]
 # Card frontmatter from templates/record.md (title "<ADR|PDR>: <t>", flattened `Record` and
 # `accepted` status labels), body = line 1 linking the question, then --body. Lands at the
-# bottom of Decisions, staged outside the board. Prints the card's lanework:// link: put it
+# bottom of Decisions (its card-defaults labels unioned in), staged outside the board. Prints the card's lanework:// link: put it
 # in the ruling (templates/ruling.md). Run before settle-question.sh: the question must still be
 # in Asked (a settled card is never edited), or in the --from lane (plan: Working). No waiting, no comments.
 set -euo pipefail
@@ -50,6 +50,7 @@ C="$STAGE/$CARD_ID"; mkdir -p "$C"
 frontmatter_of "$TEMPLATES/record.md" > "$STAGE/fm.md"
 render "$STAGE/fm.md" kind "$KIND" rank "$RANK" title "$CTITLE" order "$(next_order "$DEC")" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-record.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
+union_lane_defaults "$DEC" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
 {
   cat "$STAGE/fm.out"

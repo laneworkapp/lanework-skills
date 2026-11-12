@@ -3,7 +3,7 @@
 # usage: file-question.sh <board> "<title, no Q-number>" --round N --body F \
 #          --model m [--ask F] [--depends <link>]... [--why T] [--name n] [--session s]
 # Mints Q<n> from the highest across all lanes. Card frontmatter from templates/question-card.md,
-# body from --body, `## Depends on` appended from --depends. Two comments, 1s apart: founding
+# body from --body, `## Depends on` appended from --depends; Asked's card-defaults labels are unioned in. Two comments, 1s apart: founding
 # record (--why, no handle), then the ask (`waiting.comment` points at it).
 # No --ask: built from --body (first paragraph, Options bullets, first sentence of Recommended,
 # matching "If no answer"), then linted with work's lint-ask.sh (warns, never aborts).
@@ -72,9 +72,12 @@ STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-ask.XXXXXX"); trap 'rm -rf "$STAGE"
 C="$STAGE/$CARD_ID"; mkdir -p "$C/comments/$FOUND_ID" "$C/comments/$ASK_ID"
 
 frontmatter_of "$TEMPLATES/question-card.md" > "$STAGE/fm.md"
+render "$STAGE/fm.md" n "$NEXTQ" title "$(title_str "$TITLE")" order "$(next_order "$ASKED")" \
+  round "$ROUND" handle "$HANDLE" since "$NOW" ask_id "$ASK_ID" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
+union_lane_defaults "$ASKED" "$BOARD" "$STAGE/fm.out"
+compact_fm "$STAGE/fm.out"
 {
-  render "$STAGE/fm.md" n "$NEXTQ" title "$(title_str "$TITLE")" order "$(next_order "$ASKED")" \
-    round "$ROUND" handle "$HANDLE" since "$NOW" ask_id "$ASK_ID" stamp "{at: $NOW, by: $BY}"
+  cat "$STAGE/fm.out"
   cat "$BODY_FILE"
   if [ "${#DEPENDS[@]}" -gt 0 ]; then
     printf '\n## Depends on\n\n'; printf -- '- %s\n' "${DEPENDS[@]}"

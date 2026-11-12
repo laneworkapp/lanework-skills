@@ -108,6 +108,111 @@ if hb.Heal(".", {}).heal_layout(doc):
 EOF
 }
 
+# union_lane_defaults <lane> <board> <staged-fm>: a card born by file into <lane> starts with the lane's card-defaults.labels (guide § Frontmatter, lanes).
+# Rewrites the staged frontmatter's `labels`: the card's own entries as written, then the lane's that it lacks. A bare name = a free label, a kinded
+# entry = stamped from the board's current config.labels (an undefined kind stays as written). A default is dropped when the card has the same text and
+# kind (case-insensitive), or its own value of a `single` kind; several lane values of one `single` kind keep one (lowest rank, a ranked entry before an
+# unranked, else the first). No card-defaults or no labels in it: the file is left untouched. A card-defaults that is not a mapping, or labels that are
+# neither a list nor one name: message on stderr, exit 1, nothing written, by this card's ruling (the app would ignore the value and still make
+# the card). A bare number or boolean is the label's text as typed. Unreadable single items are skipped. The heal's label model, loaded by path.
+# Run it after `render`, before compact_fm; never on a move.
+union_lane_defaults() {
+  python3 -B - "$LIB_DIR/heal-board.py" "$1" "$2" "$3" <<'EOF'   # -B: no __pycache__ in the skill tree
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("heal_board", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
+lane, board, staged = sys.argv[2:5]
+def die(msg):
+    print("union_lane_defaults: " + msg, file=sys.stderr); sys.exit(1)
+def read_lane(typed):
+    # Depends on heal-board.py's `scalar` (it coerces a bare 1.10 to 1.1 and true to True, losing the text) and `Plain`: the lane is read twice,
+    # once as the parser gives it, once with `scalar` keeping a bare number or boolean as its text, and only label NAME positions take the second.
+    orig = hb.scalar
+    if typed:
+        hb.scalar = lambda t: hb.Plain(t.strip()) if isinstance(orig(t), (bool, int, float)) else orig(t)
+    try:
+        return hb.Doc(os.path.join(lane, "index.md")).get("card-defaults")
+    finally:
+        hb.scalar = orig
+def named(n, t):   # the entry as parsed, with its text and kind.type/kind.text taken from the typed read
+    if not (isinstance(n, dict) and isinstance(t, dict)):
+        return t if isinstance(n, (bool, int, float)) else n
+    out = dict(n)
+    if "text" in t: out["text"] = t["text"]
+    if isinstance(n.get("kind"), dict) and isinstance(t.get("kind"), dict):
+        out["kind"] = dict(n["kind"], **{k: t["kind"][k] for k in ("type", "text") if k in t["kind"]})
+    return out
+try:
+    cd, td = read_lane(False), read_lane(True)
+except (OSError, hb.ParseError, UnicodeDecodeError) as e:
+    die("%s: unreadable lane: %s" % (lane, e))
+if isinstance(cd, dict) and isinstance(td, dict) and cd.get("labels") is not None:
+    nl, tl = cd["labels"], td.get("labels")
+    if isinstance(nl, list) and isinstance(tl, list) and len(nl) == len(tl):
+        cd = dict(cd, labels=[named(n, t) for n, t in zip(nl, tl)])
+    elif isinstance(nl, (bool, int, float)):
+        cd = dict(cd, labels=tl)
+if cd is None:
+    sys.exit(0)
+if not isinstance(cd, dict):
+    die("%s: card-defaults is not a mapping" % lane)
+raw = cd.get("labels")
+if raw is None:
+    sys.exit(0)
+if hb.is_text(raw):
+    raw = [raw]
+if not isinstance(raw, list):
+    die("%s: card-defaults.labels is neither a list nor one name" % lane)
+try:
+    cfg = hb.Doc(os.path.join(board, "index.md")).get("config")
+except (OSError, hb.ParseError, UnicodeDecodeError) as e:
+    die("%s: unreadable board: %s" % (board, e))
+if isinstance(cfg, dict) and cfg.get("labels") is not None and not isinstance(cfg["labels"], list):
+    die("%s: config.labels is not a list" % board)
+defs = hb.definitions_of(hb.config_labels(os.path.join(board, "index.md"), "labels"))
+doc = hb.Doc(staged)
+own = doc.get("labels") if doc.has("labels") else []
+if own is None:
+    own = []
+if not isinstance(own, list):
+    die("%s: labels is not a list" % staged)
+def key(e):
+    return (hb.canon(e["text"]), hb.canon(e["kind"]["type"]))
+have, single_have = set(), set()
+for item in own:
+    n = hb.normalize_entry(item)[0]
+    if hb.entry_of(n):
+        have.add(key(n))
+        d = defs.get(hb.canon(n["kind"]["type"]))
+        if d and d["single"]:
+            single_have.add(hb.canon(n["kind"]["type"]))
+cands, seen, best = [], set(), {}
+for item in raw:
+    n = hb.normalize_entry(item)[0]
+    if not hb.entry_of(n):
+        continue
+    k, t = key(n), hb.canon(n["kind"]["type"])
+    if k in have or k in seen:
+        continue
+    d = defs.get(t)
+    if d and d["single"] and t in single_have:
+        continue
+    seen.add(k)
+    f = hb.flattened(n, defs)
+    cands.append((t, f, bool(d and d["single"])))
+    if d and d["single"]:
+        cur = best.get(t)
+        r = hb.numeric_rank(f.get("rank")); cr = hb.numeric_rank(cur.get("rank")) if cur else None
+        if cur is None or (r is not None and (cr is None or r < cr)):
+            best[t] = f
+added = [f for t, f, single in cands if not single or best[t] is f]
+if not added:
+    sys.exit(0)
+doc.set("labels", hb.emit_key("labels", own + added))
+with open(staged, "w", encoding="utf-8", newline="") as fh:
+    fh.write(doc.text())
+EOF
+}
+
 # comment_file <path> <created-at> <by> [in-reply-to] < body: write a comment index.md.
 comment_file() {
   {

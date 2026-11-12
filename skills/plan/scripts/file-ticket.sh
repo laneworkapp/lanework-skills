@@ -7,7 +7,7 @@
 # lanework://<this board's id>/<card-uuid> link to a ticket already on the board, written as
 # `- [T<n>: <title>](<link>)`. A dependency in Out of scope is refused (rule the dependent out too,
 # or drop it). Lands at the bottom of Frontier when every dependency is in Resolved (or none),
-# else the bottom of Blocked. One founding comment (--why, default "**Charted.**"). No waiting.
+# else the bottom of Blocked. The destination lane's card-defaults labels are unioned in. One founding comment (--why, default "**Charted.**"). No waiting.
 # Prints the card's link, its short id and the lane it landed in.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
@@ -79,6 +79,7 @@ frontmatter_of "$TEMPLATES/ticket-card.md" > "$STAGE/fm.md"
 render "$STAGE/fm.md" n "$NEXTT" title "$(title_str "$TITLE")" order "$(next_order "$DEST")" \
   type "$LABEL" rank "$RANK" glyph "$GLYPH" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-ticket.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
+union_lane_defaults "$DEST" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
 {
   cat "$STAGE/fm.out"
