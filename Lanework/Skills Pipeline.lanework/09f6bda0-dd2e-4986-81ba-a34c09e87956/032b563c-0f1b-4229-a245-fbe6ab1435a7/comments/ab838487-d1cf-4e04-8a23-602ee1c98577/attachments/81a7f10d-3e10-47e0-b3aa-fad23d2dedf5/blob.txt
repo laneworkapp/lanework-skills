@@ -1,0 +1,192 @@
+# Reviewer evidence, card 032b563c, branch card-defaults-032b563c @ 6b1bf92, merge-base 2dc7b75
+
+## 1. OWN RUN: the five new smoke cases (branch tests/smoke.sh lines 1154-1230, smoke preamble), merge-base scripts (2dc7b75), failures logged and the run continued
+file-record: lane defaults not unioned:
+labels: [{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}]
+CASEFAIL^
+file-question: lane defaults not unioned:
+labels: [{text: Round 1, kind: {type: round, text: Round}}]
+CASEFAIL^
+file-ticket: lane defaults not unioned:
+labels: [{text: Research, rank: 2, icon: {glyph: magnifyingglass}, kind: {type: ticket, text: Ticket}}]
+CASEFAIL^
+single kind: wrong pick:
+labels: [{text: Prototype, rank: 3, icon: {glyph: hammer}, kind: {type: ticket, text: Ticket}}]
+CASEFAIL^
+file-ticket accepted card-defaults nope
+CASEFAIL^
+file-question accepted card-defaults nope
+CASEFAIL^
+file-record accepted card-defaults nope
+CASEFAIL^
+a refused filing wrote something (nope)
+CASEFAIL^
+file-ticket accepted card-defaults [x]
+CASEFAIL^
+file-question accepted card-defaults [x]
+CASEFAIL^
+file-record accepted card-defaults [x]
+CASEFAIL^
+a refused filing wrote something ([x])
+CASEFAIL^
+file-ticket accepted card-defaults {labels: {a: 1}}
+CASEFAIL^
+file-question accepted card-defaults {labels: {a: 1}}
+CASEFAIL^
+file-record accepted card-defaults {labels: {a: 1}}
+CASEFAIL^
+a refused filing wrote something ({labels: {a: 1}})
+CASEFAIL^
+the refusal does not name card-defaults:
+CASEFAIL^
+a bare-name labels: is one free label:
+labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}]
+CASEFAIL^
+
+## 2. OWN RUN: same cases, branch scripts (6b1bf92), strict
+ok 1 - file-record.sh: the Decisions lane's free label is added, its Proposed status is left out for the card's own accepted; validates, heal finds nothing
+ok 2 - file-question.sh: 'urgent' is added, 'ROUND 1' of the same kind is not repeated; the ask lints clean and waiting stays; validates, heal finds nothing
+ok 3 - file-ticket.sh: Frontier's 'urgent' is stamped from the board's priority kind (rank, colour, glyph), 'extra' is a free label, the single-kind ticket default yields to the card's own; Blocked adds nothing
+ok 4 - single kind: of High and Urgent the lower rank (Urgent) is kept; the card's own accepted beats superseded and deprecated; heal finds nothing
+ok 5 - no card-defaults, none with labels, or an empty list; labels: <name> is one free label: the card is the template's own; a card-defaults that is a scalar or a list, or labels that is a mapping, exits non-zero naming card-defaults, in all three scripts, and writes nothing
+ALL 5 ok
+
+## 3. Mutation runs (E2), branch scripts with lib.sh edited in a scratch copy
+mut1: 'if k in have or k in seen: continue' disabled (no case-insensitive union, no dedupe):
+  CASEFAIL lines: 0 (all five cases pass)
+mut1 control: the same mutation on edge case b1 (lane [URGENT, Bug], own free label urgent):
+  rc=0
+  labels:
+    - {text: "urgent", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+    - {text: "URGENT", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+    - {text: "Bug", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  created:  {at: 2026-11-11T00:00:00Z}
+mut2: single-kind rule disabled (append every default):
+  file-record: lane defaults not unioned:
+  labels: [{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}, {text: needs-review, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: Proposed, kind: {type: status, text: Status}}]
+  CASEFAIL^
+  file-record: board not clean
+  CASEFAIL^
+  ok 1 - file-record.sh: the Decisions lane's free label is added, its Proposed status is left out for the card's own accepted; validates, heal finds nothing
+  file-question: board not clean
+  CASEFAIL^
+  file-ticket: lane defaults not unioned:
+  labels: [{text: Research, rank: 2, icon: {glyph: magnifyingglass}, kind: {type: ticket, text: Ticket}}, {text: Grilling, rank: 1, icon: {glyph: bubble.left.and.bubble.right}, kind: {type: ticket, text: Ticket}}, {text: Urgent, rank: 0, color: "#C8283C", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: extra, kind: {type: text, text: Text, icon: {glyph: tag}}}]
+  CASEFAIL^
+  file-ticket: board not clean
+  CASEFAIL^
+  single kind: wrong pick:
+  labels: [{text: Prototype, rank: 3, icon: {glyph: hammer}, kind: {type: ticket, text: Ticket}}, {text: High, rank: 1, color: "#E07A1F", icon: {glyph: exclamationmark}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: Urgent, rank: 0, color: "#C8283C", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: Grilling, rank: 1, icon: {glyph: bubble.left.and.bubble.right}, kind: {type: ticket, text: Ticket}}]
+  CASEFAIL^
+  single kind: own value did not win:
+  labels: [{text: PDR, rank: 2, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}, {text: superseded, rank: 3, kind: {type: status, text: Status}}, {text: deprecated, rank: 2, kind: {type: status, text: Status}}]
+  CASEFAIL^
+  single kind: board not clean
+  CASEFAIL^
+
+## 4. No-defaults byte comparison: same filings (2 questions, 1 record, 6 tickets incl. Blocked) with merge-base and branch scripts; uuids and timestamps normalized; sha per index.md
+files:       34 per side; diff:
+  IDENTICAL
+
+## 5. Helper edge cases (union_lane_defaults on a hand board: kinds area open, priority closed single, size open single)
+### b1 lane: card-defaults: {labels: [URGENT, Bug]} ; own: labels: [{text: urgent, kind: {type: text, text: Text, icon: {glyph: tag}}}]
+rc=0
+labels:
+  - {text: "urgent", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "Bug", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+### n1 lane: card-defaults: {labels: [v1, 2026, 1.10, true, "2027"]} ; own: -
+rc=0
+labels:
+  - {text: "v1", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "2027", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+### n2 lane: card-defaults: {labels: 2026} ; own: -
+union_lane_defaults: <scratch>/h/n2.lanework/L: card-defaults.labels is neither a list nor one name
+rc=1
+UNCHANGED
+### b3b lane: card-defaults: {labels: [{text: Critical, kind: {type: priority}}, {text: Low, kind: {type: priority}}]} ; own: -
+rc=0
+labels: [{text: "Low", rank: 3, kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}}]
+### b6e lane: card-defaults: solo ; own: -
+union_lane_defaults: <scratch>/h/b6e.lanework/L: card-defaults is not a mapping
+rc=1
+UNCHANGED
+### b9 lane: card-defaults: {labels: [{text: Urgent, kind: {type: priority}}]} ; own: labels: [{text: Low, rank: 3, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]
+rc=0
+UNCHANGED
+### validator on the n1 and n2 lanes (board's .schema, lane in a uuid folder):
+n1: failures    0 over 0 of 2 documents
+n2: failures    0 over 0 of 2 documents
+
+## 6. Scripts on hand-written lanes (flow line > 120, block form, retired spellings, YAML-special names), then validate + skill heal + board heal v5
+T4 -> Blocked
+== title: "T3: First"
+labels:
+  - {text: "Task", rank: 4, icon: {glyph: "checklist"}, kind: {type: "ticket", text: "Ticket"}}
+  - {text: "Feature-Idea", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - text: "High"
+    rank: 1
+    color: "#E07A1F"
+    icon: {glyph: "exclamationmark"}
+    kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}
+  - {text: "needs-triage", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+== title: "T2: T research"
+labels:
+  - {text: "Research", rank: 2, icon: {glyph: "magnifyingglass"}, kind: {type: "ticket", text: "Ticket"}}
+  - {text: "Feature-Idea", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - text: "High"
+    rank: 1
+    color: "#E07A1F"
+    icon: {glyph: "exclamationmark"}
+    kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}
+  - {text: "needs-triage", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+== title: "T1: T grilling"
+labels:
+  - {text: "Grilling", rank: 1, icon: {glyph: "bubble.left.and.bubble.right"}, kind: {type: "ticket", text: "Ticket"}}
+  - {text: "Feature-Idea", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - text: "High"
+    rank: 1
+    color: "#E07A1F"
+    icon: {glyph: "exclamationmark"}
+    kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}
+  - {text: "needs-triage", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+== title: "T4: Dep"
+labels:
+  - {text: "Grilling", rank: 1, icon: {glyph: "bubble.left.and.bubble.right"}, kind: {type: "ticket", text: "Ticket"}}
+  - {text: "blocked-thing", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - text: "Low"
+    rank: 3
+    icon: {glyph: "arrow.down"}
+    kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}
+== title: "PDR: Free"
+labels:
+  - {text: "PDR", rank: 2, kind: {type: "record", text: "Record"}}
+  - {text: "accepted", rank: 1, kind: {type: "status", text: "Status"}}
+  - {text: "x", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+== title: "Q1: Free"
+labels:
+  - {text: "Round 1", kind: {type: "round", text: "Round"}}
+  - {text: "Round 1", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "#hash", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "yes", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+  - {text: "a: b", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+-- validate <scratch>/full/P.lanework
+FAIL P.lanework/c07cb54b-ebc7-4df6-ac57-2da6abb76c82/index.md: anyOf at #/properties/card-defaults/properties/labels/$ref/anyOf (instance #/card-defaults/labels) — no branch of `anyOf` accepts a value of type `array`
+warnings    0
+failures    1 over 1 of 16 documents
+-- skill heal
+c07cb54b-ebc7-4df6-ac57-2da6abb76c82/index.md: compact-collection card-defaults written in the compact form, 1 lines to 9
+ce3825d8-3f96-4e96-89e3-1360ef45fbb0/index.md: compact-collection card-defaults written in the compact form, 4 lines to 1
+2 repairs in 2 files (dry run: --apply to write)
+-- board heal v5
+c07cb54b-ebc7-4df6-ac57-2da6abb76c82/index.md: H17 compact-collection card-defaults written in the compact form, 1 lines to 9
+ce3825d8-3f96-4e96-89e3-1360ef45fbb0/index.md: H17 compact-collection card-defaults written in the compact form, 4 lines to 1
+2 repairs in 2 files (dry run: --apply to write)
+-- validate <scratch>/full/D.lanework
+warnings    0
+failures    0 over 0 of 11 documents
+-- skill heal
+0 repairs in 0 files
+-- board heal v5
+0 repairs in 0 files
+<scratch>/brtree/skills/lanework/scripts/__pycache__
+(the one FAIL and both repairs are the Frontier and Blocked lane files written by hand for this run, not filed cards)
