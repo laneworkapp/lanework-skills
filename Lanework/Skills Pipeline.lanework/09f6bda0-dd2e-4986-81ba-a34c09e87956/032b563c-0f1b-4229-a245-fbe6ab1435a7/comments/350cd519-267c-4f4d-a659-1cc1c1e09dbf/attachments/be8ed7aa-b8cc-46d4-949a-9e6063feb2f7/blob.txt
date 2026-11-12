@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+AssertionError: {'text': 'Critical', 'rank': '5', 'kind': {'type': 'priority', 'text': 'Priority', 'icon': {'glyph': 'flag'}}}
+a kinded default's rank or a typed name came out wrong:
+labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: Critical, rank: 5, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: Odd, rank: 2, kind: {type: epic}}, {text: 2026, kind: {type: text, text: Text, icon: {glyph: tag}}}, {text: 1.1
