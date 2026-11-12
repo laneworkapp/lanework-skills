@@ -1202,6 +1202,110 @@ hits=$(h17 "$T/label-kinds/All.lanework" | grep '^index.md:' || true); [ -z "$hi
 [ -z "$(find "$SK" -name __pycache__)" ] || { echo "a script left __pycache__ in the skill tree"; exit 1; }
 ok "founded boards, tickets and records are written in the compact form: the board's heal finds no H17 (control: the layout seed), and no __pycache__ in skills/"
 
+# filing scripts: the destination lane's card-defaults.labels are unioned into a card at birth (lib.sh union_lane_defaults)
+# setdef <board> <lane title> <yaml value|->: set (or, with -, remove) the lane's card-defaults line
+setdef() { SK="$SK" python3 -B - "$(lane_of "$1" "$2")" "$3" <<'PY'
+import importlib.util, os, sys, yaml
+spec = importlib.util.spec_from_file_location("hb", os.environ["SK"] + "/lanework/scripts/heal-board.py"); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
+p, v = sys.argv[1:]; A = open(p).read().split("\n"); end = A.index("---", 1); L = []; skip = False
+for l in A[1:end]:
+    if l.startswith("card-defaults:"): skip = True; continue
+    if skip and l[:1] == " ": continue
+    skip = False; L.append(l)
+if v[:1] == "=": L.append("card-defaults: " + v[1:])   # verbatim, as an owner types it
+elif v != "-": L += hb.emit_key("card-defaults", yaml.safe_load(v))
+open(p, "w").write("\n".join(["---"] + L + A[end:]))
+PY
+}
+labels_of() { local f; f="$(ls "$1"/*/"$2"/index.md)"; fm_parses "$f" || { echo "$f does not parse"; return 1; }; flowed "$f" | grep '^labels:'; }
+nothing_to_heal() { validate "$1" >/dev/null && [ "$(python3 "$SK/lanework/scripts/heal-board.py" "$1" | tail -1)" = "0 repairs in 0 files" ]; }
+TXT='kind: {type: text, text: Text, icon: {glyph: tag}}'
+printf 'Sync is free.\n' > "$T/dadr.md"; printf 'Is it free?\n\n## Options\n\n- A: yes\n- B: no\n\n## Recommended\n\nA. Simple.\n' > "$T/dq.md"
+DD="$T/Defaults Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$DD" --model smoke >/dev/null
+
+# 1. file-record: a free label and a kinded entry; the card's own single-kind value wins
+setdef "$DD" Decisions '{labels: [needs-review, {text: Proposed, kind: {type: status, text: Status}}]}'
+DQ=$("$SK/discovery/scripts/file-question.sh" "$DD" "Free" --round 1 --body "$T/dq.md" --model smoke | head -1 | sed 's#.*/##')
+DR=$("$SK/discovery/scripts/file-record.sh" "$DD" "$DQ" --record ADR --title "Free sync" --body "$T/dadr.md" --model smoke | head -1 | sed 's#.*/##')
+[ "$(labels_of "$DD" "$DR")" = "labels: [{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}, {text: needs-review, $TXT}]" ] \
+  || { echo "file-record: lane defaults not unioned:"; labels_of "$DD" "$DR"; exit 1; }
+nothing_to_heal "$DD" || { echo "file-record: board not clean"; exit 1; }
+ok "file-record.sh: the Decisions lane's free label is added, its Proposed status is left out for the card's own accepted; validates, heal finds nothing"
+
+# 2. file-question: a default matching the card's own label (case-insensitive, same kind) is not added twice
+setdef "$DD" Asked '{labels: [urgent, {text: ROUND 1, kind: {type: round, text: Round}}]}'
+DO=$("$SK/discovery/scripts/file-question.sh" "$DD" "Two" --round 1 --body "$T/dq.md" --model smoke 2>&1); DQ2=$(head -1 <<<"$DO" | sed 's#.*/##')
+! grep -q 'lint-ask warning' <<<"$DO" || { echo "$DO"; exit 1; }
+[ "$(labels_of "$DD" "$DQ2")" = "labels: [{text: Round 1, kind: {type: round, text: Round}}, {text: urgent, $TXT}]" ] || { echo "file-question: lane defaults not unioned:"; labels_of "$DD" "$DQ2"; exit 1; }
+grep -q '^waiting: {for: ' "$(ls "$DD"/*/"$DQ2"/index.md)" || { echo "file-question: waiting lost"; exit 1; }
+nothing_to_heal "$DD" || { echo "file-question: board not clean"; exit 1; }
+ok "file-question.sh: 'urgent' is added, 'ROUND 1' of the same kind is not repeated; the ask lints clean and waiting stays; validates, heal finds nothing"
+
+# 3. file-ticket: kinded entries stamped from config.labels; Blocked has no defaults
+DP="$T/Defaults Plan.lanework"; "$SK/plan/scripts/found-plan-board.sh" "$DP" --labels priority --model smoke >/dev/null
+setdef "$DP" Frontier '{labels: [{text: Grilling, kind: {type: ticket}}, {text: urgent, kind: {type: priority}}, extra]}'
+DT1=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Rates" --type research --body "$T/t.md" --model smoke | head -1); DT1=${DT1##*/}
+DT2=$("$SK/plan/scripts/file-ticket.sh" "$DP" "After rates" --type task --body "$T/t.md" --depends "lanework://$(sed -n 's/^id: //p' "$DP/index.md")/$DT1" --model smoke | head -1); DT2=${DT2##*/}
+[ "$(labels_of "$DP" "$DT1")" = "labels: [{text: Research, rank: 2, icon: {glyph: magnifyingglass}, kind: {type: ticket, text: Ticket}}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: extra, $TXT}]" ] \
+  || { echo "file-ticket: lane defaults not unioned:"; labels_of "$DP" "$DT1"; exit 1; }
+[ "$(labels_of "$DP" "$DT2")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}]" ] || { echo "file-ticket: Blocked got defaults:"; labels_of "$DP" "$DT2"; exit 1; }
+nothing_to_heal "$DP" || { echo "file-ticket: board not clean"; exit 1; }
+ok "file-ticket.sh: Frontier's 'urgent' is stamped from the board's priority kind (rank, colour, glyph), 'extra' is a free label, the single-kind ticket default yields to the card's own; Blocked adds nothing"
+
+# 4. a single kind with several lane values: the lowest rank is kept, and the card's own value beats them all
+setdef "$DP" Frontier '{labels: [{text: High, kind: {type: priority}}, {text: Urgent, kind: {type: priority}}, {text: Task, kind: {type: ticket}}, {text: Grilling, kind: {type: ticket}}]}'
+DT3=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Hammer" --type prototype --body "$T/t.md" --model smoke | head -1); DT3=${DT3##*/}
+[ "$(labels_of "$DP" "$DT3")" = "labels: [{text: Prototype, rank: 3, icon: {glyph: hammer}, kind: {type: ticket, text: Ticket}}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]" ] \
+  || { echo "single kind: wrong pick:"; labels_of "$DP" "$DT3"; exit 1; }
+setdef "$DD" Decisions '{labels: [{text: superseded, kind: {type: status}}, {text: deprecated, kind: {type: status}}]}'
+DR2=$("$SK/discovery/scripts/file-record.sh" "$DD" "$DQ2" --record PDR --title "Also free" --body "$T/dadr.md" --model smoke | head -1 | sed 's#.*/##')
+[ "$(labels_of "$DD" "$DR2")" = "labels: [{text: PDR, rank: 2, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}]" ] || { echo "single kind: own value did not win:"; labels_of "$DD" "$DR2"; exit 1; }
+nothing_to_heal "$DP" && nothing_to_heal "$DD" || { echo "single kind: board not clean"; exit 1; }
+ok "single kind: of High and Urgent the lower rank (Urgent) is kept; the card's own accepted beats superseded and deprecated; heal finds nothing"
+
+# 5. no defaults (or none with labels) change nothing; a malformed card-defaults refuses and writes nothing
+for v in - '{note: 1}' '{labels: []}'; do
+  setdef "$DP" Frontier "$v"; DT4=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Plain" --type grilling --body "$T/t.md" --model smoke | head -1); DT4=${DT4##*/}
+  [ "$(labels_of "$DP" "$DT4")" = "labels: [{text: Grilling, rank: 1, icon: {glyph: bubble.left.and.bubble.right}, kind: {type: ticket, text: Ticket}}]" ] || { echo "no-op ($v) changed the labels:"; labels_of "$DP" "$DT4"; exit 1; }
+done
+for v in nope '[x]' '{labels: {a: 1}}'; do
+  setdef "$DP" Frontier "$v"; setdef "$DD" Asked "$v"; setdef "$DD" Decisions "$v"; S5=$(sum "$DP")$(sum "$DD")
+  ! "$SK/plan/scripts/file-ticket.sh" "$DP" "Bad" --type grilling --body "$T/t.md" --model smoke >/dev/null 2>"$T/err.txt" || { echo "file-ticket accepted card-defaults $v"; exit 1; }
+  ! "$SK/discovery/scripts/file-question.sh" "$DD" "Bad" --round 1 --body "$T/dq.md" --model smoke >/dev/null 2>>"$T/err.txt" || { echo "file-question accepted card-defaults $v"; exit 1; }
+  ! "$SK/discovery/scripts/file-record.sh" "$DD" "$DQ2" --record ADR --title Bad --body "$T/dadr.md" --model smoke >/dev/null 2>>"$T/err.txt" || { echo "file-record accepted card-defaults $v"; exit 1; }
+  [ "$S5" = "$(sum "$DP")$(sum "$DD")" ] || { echo "a refused filing wrote something ($v)"; exit 1; }
+done
+grep -q 'card-defaults' "$T/err.txt" || { echo "the refusal does not name card-defaults:"; cat "$T/err.txt"; exit 1; }
+setdef "$DP" Frontier '{labels: solo}'; DT5=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Solo" --type task --body "$T/t.md" --model smoke | head -1); DT5=${DT5##*/}
+[ "$(labels_of "$DP" "$DT5")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: solo, $TXT}]" ] || { echo "a bare-name labels: is one free label:"; labels_of "$DP" "$DT5"; exit 1; }
+ok "no card-defaults, none with labels, or an empty list; labels: <name> is one free label: the card is the template's own; a card-defaults that is a scalar or a list, or labels that is a mapping, exits non-zero naming card-defaults, in all three scripts, and writes nothing"
+
+# 6. a bare number or boolean is the text as typed (1.10 stays 1.10), in the list and as the one-name scalar
+setdef "$DP" Frontier '={labels: [v1, 2026, 1.10, true, "2027"]}'
+DT6=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Typed" --type task --body "$T/t.md" --model smoke | head -1); DT6=${DT6##*/}
+[ "$(labels_of "$DP" "$DT6")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: v1, $TXT}, {text: 2026, $TXT}, {text: 1.10, $TXT}, {text: true, $TXT}, {text: 2027, $TXT}]" ] \
+  || { echo "typed scalars in card-defaults.labels not read as typed:"; labels_of "$DP" "$DT6"; exit 1; }
+nothing_to_heal "$DP" || { echo "typed scalars: board not clean"; exit 1; }
+for v in 2026 1.10 true; do
+  setdef "$DP" Frontier "={labels: $v}"
+  DT7=$("$SK/plan/scripts/file-ticket.sh" "$DP" "One $v" --type task --body "$T/t.md" --model smoke | head -1); DT7=${DT7##*/}
+  [ "$(labels_of "$DP" "$DT7")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: $v, $TXT}]" ] || { echo "labels: $v is not one free label:"; labels_of "$DP" "$DT7"; exit 1; }
+done
+nothing_to_heal "$DP" || { echo "scalar labels: board not clean"; exit 1; }
+ok "card-defaults.labels: a bare 2026, 1.10 or true is the label as typed, in a list and as the lone name; each validates and heal finds nothing"
+
+# 7. the union is case-insensitive: a repeat within the lane's list, and a default equal to the card's own free label
+setdef "$DP" Frontier '={labels: [extra, EXTRA, Extra]}'
+DT8=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Cased" --type task --body "$T/t.md" --model smoke | head -1); DT8=${DT8##*/}
+[ "$(labels_of "$DP" "$DT8")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: extra, $TXT}]" ] || { echo "case-variants not merged:"; labels_of "$DP" "$DT8"; exit 1; }
+setdef "$DP" Frontier -; setdef "$DP" Blocked -
+mkdir -p "$T/ulu"; printf -- '---\nschema: 1\nkind: card\ntitle: "x"\norder: 1024\nlabels: [{text: Mixed, %s}]\ncreated:  {at: 2026-10-01T00:00:00Z, by: {name: claude}}\n---\n' "$TXT" > "$T/ulu/fm.md"
+setdef "$DP" Blocked '={labels: [mixed, MIXED, other]}'
+( . "$SK/lanework/scripts/lib.sh"; union_lane_defaults "$(lane_of "$DP" Blocked | sed 's#/index.md$##')" "$DP" "$T/ulu/fm.md" )
+[ "$(flowed "$T/ulu/fm.md" | grep '^labels:')" = "labels: [{text: Mixed, $TXT}, {text: other, $TXT}]" ] || { echo "a default equal to the card's own free label (case aside) was added:"; flowed "$T/ulu/fm.md"; exit 1; }
+setdef "$DP" Blocked -
+ok "union_lane_defaults: 'extra', 'EXTRA' and 'Extra' in the lane make one label; a default equal to the card's own free label, case aside, is not added"
+
 # release gate: the Skills Pipeline board's guide and schema must not be newer than the stamp
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
 BS=$(head -1 "$VAL/VERSION" | tr -d '\r' | grep -o -E 'lanework-schema v[0-9]+ *$' | grep -o -E '[0-9]+' || true)
