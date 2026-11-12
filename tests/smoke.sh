@@ -62,6 +62,9 @@ l=$(grep -n 'Lanework/' "$F" | head -1 | cut -d: -f1); b=$(grep -n 'Boards/' "$F
 [ "$(grep -o 'for f in [A-Za-z ]*;' "$F" | head -1)" = "for f in Lanework Boards Pitlane;" ] || { echo "finding.md's find loop must run Lanework Boards Pitlane in that order"; exit 1; }
 ok "legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop"
 
+# fm_parses <file>: the frontmatter parses as YAML (a mapping)
+fm_parses() { python3 -c 'import sys, yaml; d = yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1]); sys.exit(not isinstance(d, dict))' "$1" 2>/dev/null; }
+
 # lanework: pipeline founding + reading
 P="$T/Acme Pipeline.lanework"
 "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
@@ -165,6 +168,12 @@ priority: High
 created:  $STAMP
 modified: $STAMP
 EOF
+hcard c0000000-0000-4000-8000-00000000000b <<EOF
+title: "Root key as a mapping"
+priority: {text: High, rank: 1}
+created:  $STAMP
+modified: $STAMP
+EOF
 hcard c0000000-0000-4000-8000-000000000006 <<EOF
 title: "Root key under an entry"
 labels: [{text: Low, rank: 3, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]
@@ -236,7 +245,8 @@ c 3 | grep -qF 'labels: [{text: "bug", kind: {type: "text", text: "Text", icon: 
 c 4 | grep -qF '{text: "Closed", rank: 2, kind: {type: "status"' || hfail string-kind
 for p in 'text: "High"' 'rank: 1' 'color: "#E07A1F"' 'glyph: "exclamationmark"' 'type: "priority"'; do
   c 5 | grep -qF "$p" || hfail "root-key ($p)"; done
-! c 5 | grep -q '^priority:' && ! c 6 | grep -q '^priority:' && c 6 | grep -q 'text: "Low"' && ! c 6 | grep -q Urgent \
+flowed "$HL/c0000000-0000-4000-8000-00000000000b/index.md" | grep -qF 'labels: [{text: High, rank: 1, color: "#E07A1F", icon: {glyph: exclamationmark}, kind: {type: priority' && grep -q 'c0000000-0000-4000-8000-00000000000b/index.md: root-key ' <<<"$O" || hfail root-key-mapping
+! c 5 | grep -q '^priority:' && ! c b | grep -q '^priority:' && ! c 6 | grep -q '^priority:' && c 6 | grep -q 'text: "Low"' && ! c 6 | grep -q Urgent \
   && grep -q 'because `labels` already carries a `priority` entry, `Low`' "$HL"/c*06/comments/*/index.md || hfail root-key-dropped
 c 7 | grep -qF '{text: "ux", kind: {type: "text"' && c 7 | grep -qF '{text: "star", icon: {glyph: "star"}, kind:' && ! c 7 | grep -q default || hfail text-kind/bare-glyph
 c 8 | grep -qxF 'title: "Fix: the thing"' && c 8 | grep -qF 'created:  {at: 2026-10-01T00:00:00Z, by: {name: claude}}' || hfail title-quote/bare-stamp
@@ -375,11 +385,13 @@ grep -q 'lint-ask warning\|warning: no lint-ask.sh' <<<"$O1$O2" && { echo "$O1$O
 C1=$(head -1 <<<"$O1" | sed 's#.*/##'); A1=$(sed -n 's/^ask comment //p' <<<"$O1"); C2=$(head -1 <<<"$O2" | sed 's#.*/##')
 grep -q '^title: "Q2: Engine: placement"$' "$D"/*/"$C2"/index.md; ok "Q1, Q2 filed, numbered, asks lint clean"
 printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner answered in chat.** "A."\n' > "$T/rec.md"
-CF1="$(ls "$D"/*/"$C1"/index.md)"; sed -i '' -E 's/^(waiting: \{for: )[^,]*/\1[owner, bob]/' "$CF1"; grep -q '^waiting: {for: \[owner, bob\], since: ' "$CF1"   # several people (guide v105+)
+# several people, past 120 characters: the compact form writes waiting as a block (lanework/scripts/lib.sh compact_fm, the heal's H17)
+CF1="$(ls "$D"/*/"$C1"/index.md)"; perl -0pi -e 's/^waiting: \{for: [^,]*, since: ([^,]*), comment: ([^}]*)\}\n/waiting:\n  for: [owner, bobsmith, carol, dave]\n  since: $1\n  comment: $2\n/m' "$CF1"; grep -q '^  for: \[owner, bobsmith, carol, dave\]$' "$CF1"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C1" --ruling "$T/r1.md" --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --model smoke >/dev/null
-! grep -q '^waiting:' "$D"/*/"$C1"/index.md && grep -q "in-reply-to: $A1" "$D"/*/"$C1"/comments/*/index.md
-ok "settled with chat record in reply to the ask, a list-form waiting dropped; parked"
+CF1="$(ls "$D"/*/"$C1"/index.md)"; { ! grep -q -E '^(waiting:|  (for|since|comment):)' "$CF1" && fm_parses "$CF1" && grep -q "in-reply-to: $A1" "$D"/*/"$C1"/comments/*/index.md; } \
+  || { echo "settle-question left waiting, or its block lines, or a frontmatter that does not parse:"; head -12 "$CF1"; exit 1; }
+ok "settled with chat record in reply to the ask, a block-form list waiting dropped whole; parked"
 validate "$D" >/dev/null; ok "discovery board validates"
 
 # discovery: Decisions lane founded in order, record + status kinds declared, file-record.sh files ADR and PDR cards
@@ -535,17 +547,18 @@ grep -q 'is in Working, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1
 if "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/t.md" --model smoke 2>/dev/null; then echo "resolved an unclaimed ticket"; exit 1; fi
 ok "claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one"
 # a Working ticket wearing waiting loses it on resolve; one of two deps resolved keeps T3 Blocked, unblocks T4
-TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk '{print} /^order:/ {print "waiting: {for: [rzen, bob], since: 2026-10-10T00:00:00Z, comment: 11111111-1111-4111-8111-111111111111}"}' "$TF1" > "$T/w.md" && mv "$T/w.md" "$TF1"
+WBLOCK='waiting:\n  for: [rzen, bobsmith, carol, dave]\n  since: 2026-10-10T00:00:00Z\n  comment: 11111111-1111-4111-8111-111111111111'   # past 120 characters: a block (awk -v reads the \n)
+TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$TF1" > "$T/w.md"; mv "$T/w.md" "$TF1"; grep -q '^  for: \[rzen, bobsmith' "$TF1"
 printf '**2026-10-10**: In the app, as recommended. "Yes."\n' > "$T/res1.md"
 RO1=$("$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/res1.md" --model smoke)
 TF1="$(ls "$PL"/*/"$T1"/index.md)"
-{ [ "$(plane "$T1")" = Resolved ] && ! grep -q '^waiting:' "$TF1" && grep -qx '## Resolution' "$TF1" && grep -qF '"Yes."' "$TF1" &&
+{ [ "$(plane "$T1")" = Resolved ] && ! grep -q -E '^(waiting:|  (for|since|comment):)' "$TF1" && fm_parses "$TF1" && grep -qx '## Resolution' "$TF1" && grep -qF '"Yes."' "$TF1" &&
   [ "$(plane "$T4")" = Frontier ] && [ "$(plane "$T3")" = Blocked ] && grep -qx 'unblocked T4' <<<"$RO1" && ! grep -q 'unblocked T3' <<<"$RO1" && [ "$(tail -1 <<<"$RO1")" = "$TL1" ]; } || { echo "resolve/unblock wrong: $RO1"; exit 1; }
 "$PS/claim-ticket.sh" "$PL" "$T2" --model smoke >/dev/null
 RO2=$("$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/res1.md" --model smoke)
 [ "$(plane "$T3")" = Frontier ] && grep -qx 'unblocked T3' <<<"$RO2" || { echo "T3 not unblocked once both deps resolved: $RO2"; exit 1; }
 [ "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T3"/index.md)")" -gt "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T4"/index.md)")" ] || { echo "unblocked ticket not at the bottom of Frontier"; exit 1; }
-validate "$PL" >/dev/null; ok "resolve-ticket.sh appends the resolution, drops a list-form waiting, moves to Resolved; unblocks exactly the tickets whose deps are all Resolved (two deps: only after both), to the bottom of Frontier"
+validate "$PL" >/dev/null; ok "resolve-ticket.sh appends the resolution, drops a block-form list waiting whole, moves to Resolved; unblocks exactly the tickets whose deps are all Resolved (two deps: only after both), to the bottom of Frontier"
 # out of scope: from Frontier; a new ticket depending on it is refused; Resolved can't go out of scope
 printf '**2026-10-10**: Out of scope: past the destination.\n' > "$T/oos.md"
 "$PS/resolve-ticket.sh" "$PL" "$T4" --resolution "$T/oos.md" --to out-of-scope --model smoke >/dev/null
@@ -577,7 +590,10 @@ if "$SK/discovery/scripts/file-record.sh" "$PL" "$T5" --record ADR --title x --b
 grep -q 'is not a card in Working' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
 if "$SK/discovery/scripts/file-record.sh" "$D" "$C2" --record ADR --title x --body "$T/adrp.md" --model smoke 2>"$T/err.txt"; then echo "default --from accepted a non-Asked question"; exit 1; fi
 grep -q 'is not a card in Asked' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
-validate "$PL" >/dev/null; ok "file-record.sh --from Working files a plan record linking its ticket; the default still demands Asked, and --from refuses a card outside that lane"
+TF3="$(ls "$PL"/*/"$T3"/index.md)"; cp "$TF3" "$T/t3.md"; awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$T/t3.md" > "$TF3"
+grep -q "^T3: .*(lanework://$PBID/$T3)  (waiting)\$" <<<"$("$PS/frontier.sh" "$PL" 2>/dev/null)" || { echo "frontier.sh lost the (waiting) mark on a block-form waiting"; "$PS/frontier.sh" "$PL"; exit 1; }
+cp "$T/t3.md" "$TF3"
+validate "$PL" >/dev/null; ok "file-record.sh --from Working files a plan record linking its ticket; the default still demands Asked, and --from refuses a card outside that lane; frontier.sh marks a block-form waiting"
 # a model is required: every plan script that writes exits 2 and writes nothing
 S4=$(sum "$PL")
 refused file-ticket "$PS/file-ticket.sh" "$PL" "Nomodel" --type grilling --body "$T/t.md"
@@ -1071,7 +1087,9 @@ printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the commen
 "$SK/work/scripts/lint-ask.sh" "$T/two-handles.md"
 O=$("$SK/work/scripts/lint-ask.sh" "$T/late-handle.md") && { echo "lint-ask passed an ask whose second handle is not on line 1"; exit 1; }
 grep -qx 'handle @bob is not on the first line' <<<"$O" || { echo "$O"; exit 1; }
-ok "lint-ask passes an ask naming two handles on line 1, and fails one whose second handle is only on a later line"
+printf '@owner Which pin?\n\nOptions:\n- A: Pin `@types/node` to 20\n- B: Leave it\n%s\n\nIf no answer: B.\nContext: [the post](https://mastodon.social/@someone/123), https://mastodon.social/@other/9.\n' "$RECAP" > "$T/at-code.md"
+"$SK/work/scripts/lint-ask.sh" "$T/at-code.md" || { echo "lint-ask failed an @ inside a code span or a link target"; exit 1; }
+ok "lint-ask passes an ask naming two handles on line 1, fails one whose second handle is only on a later line, and ignores an @ in a code span or a URL"
 HV="$T/V114.lanework"; HVL="$HV/aaaa0000-0000-4000-8000-0000000000b1"; HVC="$HVL/c0000000-0000-4000-8000-0000000000b1"
 HVR="aaaa0000-0000-4000-8000-0000000000b2"; HVT="aaaa0000-0000-4000-8000-0000000000b3"; mkdir -p "$HVC/relations/$HVR" "$HVC/relations/.trash/$HVT"
 printf -- '---\nschema: 1\nkind: board\ntitle: "V114"\nid: aaaa0000-0000-4000-8000-0000000000b0\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$HV/index.md"
@@ -1114,7 +1132,7 @@ H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top
 ok "no skill prescribes priority: or component: as a card key"
 
 # versions: no skill names a guide version; the one stamp lives in the repo's CLAUDE.md
-H=$({ grep -r -l -i -E 'lanework-(agent-guide|schema) +v[0-9]+' "$SK" || true; })
+H=$({ grep -r -l -i -E 'lanework-(agent-guide|schema) +v[0-9]+' "$SK"; find "$SK" -name '*.md' -exec grep -l -i -E 'guide[^.]*[^[:alnum:]_-]v[0-9]+|(^|[^[:alnum:]_-])v[0-9]{2,}([^[:alnum:].]|$)' {} +; } 2>/dev/null || true)   # a stamp, or a guide version as a floor ("guide ... v105+")
 [ -z "$H" ] || { echo "a skill names a guide version (the stamp lives only in CLAUDE.md): $H"; exit 1; }
 S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$ROOT/CLAUDE.md" || true; })
 [ "$(printf '%s\n' "$S" | grep -c .)" -eq 1 ] || { echo "CLAUDE.md must carry exactly one guide stamp, found: ${S:-none}"; exit 1; }

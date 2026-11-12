@@ -15,6 +15,14 @@ BOARD_ID=$(fm_value "$BOARD/index.md" id)
 
 card_of() { ls -d "$BOARD"/*/"$1" 2>/dev/null | head -1 || true; }
 lane_of() { local d; d=$(card_of "$1"); [ -n "$d" ] && strip_quotes "$(fm_value "$(dirname "$d")/index.md" title)"; }
+# waiting_set <index.md>: a `waiting` with a value, inline or opened out into block lines by the compact form
+waiting_set() {
+  awk 'NR==1 && $0=="---" { fm=1; next } fm && $0=="---" { exit }
+    fm && w && /^[ \t]/ { f=1; exit }
+    fm { w=0 }
+    fm && /^waiting:/ { v=$0; sub(/^waiting:[ \t]*/, "", v); if (v != "") { f=1; exit } w=1 }
+    END { exit !f }' "$1"
+}
 title_of() { strip_quotes "$(fm_value "$1/index.md" title)" | perl -pe 's/\\(.)/$1/g'; }
 deps_of() {
   awk '/^## Depends on[ \t]*$/ { f=1; next } f && /^## / { exit } f' "$1" |
@@ -31,7 +39,7 @@ for LANE in Frontier Blocked Working; do
   while IFS= read -r c; do
     [ -n "$c" ] || continue
     id=$(basename "$c"); t=$(title_of "$c")
-    w=""; [ -n "$(fm_value "$c/index.md" waiting)" ] && w="  (waiting)"
+    w=""; waiting_set "$c/index.md" && w="  (waiting)"
     printf '%s  [%s](lanework://%s/%s)%s\n' "$t" "${id:0:8}" "$BOARD_ID" "$id" "$w"
     open=(); n=0
     for d in $(deps_of "$c/index.md"); do
