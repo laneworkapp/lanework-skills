@@ -798,12 +798,23 @@ A7=e1000000-0000-4000-8000-000000000007; acard Shaping $A7 "Shaping: unclaimed" 
 A8=e1000000-0000-4000-8000-000000000008; acard Shaping $A8 "Shaping: claimed, owner waiting" 4096; acom Shaping $A8 f1000000-0000-4000-8000-000000000009 "$OLD3H" "$AGENT" "" "START: plain"; acom Shaping $A8 f1000000-0000-4000-8000-00000000000a "$OLD2H" "" "" "Status?"
 A9=e1000000-0000-4000-8000-000000000009; acard Approved $A9 "Approved: top" 1024;        acard Approved e1000000-0000-4000-8000-00000000000a "Approved: second" 2048
 AB1=e1000000-0000-4000-8000-00000000000b; acard Active $AB1 "Active: closed claim" 1024; acom Active $AB1 f1000000-0000-4000-8000-00000000000b "$OLD3H" "$AGENT" "" "**START: building.**"; acom Active $AB1 f1000000-0000-4000-8000-00000000000c "$OLD2H" "$AGENT" "" "**Merged: landed.**"
+# a by-stamped owner comment is an owner's whatever the quote (the app writes kind: "human"; YAML allows 'human'); a CRLF file is read;
+# a fractional-second stamp parses and a stamp that is not plain ...Z is never judged stale
+A10=e1000000-0000-4000-8000-000000000010; acard Issues $A10 "Issues: app-stamped owner" 1024; acom Issues $A10 f1000000-0000-4000-8000-000000000010 "$OLD2H" '{name: Bob, kind: "human"}' "" "Why?"
+A11=e1000000-0000-4000-8000-000000000011; acard Issues $A11 "Issues: single-quoted owner" 2048; acom Issues $A11 f1000000-0000-4000-8000-000000000011 "$OLD2H" "{name: Bob, kind: 'human'}" "" "Why?"
+A12=e1000000-0000-4000-8000-000000000012; acard Issues $A12 "Issues: fractional fresh claim" 3072; acom Issues $A12 f1000000-0000-4000-8000-000000000012 "${NOWS%Z}.123Z" "$AGENT" "" "**START: x.**"
+A13=e1000000-0000-4000-8000-000000000013; acard Issues $A13 "Issues: offset claim" 4096; acom Issues $A13 f1000000-0000-4000-8000-000000000013 "2026-10-01T00:00:00+00:00" "$AGENT" "" "**START: x.**"
+A14=e1000000-0000-4000-8000-000000000014; acard Tasks $A14 "Tasks: CRLF owner" 1024; acom Tasks $A14 f1000000-0000-4000-8000-000000000014 "$OLD2H" "" "" "Why?"
+sed -i '' 's/$/\r/' "$(alane Tasks)/$A14/comments/f1000000-0000-4000-8000-000000000014/index.md"
 # an app move receipt (signed board, with a moved: key) is no reply, claim or activity: it neither clears an owner comment nor freshens a dead claim
 AR='{name: board, kind: agent}'
 acom Shaping $A5 f1000000-0000-4000-8000-00000000000d "$NOWS" "$AR" "" "moved"
 acom Ideas $A1 f1000000-0000-4000-8000-00000000000e "$NOWS" "$AR" f1000000-0000-4000-8000-000000000001 "moved"
 AO=$("$DS/arm-pass.sh" "$AB")
 exp=$(printf 'comment\t%s\t%s\tIdeas\tIdeas: owner question\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000001/index.md\n' "$AN" $A1 "$(basename "$(alane Ideas)")" $A1
+  printf 'comment\t%s\t%s\tIssues\tIssues: app-stamped owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000010/index.md\n' "$AN" $A10 "$(basename "$(alane Issues)")" $A10
+  printf 'comment\t%s\t%s\tIssues\tIssues: single-quoted owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000011/index.md\n' "$AN" $A11 "$(basename "$(alane Issues)")" $A11
+  printf 'comment\t%s\t%s\tTasks\tTasks: CRLF owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000014/index.md\n' "$AN" $A14 "$(basename "$(alane Tasks)")" $A14
   printf 'stale\t%s\t%s\tShaping\tShaping: dead claim\t-\tXm\n' "$AN" $A5
   printf 'arm\t%s\t%s\tShaping\tShaping: unclaimed\t-\t-\n' "$AN" $A7
   printf 'comment\t%s\t%s\tShaping\tShaping: claimed, owner waiting\towner\t%s/%s/comments/f1000000-0000-4000-8000-00000000000a/index.md\n' "$AN" $A8 "$(basename "$(alane Shaping)")" $A8
@@ -813,7 +824,7 @@ exp=$(printf 'comment\t%s\t%s\tIdeas\tIdeas: owner question\towner\t%s/%s/commen
   printf 'arm\t%s\t%s\tActive\tActive: closed claim\t-\t-\n' "$AN" $AB1)
 got=$(sed -E 's/\t(1[12][0-9])m$/\tXm/' <<<"$AO")
 [ "$got" = "$exp" ] || { echo "arm-pass.sh lines:"; echo "want:"; echo "$exp"; echo "got:"; echo "$got"; exit 1; }
-ok "arm-pass.sh: an unanswered owner comment is a comment line in any lane but Done (a reply in-reply-to clears it); an unclaimed agent-lane card is an arm line, Approved its top card only; a closed claim does not hold a card; a board move receipt is no reply and no activity; comment wins over arm; Done prints nothing"
+ok "arm-pass.sh: an unanswered owner comment is a comment line in any lane but Done (a reply in-reply-to clears it); an unclaimed agent-lane card is an arm line, Approved its top card only; a closed claim does not hold a card; a board move receipt is no reply and no activity; a by-stamped owner comment (either quote) and a CRLF one answer; a fractional or offset stamp is never stale; comment wins over arm; Done prints nothing"
 [ "$(STALE_MINUTES=240 "$DS/arm-pass.sh" "$AB" | grep -c '^stale')" = 0 ] && [ "$("$DS/arm-pass.sh" "$AB" Ideas | grep '^arm' | cut -f3-4)" = "$(printf '%s\tIdeas' $A2)" ] || { echo "arm-pass.sh: STALE_MINUTES or the agent lane titles ignored"; exit 1; }
 ! "$DS/arm-pass.sh" "$T" 2>/dev/null || { echo "arm-pass.sh accepted a non-board"; exit 1; }
 ok "arm-pass.sh: STALE_MINUTES moves the stale line; lane titles on the command line replace the board-kinds.md agent rows; a non-board exits non-zero"
