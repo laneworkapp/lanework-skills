@@ -17,6 +17,7 @@
 # Claim = the card's last comment opening `START` (bold or plain) with no later closing comment. A closing
 # comment opens `Merged`, `Closed`, `Shipped`, `Done`, `Confirmed done`, `Released`, `Landed` or `Abandoned`
 # (bold or plain); a closing comment in any other shape reads as still claimed.
+# A comment signed `board` (the app's move receipt, a `moved:` key) counts for nothing: not a reply, a claim, a closing or newer activity.
 # Owner = no `by`, or `by.kind: human`, as classify-event.sh reads it. Every comment's `created.at` orders the thread.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
@@ -40,7 +41,7 @@ title_of() { local t; t=$(strip_quotes "$(fm_value "$1" title)"); printf '%s' "$
 row() {
   awk '
     function flush() { if (key == "created") { at = ""; if (match(blk, /at: *"?[0-9T:Z-]+/)) { at = substr(blk, RSTART, RLENGTH); sub(/at: *"?/, "", at) }
-      who = (blk !~ /by:/ || blk ~ /kind: *"?human/) ? "owner" : "agent" } key = ""; blk = "" }
+      who = (blk !~ /by:/ || blk ~ /kind: *"?human/) ? "owner" : (blk ~ /name: *"?board"?[ ,}]/ ? "board" : "agent") } key = ""; blk = "" }
     BEGIN { n = 0 }
     /^---[ \t]*$/ { n++; if (n == 2) { flush(); infm = 0 } next }
     n == 1 { if ($0 ~ /^[A-Za-z-]+:/) { flush(); key = $0; sub(/:.*/, "", key); blk = $0
@@ -78,6 +79,7 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
     declare -a replies=()
     while IFS='|' read -r uuid path at who rep first; do
       [ -n "$uuid" ] || continue
+      [ "$who" = board ] && continue   # the app'"'"'s move receipt: no reply, no claim, no activity
       newest="$at"
       [ "$who" = owner ] && { own_uuid=$uuid; own_path="${path#"$BOARD"/}/index.md"; }
       [ "$who" = agent ] && [ -n "$rep" ] && replies+=("$rep")
