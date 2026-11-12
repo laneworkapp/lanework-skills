@@ -1,4 +1,4 @@
-<!-- lanework-heal-catalog v2 — the board heal's rule catalog, written into .schema/ by the Lanework app. Don't edit it here: it is rewritten whenever the app ships a newer one. -->
+<!-- lanework-heal-catalog v5 — the board heal's rule catalog, written into .schema/ by the Lanework app. Don't edit it here: it is rewritten whenever the app ships a newer one. -->
 
 # The heal catalog
 
@@ -37,15 +37,16 @@ with the board's format.
 - **A dropped fact gets a record first.** A rule marked *drops a fact* posts a
   comment on the card before the file is rewritten, quoting what went. It is
   signed by whoever runs the heal: `healer` when the app runs it, your own
-  name when you run the script. Never sign `healer`, `shortcuts` or `tracker`
-  yourself.
+  name when you run the script. Never sign `board`, `healer`, `shortcuts` or
+  `tracker` yourself.
 - **Unknown rides through.** A key or a subkey that no rule names is never
   removed, renamed or reordered. Inside a rewritten `labels` entry, unknown
   subkeys ride along at all three levels: on the entry, on its `kind`, and on
   its `icon`.
 - **Foreign is left alone.** A label whose kind the board doesn't define, or a
   value a closed kind doesn't list, keeps every byte of its stamps (H13).
-- **Never walked**: `.trash/`, `comments/.draft` and `comments/.trash`.
+- **Never walked**: `.trash/`, `comments/.draft`, `comments/.trash` and
+  `relations/.trash`. A card's live relations are walked like its comments.
 - **Only what needs repair.** A file no rule changes is never rewritten. A
   rewritten list or mapping comes back in the writer's compact form, and a
   comment on its key line stays on that line.
@@ -166,14 +167,13 @@ config: {labels: [{type: "phase", icon: {glyph: "flag"}, values: [{text: "Draft"
 - **Documents**: the board's `index.md`, read against every card.
 - **Drops a fact**: no.
 
-When the board's cards use the `priority` or `component` kind (a reserved
-root key, or a `labels` entry of that kind, in any spelling) and
-`config.labels` doesn't define it, the board gains the definition, appended
-after its own entries, as the suggested one:
+When the board's cards use the `priority` kind (the reserved root key, or a
+`labels` entry of that kind, in any spelling) and `config.labels` doesn't
+define it, the board gains the definition, appended after its own entries, as
+the suggested one:
 
 ```yaml
 - {type: priority, text: Priority, icon: {glyph: flag}, single: true, values: [{text: Urgent, rank: 0, color: "#C8283C", icon: {glyph: exclamationmark.2}}, {text: High, rank: 1, color: "#E07A1F", icon: {glyph: exclamationmark}}, {text: Medium, rank: 2}, {text: Low, rank: 3, icon: {glyph: arrow.down}}]}
-- {type: component, text: Component, color: aluminum, icon: {glyph: puzzlepiece}, single: true}
 ```
 
 - **Skip**: a `config` that isn't a mapping, or `config.labels` that isn't a
@@ -200,8 +200,8 @@ labels: [{text: "bug", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
 - **Drops a fact**: no.
 
 An entry's `kind: <name>` becomes the kind object `{type: <name>}`, then
-takes the stamps of that kind's definition. `priority` and `component` are
-written lowercase, and the retired `default` becomes `text`.
+takes the stamps of that kind's definition. `priority` is written
+lowercase, and the retired `default` becomes `text`.
 
 ```yaml
 labels: [{text: High, kind: Priority}]     # before
@@ -231,8 +231,9 @@ A bare `glyph:` on a `labels` entry, or on its `kind`, folds into `icon`. An
 - **Documents**: a card.
 - **Drops a fact**: no.
 
-A reserved root `priority:` or `component:` key moves into `labels` as an
-entry of that kind, appended, and the key is removed. A scalar resolves
+The reserved root `priority:` key moves into `labels` as an entry of that
+kind, appended, and the key is removed. A root `component:` is an unknown key
+and is left as written. A scalar resolves
 through the definition, the way a picker's write would. A mapping keeps its
 own `text`, `rank`, `color` and `icon` (with `value:` read as `text:` and a
 bare `glyph:` folded), and takes the definition's kind, or `{type: …}` alone
@@ -244,8 +245,8 @@ labels: [{text: "High", rank: 1, color: "#E07A1F", icon: {glyph: "exclamationmar
 ```
 
 - **Skip**: a key with no reading (a list, or a mapping with no `text`), and a
-  `labels` that isn't a list. A `null` root key (`priority:` or `component:`)
-  is left as written. A `labels` that is bare, `~` or `null`, `[]`, or only a
+  `labels` that isn't a list. A `null` root `priority:` is left as
+  written. A `labels` that is bare, `~` or `null`, `[]`, or only a
   comment under it is no list, not a skip: the entry starts one. `labels: ""`,
   a number, or a mapping is still skipped (a text scalar is H07's one-entry
   list).

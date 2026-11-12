@@ -1,0 +1,44 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "lanework:///schema/1/relation.json",
+  "title" : "Lanework relation",
+  "description" : "A relation's `index.md` under a card's `relations/<uuid>/`: a typed, directed statement the card makes about another item, stored once on the card that makes it. No `title` and no `order`; the body is an optional rationale.",
+  "type" : "object",
+  "properties" : {
+    "schema" : {
+      "$ref" : "common.json#/$defs/schema-version",
+      "description" : "Always 1. Required."
+    },
+    "kind" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "`relation`. Required; the only discriminator inside `relations/.trash/`."
+    },
+    "created" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "When the relation was stated, and by whom."
+    },
+    "modified" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "The last write to the relation, its `suspect` included."
+    },
+    "rel" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "Required. The relation's type, free text (`traces-to`, `depends-on`, `supersedes`). The app attaches no meaning to it and the board declares none; it is shown as written, prettified."
+    },
+    "to" : {
+      "$ref" : "common.json#/$defs/lanework-link",
+      "description" : "Required. The target: any `lanework://` link — a card usually, but a board, lane, comment or attachment too. Resolved exactly as written; a target the app cannot resolve is shown as unresolved and kept unchanged. Write the full form; a short link is legal and resolves by prefix."
+    },
+    "suspect" : {
+      "$ref" : "common.json#/$defs/relation-suspect",
+      "description" : "The relation needs re-checking because something it depends on changed. Set and removed by agents; the app only displays it."
+    }
+  },
+  "additionalProperties" : true,
+  "required" : [
+    "schema",
+    "kind",
+    "rel",
+    "to"
+  ]
+}

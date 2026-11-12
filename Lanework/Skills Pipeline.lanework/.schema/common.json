@@ -43,6 +43,108 @@
         }
       ]
     },
+    "short-id-mode" : {
+      "description" : "`show` (id on every face), `option` (id as an overlay while ⌥ is held) or `hide`; `true` reads `show`, `false` reads `hide`. Any other scalar reads as absent and keeps its bytes; a word outside the known values warns (unknown-value) and never fails.",
+      "anyOf" : [
+        {
+          "type" : "string"
+        },
+        {
+          "type" : "number"
+        },
+        {
+          "type" : "integer"
+        },
+        {
+          "type" : "boolean"
+        }
+      ],
+      "examples" : [
+        "show",
+        "option",
+        "hide"
+      ]
+    },
+    "board-perspective" : {
+      "description" : "How the board is drawn: `kanban`. A name this build does not draw reads as kanban and keeps its bytes; a word outside the known values warns (unknown-value) and never fails.",
+      "anyOf" : [
+        {
+          "type" : "string"
+        },
+        {
+          "type" : "number"
+        },
+        {
+          "type" : "integer"
+        },
+        {
+          "type" : "boolean"
+        }
+      ],
+      "examples" : [
+        "kanban"
+      ]
+    },
+    "lane-presentation" : {
+      "description" : "How a lane draws its cards: `card` (the default) or `list`. A name this build does not draw reads as `card` and keeps its bytes; a word outside the known values warns (unknown-value) and never fails.",
+      "anyOf" : [
+        {
+          "type" : "string"
+        },
+        {
+          "type" : "number"
+        },
+        {
+          "type" : "integer"
+        },
+        {
+          "type" : "boolean"
+        }
+      ],
+      "examples" : [
+        "card",
+        "list"
+      ]
+    },
+    "lane-locks" : {
+      "description" : "Lock names: `content` and `comments` are read. Any other name is kept as written and ignored; `move` is reserved.",
+      "anyOf" : [
+        {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/lenient-text"
+          }
+        },
+        {
+          "description" : "A bare name reads as a one-element list.",
+          "$ref" : "#/$defs/lenient-text"
+        }
+      ]
+    },
+    "log-level" : {
+      "description" : "`off`, `error`, `warning`, `info` or `debug`. `true` reads `info`, `false` reads `off`, and any other name reads as `info` and keeps its bytes; a word outside the known values warns (unknown-value) and never fails.",
+      "anyOf" : [
+        {
+          "type" : "string"
+        },
+        {
+          "type" : "number"
+        },
+        {
+          "type" : "integer"
+        },
+        {
+          "type" : "boolean"
+        }
+      ],
+      "examples" : [
+        "off",
+        "error",
+        "warning",
+        "info",
+        "debug"
+      ]
+    },
     "lenient-integer" : {
       "description" : "An integer, a whole-number double, or a numeric string; a fractional value has no reading.",
       "anyOf" : [
@@ -97,26 +199,35 @@
     },
     "identity" : {
       "description" : "Who acted: a display name, `human` or `agent`, and an agent's model.",
-      "type" : "object",
-      "properties" : {
-        "name" : {
-          "description" : "The display name every surface that renders an identity shows.",
-          "$ref" : "#/$defs/lenient-text"
+      "anyOf" : [
+        {
+          "type" : "object",
+          "properties" : {
+            "name" : {
+              "description" : "The display name every surface that renders an identity shows.",
+              "$ref" : "#/$defs/lenient-text"
+            },
+            "kind" : {
+              "description" : "`human` or `agent`, as written. The value is never policed.",
+              "$ref" : "#/$defs/lenient-text"
+            },
+            "model" : {
+              "description" : "An agent's model name or level. Meaningless on a human.",
+              "$ref" : "#/$defs/lenient-text"
+            },
+            "roster-ref" : {
+              "description" : "The GUID of the agent's card on the roster board — a bare UUID, never a path.",
+              "$ref" : "#/$defs/uuid"
+            }
+          },
+          "additionalProperties" : true
         },
-        "kind" : {
-          "description" : "`human` or `agent`, as written. The value is never policed.",
+        {
+          "description" : "Retired: a bare scalar, read as `{name: …}`. Write the mapping.",
+          "deprecated" : true,
           "$ref" : "#/$defs/lenient-text"
-        },
-        "model" : {
-          "description" : "An agent's model name or level. Meaningless on a human.",
-          "$ref" : "#/$defs/lenient-text"
-        },
-        "roster-ref" : {
-          "description" : "The GUID of the agent's card on the roster board — a bare UUID, never a path.",
-          "$ref" : "#/$defs/uuid"
         }
-      },
-      "additionalProperties" : true
+      ]
     },
     "stamp" : {
       "description" : "When it happened and who did it.",
@@ -180,8 +291,19 @@
       "type" : "object",
       "properties" : {
         "for" : {
-          "description" : "Whose attention is asked for — which machine draws the mark: a handle matched case-insensitively, or `human` / `operator` for any human. Absent means any human.",
-          "$ref" : "#/$defs/lenient-text"
+          "description" : "Whose attention is asked for — which machine draws the mark: a handle matched case-insensitively, or `human` / `operator` for any human, or a list of them (`[rzen, bob]`) to ask several people; every listed handle's machine draws the mark, and one any-human entry makes it any human. Absent or an empty list means any human. Any person's answer clears the flag, listed or not.",
+          "anyOf" : [
+            {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/$defs/lenient-text"
+              }
+            },
+            {
+              "description" : "A bare scalar reads as a one-entry list.",
+              "$ref" : "#/$defs/lenient-text"
+            }
+          ]
         },
         "since" : {
           "description" : "When the flag was set. A human comment created strictly later than this clears it, as does a human reply to the ask whatever its stamp; without a readable `since` the app never clears the flag.",
@@ -201,7 +323,7 @@
           "type" : "object",
           "properties" : {
             "by" : {
-              "description" : "`modified`, `created`, `due`, `priority`, `component` or `label` — `priority` and `component` section by the card's `labels` entry of that kind, the lowest rank where it carries several; `label` does the same for the kind named by `kind`. A name this build does not know reads as no grouping and keeps its bytes.",
+              "description" : "`modified`, `created`, `due`, `priority` or `label` — `priority` sections by the card's `labels` entry of that kind, the lowest rank where it carries several; `label` does the same for the kind named by `kind`. A name this build does not know reads as no grouping and keeps its bytes.",
               "$ref" : "#/$defs/lenient-text"
             },
             "kind" : {
@@ -283,7 +405,7 @@
       ]
     },
     "sugar-label" : {
-      "description" : "One label at a reserved root key — `priority` or `component`, never written since 2026-10-05 and moved once into `labels` by the migration. The key named the kind, so the value carries none.",
+      "description" : "One label at the reserved root `priority` key, never written since 2026-10-05 and moved once into `labels` by the migration. The key named the kind, so the value carries none.",
       "type" : "object",
       "properties" : {
         "text" : {
@@ -314,7 +436,7 @@
       "type" : "object",
       "properties" : {
         "type" : {
-          "description" : "The identity — kebab-case, matched case-insensitively. `text` — free labels — is the one built-in kind, replacing `default`; `priority` and `component` are ordinary kinds since 2026-10-05.",
+          "description" : "The identity — kebab-case, matched case-insensitively. `text` — free labels — is the one built-in kind, replacing `default`; `priority` is an ordinary kind since 2026-10-05, and `component` one like any other.",
           "$ref" : "#/$defs/lenient-text"
         },
         "text" : {
@@ -332,13 +454,29 @@
       },
       "additionalProperties" : true
     },
-    "label-names" : {
-      "description" : "LabelValue names, deduplicated case-insensitively with the first spelling winning.",
+    "card-default-labels" : {
+      "description" : "The labels a card born into the lane starts with: bare names (free labels) and label entries of the board's own kinds.",
       "anyOf" : [
         {
           "type" : "array",
           "items" : {
-            "$ref" : "#/$defs/lenient-text"
+            "anyOf" : [
+              {
+                "description" : "A bare name: a free label, the `text` kind.",
+                "$ref" : "#/$defs/lenient-text"
+              },
+              {
+                "description" : "A label entry in the card grammar, its kind stamped. Re-stamped against the board's vocabulary when a card is born.",
+                "$ref" : "#/$defs/label",
+                "not" : {
+                  "properties" : {
+                    "kind" : {
+                      "not" : {}
+                    }
+                  }
+                }
+              }
+            ]
           }
         },
         {
@@ -370,8 +508,8 @@
             "$ref" : "#/$defs/icon"
           },
           "single" : {
-            "description" : "A card carries at most one value of this kind. A writer's constraint, never a read-time collapse.",
-            "$ref" : "#/$defs/lenient-bool"
+            "description" : "A card carries at most one value of this kind. A writer's constraint, never a read-time collapse. A YAML boolean. A quoted word has no reading.",
+            "type" : "boolean"
           },
           "values" : {
             "description" : "Present — even empty — makes the kind closed: a card value names one of these by text, and stamps its rank.",
@@ -436,7 +574,7 @@
         "type" : "object",
         "properties" : {
           "by" : {
-            "description" : "`modified`, `created`, `due`, `label`, `priority`, `component` or `waiting`. `priority` and `component` match the card's `labels` entry of that kind.",
+            "description" : "`modified`, `created`, `due`, `label`, `priority` or `waiting`. `priority` matches the card's `labels` entry of that kind.",
             "$ref" : "#/$defs/lenient-text"
           },
           "op" : {
@@ -473,6 +611,71 @@
         "additionalProperties" : true
       }
     },
+    "moved" : {
+      "description" : "A move receipt's facts. The app writes it on a comment when a card moves to another lane on a board with `config.move-receipts: true`; the body says the same in plain text. A comment carrying it as a mapping is a receipt.",
+      "type" : "object",
+      "properties" : {
+        "from" : {
+          "description" : "The lane the card left.",
+          "type" : "object",
+          "properties" : {
+            "lane" : {
+              "description" : "The lane's uuid — an identity, never a path.",
+              "$ref" : "#/$defs/uuid"
+            },
+            "title" : {
+              "description" : "The lane's title at the time of the move; a later rename leaves it as it was.",
+              "$ref" : "#/$defs/lenient-text"
+            }
+          },
+          "additionalProperties" : true
+        },
+        "to" : {
+          "description" : "The lane the card arrived in.",
+          "type" : "object",
+          "properties" : {
+            "lane" : {
+              "description" : "The lane's uuid — an identity, never a path.",
+              "$ref" : "#/$defs/uuid"
+            },
+            "title" : {
+              "description" : "The lane's title at the time of the move; a later rename leaves it as it was.",
+              "$ref" : "#/$defs/lenient-text"
+            }
+          },
+          "additionalProperties" : true
+        },
+        "by" : {
+          "description" : "Who moved the card. Absent when the receipt's own `created.by` did.",
+          "$ref" : "#/$defs/identity"
+        }
+      },
+      "additionalProperties" : true
+    },
+    "lanework-link" : {
+      "description" : "A `lanework://` link — `lanework://<board-id>[/<item-id>[/<sub-item-id>]]`: a board, a lane or card on it, or a comment, attachment or relation under that card. Each segment is a whole uuid or its first eight or more hex digits; write the whole uuid.",
+      "type" : "string",
+      "pattern" : "^lanework://"
+    },
+    "relation-suspect" : {
+      "description" : "The relation needs re-checking because something it depends on changed. Set and removed by agents; the app only displays it.",
+      "type" : "object",
+      "properties" : {
+        "since" : {
+          "description" : "When the flag was set.",
+          "$ref" : "#/$defs/timestamp"
+        },
+        "by" : {
+          "description" : "Who set it.",
+          "$ref" : "#/$defs/identity"
+        },
+        "cause" : {
+          "description" : "The comment that caused it, as a full `lanework://` link — usually a change comment on another card.",
+          "$ref" : "#/$defs/lanework-link"
+        }
+      },
+      "additionalProperties" : true
+    },
     "logging" : {
       "description" : "The board log's own settings, cascaded board → global → built-in `off`.",
       "anyOf" : [
@@ -481,7 +684,7 @@
           "properties" : {
             "level" : {
               "description" : "`off`, `error`, `warning`, `info` or `debug`.",
-              "$ref" : "#/$defs/lenient-text"
+              "$ref" : "#/$defs/log-level"
             },
             "retain" : {
               "description" : "Days of log files to keep. A negative or unreadable value reads as absent, never as `0`.",
@@ -492,7 +695,7 @@
         },
         {
           "description" : "A bare scalar reads as `level` alone, and carries no `retain`. The app always writes the mapping.",
-          "$ref" : "#/$defs/lenient-text"
+          "$ref" : "#/$defs/log-level"
         }
       ]
     },

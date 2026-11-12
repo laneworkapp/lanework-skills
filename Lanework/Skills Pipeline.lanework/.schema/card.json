@@ -50,11 +50,6 @@
       "deprecated" : true,
       "description" : "Reserved: never written and not read. A card's priority is a `labels` entry of kind `priority`; a key found here is a one-time migration to that entry, and an entry already in `labels` wins."
     },
-    "component" : {
-      "$ref" : "common.json#/$defs/sugar-label",
-      "deprecated" : true,
-      "description" : "Reserved: never written and not read. A card's component is a `labels` entry of kind `component`; a key found here is a one-time migration to that entry, and an entry already in `labels` wins."
-    },
     "hero" : {
       "$ref" : "common.json#/$defs/lenient-text",
       "description" : "The uuid of one of this card's own attachments, drawn as a banner. An identity, never a path: a value carrying `/` has no reading."
@@ -71,13 +66,9 @@
       "$ref" : "common.json#/$defs/timestamp",
       "description" : "Proposed, unruled — not read by this build. An end date, `due`'s own grammar."
     },
-    "related" : {
-      "$ref" : "common.json#/$defs/label-names",
-      "description" : "Proposed, unruled — not read by this build. A list of related card identities."
-    },
-    "depends-on" : {
-      "$ref" : "common.json#/$defs/label-names",
-      "description" : "Proposed, unruled — not read by this build. A list of card identities this card depends on."
+    "cite-as" : {
+      "$ref" : "common.json#/$defs/lenient-text-single-line",
+      "description" : "Proposed, unruled — not read by this build. The card's citation: the name people and agents cite it by, such as `FR123`. A name, never an identity — a reference to the card still carries its uuid."
     },
     "iconColor" : {
       "$ref" : "common.json#/$defs/lenient-text",
@@ -92,7 +83,7 @@
     "author" : {
       "$ref" : "common.json#/$defs/lenient-text",
       "deprecated" : true,
-      "description" : "Retired: folds into `created.by` as `{name: …}` by a scheduled heal at every level."
+      "description" : "Reserved: never written. Folds into `created.by` as `{name: …}` by a scheduled heal at every level."
     },
     "deleted" : {
       "$ref" : "common.json#/$defs/timestamp",

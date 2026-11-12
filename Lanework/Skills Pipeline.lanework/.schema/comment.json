@@ -29,6 +29,10 @@
       "$ref" : "common.json#/$defs/lenient-text",
       "description" : "The uuid of a sibling comment. Identity-shaped or no reading at all; a value naming no sibling is legal and renders a quiet hint."
     },
+    "moved" : {
+      "$ref" : "common.json#/$defs/moved",
+      "description" : "Present only on a move receipt: the lane the card left, the lane it arrived in, and who moved it. Written by the app, signed `{name: board, kind: agent}`; the chip, the age line and search leave a receipt out."
+    },
     "modified-by" : {
       "$ref" : "common.json#/$defs/lenient-text",
       "deprecated" : true,
@@ -37,7 +41,7 @@
     "author" : {
       "$ref" : "common.json#/$defs/lenient-text",
       "deprecated" : true,
-      "description" : "Retired: the comment's original attribution key, folded into `created.by` as `{name: …}` by a scheduled heal."
+      "description" : "Reserved: never written. The comment's original attribution key, folded into `created.by` as `{name: …}` by a scheduled heal."
     },
     "deleted" : {
       "$ref" : "common.json#/$defs/timestamp",
