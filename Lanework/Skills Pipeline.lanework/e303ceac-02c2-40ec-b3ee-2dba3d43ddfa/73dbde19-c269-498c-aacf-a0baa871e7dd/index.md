@@ -1,10 +1,9 @@
 ---
 schema: 1
 title: "Write reviewer verdicts as Markdown, not a code fence"
-order: 6144
+order: 55296
 created: {at: 2026-11-07T02:58:36Z}
-waiting: {for: rzen, since: 2026-11-12T01:37:59Z, comment: 39bf5655-5b28-401e-8c57-eacc19b03f85}
-modified: {at: 2026-11-12T01:37:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-12T02:01:32Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 kind: card
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 ---
