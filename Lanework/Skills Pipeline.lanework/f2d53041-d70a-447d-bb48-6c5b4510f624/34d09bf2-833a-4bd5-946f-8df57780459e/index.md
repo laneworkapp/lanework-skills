@@ -5,7 +5,7 @@ title: "Smoke case 40 flakes on SIGPIPE in a cat | grep -q pipe"
 order: 0
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-10-25T11:08:17Z, by: {name: handler, kind: agent, model: opus, session: "board dispatch"}}
-modified: {at: 2026-11-12T00:46:48Z}
+modified: {at: 2026-11-12T00:49:17Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5, session: "board watch"}}
 ---
 Smoke case 40 sometimes fails with "claim did not move to Working with a Claimed comment" even though the claim worked.
 
@@ -59,13 +59,14 @@ Tried on 4 files, 1500 runs: 0 failures, and a non-matching pattern still fails.
 
 ## Verification
 
+- Baseline today: `tests/smoke.sh` runs 2m20s alone and ends red only on the last gate, `board guide v114 is newer than the stamp (lanework-agent-guide v101)` (`CLAUDE.md`, Working on a skill). Cases 1-123 print `ok`. That gate is unrelated to this card, so "passes" below means every case prints `ok` and the only failure is that gate, until the stamp moves.
 - `bash -n tests/smoke.sh`, then `tests/smoke.sh` green once on its own (throwaway boards only, never this one).
 - Control: against a scratch board with a claimed ticket, the new line passes; with the Claimed comment removed it fails.
 - The race, hard to hit by luck, run as the card said: 5 smoke runs started at the same time, all exit 0.
 
 ## Done when
 
-No pipe in `tests/smoke.sh` feeds `grep -q` or `head` from a producer that writes more than once (a `cat` of a glob, or output over one pipe buffer); the sweep table above is the checklist, and line 531 is its only row marked yes. Smoke passes 5 runs in a row, run at the same time.
+No pipe in `tests/smoke.sh` feeds `grep -q` or `head` from a producer that writes more than once (a `cat` of a glob, or output over one pipe buffer); the sweep table above is the checklist, and line 531 is its only row marked yes. Smoke passes 5 runs in a row, run at the same time (every case `ok`; see Verification for the stamp gate).
 
 ## Recommendation
 
