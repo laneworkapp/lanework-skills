@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Remove this repo's own marketplace.json"
-order: 4096
+order: 3072
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-05T00:31:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "marketplace chat"}}
-modified: {at: 2026-11-12T18:56:53Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5}}
-waiting: {for: anyone, since: 2026-11-12T18:56:53Z, comment: ec07bd61-5e0c-4b40-9d8b-9d2137db5689}
+modified: {at: 2026-11-13T23:01:36Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 This card deletes the repo's own `.claude-plugin/marketplace.json`, so the central marketplace is the only catalog that lists the plugin.
 
@@ -19,7 +18,7 @@ This card deletes the repo's own `.claude-plugin/marketplace.json`, so the centr
 
 **Waits on**: [Point the README at the marketplace](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/c5b171e1-a2de-4d0e-bdcf-1c9c707c4e2a). Its README and CHANGELOG edits are on `main`, but the latest release is v0.7.0 (October) and `stable` carries no switch notice yet. Cutting that release is the owner's call.
 
-**Open call**: how long the grace period runs after the notice ships. Recommendation: A, removal rides the release after the notice release.
+~~**Open call**: how long the grace period runs after the notice ships.~~ **ruled 2026-11-13: A, removal rides the release after the notice release.**
 
 **Risks**
 - Users still on the old `lanework` marketplace (this repo's catalog) fail their next `/plugin marketplace update` once `stable` lacks the file. That is the reason for the grace period.
@@ -34,4 +33,4 @@ This card deletes the repo's own `.claude-plugin/marketplace.json`, so the centr
 
 **Done when**: `stable` has no `.claude-plugin/marketplace.json`, `tests/smoke.sh` and the layout table in `CLAUDE.md` no longer mention it, and the central marketplace check passes against the new `stable`.
 
-**Recommendation**: build it after the open call is ruled and the notice release is out. The change itself is three small edits.
+**Recommendation**: build it after the notice release is out. The change itself is three small edits.
