@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Q14: The clock guard: what it checks and on what basis"
-order: 7168
+order: 14336
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:07:49Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:13:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-14T14:13:53Z, comment: d9470fbb-324e-449e-95fa-591531db6a7e}
+modified: {at: 2026-11-14T14:16:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Q13 ruled that a lease gets a guard against a wrong clock. What does the guard check, on what basis, and what happens when it trips?
 
@@ -40,3 +39,8 @@ Recommended: A. It compares the lease with a value the wrong clock did not also 
 - [Q13: A wrong clock in until](lanework://33527992-d72c-417b-85a2-1b62bea96794/df0483a6-4636-464f-b31c-83fa219e9eea): a guard is wanted
 - [Q4: Lease length and renewal](lanework://33527992-d72c-417b-85a2-1b62bea96794/7d91feb9-54cf-4b67-b95d-b657225e9665): 30 minutes, renewed by a timer
 - [Q12: What a lease write restamps and commits](lanework://33527992-d72c-417b-85a2-1b62bea96794/02c2d5fd-525b-46ef-af5f-3eee6e226566): every lease write restamps modified
+
+## Ruling
+
+**2026-11-14**: A, as recommended. "A: `until` over 35 minutes ahead of now is no lease. The timer renews by elapsed time."
+ADR: [ADR: The clock guard is a range check against now, with an elapsed-time timer](lanework://33527992-d72c-417b-85a2-1b62bea96794/674f3c98-33a5-41f5-acb3-7f59abafdfcf)
