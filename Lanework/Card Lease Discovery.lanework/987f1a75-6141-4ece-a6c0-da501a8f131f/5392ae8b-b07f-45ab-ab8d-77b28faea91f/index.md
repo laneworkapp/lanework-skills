@@ -5,7 +5,7 @@ title: "Discovery map"
 order: 2048
 icon: {glyph: point.3.connected.trianglepath.dotted}
 created:  {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T14:38:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:46:46Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Every decision in the problem and domain space, grouped by corner. ✅ settled: one-line ruling, card linked. 💬 on the frontier: card linked. ⏳ not yet askable: what it waits on.
 
@@ -17,6 +17,7 @@ Every decision in the problem and domain space, grouped by corner. ✅ settled: 
   - ✅ The lease is `claimed: {by, until}` in card frontmatter ([Q6 of Board Runner Discovery](lanework://d7e27581-ac3c-4bb3-ab2c-41c3333416d6/4b0d0f8b-37d5-492d-8761-66cab79edbd1))
     - ✅ The holder is the stamp's `by` with the harness session id required [Q1](lanework://33527992-d72c-417b-85a2-1b62bea96794/e150b8c1-ab33-44fb-9ee7-cc171c235abb)
       - ✅ The session holds; its subagents never stake [Q7](lanework://33527992-d72c-417b-85a2-1b62bea96794/144897f2-11a2-4147-b862-579adf7dc6c9)
+    - ✅ The background loop that renews and listens is called the timer [Q22](lanework://33527992-d72c-417b-85a2-1b62bea96794/bd7f1521-b626-4201-baec-ac7797347f30)
 - **Scope**
   - ✅ One machine; across machines a lease is a hint [Q2](lanework://33527992-d72c-417b-85a2-1b62bea96794/73f4178e-0830-49d4-be12-8d6c41c60894)
   - ✅ Every skill that starts work takes a lease; START shrinks to a short plan [Q5](lanework://33527992-d72c-417b-85a2-1b62bea96794/69b77f01-fcab-4737-8892-31c7ecaadd3c)
@@ -41,6 +42,6 @@ Every decision in the problem and domain space, grouped by corner. ✅ settled: 
   - ✅ A holder back late, nobody having taken the card, renews and carries on [Q16](lanework://33527992-d72c-417b-85a2-1b62bea96794/c8e5934d-298c-4444-88b2-b44dd8c7ce95)
   - ✅ A wrong clock: a guard is wanted [Q13](lanework://33527992-d72c-417b-85a2-1b62bea96794/df0483a6-4636-464f-b31c-83fa219e9eea)
     - ✅ The guard: `until` over 35 minutes ahead of now is no lease; the timer renews by elapsed time [Q14](lanework://33527992-d72c-417b-85a2-1b62bea96794/df8b2a68-f17a-444c-97c6-74fa972795c3)
-  - 💬 A holder whose timer died [Q21](lanework://33527992-d72c-417b-85a2-1b62bea96794/39811630-aa7b-410d-a181-f9ee942d0c77)
+  - ✅ A holder whose timer died: every card-writing script checks the lease first [Q21](lanework://33527992-d72c-417b-85a2-1b62bea96794/39811630-aa7b-410d-a181-f9ee942d0c77)
 - **Success**
   - ✅ Smoke cases for every ruling, plus a clean trial over the first 50 leased cards [Q20](lanework://33527992-d72c-417b-85a2-1b62bea96794/536cb934-d63d-40c9-85dc-5819b6dd13d6)
