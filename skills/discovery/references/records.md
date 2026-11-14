@@ -39,7 +39,7 @@ Else the Settled card is the record. Explicit no's qualify: a non-goal that will
 
 ## Superseding
 
-Never edit a record's body to say something new. New card + old card gets status `superseded` + a dated comment linking its replacement + old linked under the new one's Related. The overturning ruling is a new question card linking the old.
+Never edit a record's body to say something new. New card states a `supersedes` relation to the old (`file-record.sh --supersedes <old uuid>`, repeatable; shape: guide § Relations; never a matching relation on the old card) + old card gets status `superseded` + a dated comment linking its replacement + old linked under the new one's Related. The overturning ruling is a new question card linking the old.
 
 ## Existing corpus
 
