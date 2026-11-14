@@ -4,9 +4,9 @@ kind: card
 title: "Q17: Seeing held cards and freeing one by hand"
 order: 10240
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T14:07:53Z, comment: aade15ed-2062-403c-8868-0b055a7f37e5}
 created:  {at: 2026-11-14T14:07:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:07:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:30:58Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T14:30:58Z, comment: b950f304-e969-4e31-9c63-8760ad98a522}
 ---
 The app does not draw a key it does not know, so a lease is invisible on the board. How do you see which cards are held, and free one by hand?
 
@@ -19,6 +19,17 @@ The app does not draw a key it does not know, so a lease is invisible on the boa
 ## Recommended
 
 A. It adds nothing to the board that can go stale, and the lease stays one key. C can follow as a request to the app without changing A.
+
+
+## Options, revised 2026-11-14
+
+After the owner asked how the script gets called: A gains the reports.
+
+- A: Through agents and reports. Any agent you ask runs the script's `list`. Sweep and watch reports list held cards and flag a lapsed lease. You free a card by deleting the `claimed` line, or by telling an agent, which releases it by force and records that you said so.
+- B: A, plus a `Held` label the script adds when it stakes and removes on release, so the board shows held cards.
+- C: Ask the app to draw `claimed`. An app request, outside this repo, and nothing until it ships.
+
+Recommended: A. Nothing on the board can go stale, and C can follow as an app request without changing A.
 
 ## Depends on
 
