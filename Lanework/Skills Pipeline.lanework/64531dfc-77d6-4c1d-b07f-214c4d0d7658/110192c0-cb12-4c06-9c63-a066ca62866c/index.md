@@ -6,7 +6,7 @@ order: 7168
 labels: [{text: repo, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T03:56:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 modified: {at: 2026-11-14T14:53:14Z}
-waiting: {for: anyone, since: 2026-11-14T03:56:59Z, comment: 77ca5db1-b234-4514-9a87-8dd1f261451b}
+waiting: {for: anyone, since: 2026-11-14T22:04:40Z, comment: 20bdc1ae-521e-47fa-97ea-f2b5edd31d3f}
 ---
 The guide-version stamp finds real drift, but the smoke gate built on it turns main red whenever the app upgrades this board's guide, so this card proposes checking the stamp only at release and keeping it out of everyday smoke.
 
