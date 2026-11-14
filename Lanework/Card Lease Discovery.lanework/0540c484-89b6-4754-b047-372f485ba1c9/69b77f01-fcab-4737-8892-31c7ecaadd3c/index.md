@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Q5: Which skills take a lease, and the START comment"
-order: 3072
+order: 5120
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T13:45:42Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:54:56Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-14T13:54:56Z, comment: d48fd4be-7374-48e6-a3e9-fe55c66c6a82}
+modified: {at: 2026-11-14T13:55:38Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
 ---
 Which skills take a lease before working a card, and does the START comment stay once the lease is the claim?
 
@@ -36,3 +35,8 @@ Recommended: A. The lease says who and until when, the short START says what, an
 - [Q1: What identifies a lease's holder](lanework://33527992-d72c-417b-85a2-1b62bea96794/e150b8c1-ab33-44fb-9ee7-cc171c235abb): the session id in `by`
 - [Q6 of Board Runner Discovery](lanework://d7e27581-ac3c-4bb3-ab2c-41c3333416d6/4b0d0f8b-37d5-492d-8761-66cab79edbd1): interactive sessions honor the lease
 - [Fact: a claim today is a START comment, and nothing frees a stale one](lanework://33527992-d72c-417b-85a2-1b62bea96794/b6961802-2324-4ba9-b03d-ea3e74eb9d1c)
+
+## Ruling
+
+**2026-11-14**: A, as recommended. "A: Every skill that starts work. START shrinks to a short plan." Earlier: "if the value/purpose of start changes, perhaps we can make it less verbose? wdyt?"
+ADR: [ADR: Every skill takes a lease; START shrinks to a short plan](lanework://33527992-d72c-417b-85a2-1b62bea96794/a812e504-fe1e-4368-a9a8-7d825730f153)
