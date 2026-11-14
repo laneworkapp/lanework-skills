@@ -6,7 +6,7 @@ order: 6144
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-06T00:08:54Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "board runner discovery"}}
 modified: {at: 2026-11-12T18:56:23Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5}}
-waiting: {for: anyone, since: 2026-11-14T21:56:00Z, comment: 38b54da8-d51b-499d-82eb-779533a2518c}
+waiting: {for: anyone, since: 2026-11-14T21:58:59Z, comment: bf67d79b-b3f1-4de8-8799-2e7a76872ef0}
 ---
 Decide whether the skills may tell an agent to clear a card's `waiting` mark itself after recording an owner ruling given outside the board.
 
