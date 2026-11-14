@@ -4,9 +4,9 @@ kind: card
 title: "Q4: Lease length and renewal"
 order: 2048
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T13:45:41Z, comment: 2bc58bf8-95ce-418c-993c-0368814ed987}
 created:  {at: 2026-11-14T13:45:41Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:45:41Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T13:49:27Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T13:49:27Z, comment: 26ccf455-e5a2-4d27-89d4-688f6a362b69}
 ---
 How long does a lease last, and how does its holder keep it while the work runs?
 
@@ -19,6 +19,16 @@ How long does a lease last, and how does its holder keep it while the work runs?
 ## Recommended
 
 A. One length keeps it simple, renewal covers a long build, and 30 minutes matches the silence after which `dispatch` already calls a START stale.
+
+
+## Options, revised 2026-11-14
+
+After the owner's comment: 30 minutes and renewal at 15 minutes left both stand. What remains is the first lease's length.
+
+- A: 30 minutes fixed. Renewed when under 15 remain, by a timer while the work runs.
+- B: The first lease sized to the agent's estimate, never under 30 minutes. Renewed the same way.
+
+Recommended: A. Renewal on a timer covers a long blocking command, and an estimate only lengthens how long a dead holder's card stays taken.
 
 ## Depends on
 
