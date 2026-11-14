@@ -34,7 +34,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `work` | 16 | 406 | 6,976 |
 | `watch` | 4 | 186 | 1,359 |
 | `dispatch` | 5 | 228 | 1,797 |
-| `discovery` | 14 | 500 | 2,876 |
+| `discovery` | 14 | 502 | 2,902 |
 | `plan` | 9 | 453 | 2,675 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
@@ -104,11 +104,11 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 
 | file | words |
 |---|---|
-| `SKILL.md` | 500 |
+| `SKILL.md` | 502 |
 | `references/board.md` | 347 |
 | `references/conduct.md` | 153 |
 | `references/corners.md` | 171 |
-| `references/records.md` | 544 |
+| `references/records.md` | 568 |
 | `references/rounds.md` | 319 |
 | `templates/fact-card.md` | 48 |
 | `templates/glossary.md` | 46 |
@@ -118,7 +118,7 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 66 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,876** |
+| **total** | **2,902** |
 
 #### `plan`
 
