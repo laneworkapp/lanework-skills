@@ -20,6 +20,10 @@ _Avoid_: lock, claim comment (a START comment is a record, not a lease)
 The session that holds a lease, named in its `by` by the harness session id. A session's subagents work under its leases and are never holders themselves.
 _Avoid_: owner (the owner is the human), claimant, lessee
 
+**Timer**:
+The background loop the lease script starts when a holder stakes, a process separate from the agent. It renews the lease, reads the card each minute for a takeover notice, and exits with its session. It counts its own waiting and does not read the clock.
+_Avoid_: keeper, control loop, daemon, clock
+
 **Renewal**:
 A holder's rewrite of its own lease with a fresh `until`, made by its timer every 15 minutes of elapsed time for as long as the work runs.
 _Avoid_: heartbeat, refresh, extend
