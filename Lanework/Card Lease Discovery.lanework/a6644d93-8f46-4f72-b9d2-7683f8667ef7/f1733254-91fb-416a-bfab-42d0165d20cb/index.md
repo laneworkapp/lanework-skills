@@ -25,7 +25,7 @@ A. On one machine a write followed by a read-back settles the race without a loc
 
 After the owner asked whether a collision can be detected, so that A can go ahead provisionally:
 
-- A: Write, wait a second, read back. Each renewal reads \`by\` first and records a lost lease. Revisit if one is ever recorded.
+- A: Write, wait a second, read back. Each renewal reads `by` first and records a lost lease. Revisit if one is ever recorded.
 - B: Take an atomic temp-folder lock, write, drop the lock.
 - C: Move the card to a lane, then write.
 
