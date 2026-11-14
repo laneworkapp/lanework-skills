@@ -4,9 +4,9 @@ kind: card
 title: "Q18: A handshake between agents"
 order: 1024
 labels: [{text: "Round 5", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T14:32:31Z, comment: 4df47b79-1287-4606-93a0-1f3311ca44e5}
 created:  {at: 2026-11-14T14:32:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:32:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:35:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T14:35:07Z, comment: 37d4bcdf-50c8-4ffc-8169-519df12b1c20}
 ---
 The map kept a handshake between agents in reserve: a way for one agent to ask a holder "are you still working this?" before taking a card. Do the rulings so far leave a need for it?
 
@@ -18,6 +18,17 @@ The map kept a handshake between agents in reserve: a way for one agent to ask a
 ## Recommended
 
 A. A holder that is alive renews, so a lapsed lease already is the answer to "are you still there", and B is the grace period Q15 declined.
+
+
+## Options, revised 2026-11-14
+
+After the owner proposed a check before takeover: "hey i'm about to take over this lease, is anyone alive holding it?"
+
+- A: No check. A lapsed lease is taken over at once, as Q15 ruled.
+- B: A notice before takeover. The taker posts its takeover record as a notice, waits two minutes and reads the lease again: renewed means back off, unchanged means stake. A holder's timer reads the card each minute and renews when it sees a notice. This supersedes Q15's "at once".
+- C: A two-way handshake: the holder answers the notice with a comment of its own.
+
+Recommended: B. A live holder whose lease only looks lapsed keeps its card, which is the case the clock guard of Q14 left uncovered, and a renewal is all the answer needed.
 
 ## Depends on
 
