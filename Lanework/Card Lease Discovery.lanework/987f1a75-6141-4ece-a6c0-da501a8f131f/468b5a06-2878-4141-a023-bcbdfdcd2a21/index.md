@@ -5,8 +5,7 @@ title: "Topic: the card lease, a shared claim on a card"
 order: 1024
 icon: {glyph: scope}
 created:  {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T14:46:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-14T14:46:48Z, comment: dae71a4b-eed0-41ed-bd77-e3fcc8747417}
+modified: {at: 2026-11-14T14:48:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 A card lease is a `claimed: {by, until}` key in a card's frontmatter that marks the card as taken until the time it names. This board works out how agents stake, keep, lose and take over a lease, so that two agents never work one card and a card whose agent died gets picked up again. It follows the owner's ruling on [Q6 of Board Runner Discovery](lanework://d7e27581-ac3c-4bb3-ab2c-41c3333416d6/4b0d0f8b-37d5-492d-8761-66cab79edbd1) and a chat on 2026-11-13, where the owner asked for the problem in small pieces: "i dont necessarily want to overengineer it so lets be smart about how far we take it."
 
