@@ -4,9 +4,9 @@ kind: card
 title: "Q5: Which skills take a lease, and the START comment"
 order: 3072
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T13:45:42Z, comment: 97cf1104-410c-46dc-ba26-884c9566d8fa}
 created:  {at: 2026-11-14T13:45:42Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:45:42Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T13:54:56Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T13:54:56Z, comment: d48fd4be-7374-48e6-a3e9-fe55c66c6a82}
 ---
 Which skills take a lease before working a card, and does the START comment stay once the lease is the claim?
 
@@ -19,6 +19,17 @@ Which skills take a lease before working a card, and does the START comment stay
 ## Recommended
 
 A. Board Runner Discovery already ruled that interactive sessions honor the lease, and the START comment still carries the plan a cold reader needs.
+
+
+## Options, revised 2026-11-14
+
+After the owner asked whether START can be less verbose once it is no longer the claim:
+
+- A: Every skill that starts work takes a lease. START stays as a short plan: one line, then Scope, Verify and Where, about 40 words.
+- B: Every such skill takes a lease, and START goes. The first decision record carries the plan.
+- C: Only runner jobs and `dispatch` take a lease. Interactive sessions keep claiming with START.
+
+Recommended: A. The lease says who and until when, the short START says what, and its session stamp is how a collision is found afterwards.
 
 ## Depends on
 
