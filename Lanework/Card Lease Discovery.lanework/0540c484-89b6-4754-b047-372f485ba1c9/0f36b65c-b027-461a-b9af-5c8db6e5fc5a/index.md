@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q8: Releasing a lease"
+title: "Releasing a lease"
 order: 8192
 labels: [{text: "Round 3", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:02:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:03:58Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q8
 ---
 When does a holder give a lease back, so that a card is free as soon as nobody is working it?
 

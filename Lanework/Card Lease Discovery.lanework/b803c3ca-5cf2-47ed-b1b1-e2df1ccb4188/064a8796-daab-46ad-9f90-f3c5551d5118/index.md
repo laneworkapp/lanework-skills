@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "ADR: The session holds the lease; its subagents never stake"
+title: "The session holds the lease; its subagents never stake"
 order: 6144
 labels:
   - {text: "ADR", rank: 1, kind: {type: "record", text: "Record"}}
   - {text: "accepted", rank: 1, kind: {type: "status", text: "Status"}}
 created:  {at: 2026-11-14T14:01:52Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:01:52Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: ADR6
 ---
 Question: [Q7: A subagent shares its session's id](lanework://33527992-d72c-417b-85a2-1b62bea96794/144897f2-11a2-4147-b862-579adf7dc6c9)
 

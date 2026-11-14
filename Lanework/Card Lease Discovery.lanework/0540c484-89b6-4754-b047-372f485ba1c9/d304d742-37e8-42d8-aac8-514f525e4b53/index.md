@@ -1,11 +1,11 @@
 ---
 schema: 1
 kind: card
-title: "Q15: Taking over a card whose lease lapsed"
+title: "Taking over a card whose lease lapsed"
 order: 15360
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:07:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:24:54Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 cite-as: Q15
 ---
 How does an agent take a card whose lease has lapsed and whose holder never released it?

@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q10: plan's Working lane beside the lease"
+title: "plan's Working lane beside the lease"
 order: 10240
 labels: [{text: "Round 3", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:03:00Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:05:04Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q10
 ---
 The `plan` skill claims a ticket today by moving it to its Working lane. Once every skill takes a lease (Q5), what does that move become?
 

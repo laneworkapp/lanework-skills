@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q1: What identifies a lease's holder"
+title: "What identifies a lease's holder"
 order: 1024
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T04:27:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T13:42:50Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q1
 ---
 What goes in a lease's `by`, so that no two working agents can be confused and an agent can always tell whether a lease is its own?
 

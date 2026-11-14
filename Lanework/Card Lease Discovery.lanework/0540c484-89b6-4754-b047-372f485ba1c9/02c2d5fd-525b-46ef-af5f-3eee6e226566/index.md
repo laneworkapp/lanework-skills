@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q12: What a lease write restamps and commits"
+title: "What a lease write restamps and commits"
 order: 12288
 labels: [{text: "Round 3", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:03:03Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:05:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q12
 ---
 The guide says to update `modified` on every write, and a lease renews every 15 minutes. What does a lease write restamp, and is it committed?
 

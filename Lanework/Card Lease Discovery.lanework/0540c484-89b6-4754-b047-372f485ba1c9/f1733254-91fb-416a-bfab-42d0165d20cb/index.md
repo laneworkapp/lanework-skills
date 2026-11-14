@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q3: Staking a lease on a free card"
+title: "Staking a lease on a free card"
 order: 3072
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T13:45:39Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:52:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q3
 ---
 How does an agent stake a lease on a free card, so that when two agents on one machine reach for the same card, exactly one ends up holding it?
 

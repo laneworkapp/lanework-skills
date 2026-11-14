@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q18: A handshake between agents"
+title: "A handshake between agents"
 order: 20480
 labels: [{text: "Round 5", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:32:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:37:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q18
 ---
 The map kept a handshake between agents in reserve: a way for one agent to ask a holder "are you still working this?" before taking a card. Do the rulings so far leave a need for it?
 

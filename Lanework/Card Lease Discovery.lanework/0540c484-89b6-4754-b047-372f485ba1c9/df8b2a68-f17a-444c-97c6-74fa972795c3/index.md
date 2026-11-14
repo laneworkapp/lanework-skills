@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q14: The clock guard: what it checks and on what basis"
+title: "The clock guard: what it checks and on what basis"
 order: 14336
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:07:49Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:16:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q14
 ---
 Q13 ruled that a lease gets a guard against a wrong clock. What does the guard check, on what basis, and what happens when it trips?
 

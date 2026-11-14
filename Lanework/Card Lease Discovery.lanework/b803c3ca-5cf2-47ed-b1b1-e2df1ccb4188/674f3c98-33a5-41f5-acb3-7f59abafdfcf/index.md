@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "ADR: The clock guard is a range check against now, with an elapsed-time timer"
+title: "The clock guard is a range check against now, with an elapsed-time timer"
 order: 10240
 labels:
   - {text: "ADR", rank: 1, kind: {type: "record", text: "Record"}}
   - {text: "accepted", rank: 1, kind: {type: "status", text: "Status"}}
 created:  {at: 2026-11-14T14:16:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:16:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: ADR10
 ---
 Question: [Q14: The clock guard: what it checks and on what basis](lanework://33527992-d72c-417b-85a2-1b62bea96794/df8b2a68-f17a-444c-97c6-74fa972795c3)
 

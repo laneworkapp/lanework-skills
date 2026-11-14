@@ -5,7 +5,8 @@ title: "Discovery map"
 order: 2048
 icon: {glyph: point.3.connected.trianglepath.dotted}
 created:  {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T14:46:46Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Map
 ---
 Every decision in the problem and domain space, grouped by corner. ✅ settled: one-line ruling, card linked. 💬 on the frontier: card linked. ⏳ not yet askable: what it waits on.
 

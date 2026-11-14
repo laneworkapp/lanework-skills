@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q19: The untested app rewrite"
+title: "The untested app rewrite"
 order: 18432
 labels: [{text: "Round 5", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:32:33Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:35:20Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q19
 ---
 Nobody has tested whether the app, with a card open in its window, can write back an older copy of the file and so undo a lease write an agent made. How is that risk handled?
 

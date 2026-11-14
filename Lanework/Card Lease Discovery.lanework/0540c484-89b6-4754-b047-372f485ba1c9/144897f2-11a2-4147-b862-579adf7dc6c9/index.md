@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q7: A subagent shares its session's id"
+title: "A subagent shares its session's id"
 order: 7168
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T13:45:45Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:01:52Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q7
 ---
 Q1 settled a lease's holder as the harness session id, and a subagent shares its parent session's id. So a session's subagents all read as one holder. Which holds?
 

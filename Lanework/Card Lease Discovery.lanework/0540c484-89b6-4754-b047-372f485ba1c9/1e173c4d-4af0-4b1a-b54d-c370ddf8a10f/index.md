@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q17: Seeing held cards and freeing one by hand"
+title: "Seeing held cards and freeing one by hand"
 order: 17408
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:07:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:32:00Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q17
 ---
 The app does not draw a key it does not know, so a lease is invisible on the board. How do you see which cards are held, and free one by hand?
 

@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Fact: a subagent shares its parent session's id"
+title: "A subagent shares its parent session's id"
 order: 5120
 icon: {glyph: doc.text.magnifyingglass}
 created:  {at: 2026-11-14T13:45:15Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:45:15Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: F5
 ---
 A subagent started with the Agent tool runs its shell with the same `CLAUDE_CODE_SESSION_ID` and `CLAUDE_PID` as the session that started it, and its shell's parent pid is that session's pid. A session and all of its subagents read as one holder by the session id alone.
 

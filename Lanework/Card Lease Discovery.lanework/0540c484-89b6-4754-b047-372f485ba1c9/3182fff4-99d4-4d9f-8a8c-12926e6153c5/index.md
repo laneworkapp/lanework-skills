@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q6: Merging two differing leases"
+title: "Merging two differing leases"
 order: 6144
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T13:45:43Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:00:00Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q6
 ---
 When a git merge meets two different leases on one card, which one does the `merge` skill keep?
 

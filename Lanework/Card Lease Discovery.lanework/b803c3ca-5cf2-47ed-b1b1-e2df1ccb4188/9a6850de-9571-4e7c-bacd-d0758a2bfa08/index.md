@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "ADR: A lapsed lease is taken over at once, with a record"
+title: "A lapsed lease is taken over at once, with a record"
 order: 11264
 labels:
   - {text: "ADR", rank: 1, kind: {type: "record", text: "Record"}}
   - {text: "superseded", rank: 3, kind: {type: "status", text: "Status"}}
 created:  {at: 2026-11-14T14:24:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:37:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: ADR11
 ---
 Question: [Q15: Taking over a card whose lease lapsed](lanework://33527992-d72c-417b-85a2-1b62bea96794/d304d742-37e8-42d8-aac8-514f525e4b53)
 

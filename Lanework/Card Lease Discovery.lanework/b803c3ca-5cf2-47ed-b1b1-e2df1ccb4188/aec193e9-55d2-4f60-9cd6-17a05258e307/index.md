@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "ADR: A lease write restamps modified and is never committed alone"
+title: "A lease write restamps modified and is never committed alone"
 order: 9216
 labels:
   - {text: "ADR", rank: 1, kind: {type: "record", text: "Record"}}
   - {text: "accepted", rank: 1, kind: {type: "status", text: "Status"}}
 created:  {at: 2026-11-14T14:05:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:05:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: ADR9
 ---
 Question: [Q12: What a lease write restamps and commits](lanework://33527992-d72c-417b-85a2-1b62bea96794/02c2d5fd-525b-46ef-af5f-3eee6e226566)
 
