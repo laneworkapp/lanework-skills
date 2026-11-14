@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Q3: Staking a lease on a free card"
-order: 1024
+order: 3072
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T13:45:39Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:51:06Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-14T13:51:06Z, comment: 73c4b2f7-e7de-49c0-89aa-a477c6e06c3e}
+modified: {at: 2026-11-14T13:52:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
 ---
 How does an agent stake a lease on a free card, so that when two agents on one machine reach for the same card, exactly one ends up holding it?
 
@@ -36,3 +35,8 @@ Recommended: A, provisionally. A collision is caught by the next renewal and cou
 - [Q1: What identifies a lease's holder](lanework://33527992-d72c-417b-85a2-1b62bea96794/e150b8c1-ab33-44fb-9ee7-cc171c235abb): the session id in `by`
 - [Q2: One machine or several](lanework://33527992-d72c-417b-85a2-1b62bea96794/73f4178e-0830-49d4-be12-8d6c41c60894): one machine, a hint across machines
 - [Fact: plan claims a ticket by moving it to Working](lanework://33527992-d72c-417b-85a2-1b62bea96794/361cdb21-6f7c-4c29-a0ed-cf9ab06cb2b9)
+
+## Ruling
+
+**2026-11-14**: A, as recommended (provisionally). "A: Write, wait, read back. Renewal catches and records a collision."
+ADR: [ADR: Staking writes, waits and reads back, provisionally](lanework://33527992-d72c-417b-85a2-1b62bea96794/1e666a0e-4a8c-4c03-8f67-2c930097db74)
