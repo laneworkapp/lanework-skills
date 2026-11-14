@@ -5,8 +5,8 @@ title: "Q21: A holder whose timer died"
 order: 1024
 labels: [{text: "Round 6", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:37:46Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:40:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-14T14:40:55Z, comment: 8f9dc6d8-1c9b-4758-b515-14187f22df1e}
+modified: {at: 2026-11-14T14:44:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T14:44:41Z, comment: faf928f7-da87-46ca-a65f-8b39435caa09}
 ---
 Renewal, the lost-lease check and the takeover notice all run in the holder's timer. If the timer dies while its session works on, the lease lapses, the notice goes unseen, another agent takes the card, and the first holder never learns. What covers a holder whose timer died?
 
