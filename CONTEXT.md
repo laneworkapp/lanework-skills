@@ -15,3 +15,7 @@ _Avoid_: task, handler (a handler is dispatch's subagent)
 **Lease**:
 The `claimed: {by, until}` key in a card's frontmatter that marks the card as taken until the time it names, honored by runner jobs and interactive sessions alike.
 _Avoid_: lock, claim comment (a START comment is a record, not a lease)
+
+**Holder**:
+The session that holds a lease, named in its `by` by the harness session id. A session's subagents work under its leases and are never holders themselves.
+_Avoid_: owner (the owner is the human), claimant, lessee
