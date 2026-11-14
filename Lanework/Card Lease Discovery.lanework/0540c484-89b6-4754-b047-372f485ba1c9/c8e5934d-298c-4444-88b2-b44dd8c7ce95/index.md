@@ -5,7 +5,7 @@ title: "Q16: A holder back late finds its own lease lapsed"
 order: 16384
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:07:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:27:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:27:45Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 A holder comes back late, for example after the machine slept, and finds its lease lapsed but still carrying its own `by`. Nobody took the card. What does it do?
 
@@ -26,3 +26,4 @@ A. After a sleep every timer wakes at once and each holder renews its own cards,
 ## Ruling
 
 **2026-11-14**: A, as recommended. "A: Renew and carry on."
+Added by the owner a moment later: "assuming noone took over". That is the case the question asks about: if another session took the card, `by` differs and [Q9](lanework://33527992-d72c-417b-85a2-1b62bea96794/35121e2d-eeed-440f-8364-a1637eb028c2) applies.
