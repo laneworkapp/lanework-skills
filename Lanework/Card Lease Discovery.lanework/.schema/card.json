@@ -1,0 +1,95 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "lanework:///schema/1/card.json",
+  "title" : "Lanework card",
+  "description" : "A card's `index.md` — depth 2 inside a board, and the level whose body is the whole point.",
+  "type" : "object",
+  "properties" : {
+    "schema" : {
+      "$ref" : "common.json#/$defs/schema-version",
+      "description" : "Always 1. Below the board root a missing value reads as 1."
+    },
+    "title" : {
+      "$ref" : "common.json#/$defs/lenient-text-single-line",
+      "description" : "The card's display name. Quote a value containing a colon."
+    },
+    "kind" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "`card`. Written at creation; the only discriminator inside `.trash/`."
+    },
+    "created" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "When the card was filed, and by whom."
+    },
+    "modified" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "The last app write that rewrote this file's content."
+    },
+    "icon" : {
+      "$ref" : "common.json#/$defs/icon",
+      "description" : "The card's SF Symbol and the tint it wears."
+    },
+    "order" : {
+      "$ref" : "common.json#/$defs/lenient-number",
+      "description" : "Rank within the lane, ascending top-to-bottom. Missing or unusable reads as append-at-end."
+    },
+    "background" : {
+      "$ref" : "common.json#/$defs/background",
+      "description" : "The card's background colour."
+    },
+    "labels" : {
+      "$ref" : "common.json#/$defs/labels",
+      "description" : "The card's labels — a list of self-sufficient label maps. Every entry stamps its kind, the built-in `text` kind — free labels — included. One reading, projected to a flat list of text-kind names where a surface wants one."
+    },
+    "due" : {
+      "$ref" : "common.json#/$defs/timestamp",
+      "description" : "The card's due date, read through the same grammar the stamps take. A value naming no time of day is a floating calendar day."
+    },
+    "priority" : {
+      "$ref" : "common.json#/$defs/sugar-label",
+      "deprecated" : true,
+      "description" : "Reserved: never written and not read. A card's priority is a `labels` entry of kind `priority`; a key found here is a one-time migration to that entry, and an entry already in `labels` wins."
+    },
+    "hero" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "The uuid of one of this card's own attachments, drawn as a banner. An identity, never a path: a value carrying `/` has no reading."
+    },
+    "waiting" : {
+      "$ref" : "common.json#/$defs/waiting",
+      "description" : "The card is blocked on a human's reply: `{on, since, comment}`. Set by an agent, removed by the app once a human has commented on the card later than `since`, or has replied to the ask (`in-reply-to` its `comment` uuid, whatever either stamp says). An agent's reply never clears it."
+    },
+    "start" : {
+      "$ref" : "common.json#/$defs/timestamp",
+      "description" : "Proposed, unruled — not read by this build. A start date, `due`'s own grammar."
+    },
+    "end" : {
+      "$ref" : "common.json#/$defs/timestamp",
+      "description" : "Proposed, unruled — not read by this build. An end date, `due`'s own grammar."
+    },
+    "cite-as" : {
+      "$ref" : "common.json#/$defs/lenient-text-single-line",
+      "description" : "The card's citation: an optional, free one-line display and lookup name people and agents cite it by, such as `FR123`, drawn before the title and found by search. Never an identity: a link to the card keeps its uuid. Unique per board by convention; duplicates are allowed. A copy (paste, Duplicate, Save as Template) starts without one."
+    },
+    "iconColor" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Retired: folded into `icon.color` on the next icon-touching write. The mapping wins per property."
+    },
+    "modified-by" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Retired: folds into `modified.by`. The map wins where both are present."
+    },
+    "author" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Reserved: never written. Folds into `created.by` as `{name: …}` by a scheduled heal at every level."
+    },
+    "deleted" : {
+      "$ref" : "common.json#/$defs/timestamp",
+      "deprecated" : true,
+      "description" : "Retired: the tombstone model. Deletion is a move into `.trash/`; a present key relocates the item."
+    }
+  },
+  "additionalProperties" : true
+}

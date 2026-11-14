@@ -1,0 +1,124 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "lanework:///schema/1/board.json",
+  "title" : "Lanework board",
+  "description" : "A board root's `index.md` — the document the `.lanework` package is named for.",
+  "type" : "object",
+  "properties" : {
+    "schema" : {
+      "$ref" : "common.json#/$defs/schema-version",
+      "description" : "Always 1. Required at the board root; below it a missing value reads as 1."
+    },
+    "title" : {
+      "$ref" : "common.json#/$defs/lenient-text-single-line",
+      "description" : "The board's display name. Absent falls back to the folder name, sans extension."
+    },
+    "kind" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "`board`. Written at creation; redundant with position everywhere but the trash."
+    },
+    "created" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "When the board was filed, and by whom."
+    },
+    "modified" : {
+      "$ref" : "common.json#/$defs/stamp",
+      "description" : "The last app write that rewrote this file's content. Order-only rewrites do not stamp."
+    },
+    "icon" : {
+      "$ref" : "common.json#/$defs/icon",
+      "description" : "The board's SF Symbol and the tint it wears."
+    },
+    "id" : {
+      "$ref" : "common.json#/$defs/uuid",
+      "description" : "The board's own identity, and the host of every `lanework://` link. Minted on open when absent, never rewritten once present."
+    },
+    "config" : {
+      "type" : "object",
+      "properties" : {
+        "show-card-body" : {
+          "$ref" : "common.json#/$defs/lenient-integer",
+          "description" : "How many lines of a card's first plain paragraph the face previews: `0` (off, the default) or 2–5. A reading outside the set is clamped into it."
+        },
+        "due-soon" : {
+          "$ref" : "common.json#/$defs/lenient-integer",
+          "description" : "How many days ahead a `due` date wears the amber chip. Default 1 — today and tomorrow; a hand-written 0 means today alone. Negative clamps to 0."
+        },
+        "priorities" : {
+          "$ref" : "common.json#/$defs/legacy-priority-roster",
+          "deprecated" : true,
+          "description" : "Reserved since 2026-09-07: not read. A board carrying it drops it, unconverted, on its next `index.md` rewrite. The one-time migration is its only reader."
+        },
+        "labels" : {
+          "$ref" : "common.json#/$defs/label-kinds",
+          "description" : "The board's whole label-kind vocabulary beyond the built-in `text` kind. Nothing on the machine adds to it."
+        },
+        "thumb-sizes" : {
+          "$ref" : "common.json#/$defs/thumb-sizes",
+          "description" : "The board's thumbnail size roster; overrides the global one, which overrides the built-in [200, 400]."
+        },
+        "short-id" : {
+          "$ref" : "common.json#/$defs/short-id-mode",
+          "description" : "Whether a card's face carries its short id (the first eight characters of its uuid): `show` (always), `option` (while ⌥ alone is held) or `hide`. Absent inherits this Mac's value, then hide; `true` reads show and `false` reads hide, and a value with no reading is treated as absent and keeps its bytes."
+        },
+        "show-statusbar" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Shows the board window's status bar. Absent is hidden, and the app removes the subkey rather than writing false."
+        },
+        "show-trash" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Puts the trash column on screen as the board's last lane. Absent is hidden; the app removes the subkey rather than writing false."
+        },
+        "move-receipts" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Has the app write a move receipt: one quiet comment, carrying `moved`, on a card moved to another lane in the app. Absent is off; the app removes the subkey rather than writing false."
+        },
+        "perspective" : {
+          "$ref" : "common.json#/$defs/board-perspective",
+          "description" : "Which perspective the window presents — `kanban` (the default, absent) or a name a later version draws. An unknown name reads as kanban and keeps its bytes."
+        },
+        "logging" : {
+          "$ref" : "common.json#/$defs/logging",
+          "description" : "The board log's own level and retention."
+        }
+      },
+      "additionalProperties" : true,
+      "description" : "The board's settings block. Written per subkey: every sibling rides through untouched, and the last subkey leaving removes the mapping."
+    },
+    "template" : {
+      "$ref" : "common.json#/$defs/template",
+      "description" : "Picker metadata when this board lives in a template store (09-templates.md). Read by the template store, not modeled by BoardModel; carried onto instantiated boards, where it rides along inert like any unknown key."
+    },
+    "workspace" : {
+      "$ref" : "common.json#/$defs/workspace",
+      "deprecated" : true,
+      "description" : "Reserved (owner ruling 2026-11-09): neither read nor written. A board carrying it keeps its bytes."
+    },
+    "show-trash" : {
+      "$ref" : "common.json#/$defs/lenient-bool",
+      "deprecated" : true,
+      "description" : "Retired: folded into `config.show-trash` on the board's next write. The mapping wins where both exist."
+    },
+    "iconColor" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Retired: folded into `icon.color` on the next icon-touching write. The mapping wins per property."
+    },
+    "modified-by" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Retired: folds into `modified.by`. The map wins where both are present."
+    },
+    "author" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "deprecated" : true,
+      "description" : "Reserved: never written. Folds into `created.by` as `{name: …}` by a scheduled heal at every level."
+    },
+    "deleted" : {
+      "$ref" : "common.json#/$defs/timestamp",
+      "deprecated" : true,
+      "description" : "Retired: the tombstone model. At a board root a present key is ignored and logged."
+    }
+  },
+  "additionalProperties" : true
+}

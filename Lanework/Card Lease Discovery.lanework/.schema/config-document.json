@@ -1,0 +1,71 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "lanework:///schema/1/config-document.json",
+  "title" : "Lanework global config",
+  "description" : "The machine's own `Config/index.md` — one level up from every board, and never synced.",
+  "type" : "object",
+  "properties" : {
+    "schema" : {
+      "$ref" : "common.json#/$defs/schema-version",
+      "description" : "Always 1, written at the seed and never bumped by this document."
+    },
+    "kind" : {
+      "$ref" : "common.json#/$defs/lenient-text",
+      "description" : "`config`. Written at the seed and backfilled on the next seeded-body upgrade; believed outright and read by nothing."
+    },
+    "config" : {
+      "type" : "object",
+      "properties" : {
+        "handle" : {
+          "$ref" : "common.json#/$defs/lenient-text",
+          "description" : "The mention-handle override, ahead of the host username. An empty string is not an override."
+        },
+        "due-soon" : {
+          "$ref" : "common.json#/$defs/lenient-integer",
+          "description" : "The due-soon horizon's global level: a board's own subkey overrides it, and both absent falls to 1."
+        },
+        "priorities" : {
+          "$ref" : "common.json#/$defs/legacy-priority-roster",
+          "deprecated" : true,
+          "description" : "Reserved: retired 2026-09-01, and not read at all since 2026-09-07. The document keeps its bytes. The one-time migration script folds it into the document's own `default-labels`, which is also retired and not read, and a board gains a `priority` kind in its `config.labels` only where that board's own cards use priority."
+        },
+        "default-labels" : {
+          "$ref" : "common.json#/$defs/label-kinds",
+          "deprecated" : true,
+          "description" : "Reserved: not read at all. A board's label vocabulary is its own `config.labels` plus the built-in `text` kind, and nothing on this machine adds to it. A document still carrying it keeps its bytes."
+        },
+        "thumb-sizes" : {
+          "$ref" : "common.json#/$defs/thumb-sizes",
+          "description" : "The picker's size roster at the cascade's global level; a board's own overrides it."
+        },
+        "short-id" : {
+          "$ref" : "common.json#/$defs/short-id-mode",
+          "description" : "Whether a card's face carries its short id, at the cascade's global level: `show`, `option` (while ⌥ alone is held) or `hide`. A board's own subkey overrides it, and both absent falls to hide. `true` reads show and `false` reads hide."
+        },
+        "restore-open-boards" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Whether the app reopens the previously open boards at launch. Absent means true."
+        },
+        "waiting-signpost" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Whether the app signposts the moment a card's waiting flag arrives for this machine's human. Absent means true. False turns the announcement off and leaves the flag itself showing."
+        },
+        "return-posts-comment" : {
+          "$ref" : "common.json#/$defs/lenient-bool",
+          "description" : "Whether Return posts the comment being written (and saves an edit) with Shift-Return starting a new line. Absent means true. False swaps the two. Command-Return posts either way."
+        },
+        "templates-repo" : {
+          "$ref" : "common.json#/$defs/lenient-text",
+          "description" : "The GitHub repository the New Board Gallery reads, as `https://github.com/<owner>/<repo>`. Absent, or a value that is not a readable GitHub repo URL, means laneworkapp/lanework-templates. Never a ref: the app always reads `main`."
+        },
+        "logging" : {
+          "$ref" : "common.json#/$defs/logging",
+          "description" : "The board log's global default level and retention."
+        }
+      },
+      "additionalProperties" : true,
+      "description" : "The machine's settings block. Absent means every subkey takes its default."
+    }
+  },
+  "additionalProperties" : true
+}
