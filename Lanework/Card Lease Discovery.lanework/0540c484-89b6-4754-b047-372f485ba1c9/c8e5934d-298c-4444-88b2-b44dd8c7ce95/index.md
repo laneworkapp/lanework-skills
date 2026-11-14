@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q16: A holder back late finds its own lease lapsed"
+title: "A holder back late finds its own lease lapsed"
 order: 16384
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:07:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:27:45Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q16
 ---
 A holder comes back late, for example after the machine slept, and finds its lease lapsed but still carrying its own `by`. Nobody took the card. What does it do?
 

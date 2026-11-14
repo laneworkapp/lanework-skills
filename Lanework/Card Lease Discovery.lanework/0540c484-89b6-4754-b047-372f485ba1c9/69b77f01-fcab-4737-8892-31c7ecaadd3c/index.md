@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q5: Which skills take a lease, and the START comment"
+title: "Which skills take a lease, and the START comment"
 order: 5120
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T13:45:42Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:55:38Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q5
 ---
 Which skills take a lease before working a card, and does the START comment stay once the lease is the claim?
 

@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "ADR: One lanework script holds the lease mechanism and its timer"
+title: "One lanework script holds the lease mechanism and its timer"
 order: 8192
 labels:
   - {text: "ADR", rank: 1, kind: {type: "record", text: "Record"}}
   - {text: "accepted", rank: 1, kind: {type: "status", text: "Status"}}
 created:  {at: 2026-11-14T14:05:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:05:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: ADR8
 ---
 Question: [Q11: Where the lease mechanism lives](lanework://33527992-d72c-417b-85a2-1b62bea96794/5da76e6f-2a5e-449d-89e3-821636bc9b8c)
 

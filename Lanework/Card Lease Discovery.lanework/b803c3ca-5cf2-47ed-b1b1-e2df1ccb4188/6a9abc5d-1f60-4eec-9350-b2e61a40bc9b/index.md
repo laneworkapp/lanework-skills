@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "ADR: A takeover posts a notice and waits two minutes"
+title: "A takeover posts a notice and waits two minutes"
 order: 14336
 labels:
   - {text: "ADR", rank: 1, kind: {type: "record", text: "Record"}}
   - {text: "accepted", rank: 1, kind: {type: "status", text: "Status"}}
 created:  {at: 2026-11-14T14:37:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:37:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: ADR12
 ---
 Question: [Q18: A handshake between agents](lanework://33527992-d72c-417b-85a2-1b62bea96794/631144a9-bc7c-4238-9c2d-61fef80cca31)
 

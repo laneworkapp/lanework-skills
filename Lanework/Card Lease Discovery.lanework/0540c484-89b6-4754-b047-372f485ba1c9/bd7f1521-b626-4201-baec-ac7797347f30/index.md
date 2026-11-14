@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q22: A name for the background loop"
+title: "A name for the background loop"
 order: 22528
 labels: [{text: "Round 6", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:44:43Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:46:06Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q22
 ---
 The background loop that renews a lease and listens for a takeover notice has been called a "timer" on this board. The owner pointed out it is a control loop and has little to do with time. What is it called, in the records and the glossary?
 

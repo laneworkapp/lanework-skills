@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q4: Lease length and renewal"
+title: "Lease length and renewal"
 order: 4096
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T13:45:41Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:52:49Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q4
 ---
 How long does a lease last, and how does its holder keep it while the work runs?
 

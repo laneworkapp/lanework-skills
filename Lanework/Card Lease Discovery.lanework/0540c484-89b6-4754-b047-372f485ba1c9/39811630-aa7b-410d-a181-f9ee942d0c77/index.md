@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q21: A holder whose timer died"
+title: "A holder whose timer died"
 order: 21504
 labels: [{text: "Round 6", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:37:46Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:45:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q21
 ---
 Renewal, the lost-lease check and the takeover notice all run in the holder's timer. If the timer dies while its session works on, the lease lapses, the notice goes unseen, another agent takes the card, and the first holder never learns. What covers a holder whose timer died?
 

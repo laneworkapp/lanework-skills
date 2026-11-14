@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "PDR: The lease works when smoke passes and 50 leased cards run clean"
+title: "The lease works when smoke passes and 50 leased cards run clean"
 order: 13312
 labels:
   - {text: "PDR", rank: 2, kind: {type: "record", text: "Record"}}
   - {text: "accepted", rank: 1, kind: {type: "status", text: "Status"}}
 created:  {at: 2026-11-14T14:36:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:36:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: PDR2
 ---
 Question: [Q20: How the lease is judged to work](lanework://33527992-d72c-417b-85a2-1b62bea96794/536cb934-d63d-40c9-85dc-5819b6dd13d6)
 

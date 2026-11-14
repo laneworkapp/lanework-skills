@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q13: A wrong clock in until"
+title: "A wrong clock in until"
 order: 13312
 labels: [{text: "Round 3", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:03:04Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:07:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q13
 ---
 A lease's `until` is a time, and a wrong clock would make it lapse early or hold too long. Does the lease need a guard against a wrong clock?
 

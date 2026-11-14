@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q9: A lost lease and the work in flight"
+title: "A lost lease and the work in flight"
 order: 9216
 labels: [{text: "Round 3", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:02:58Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:04:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q9
 ---
 A holder that finds another session's `by` in its lease has already stopped and recorded the loss (Q3). What happens to the work it had in flight?
 

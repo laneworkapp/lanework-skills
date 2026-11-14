@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Fact: a claim today is a START comment, and nothing frees a stale one"
+title: "A claim today is a START comment, and nothing frees a stale one"
 order: 2048
 icon: {glyph: doc.text.magnifyingglass}
 created:  {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: F2
 ---
 A session claims a card today by posting a comment that opens with START. The claim has no holder id beyond the stamp's name, and no end. `dispatch` reports a START with 30 minutes of silence as stale at arming, and never frees it: the owner does.
 

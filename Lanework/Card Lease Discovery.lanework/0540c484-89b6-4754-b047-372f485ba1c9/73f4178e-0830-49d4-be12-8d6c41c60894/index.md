@@ -1,11 +1,12 @@
 ---
 schema: 1
 kind: card
-title: "Q2: One machine or several"
+title: "One machine or several"
 order: 2048
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T13:43:51Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:50:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+cite-as: Q2
 ---
 Must a lease keep two agents apart when they run on different machines, or only when they share one machine?
 
