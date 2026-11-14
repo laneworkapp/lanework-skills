@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Q8: Releasing a lease"
-order: 1024
+order: 8192
 labels: [{text: "Round 3", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T14:02:57Z, comment: 3492b611-b495-4f54-9132-0aa21ed3b357}
 created:  {at: 2026-11-14T14:02:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:02:57Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:03:58Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 When does a holder give a lease back, so that a card is free as soon as nobody is working it?
 
@@ -24,3 +23,7 @@ A. A card waiting at a gate or given up is free at once, rather than looking tak
 
 - [Q3: Staking a lease on a free card](lanework://33527992-d72c-417b-85a2-1b62bea96794/f1733254-91fb-416a-bfab-42d0165d20cb): write, wait, read back, provisionally
 - [Q4: Lease length and renewal](lanework://33527992-d72c-417b-85a2-1b62bea96794/7d91feb9-54cf-4b67-b95d-b657225e9665): 30 minutes, renewed by a timer
+
+## Ruling
+
+**2026-11-14**: A, as recommended. "A: When it stops working the card, in its closing write."
