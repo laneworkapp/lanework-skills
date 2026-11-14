@@ -4,9 +4,9 @@ kind: card
 title: "Q3: Staking a lease on a free card"
 order: 1024
 labels: [{text: "Round 2", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T13:45:39Z, comment: bf0cc2d7-40cb-4360-ba5e-871eff26ff24}
 created:  {at: 2026-11-14T13:45:39Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T13:45:39Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T13:47:51Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T13:47:51Z, comment: 37e47dea-ac1a-45a8-ae7d-026d1d786703}
 ---
 How does an agent stake a lease on a free card, so that when two agents on one machine reach for the same card, exactly one ends up holding it?
 
