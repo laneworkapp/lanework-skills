@@ -447,6 +447,33 @@ tail' --round 2 --body "$T/q5.md" --model smoke 2>&1); C5=$(head -1 <<<"$O5" | s
 grep -qxF 'title: "Q5: C:\\path \"x\" tail"' "$D"/*/"$C5"/index.md || { echo "question title not escaped:"; grep -m1 '^title:' "$D"/*/"$C5"/index.md; exit 1; }
 validate "$D" >/dev/null; ok "file-question.sh: a title with a backslash, a quote and a newline round-trips and the board validates"
 
+# discovery: file-record.sh --supersedes states a supersedes relation on the new card, never touches the old one
+FR="$SK/discovery/scripts/file-record.sh"
+SQ() { "$SK/discovery/scripts/file-question.sh" "$D" "$1" --round 2 --body "$T/q3.md" --model smoke 2>&1 | head -1 | sed 's#.*/##'; }
+SQ1=$(SQ "Supersede one"); SQ2=$(SQ "Supersede two"); SQ3=$(SQ "Supersede three"); SQ4=$(SQ "Supersede bad")
+OLD1="$K1"; OLD2="$K2"
+sum_old=$(cksum < "$DEC/$OLD1/index.md")
+n_before=$(ls -d "$DEC"/*/ | wc -l)
+for bad in "$SQ4" "${OLD1%%-*}" "00000000-0000-4000-8000-000000000000" "$DEC/$OLD1" "$(tr a-f A-F <<<"$OLD1")"; do
+  if "$FR" "$D" "$SQ1" --record ADR --title x --body "$T/adr.md" --supersedes "$OLD1" --supersedes "$bad" --model smoke 2>/dev/null; then echo "accepted bad --supersedes: $bad"; exit 1; fi
+  [ "$(ls -d "$DEC"/*/ | wc -l)" -eq "$n_before" ] || { echo "refused --supersedes $bad wrote a card"; exit 1; }
+done
+SR1=$("$FR" "$D" "$SQ1" --record ADR --title "Sync is paid again" --body "$T/adr.md" --supersedes "$OLD1" --model smoke)
+[ "$(wc -l <<<"$SR1" | tr -d ' ')" = 1 ] || { echo "stdout is not one line: $SR1"; exit 1; }
+SK1=$(sed 's#.*/##' <<<"$SR1")
+rels=("$DEC/$SK1"/relations/*/index.md)
+[ "${#rels[@]}" -eq 1 ] && [ -f "${rels[0]}" ] || { echo "expected exactly one relation"; exit 1; }
+{ grep -qx 'schema: 1' "${rels[0]}" && grep -qx 'kind: relation' "${rels[0]}" && grep -qx 'rel: supersedes' "${rels[0]}" &&
+  grep -qx "to: lanework://$BID/$OLD1" "${rels[0]}" && grep -Eq "^created: \{at: [^,]+, by: \{.+\}\}\$" "${rels[0]}"; } || { echo "relation shape wrong:"; cat "${rels[0]}"; exit 1; }
+[[ "$(basename "$(dirname "${rels[0]}")")" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || { echo "relation dir is not a lowercase uuid"; exit 1; }
+[ "$(cksum < "$DEC/$OLD1/index.md")" = "$sum_old" ] && [ ! -e "$DEC/$OLD1/relations" ] || { echo "old card was touched"; exit 1; }
+validate "$D" >/dev/null
+SR2=$("$FR" "$D" "$SQ2" --record ADR --title "Sync is paid, twice" --body "$T/adr.md" --supersedes "$OLD1" --supersedes "$OLD2" --model smoke)
+SK2=$(sed 's#.*/##' <<<"$SR2")
+[ "$(ls -d "$DEC/$SK2"/relations/*/ | wc -l)" -eq 2 ] && [ "$(cat "$DEC/$SK2"/relations/*/index.md | grep -c '^rel: supersedes$')" -eq 2 ] || { echo "two --supersedes did not give two relations"; exit 1; }
+validate "$D" >/dev/null
+ok "file-record.sh --supersedes writes one supersedes relation per target on the new card, refuses question/short/unknown/malformed targets with nothing written, leaves the old card untouched"
+
 # a model is required: each of the four scripts, no --model and no CLAUDE_MODEL, exits 2 and writes nothing
 S2=$(sum "$D"); NB="$T/NoModel.lanework"; printf 'r\n' > "$T/rl.md"
 refused() { local n="$1"; shift; local rc=0; env -u CLAUDE_MODEL "$@" >/dev/null 2>"$T/err.txt" || rc=$?

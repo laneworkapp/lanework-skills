@@ -1,12 +1,14 @@
 #!/bin/bash
 # file-record.sh: file an ADR or PDR card into Decisions from a question's ruling, before it settles.
 # usage: file-record.sh <board> <question-card-uuid> --record ADR|PDR --title t --body F \
-#          [--from <lane title>] --model m [--name n] [--session s]
+#          [--from <lane title>] [--supersedes <record-uuid>]... --model m [--name n] [--session s]
 # Card frontmatter from templates/record.md (title "<ADR|PDR>: <t>", flattened `Record` and
 # `accepted` status labels), body = line 1 linking the question, then --body. Lands at the
 # bottom of Decisions (its card-defaults labels unioned in), staged outside the board. Prints the card's lanework:// link: put it
 # in the ruling (templates/ruling.md). Run before settle-question.sh: the question must still be
 # in Asked (a settled card is never edited), or in the --from lane (plan: Working). No waiting, no comments.
+# --supersedes <uuid> (repeatable): each must be a card in Decisions; the new card gets one `supersedes`
+# relation per target (relations/<uuid>/index.md). Nothing is written to the old card. Any bad target: exit 1, nothing written.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 TEMPLATES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)"
@@ -15,13 +17,14 @@ BOARD="${1:?usage: file-record.sh <board> <question-uuid> --record ADR|PDR --tit
 QID="${2:?usage: file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F [...]}"
 shift 2
 KIND=""; TITLE=""; BODY_FILE=""; FROM="Asked"
-MODEL=""; NAME="claude"; SESSION=""
+MODEL=""; NAME="claude"; SESSION=""; SUPERSEDES=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --record)  KIND="${2:?--record needs ADR or PDR}"; shift 2 ;;
     --title)   TITLE="${2:?--title needs text}"; shift 2 ;;
     --body)    BODY_FILE="${2:?--body needs a file}"; shift 2 ;;
     --from)    FROM="${2:?--from needs a lane title}"; shift 2 ;;
+    --supersedes) SUPERSEDES+=("${2:?--supersedes needs a record card uuid}"); shift 2 ;;
     --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
     --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
     --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
@@ -37,6 +40,9 @@ case "$KIND" in ADR) RANK=1 ;; PDR) RANK=2 ;; *) echo "file-record.sh: --record 
 DEC=$(lane_by_title "$BOARD" Decisions) || { echo "file-record.sh: no Decisions lane on $BOARD (add it, with the record and status label kinds: templates/lanes.md, templates/board.md)" >&2; exit 1; }
 [[ "$QID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || { echo "file-record.sh: not a lowercase card uuid: $QID" >&2; exit 1; }
 SRC=$(lane_by_title "$BOARD" "$FROM") || { echo "file-record.sh: no $FROM lane on $BOARD" >&2; exit 1; }
+for S in ${SUPERSEDES[@]+"${SUPERSEDES[@]}"}; do
+  [[ "$S" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] && [ -f "$DEC/$S/index.md" ] || { echo "file-record.sh: --supersedes $S is not a lowercase full uuid of a card in Decisions" >&2; exit 1; }
+done
 QCARD="$SRC/$QID"
 [ -f "$QCARD/index.md" ] || { echo "file-record.sh: $QID is not a card in $FROM (file the record before it leaves $FROM)" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
@@ -57,6 +63,11 @@ compact_fm "$STAGE/fm.out"
   printf 'Question: [%s](lanework://%s/%s)\n\n' "$QTITLE" "$BOARD_ID" "$QID"
   cat "$BODY_FILE"
 } > "$C/index.md"
+
+for S in ${SUPERSEDES[@]+"${SUPERSEDES[@]}"}; do
+  RD="$C/relations/$(uuid)"; mkdir -p "$RD"
+  printf -- '---\nschema: 1\nkind: relation\ncreated: {at: %s, by: %s}\nrel: supersedes\nto: lanework://%s/%s\n---\n' "$NOW" "$BY" "$BOARD_ID" "$S" > "$RD/index.md"
+done
 
 DEC=$(lane_by_title "$BOARD" Decisions)
 mv "$C" "$DEC/$CARD_ID"
