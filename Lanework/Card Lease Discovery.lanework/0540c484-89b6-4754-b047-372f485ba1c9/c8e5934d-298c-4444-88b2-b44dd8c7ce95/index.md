@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Q16: A holder back late finds its own lease lapsed"
-order: 9216
+order: 16384
 labels: [{text: "Round 4", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T14:07:52Z, comment: 857e8893-0f7e-4240-afc9-7d1e566d649f}
 created:  {at: 2026-11-14T14:07:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:07:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-14T14:27:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 A holder comes back late, for example after the machine slept, and finds its lease lapsed but still carrying its own `by`. Nobody took the card. What does it do?
 
@@ -23,3 +22,7 @@ A. After a sleep every timer wakes at once and each holder renews its own cards,
 
 - [Q4: Lease length and renewal](lanework://33527992-d72c-417b-85a2-1b62bea96794/7d91feb9-54cf-4b67-b95d-b657225e9665): 30 minutes, renewed by a timer
 - [Q9: A lost lease and the work in flight](lanework://33527992-d72c-417b-85a2-1b62bea96794/35121e2d-eeed-440f-8364-a1637eb028c2): the work stays, the loser stops
+
+## Ruling
+
+**2026-11-14**: A, as recommended. "A: Renew and carry on."
