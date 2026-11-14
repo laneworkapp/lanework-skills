@@ -5,7 +5,8 @@ title: "Point the README install at lanework-marketplace"
 order: 4096
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-05T00:31:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "marketplace chat"}}
-modified: {at: 2026-11-12T00:54:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-14T03:59:25Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T03:59:25Z, comment: e7c4a842-4a44-47a0-acb1-ade05ef3ffed}
 ---
 Plugin users should add the new central marketplace, `laneworkapp/lanework-marketplace`, instead of this repo's own `.claude-plugin/marketplace.json`.
 
