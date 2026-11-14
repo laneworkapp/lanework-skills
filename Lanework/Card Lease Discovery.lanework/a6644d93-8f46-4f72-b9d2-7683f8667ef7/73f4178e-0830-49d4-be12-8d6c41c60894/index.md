@@ -4,9 +4,9 @@ kind: card
 title: "Q2: One machine or several"
 order: 2048
 labels: [{text: "Round 1", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T04:27:11Z, comment: 61e57abe-e60e-4ec9-b853-fd2306e9d421}
 created:  {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T04:27:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-14T13:43:04Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-14T13:43:04Z, comment: 8bf847c1-9b78-4e3e-ac05-5e2f33347f67}
 ---
 Must a lease keep two agents apart when they run on different machines, or only when they share one machine?
 
