@@ -19,3 +19,20 @@ _Avoid_: lock, claim comment (a START comment is a record, not a lease)
 **Holder**:
 The session that holds a lease, named in its `by` by the harness session id. A session's subagents work under its leases and are never holders themselves.
 _Avoid_: owner (the owner is the human), claimant, lessee
+
+**Renewal**:
+A holder's rewrite of its own lease with a fresh `until`, made by its timer every 15 minutes of elapsed time for as long as the work runs.
+_Avoid_: heartbeat, refresh, extend
+
+**Lapsed lease**:
+A lease whose `until` has passed without a release. The card is open to takeover.
+_Avoid_: expired claim, stale lease, dead lease
+
+**Takeover**:
+A session staking a card whose lease lapsed under another holder, after a takeover notice went unanswered.
+_Avoid_: steal, reclaim, preempt
+
+**Takeover notice**:
+The record a session posts before a takeover, naming the holder it is taking the card from. A live holder answers it by renewing, within two minutes.
+_Avoid_: handshake, broadcast, ping
+
