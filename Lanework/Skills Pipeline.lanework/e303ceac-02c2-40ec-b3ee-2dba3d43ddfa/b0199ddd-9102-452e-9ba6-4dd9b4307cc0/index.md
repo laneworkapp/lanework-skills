@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "discovery: a superseding record states a supersedes relation"
-order: 10240
+order: 58368
 labels: [{text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T14:53:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T14:53:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-14T15:05:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 ---
 When a new ADR or PDR card replaces an older one, `file-record.sh` should write a `supersedes` relation on the new card pointing at the old, so the link between the two is a typed fact on the board and not only a line of prose under Related.
 
