@@ -4,7 +4,6 @@ kind: card
 title: "Q10: plan's Working lane beside the lease"
 order: 3072
 labels: [{text: "Round 3", kind: {type: round, text: Round}}]
-waiting: {for: anyone, since: 2026-11-14T14:03:00Z, comment: 7e47fd49-e3ee-4d0f-a893-51dd4546f06f}
 created:  {at: 2026-11-14T14:03:00Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
 modified: {at: 2026-11-14T14:03:00Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
 ---
