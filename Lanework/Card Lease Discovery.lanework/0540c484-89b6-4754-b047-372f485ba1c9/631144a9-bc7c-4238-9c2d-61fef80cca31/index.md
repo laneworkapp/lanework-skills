@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Q18: A handshake between agents"
-order: 1024
+order: 20480
 labels: [{text: "Round 5", kind: {type: round, text: Round}}]
 created:  {at: 2026-11-14T14:32:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-14T14:35:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-14T14:35:07Z, comment: 37d4bcdf-50c8-4ffc-8169-519df12b1c20}
+modified: {at: 2026-11-14T14:37:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The map kept a handshake between agents in reserve: a way for one agent to ask a holder "are you still working this?" before taking a card. Do the rulings so far leave a need for it?
 
@@ -34,3 +33,9 @@ Recommended: B. A live holder whose lease only looks lapsed keeps its card, whic
 
 - [Q9: A lost lease and the work in flight](lanework://33527992-d72c-417b-85a2-1b62bea96794/35121e2d-eeed-440f-8364-a1637eb028c2): the work stays, the loser stops
 - [Q15: Taking over a card whose lease lapsed](lanework://33527992-d72c-417b-85a2-1b62bea96794/d304d742-37e8-42d8-aac8-514f525e4b53): taken over at once, with a record
+
+## Ruling
+
+**2026-11-14**: B, as recommended after the owner proposed it. "B: Post a notice, wait two minutes. A live holder answers by renewing." Earlier: "actually this maybe a good check before taking over a lease to send a broadcast \"hey i'm about to take over this lease, is anyone alive holding it?\" or something like that. not a handshake per se but a check before taking over might not be a bad idea. wdyt?"
+ADR: [ADR: A takeover posts a notice and waits two minutes](lanework://33527992-d72c-417b-85a2-1b62bea96794/6a9abc5d-1f60-4eec-9350-b2e61a40bc9b)
+Supersedes [ADR: A lapsed lease is taken over at once, with a record](lanework://33527992-d72c-417b-85a2-1b62bea96794/9a6850de-9571-4e7c-bacd-d0758a2bfa08), from [Q15](lanework://33527992-d72c-417b-85a2-1b62bea96794/d304d742-37e8-42d8-aac8-514f525e4b53).
