@@ -11,6 +11,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install PyYAML, which tests/smoke.sh imports
+        run: python3 -m pip install pyyaml
       - name: Install fswatch for the watch case
         run: brew install fswatch
       - name: Run tests/smoke.sh
