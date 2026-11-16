@@ -1,14 +1,13 @@
 ---
 schema: 1
 kind: card
-title: "Move the guide-version gate out of smoke and into the release"
-order: 7168
+title: "Make the guide-version check advisory: a note in smoke, a warning at release"
+order: 10240
 labels: [{text: repo, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T03:56:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-14T14:53:14Z}
-waiting: {for: anyone, since: 2026-11-14T22:15:15Z, comment: 9f6d7fc1-119a-4944-a530-96141eb3dd0c}
+modified: {at: 2026-11-16T10:59:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
-The guide-version stamp finds real drift, but the smoke gate built on it turns main red whenever the app upgrades this board's guide, so this card proposes checking the stamp only at release and keeping it out of everyday smoke.
+The guide-version stamp finds real drift, but the smoke gate built on it turns main red whenever the app upgrades this board's guide, so the check becomes advisory: smoke prints a note and stays green, and the release prints a warning and still cuts.
 
 ## What the stamp does today
 
@@ -53,35 +52,36 @@ The costs come from where the gate sits, not from the number.
 
 ## Open call
 
-- **Which way the stamp goes: option 1 with 2 (recommended), option 3, or option 4.** Asked on this card.
+- ~~**Which way the stamp goes.**~~ **Ruled 2026-11-16: advisory everywhere, a note in smoke and a warning at release.** The options above are the record of what was weighed; option 1's release refusal was not chosen.
 
 ## Recommendation
 
-Options 1 and 2. They remove every cost listed and keep the reminder that found drift four times. Dropping the stamp (option 3) is not safe while the guide moves about seven versions a week and the skills still carry prose that restates it.
+Build it as ruled. The stamp stays as the line a catch-up card bumps, and the watch-filed "Skills target agent guide vN" card stays the tracker.
 
-## Touches, under the recommendation
+## Touches
 
 | file | change |
 |---|---|
-| `tests/smoke.sh` (the release-gate block at line 1444) | compare, print a note when the working-tree guide or schema is ahead, do not fail. The one-stamp and no-version-under-`skills/` checks stay. |
-| `scripts/release.sh` | new check before anything is tagged or pushed: stamp not behind the committed guide and schema, in `--dry-run` too |
-| repo `CLAUDE.md` (the guide bullet, § Releasing) | "smoke also gates the stamp" becomes "the release gates the stamp" |
+| `tests/smoke.sh` (the release-gate block near line 1471) | compare as today, but print one note when the board's guide or schema is ahead of the stamp, and do not fail. An unreadable version is a note too. The one-stamp and no-version-under-`skills/` checks stay as failures. |
+| `scripts/release.sh` | new warning before anything is tagged or pushed, in `--dry-run` too: names the stamp and the guide and schema versions when either is ahead, in the working tree or in `HEAD`. It never stops the release. The script runs smoke with its output discarded, so smoke's note would not be seen. |
+| repo `CLAUDE.md` (the guide bullet) | "Smoke also gates the stamp: it fails when…" becomes a note in smoke and a warning at release |
 | `README.md` § Versioning | same wording change |
-| `.github/workflows/smoke.yml` | none: CI already sees only the committed guide |
+| `.github/workflows/smoke.yml` | none |
 
 No file under `skills/` changes.
 
 ## Verified by
 
-- `tests/smoke.sh` green in the main checkout while the working-tree guide is ahead of the stamp, with the note printed. A scratch copy with the stamp set one version behind the committed guide: smoke still green, `scripts/release.sh X.Y.Z --dry-run` exits non-zero and names both versions.
-- A second stamp under `skills/` still fails smoke.
-- `release.sh --dry-run` on a tree whose stamp matches the committed guide passes the new check.
+- `tests/smoke.sh` green in the main checkout while the working-tree guide (v118) is ahead of the stamp (v114), with the note printed and both versions named.
+- A scratch copy with the stamp set behind the committed guide: smoke still green, and `scripts/release.sh X.Y.Z --dry-run` prints the warning with both versions and exits 0 where it would otherwise.
+- A stamp equal to the guide: no note, no warning.
+- A second stamp, or a guide version in a file under `skills/`, still fails smoke.
 
 ## Done when
 
-- Smoke never fails because of the guide version on this board, in the working tree or committed.
-- `scripts/release.sh` cannot cut a release while the committed guide or schema is newer than the stamp, and says why.
-- `CLAUDE.md` and `README.md` describe the gate as a release check.
+- Smoke never fails because of the guide or schema version on this board, in the working tree or committed.
+- `scripts/release.sh` warns, naming the versions, when the stamp is behind, and still cuts the release.
+- `CLAUDE.md` and `README.md` describe the check as advisory.
 
 ## Note for the v117 card
 
@@ -93,6 +93,6 @@ Separate from the call above, for whoever builds [9e04cdec](lanework://04b8692e-
 
 ## Risks
 
-- **A late surprise at release.** Drift is found when a release is cut instead of the day the guide moves. The watch-filed card and the smoke note cover the gap.
-- **The note gets ignored.** A printed note is weaker than a red suite. The release check is the backstop.
-- **Committed against working tree.** The release check reads the committed guide, so a guide the app has rewritten but nobody has committed does not block. That is the same view CI has today.
+- **A release can ship unread against the current guide.** 0.8.0 already did, four versions behind. The out-of-step effects recorded on the thread are three silent ones, all about who an ask reaches, and no data loss.
+- **A note and a warning get ignored.** Nothing forces the catch-up. The watch-filed card is the only tracker.
+- **The schema version is advisory too.** It has never moved from v1. A new schema version would show as a note, not a red suite.
