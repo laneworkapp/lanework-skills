@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "CI smoke fails on every push: the runner has no PyYAML"
-order: 10240
+order: 60416
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-16T00:38:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-16T01:15:20Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-16T01:21:13Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 ---
 The `smoke` workflow has no green run on `main` in its last 200 runs, because the GitHub runner's `python3` has no `yaml` module and `tests/smoke.sh` imports it.
 
