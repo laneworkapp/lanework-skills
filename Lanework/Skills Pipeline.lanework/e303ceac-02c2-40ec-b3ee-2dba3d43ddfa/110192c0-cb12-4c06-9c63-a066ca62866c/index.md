@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Make the guide-version check advisory: a note in smoke, a warning at release"
-order: 10240
+order: 61440
 labels: [{text: repo, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T03:56:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-16T10:59:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-16T11:34:19Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The guide-version stamp finds real drift, but the smoke gate built on it turns main red whenever the app upgrades this board's guide, so the check becomes advisory: smoke prints a note and stays green, and the release prints a warning and still cuts.
 
