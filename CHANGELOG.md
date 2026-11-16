@@ -1,6 +1,32 @@
 **November 2026**
 
+Version 0.8.0: cards, tickets and decision records the skills file now pick up the default labels of the lane they land in.
+
 Existing plugin users: Lanework now installs from a central marketplace, so run `/plugin marketplace remove lanework` (it also uninstalls the plugin), then `/plugin marketplace add https://github.com/laneworkapp/lanework-marketplace.git`, then `/plugin install lanework@lanework`.
+
+/dispatch now answers comments you left while no watch was running, in every lane except Done, and reports work claims that look abandoned.
+
+A decision record that replaces an older one now links to it with a supersedes relation.
+
+Merging a board now merges relations between cards the same way it merges comments.
+
+/heal now checks the relations on a card.
+
+/heal no longer suggests or migrates a Component label kind, since Lanework no longer builds it in.
+
+A question on a card can now be addressed to several people at once.
+
+Settling a question or resolving a ticket that waits on several people now clears its waiting mark completely.
+
+Comments and cards the skills write are now always stamped with the time read from the clock.
+
+When an agent shapes a card, it now gives it a label from the kind its lane is grouped by.
+
+Reviewer verdicts are now written as plain Markdown, so they read properly on the card.
+
+The discovery map now marks questions being asked with 💬 and those not yet askable with ⏳.
+
+Skills now follow version 114 of Lanework's agent guide.
 
 **October 2026**
 
