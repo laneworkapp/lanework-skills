@@ -19,10 +19,10 @@ TAG="v$V"; M=.claude-plugin/plugin.json
 # advisory: board guide/schema ahead of the stamp in CLAUDE.md (working tree and HEAD); a warning, never a stop
 BD="Lanework/Skills Pipeline.lanework"
 ver() { grep -o -E "$1 v[0-9]+" | grep -o -E '[0-9]+$' | head -1 || true; }
-SG=$(ver lanework-agent-guide < CLAUDE.md); SS=$(ver lanework-schema < CLAUDE.md)
+SG=$(cat CLAUDE.md 2>/dev/null | ver lanework-agent-guide || true); SS=$(cat CLAUDE.md 2>/dev/null | ver lanework-schema || true)
 for WHERE in "the working tree" HEAD; do
-  if [ "$WHERE" = HEAD ]; then G=$(git show "HEAD:$BD/CLAUDE.md" 2>/dev/null | head -1 | ver lanework-agent-guide); N=$(git show "HEAD:$BD/.schema/VERSION" 2>/dev/null | head -1 | ver lanework-schema)
-  else G=$(head -1 "$BD/CLAUDE.md" 2>/dev/null | ver lanework-agent-guide); N=$(head -1 "$BD/.schema/VERSION" 2>/dev/null | ver lanework-schema); fi
+  if [ "$WHERE" = HEAD ]; then G=$(git show "HEAD:$BD/CLAUDE.md" 2>/dev/null | head -1 | ver lanework-agent-guide || true); N=$(git show "HEAD:$BD/.schema/VERSION" 2>/dev/null | head -1 | ver lanework-schema || true)
+  else G=$(head -1 "$BD/CLAUDE.md" 2>/dev/null | ver lanework-agent-guide || true); N=$(head -1 "$BD/.schema/VERSION" 2>/dev/null | ver lanework-schema || true); fi
   if [ "${G:-0}" -gt "${SG:-0}" ] || [ "${N:-0}" -gt "${SS:-0}" ]; then
     echo "release.sh: warning: the board in $WHERE is ahead of the stamp in CLAUDE.md (guide v${G:-?}, schema v${N:-?}; stamp guide v${SG:-?}, schema v${SS:-?}): the skills may be unread against it" >&2
   fi

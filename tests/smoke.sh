@@ -1475,7 +1475,7 @@ if [ -z "$BG" ] || [ -z "$BS" ]; then
   echo "note: can't read the board's guide or schema version; check the stamp ($S, $SV) against the board by hand"
   ok "the board's guide and schema version are unreadable: advisory note, not a failure"
 elif [ "$BG" -gt "${S##*v}" ] || [ "$BS" -gt "${SV##*v}" ]; then
-  echo "note: the board is ahead of the stamp (guide v$BG, schema v$BS; stamp $S, $SV): read every skill against it, fix the drift, then bump the stamp in CLAUDE.md"
+  echo "note: the board is ahead of the stamp (guide v$BG, schema v$BS; stamp guide v${S##*v}, schema v${SV##*v}): read every skill against it, fix the drift, then bump the stamp in CLAUDE.md"
   ok "the board (guide v$BG, schema v$BS) is ahead of the stamp ($S, $SV): advisory note, not a failure"
 else
   ok "the stamp ($S, $SV) is not behind the board's guide v$BG and schema v$BS"
@@ -1492,6 +1492,10 @@ W=$(rw); WC=$(grep -c 'warning: the board in' <<<"$W" || true)
 [ "$WC" -eq 2 ] && grep -q 'guide v11, schema v1; stamp guide v10, schema v1' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W" || { echo "release.sh should warn for the working tree and HEAD, then stop at its own check: $W"; exit 1; }
 printf 'stamp: lanework-agent-guide v11, lanework-schema v1\n' > "$R/CLAUDE.md"
 W=$(rw); { ! grep -q warning <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should not warn when the stamp is current: $W"; exit 1; }
+# a missing board folder, or a board CLAUDE.md missing from HEAD, is no reason for the advisory block to stop the script
+git -C "$R" rm -q -r --cached "Lanework" >/dev/null && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m unboard && rm -rf "${R:?}/Lanework"
+W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no board folder: $W"; exit 1; }
+rm -f "$R/CLAUDE.md"; W=$(rw); { ! grep -q -i 'warning\|line [0-9]\|No such' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no CLAUDE.md: $W"; exit 1; }
 ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp, stays quiet when not, and exits the same either way"
 
 # plugin: manifests agree with the skills folders; one version, in plugin.json
