@@ -1468,13 +1468,35 @@ PYEND
 setdef "$DP" Frontier -
 ok "card-defaults: a kinded entry's rank stays an integer on the card (listed-kind and undefined-kind alike), while bare 2026 and {text: 1.10} still read as typed names"
 
-# release gate: the Skills Pipeline board's guide and schema must not be newer than the stamp
+# release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
 BS=$(head -1 "$VAL/VERSION" | tr -d '\r' | grep -o -E 'lanework-schema v[0-9]+ *$' | grep -o -E '[0-9]+' || true)
-[ -n "$BG" ] && [ -n "$BS" ] || { echo "can't read the board's guide or schema version"; exit 1; }
-[ "$BG" -le "${S##*v}" ] || { echo "board guide v$BG is newer than the stamp ($S): read every skill against it, fix the drift, then bump the stamp in CLAUDE.md"; exit 1; }
-[ "$BS" -le "${SV##*v}" ] || { echo "board schema v$BS is newer than the stamp ($SV): read every skill against it, fix the drift, then bump the stamp in CLAUDE.md"; exit 1; }
-ok "the stamp ($S, $SV) is not behind the board's guide v$BG and schema v$BS"
+if [ -z "$BG" ] || [ -z "$BS" ]; then
+  echo "note: can't read the board's guide or schema version; check the stamp ($S, $SV) against the board by hand"
+  ok "the board's guide and schema version are unreadable: advisory note, not a failure"
+elif [ "$BG" -gt "${S##*v}" ] || [ "$BS" -gt "${SV##*v}" ]; then
+  echo "note: the board is ahead of the stamp (guide v$BG, schema v$BS; stamp guide v${S##*v}, schema v${SV##*v}): read every skill against it, fix the drift, then bump the stamp in CLAUDE.md"
+  ok "the board (guide v$BG, schema v$BS) is ahead of the stamp ($S, $SV): advisory note, not a failure"
+else
+  ok "the stamp ($S, $SV) is not behind the board's guide v$BG and schema v$BS"
+fi
+
+# release.sh warns, never stops, when the board's guide or schema is ahead of the stamp: a scratch repo on a branch
+# other than main, so the run ends at its first hard check ("not on main") whether or not it warned
+R="$T/release-warn"; mkdir -p "$R/scripts" "$R/Lanework/Skills Pipeline.lanework/.schema"; cp "$ROOT/scripts/release.sh" "$R/scripts/"
+printf 'stamp: lanework-agent-guide v10, lanework-schema v1\n' > "$R/CLAUDE.md"
+printf '<!-- lanework-agent-guide v11 - app guide -->\n' > "$R/Lanework/Skills Pipeline.lanework/CLAUDE.md"; printf 'lanework-schema v1\n' > "$R/Lanework/Skills Pipeline.lanework/.schema/VERSION"
+git -C "$R" init -q -b scratch && git -C "$R" add -A && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m seed
+rw() { (cd "$R" && scripts/release.sh 9.9.9 --dry-run 2>&1 >/dev/null; echo "exit $?"); }
+W=$(rw); WC=$(grep -c 'warning: the board in' <<<"$W" || true)
+[ "$WC" -eq 2 ] && grep -q 'guide v11, schema v1; stamp guide v10, schema v1' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W" || { echo "release.sh should warn for the working tree and HEAD, then stop at its own check: $W"; exit 1; }
+printf 'stamp: lanework-agent-guide v11, lanework-schema v1\n' > "$R/CLAUDE.md"
+W=$(rw); { ! grep -q warning <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should not warn when the stamp is current: $W"; exit 1; }
+# a missing board folder, or a board CLAUDE.md missing from HEAD, is no reason for the advisory block to stop the script
+git -C "$R" rm -q -r --cached "Lanework" >/dev/null && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m unboard && rm -rf "${R:?}/Lanework"
+W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no board folder: $W"; exit 1; }
+rm -f "$R/CLAUDE.md"; W=$(rw); { ! grep -q -i 'warning\|line [0-9]\|No such' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no CLAUDE.md: $W"; exit 1; }
+ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp, stays quiet when not, and exits the same either way"
 
 # plugin: manifests agree with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
