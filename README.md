@@ -196,7 +196,7 @@ A board's actual folder layout, and each lane's own `index.md` body, always win 
 
 Releases are numbered `vX.Y.Z`, tagged, and listed on the repo's GitHub releases page with their notes from `CHANGELOG.md`. The version lives in `.claude-plugin/plugin.json` alone.
 
-The guide and schema versions this skill set is written against are stamped in one place: the repo's `CLAUDE.md`, not in the skills. Smoke fails when this repo's Skills Pipeline board's guide or schema is newer than the stamp, so a release waits for a re-read of the skills.
+The guide and schema versions this skill set is written against are stamped in one place: the repo's `CLAUDE.md`, not in the skills. When this repo's Skills Pipeline board's guide or schema is newer than the stamp, smoke prints a note and the release script prints a warning; neither blocks, so a re-read of the skills is a reminder, not a gate.
 
 Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUDE.md`, app-maintained and rewritten by Lanework on upgrades), the guide wins.
 
