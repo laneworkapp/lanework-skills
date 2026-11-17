@@ -1,10 +1,15 @@
 #!/bin/bash
 # claim-ticket.sh: claim a Frontier ticket for this session, before any work on it.
 # usage: claim-ticket.sh <board> <card-uuid> --model m [--name n] [--session s]
-# Moves the card from Frontier to the bottom of Working (fresh order, `modified` rewritten whole)
-# and posts "**Claimed** by <name>". Refuses with exit 1 when the card is not in Frontier
-# (claimed by another session, blocked, resolved). Staged outside the board; the card path is
-# re-resolved just before landing, and a card that left Frontier meanwhile is refused.
+# Stakes the card's lease (lanework/scripts/lease.sh stake, lanework/references/writes.md § Lease) while it is still in
+# Frontier, then moves it to the bottom of Working (fresh order, `modified` rewritten whole, `claimed` carried as the stake
+# left it) and posts "**Claimed** by <name>". The holder is CLAUDE_CODE_SESSION_ID, never --session (a stamp label).
+# Exit 1, nothing written: the card not in Frontier (claimed by another session, blocked, resolved); no
+# CLAUDE_CODE_SESSION_ID or no CLAUDE_PID (no session, no lease); no lanework/scripts/lease.sh beside plan; the stake
+# refused or lost (lease.sh names the holder on stderr; a takeover notice it posted stays). After the stake, the card
+# leaving Frontier, the lease no longer this session's, or any other abort: exit 1, the lease just staked released.
+# Staged outside the board, from the card as the stake left it; the card path is re-resolved just before landing.
+# A stake over a lapsed lease waits for the takeover notice (2 min): give the call a timeout over that.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 
@@ -26,6 +31,11 @@ require_model claim-ticket.sh "claim-ticket.sh <board> <card-uuid> --model m [--
 FRONTIER=$(lane_by_title "$BOARD" Frontier) || { echo "claim-ticket.sh: no Frontier lane on $BOARD" >&2; exit 1; }
 DEST=$(lane_by_title "$BOARD" Working) || { echo "claim-ticket.sh: no Working lane on $BOARD" >&2; exit 1; }
 
+LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
+[ -n "${CLAUDE_CODE_SESSION_ID:-}" ] || { echo "claim-ticket.sh: no CLAUDE_CODE_SESSION_ID: no session id, no lease, no claim (--session is only a stamp label); nothing written" >&2; exit 1; }
+[ -n "${CLAUDE_PID:-}" ] || { echo "claim-ticket.sh: no CLAUDE_PID: the lease's timer needs the session's process; nothing written" >&2; exit 1; }
+[ -f "$LEASE" ] || { echo "claim-ticket.sh: no lanework/scripts/lease.sh beside plan: no lease, no claim; nothing written" >&2; exit 1; }
+
 where() { local d; d=$(ls -d "$BOARD"/*/"$CID" 2>/dev/null | head -1 || true); [ -n "$d" ] && strip_quotes "$(fm_value "$(dirname "$d")/index.md" title)"; }
 refuse_unless_frontier() {
   [ -f "$FRONTIER/$CID/index.md" ] && return 0
@@ -36,8 +46,26 @@ refuse_unless_frontier() {
 }
 refuse_unless_frontier
 
+# a lease this session held before the claim (staked by hand) is renewed by the stake, and never released by an abort here
+HOLDER=$("$LEASE" list "$BOARD" | awk -F'\t' -v c="$CID" '$1 == c { print $2 }')
+STAKED=""; DONE=""; STAGE=""
+cleanup() {
+  [ -z "$STAGE" ] || rm -rf "$STAGE"
+  if [ -n "$STAKED" ] && [ -z "$DONE" ]; then
+    "$LEASE" release "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null \
+      || echo "claim-ticket.sh: the lease on ${CID:0:8} was not released: lanework/scripts/lease.sh release by hand" >&2
+  fi
+}
+trap cleanup EXIT
+rc=0; OUT=$("$LEASE" stake "$BOARD" "$CID" --model "$MODEL" --name "$NAME") || rc=$?
+[ "$rc" -eq 0 ] || { echo "claim-ticket.sh: ${CID:0:8} not claimed: lease.sh stake exit $rc; nothing else written" >&2; exit 1; }
+case "$HOLDER" in *"($CLAUDE_CODE_SESSION_ID)") ;; *) STAKED=1 ;; esac
+grep '^prior: ' <<<"$OUT" || true   # a takeover: the thread's latest START or Lease lost record, read before working
+refuse_unless_frontier
+
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); ORDER=$(next_order "$DEST")
-STAGE=$(mktemp -d "${TMPDIR:-/tmp}/plan-claim.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
+STAGE=$(mktemp -d "${TMPDIR:-/tmp}/plan-claim.XXXXXX")
+# order and modified rewritten in place; every other line (claimed included, flow or block) copied as the stake left it
 awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" '
   /^---[ \t]*$/ { n++ }
   n==1 && /^order:/ { print o; next }
@@ -48,9 +76,15 @@ COID=$(uuid); mkdir -p "$STAGE/comment"
 printf '**Claimed** by %s%s.\n' "$NAME" "${SESSION:+, session $SESSION}" | comment_file "$STAGE/comment/index.md" "$NOW" "$BY"
 
 refuse_unless_frontier
+rc=0; "$LEASE" check "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null || rc=$?
+if [ "$rc" -ne 0 ]; then
+  [ "$rc" -ne 3 ] || STAKED=""   # lost: lease.sh posted the Lease lost record; nothing left to release
+  echo "claim-ticket.sh: ${CID:0:8}'s lease is no longer this session's (lease.sh check exit $rc); nothing moved" >&2; exit 1
+fi
 mv "$STAGE/index.md" "$FRONTIER/$CID/index.md"
 mv "$FRONTIER/$CID" "$DEST/$CID"
 mkdir -p "$DEST/$CID/comments"; mv "$STAGE/comment" "$DEST/$CID/comments/$COID"
+DONE=1
 
 printf 'claimed %s -> Working (order %s)\n' "${CID:0:8}" "$ORDER"
 printf 'lanework://%s/%s\n' "$(fm_value "$BOARD/index.md" id)" "$CID"
