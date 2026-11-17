@@ -74,7 +74,10 @@ owner_handle() {
 # guide_version <board>: N from the `lanework-agent-guide vN` stamp on line 1 of the board's CLAUDE.md; empty + exit 1 if none.
 guide_version() {
   local v=""
-  [ -r "$1/CLAUDE.md" ] && v=$(head -1 "$1/CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
+  local f; for f in "$1/CLAUDE.md" "$1/AGENTS.md"; do   # the app writes both, byte-identical
+    [ -r "$f" ] || continue
+    v=$(head -1 "$f" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true); [ -n "$v" ] && break
+  done
   printf '%s' "$v"; [ -n "$v" ]
 }
 
