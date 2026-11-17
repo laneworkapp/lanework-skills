@@ -5,12 +5,11 @@ title: "Work skill: ship move-card, post-ask and commit-board helpers"
 order: 2048
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T17:55:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Main"}}
-modified: {at: 2026-11-17T00:53:01Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-waiting: {for: anyone, since: 2026-11-17T00:53:01Z, comment: 776fefb5-e099-4a4d-88dc-ba141553e9f7}
+modified: {at: 2026-11-17T11:22:00Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5, session: "lanework-skills Pitwall"}}
 ---
-Ship three board-write helpers in the `work` skill (`move-card.sh`, `post-ask.sh`, `commit-board.sh`) so coordinator sessions stop hand-rolling scripts that mis-stamp, mis-order and over-stage.
+Ship four board-write helpers in the `work` skill (`move-card.sh`, `post-ask.sh`, `commit-board.sh`, `file-card.sh`) so coordinator sessions stop hand-rolling scripts that mis-stamp, mis-order and over-stage.
 
-Requested by the Lanework Pitwall session at the owner's ask, 2026-11-12. Its hand-rolled `land-done.sh`, `post.sh`, `move.sh` and `succ-commit.sh` are in the evidence comment (reference, not code to copy).
+Requested by the Lanework Pitwall session at the owner's ask, 2026-11-12. Its hand-rolled `land-done.sh`, `post.sh`, `move.sh` and `succ-commit.sh` are in the evidence comment (reference, not code to copy). `file-card.sh` and its traps row were added on the owner's ruling of 2026-11-17, after the empty-lane hang recorded in [3a383b6d](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/301eb20d-7a95-4b81-a8e0-6ef93205154d/7655176d-d184-4955-bf9f-5f338a62be0f/3a383b6d-8270-4dea-ad0c-c9a3fe64ab39).
 
 ## Files touched
 
@@ -19,15 +18,17 @@ Requested by the Lanework Pitwall session at the owner's ask, 2026-11-12. Its ha
 | `skills/work/scripts/move-card.sh` | new |
 | `skills/work/scripts/post-ask.sh` | new |
 | `skills/work/scripts/commit-board.sh` | new |
-| `skills/work/SKILL.md` | one line naming the three beside `lint-ask.sh`, `lint-stamps.sh`, `post-comment.sh` |
+| `skills/work/scripts/file-card.sh` | new |
+| `skills/work/SKILL.md` | one line naming the four beside `lint-ask.sh`, `lint-stamps.sh`, `post-comment.sh` |
 | `skills/work/references/writing.md` | § The ask: post with `post-ask.sh` |
-| `skills/work/references/traps.md` | Shell row: `while pgrep -f <pat>` matches itself; use `kill -0 <pid>` (true on a zombie too) |
+| `skills/work/references/traps.md` | two Shell rows. `while pgrep -f <pat>` matches itself; use `kill -0 <pid>` (true on a zombie too). A glob over a lane's cards can match nothing (empty lane): `grep` then reads stdin and hangs, or the shell stops with `no matches found`; give `grep` `/dev/null` as an extra file |
 | `skills/lanework/references/writes.md` | § Moving and § Git cite `work/scripts/move-card.sh` and `commit-board.sh` (one line each, no restated rules) |
-| `skills/lanework/scripts/lib.sh` | only if a helper is shared (card lookup across lanes, `waiting` rewrite); reuse `lane_by_title`, `next_order`, `by_of`, `now_utc` first |
+| `skills/lanework/scripts/lib.sh` | only if a helper is shared (card lookup across lanes, `waiting` rewrite); reuse `lane_by_title`, `next_order`, `union_lane_defaults`, `render`, `compact_fm`, `by_of`, `now_utc` first |
+| `README.md` | § Sizes: the `wc -w` rows and totals for each Markdown file this card changes (`work` `SKILL.md`, `references/traps.md`, `references/writing.md`; `lanework` `references/writes.md`) |
 | `tests/smoke.sh` | new cases below |
 | `CHANGELOG.md` | one user-facing entry in the release commit |
 
-No new skill, so `plugin.json` and the README skills table stay. README word counts re-checked by `check-sizes.sh`.
+No new skill, so `plugin.json` and the README skills table stay. Scripts are left out of the README word counts, but the changed Markdown files are counted, so their rows are updated and `check-sizes.sh` must pass.
 
 ## Design
 
@@ -54,6 +55,15 @@ No new skill, so `plugin.json` and the README skills table stay. README word cou
 - The trailer is **only what `--trailer` passes**; the script never appends one.
 - Refuses a path outside the work tree; refuses `.DS_Store`; never `-A`.
 
+**`file-card.sh <board> <lane-title> <title> --body F --model m [--name n] [--session s]`**
+
+- Files one new card at the bottom of the named lane (`lane_by_title`); no such lane exits 1, nothing written. It prints the new card's path.
+- `order` from `next_order`, which already returns 1024 for an empty lane, so an agent filing by hand no longer has to re-derive it with a glob (the hang in the evidence comment).
+- Stamps `created` and `modified` from `now_utc` with the caller's `by` (`by_of`); writes `kind: card` and the quoted title.
+- Unions the lane's `card-defaults` labels into the card's `labels` with `union_lane_defaults`, then `compact_fm`, as `file-ticket.sh` and `file-record.sh` do.
+- Stages the whole card folder outside the board, one `mv` in, then runs `lanework-validate.py` on the card. No git, no commit, no founding comment (the caller posts that with `post-comment.sh`).
+- Takes only the flags above. Labels beyond the lane's defaults, `waiting` and a priority stay by hand until a card asks for them.
+
 ## Verification
 
 `tests/smoke.sh`, new cases on throwaway copies (never this board):
@@ -61,19 +71,21 @@ No new skill, so `plugin.json` and the README skills table stay. README word cou
 - move-card: move from Approved and from Issues; zero and two prefix matches exit 2 with nothing written; owner-filed card (no `modified.by`) comes out stamped by the caller; `order` is lane max + 1024 and `--top` is lowest minus; `--clear-waiting` drops it and default keeps it; `--comment` carries the caller's `by`; validator exit 0 and no `DEPRECATED`; `lint-stamps.sh` clean; every other file byte-identical.
 - post-ask: `waiting.comment` equals the new comment's uuid; `since` equals the ask's `created.at`; ask lands at least 1 s after the newest comment; a body failing `lint-ask.sh` writes nothing and leaves `waiting` unset; `modified` restamped; missing `--for` exits 2.
 - commit-board: in a temp repo with a bare origin: a dirty unrelated file is not committed; no push without `--push`; with it, origin has the commit; a rejected push retries; a diverged branch stops and names the overlap; stash count unchanged; no trailer unless `--trailer`; second invocation waits on the lock.
+- file-card: into an empty lane, the card lands with `order: 1024` and the call does not hang; into a lane with cards, `order` is lane max + 1024; the lane's `card-defaults` labels are unioned in, and the caller's own value of a `single` kind wins; `created` and `modified` carry the caller's `by` and a clock stamp; a missing lane, a missing `--body` and a missing `--model` exit non-zero with nothing written; no temp file is left beside any card; validator exit 0 and no `DEPRECATED`; `lint-stamps.sh` clean; every other file byte-identical.
 - Each script passes `bash -n` and a real run against a scratch board outside the repo, output quoted in the closing comment.
 
 ## Done when
 
-1. The three scripts exist under `skills/work/scripts/`, executable, `bash -n` clean.
+1. The four scripts exist under `skills/work/scripts/`, executable, `bash -n` clean.
 2. The smoke cases above exist and `tests/smoke.sh` passes (`check-refs.sh` and `check-sizes.sh` included).
-3. `skills/work/SKILL.md`, `writing.md`, `traps.md` and `lanework/references/writes.md` cite them as described, and no rule is stated twice.
+3. `skills/work/SKILL.md`, `writing.md`, `traps.md` and `lanework/references/writes.md` cite them as described (`traps.md` carries both Shell rows), and no rule is stated twice. The README § Sizes rows match `wc -w`.
 4. Every defect in the card's table has a failing-then-passing smoke case.
 
 ## Risks
 
 - Smoke currently fails at the stamp gate (board guide v117 vs repo stamp v114). Building waits on, or lands after, the v117 card (9e04cdec); "verified" needs smoke green.
 - `commit-board.sh` is the only script that touches git state: the lock and un-commit retry are subtle (concurrent agents, abandoned lock after a kill). Mitigation: lock holds a pid and is reclaimed when `kill -0` fails; smoke covers it.
+- `file-card.sh` leans on `union_lane_defaults`, which loads `heal-board.py` by path and exits 1 on a malformed `card-defaults`; the script then writes nothing, as `file-ticket.sh` does. It adds no founding comment, so a filed card still needs one from the caller.
 - `post-ask.sh` sleeps up to 1 s; acceptable.
 - macOS bash and BSD tools only (`date -v`, `uuidgen`).
 
@@ -83,4 +95,6 @@ Build queue, build-slot and timing locks, gate wrappers: specific to the Lanewor
 
 ## Recommendation
 
-Build as designed: three scripts in `work`, push off by default, `--for` required until the v117 card lands. Minor bump (new behavior). No open calls.
+Build as designed: four scripts in `work`, push off by default, `--for` required until the v117 card lands. Minor bump (new behavior). No open calls.
+
+~~Should the card also ship `file-card.sh` and the traps row?~~ **ruled 2026-11-17: add `file-card.sh` and the traps row to this card.**
