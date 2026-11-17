@@ -13,7 +13,7 @@ Builds on the `work` skill (working a board) and the `lanework` skill (reading a
 | step | file |
 |---|---|
 | arm the watch: boards, Monitor, what to tell the user | `references/arming.md` |
-| classify every card at arming: owner comments to answer, cards to arm, stale claims | `scripts/arm-pass.sh` |
+| classify every card at arming: owner comments to answer, cards to arm, held cards, lapsed leases | `scripts/arm-pass.sh` |
 | handle an event: skip, read, classify, BULK | `references/events.md` |
 | respond: rulings, action requests, asks, commits, reporting | `references/responding.md` |
 | the watcher, and why it diffs snapshots | `scripts/watch-boards.sh` |
