@@ -19,7 +19,7 @@ Two modes. Never more than one ticket resolved per session, Research excepted. E
 `/lanework:plan <board> [T<n>]`.
 
 1. **Read**: `lanework/scripts/read-board.sh`, then the Map card only. Not every ticket body. `scripts/frontier.sh` for the live tickets.
-2. **Pick**: the named ticket, else the top of Frontier. `scripts/claim-ticket.sh` first. Owner names a Working ticket (HITL left waiting) → resume it by staking, no claim (`tickets.md` § Claim); an owner comment newer than `waiting.since` = its answer.
+2. **Pick**: the named ticket, else the top of Frontier. `scripts/claim-ticket.sh` first; refused on a held Frontier ticket → take the next one. Owner names a Working ticket (HITL left waiting) → resume it by staking, no claim (`tickets.md` § Claim); an owner comment newer than `waiting.since` = its answer.
 3. **Resolve** per type (`tickets.md` § Types). Zoom into related or Resolved tickets on demand. Use the skills the Notes name. Left waiting on the owner → release the lease before stopping.
 4. **Records**: ADR/PDR before resolving, pinned terms into `CONTEXT.md` (`discovery/references/records.md`). Then `scripts/resolve-ticket.sh`: it releases the lease.
 5. **Map**: rewrite (`map.md`): Decisions so far line; fog now specifiable → new tickets, patch cleared; newly surfaced tickets; out-of-scope rulings; tickets the decision invalidated → Moot.
