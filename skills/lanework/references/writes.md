@@ -39,7 +39,7 @@ Guide § Moving and reordering has the full rules.
 - Distinct `created.at` second per comment. Identical seconds scramble thread order.
 - **Posting never restamps the card.**
 - Answering a specific comment → `in-reply-to: <its uuid>`, whoever wrote it: a human's, another agent's, your own. Not only an answer to an ask.
-- `cite-as` (a card's display name, unique by convention): never carry one into a card you copy; scan the board before minting one.
+- `cite-as` (a card's display name, unique by convention). **Mint**: scan every card on the board, `.trash/` flat and in trashed lanes included, count both `cite-as: <prefix><n>` and a legacy `<prefix><n>: ` title prefix, take the highest `n` plus one, as late as possible before staging (two sessions can still collide: the validator warns `duplicate-cite-as`, renumber by hand). Prefixes `Q`, `T`, `F`, `ADR`, `PDR`, a counter each; `Map`, `Topic` fixed. Scripts mint Q, T, ADR, PDR (`lib.sh` `next_cite`); a fact by hand. Only where `lib.sh` `cite_enabled` is true (older boards draw no `cite-as`): else keep the `<prefix><n>: ` title. Bare title when minted; never rewrite an existing title. Never carry one into a copy; a move keeps it. Pipeline boards: the board's sheet decides.
 - A posted comment is fixed at most for a typo. Otherwise post a follow-up; never rewrite, remove, or move it into `comments/.trash`.
 - Prose (record vs ask, handles, links): `work/references/writing.md`.
 

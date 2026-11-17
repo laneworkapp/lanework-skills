@@ -1686,6 +1686,119 @@ W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <
 rm -f "$R/CLAUDE.md"; W=$(rw); { ! grep -q -i 'warning\|line [0-9]\|No such' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no CLAUDE.md: $W"; exit 1; }
 ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp, stays quiet when not, and exits the same either way"
 
+# cite-as: scripts mint a citation and write a bare title only on a board whose guide line reads v117 or later (cite_enabled); the throwaway boards state their stamp
+# cite-as: on a board whose guide line reads v117 or later the filing scripts mint a citation and write a bare title
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Sync is free.\n' > "$T/cr.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
+cq() { "$SK/discovery/scripts/file-question.sh" "$1" "$2" --round 1 --body "$T/cq.md" --model smoke 2>&1; }
+cc() { head -1 <<<"$1" | sed 's#.*/##'; }
+CA="$T/CiteA Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$CA" --model smoke >/dev/null; mkguide "$CA" 117
+CO1=$(cq "$CA" "Pricing"); CO2=$(cq "$CA" "Engine: placement"); CQ1=$(cc "$CO1"); CQ2=$(cc "$CO2")
+CF1=$(ls "$CA"/*/"$CQ1"/index.md); CF2=$(ls "$CA"/*/"$CQ2"/index.md)
+{ grep -qx 'cite-as: Q1' "$CF1" && grep -qx 'title: "Pricing"' "$CF1" && grep -qx 'cite-as: Q2' "$CF2" && grep -qxF 'title: "Engine: placement"' "$CF2" \
+  && grep -qx 'cite Q1' <<<"$CO1" && grep -qx 'cite Q2' <<<"$CO2" && ! grep -q 'lint-ask warning' <<<"$CO1$CO2"; } || { echo "questions not minted Q1, Q2 with bare titles:"; echo "$CO1"; head -8 "$CF1" "$CF2"; exit 1; }
+CR1=$("$SK/discovery/scripts/file-record.sh" "$CA" "$CQ1" --record ADR --title "Sync engine" --body "$T/cr.md" --model smoke)
+CR2=$("$SK/discovery/scripts/file-record.sh" "$CA" "$CQ1" --record ADR --title "Sync cache" --body "$T/cr.md" --supersedes "$(cc "$CR1")" --model smoke)
+CR3=$("$SK/discovery/scripts/file-record.sh" "$CA" "$CQ1" --record PDR --title "Sync is free" --body "$T/cr.md" --model smoke)
+RF1=$(ls "$CA"/*/"$(cc "$CR1")"/index.md); RF2=$(ls "$CA"/*/"$(cc "$CR2")"/index.md); RF3=$(ls "$CA"/*/"$(cc "$CR3")"/index.md)
+{ grep -qx 'cite-as: ADR1' "$RF1" && grep -qx 'title: "Sync engine"' "$RF1" && grep -qx 'cite-as: ADR2' "$RF2" && grep -qx 'cite-as: PDR1' "$RF3" && grep -qx 'title: "Sync is free"' "$RF3" \
+  && grep -qx 'cite ADR1' <<<"$CR1" && grep -qx 'cite PDR1' <<<"$CR3" && [ "$(ls "$(dirname "$RF2")"/relations/*/index.md | wc -l | tr -d ' ')" -eq 1 ]; } || { echo "records not minted ADR1, ADR2, PDR1:"; head -9 "$RF1" "$RF2" "$RF3"; exit 1; }
+[ "$(grep -h '^cite-as:' "$CA"/*/*/index.md | wc -l | tr -d ' ')" -eq 5 ] && [ -z "$(grep -h '^cite-as:' "$CA"/*/*/index.md | sort | uniq -d)" ] || { echo "citations not five and distinct"; exit 1; }
+CP="$T/CiteA Plan.lanework"; "$PS/found-plan-board.sh" "$CP" --model smoke >/dev/null; mkguide "$CP" 117
+CT1=$("$PS/file-ticket.sh" "$CP" "Engine: placement" --type grilling --body "$T/ct.md" --model smoke); CT2=$("$PS/file-ticket.sh" "$CP" "Rate limits" --type research --body "$T/ct.md" --model smoke)
+TF1=$(ls "$CP"/*/"$(cc "$CT1")"/index.md); TF2=$(ls "$CP"/*/"$(cc "$CT2")"/index.md)
+{ grep -qx 'cite-as: T1' "$TF1" && grep -qxF 'title: "Engine: placement"' "$TF1" && grep -qx 'cite-as: T2' "$TF2" && grep -qx 'title: "Rate limits"' "$TF2" && grep -qx 'T1 -> Frontier' <<<"$CT1"; } || { echo "tickets not minted T1, T2 with bare titles:"; echo "$CT1"; head -8 "$TF1"; exit 1; }
+validate "$CA" >/dev/null; validate "$CP" >/dev/null; ok "cite v117 mint: file-question, file-record and file-ticket write cite-as (Q1 Q2, ADR1 ADR2 PDR1, T1 T2) with a bare title and print it; --supersedes still works; both boards validate with five distinct citations"
+# cite-as: a number is never reissued: a trashed card's, a trashed lane's, or a legacy title prefix's
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"
+cq() { "$SK/discovery/scripts/file-question.sh" "$1" "$2" --round 1 --body "$T/cq.md" --model smoke 2>&1; }
+cc() { head -1 <<<"$1" | sed 's#.*/##'; }
+cite_of_card() { sed -n 's/^cite-as: //p' "$(ls "$1"/*/"$2"/index.md "$1"/.trash/"$2"/index.md "$1"/.trash/*/"$2"/index.md 2>/dev/null | head -1)"; }
+CB="$T/CiteB Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$CB" --model smoke >/dev/null; mkguide "$CB" 117
+BQ1=$(cc "$(cq "$CB" one)"); BQ2=$(cc "$(cq "$CB" two)")
+mkdir -p "$CB/.trash"; mv "$(ls -d "$CB"/*/"$BQ2")" "$CB/.trash/"
+BO3=$(cq "$CB" three); BQ3=$(cc "$BO3")
+[ "$(cite_of_card "$CB" "$BQ3")" = Q3 ] && grep -qx 'cite Q3' <<<"$BO3" || { echo "a flat-trashed Q2 was reissued:"; echo "$BO3"; exit 1; }
+BL=$(uuidgen | tr A-Z a-z); mkdir -p "$CB/.trash/$BL"
+printf -- '---\nschema: 1\nkind: lane\ntitle: "Gone"\norder: 9000\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\n' > "$CB/.trash/$BL/index.md"
+mv "$(ls -d "$CB"/*/"$BQ3")" "$CB/.trash/$BL/"
+BO4=$(cq "$CB" four); [ "$(cite_of_card "$CB" "$(cc "$BO4")")" = Q4 ] || { echo "a card in a trashed lane was reissued:"; echo "$BO4"; exit 1; }
+BL2=$(uuidgen | tr A-Z a-z); ASKED=$(dirname "$(ls -d "$CB"/*/"$BQ1")"); mkdir -p "$ASKED/$BL2"
+printf -- '---\nschema: 1\nkind: card\ntitle: "Q7: old"\norder: 9000\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nlegacy\n' > "$ASKED/$BL2/index.md"
+BO8=$(cq "$CB" eight); [ "$(cite_of_card "$CB" "$(cc "$BO8")")" = Q8 ] || { echo "a legacy Q7: title did not count:"; echo "$BO8"; exit 1; }
+( . "$SK/lanework/scripts/lib.sh"
+  [ "$(next_cite "$CB" Q)" = Q9 ] && [ "$(next_cite "$CB" ADR)" = ADR1 ] && [ "$(next_cite "$CB" T)" = T1 ] || { echo "next_cite: Q=$(next_cite "$CB" Q) ADR=$(next_cite "$CB" ADR) T=$(next_cite "$CB" T)"; exit 1; }
+  [ "$(cite_of "$ASKED/$BL2/index.md")" = "" ] && [ "$(card_ref "$ASKED/$BL2/index.md")" = "Q7: old" ] && [ "$(cite_of "$(ls "$CB"/*/"$BQ1"/index.md)")" = Q1 ] && [ "$(card_ref "$(ls "$CB"/*/"$BQ1"/index.md)")" = Q1 ] \
+    || { echo "cite_of/card_ref wrong"; exit 1; }
+  printf -- '---\nschema: 1\nkind: card\ntitle: "A [x] \\\\ b"\n---\n' > "$T/ref.md"; [ "$(card_ref "$T/ref.md")" = 'A \[x\] \\ b' ] || { echo "card_ref did not escape: $(card_ref "$T/ref.md")"; exit 1; } )
+validate "$CB" >/dev/null; ok "cite trash and legacy scan: a flat-trashed Q2 and a Q3 in a trashed lane are not reissued, a legacy Q7: title makes the next Q8; next_cite counts per prefix, cite_of and card_ref read the key, else the escaped title"
+# cite-as: a board on an older guide, or with no readable stamp, is filed as before
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Sync is free.\n' > "$T/cr.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
+cc() { head -1 <<<"$1" | sed 's#.*/##'; }
+for g in 114 116 none; do
+  CD="$T/CiteC$g Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$CD" --model smoke >/dev/null; [ "$g" = none ] || mkguide "$CD" "$g"
+  O=$("$SK/discovery/scripts/file-question.sh" "$CD" "Pricing" --round 1 --body "$T/cq.md" --model smoke 2>&1); Q=$(cc "$O")
+  R=$("$SK/discovery/scripts/file-record.sh" "$CD" "$Q" --record ADR --title "Sync engine" --body "$T/cr.md" --model smoke)
+  CPL="$T/CiteC$g Plan.lanework"; "$PS/found-plan-board.sh" "$CPL" --model smoke >/dev/null; [ "$g" = none ] || mkguide "$CPL" "$g"
+  TO=$("$PS/file-ticket.sh" "$CPL" "Engine" --type grilling --body "$T/ct.md" --model smoke)
+  { grep -qx 'title: "Q1: Pricing"' "$CD"/*/"$Q"/index.md && grep -qx 'title: "ADR: Sync engine"' "$CD"/*/"$(cc "$R")"/index.md && grep -qx 'title: "T1: Engine"' "$CPL"/*/"$(cc "$TO")"/index.md \
+    && ! grep -q '^cite' <<<"$O$R" && [ -z "$(grep -l '^cite-as:' "$CD"/*/*/index.md "$CPL"/*/*/index.md || true)" ] \
+    && grep -qxF "Question: [Q1: Pricing](lanework://$(sed -n 's/^id: //p' "$CD/index.md")/$Q)" "$CD"/*/"$(cc "$R")"/index.md; } \
+    || { echo "board with guide $g was not filed as before:"; echo "$O$R$TO"; exit 1; }
+  validate "$CD" >/dev/null; validate "$CPL" >/dev/null
+done
+ok "cite v114 and unreadable stamp: on a v114 board, a v116 board and one with no stamp, the same filings keep Q1:, ADR: and T1: titles, write no cite-as and print no citation"
+# cite-as: links and listings use the citation
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Sync is free.\n' > "$T/cr.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
+cc() { head -1 <<<"$1" | sed 's#.*/##'; }
+CL="$T/CiteD Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$CL" --model smoke >/dev/null; mkguide "$CL" 117; LBID=$(sed -n 's/^id: //p' "$CL/index.md")
+LQ=$(cc "$("$SK/discovery/scripts/file-question.sh" "$CL" "Pricing" --round 1 --body "$T/cq.md" --model smoke 2>&1)")
+LR=$(cc "$("$SK/discovery/scripts/file-record.sh" "$CL" "$LQ" --record ADR --title "Sync engine" --body "$T/cr.md" --model smoke)")
+[ "$(awk '/^---$/ { n++; next } n == 2 && NF { print; exit }' "$CL"/*/"$LR"/index.md)" = "Question: [Q1](lanework://$LBID/$LQ)" ] || { echo "record line 1 does not link [Q1]"; exit 1; }
+RB=$("$SK/lanework/scripts/read-board.sh" "$CL"); grep -qE "^   [0-9.]+ +Q1: Pricing  \[${LQ:0:8}\]$" <<<"$RB" || { echo "read-board.sh does not print Q1 before the title:"; echo "$RB"; exit 1; }
+CP="$T/CiteD Plan.lanework"; "$PS/found-plan-board.sh" "$CP" --model smoke >/dev/null; mkguide "$CP" 117; PBID=$(sed -n 's/^id: //p' "$CP/index.md")
+LT1=$(cc "$("$PS/file-ticket.sh" "$CP" "Engine: placement" --type grilling --body "$T/ct.md" --model smoke)"); LT2=$(cc "$("$PS/file-ticket.sh" "$CP" "Rate limits" --type research --body "$T/ct.md" --model smoke)")
+LT3=$(cc "$("$PS/file-ticket.sh" "$CP" "Both" --type task --body "$T/ct.md" --depends "lanework://$PBID/$LT1" --depends "lanework://$PBID/$LT2" --model smoke)")
+{ grep -qxF -- "- [T1](lanework://$PBID/$LT1)" "$CP"/*/"$LT3"/index.md && grep -qxF -- "- [T2](lanework://$PBID/$LT2)" "$CP"/*/"$LT3"/index.md; } || { echo "Depends on lines are not citation links:"; cat "$CP"/*/"$LT3"/index.md; exit 1; }
+FO=$("$PS/frontier.sh" "$CP" 2>"$T/cdrift.txt")
+{ grep -qxF "T1: Engine: placement  [${LT1:0:8}](lanework://$PBID/$LT1)" <<<"$FO" && grep -qxF "T3: Both  [${LT3:0:8}](lanework://$PBID/$LT3)" <<<"$FO" && grep -qxF '    waits on T1 (Frontier)' <<<"$FO" && [ ! -s "$T/cdrift.txt" ]; } || { echo "frontier.sh does not show the citation:"; echo "$FO"; cat "$T/cdrift.txt"; exit 1; }
+# a Blocked ticket moved to Frontier by hand while its dependencies are open: the drift warning names the citation
+mv "$(ls -d "$CP"/*/"$LT3")" "$(dirname "$(ls -d "$CP"/*/"$LT1")")/"; "$PS/frontier.sh" "$CP" >/dev/null 2>"$T/cdrift.txt"
+grep -qxF 'frontier.sh: drift: T3 is on the Frontier with a dependency open: T1 (Frontier) T2 (Frontier)' "$T/cdrift.txt" || { echo "frontier.sh warning does not name the citations:"; cat "$T/cdrift.txt"; exit 1; }
+ok "cite links: Depends on lines and a record's first line are [T1](…) and [Q1](…); frontier.sh and read-board.sh print the citation before the title, and its listing and drift warning name the citation"
+# cite-as: resolving a ticket with a bare title names the citation, not the title
+printf 'Where does the engine run?\n' > "$T/ct.md"; printf '**2026-11-17**: Done.\n' > "$T/cres.md"
+cc() { head -1 <<<"$1" | sed 's#.*/##'; }
+CP="$T/CiteE Plan.lanework"; "$PS/found-plan-board.sh" "$CP" --model smoke >/dev/null; mkguide "$CP" 117; PBID=$(sed -n 's/^id: //p' "$CP/index.md")
+ET1=$(cc "$("$PS/file-ticket.sh" "$CP" "Engine: placement" --type grilling --body "$T/ct.md" --model smoke)")
+ET2=$(cc "$("$PS/file-ticket.sh" "$CP" "Wire: both" --type task --body "$T/ct.md" --depends "lanework://$PBID/$ET1" --model smoke)")
+ET3=$(cc "$("$PS/file-ticket.sh" "$CP" "Third, no colon" --type task --body "$T/ct.md" --depends "lanework://$PBID/$ET1" --model smoke)")
+# T2 and T3 are written as a v117 board holds them: a bare title and the key (this case is resolve-ticket.sh's, not file-ticket.sh's)
+for e in "$ET2|T2|Wire: both" "$ET3|T3|Third, no colon"; do
+  IFS='|' read -r id ci ti <<<"$e"; perl -pi -e 's/^title: ".*"$/title: "'"$ti"'"\ncite-as: '"$ci"'/' "$(ls "$CP"/*/"$id"/index.md)"
+done
+grep -qx 'cite-as: T2' "$(ls "$CP"/*/"$ET2"/index.md)" && grep -qx 'title: "Wire: both"' "$(ls "$CP"/*/"$ET2"/index.md)" || { echo "fixture not written"; exit 1; }
+"$PS/claim-ticket.sh" "$CP" "$ET1" --model smoke >/dev/null
+RO=$("$PS/resolve-ticket.sh" "$CP" "$ET1" --resolution "$T/cres.md" --model smoke)
+{ grep -qx 'unblocked T2' <<<"$RO" && grep -qx 'unblocked T3' <<<"$RO" && ! grep -q -e 'Wire' -e 'Third' <<<"$RO"; } || { echo "resolve-ticket.sh did not name the citations:"; echo "$RO"; exit 1; }
+validate "$CP" >/dev/null; ok "cite resolve unblocked: resolving T1 prints unblocked T2 and unblocked T3 for bare titles (one with a colon), never the title"
+# cite-as: a zero-padded number is decimal, and a prefix counts only its own cards
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"
+cc() { head -1 <<<"$1" | sed 's#.*/##'; }
+cardwith() {  # cardwith <board> <lane card path> <title> [cite-as]: a hand-written card
+  mkdir -p "$2"; { printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\n' "$3"; [ -z "${4:-}" ] || printf 'cite-as: %s\n' "$4"
+    printf 'order: 9000\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nx\n'; } > "$2/index.md"; }
+CZ="$T/CiteZ Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$CZ" --model smoke >/dev/null; mkguide "$CZ" 117
+ZL=$(dirname "$(ls -d "$CZ"/*/ | sed -n 3p | sed 's#/$##')")/$(basename "$(ls -d "$CZ"/*/ | sed -n 3p | sed 's#/$##')")
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "nine" ADR9; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "padded" ADR010
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Topic tail" Topic; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "frodo" FR12; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "pdr" PDR4
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "tail of Q" DQ50; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "tail of ADR" XADR40
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Q08" Q08; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Q09: legacy"
+( . "$SK/lanework/scripts/lib.sh"
+  got="ADR=$(next_cite "$CZ" ADR) Q=$(next_cite "$CZ" Q) T=$(next_cite "$CZ" T) F=$(next_cite "$CZ" F) PDR=$(next_cite "$CZ" PDR)"
+  [ "$got" = "ADR=ADR11 Q=Q10 T=T1 F=F1 PDR=PDR5" ] || { echo "next_cite miscounted: $got"; exit 1; } )
+ZO=$("$SK/discovery/scripts/file-question.sh" "$CZ" "after padding" --round 1 --body "$T/cq.md" --model smoke 2>&1); grep -qx 'cite Q10' <<<"$ZO" || { echo "file-question.sh on a padded board:"; echo "$ZO"; exit 1; }
+validate "$CZ" >/dev/null; ok "cite padded and prefix: ADR9 beside ADR010 mints ADR11, Q08 and a Q09: title mint Q10, and a prefix ignores the numbers of Topic, FR12, DQ50, XADR40 and the other prefixes; file-question.sh files Q10 on that board"
+
 # plugin: the manifest agrees with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
 import json, os, sys

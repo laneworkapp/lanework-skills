@@ -2,8 +2,9 @@
 # file-record.sh: file an ADR or PDR card into Decisions from a question's ruling, before it settles.
 # usage: file-record.sh <board> <question-card-uuid> --record ADR|PDR --title t --body F \
 #          [--from <lane title>] [--supersedes <record-uuid>]... --model m [--name n] [--session s]
-# Card frontmatter from templates/record.md (title "<ADR|PDR>: <t>", flattened `Record` and
-# `accepted` status labels), body = line 1 linking the question, then --body. Lands at the
+# Card frontmatter from templates/record.md (flattened `Record` and `accepted` status labels), body = line 1 linking the question
+# (link text: its citation, else its title), then --body. On a board whose app draws `cite-as` (lib.sh `cite_enabled`) the card gets `cite-as: ADR<n>` or
+# `PDR<n>` (lanework/references/writes.md), a bare title, and a second printed line `cite ADR<n>`; on any other board the title is "<ADR|PDR>: <t>". Lands at the
 # bottom of Decisions (its card-defaults labels unioned in), staged outside the board. Prints the card's lanework:// link: put it
 # in the ruling (templates/ruling.md). Run before settle-question.sh: the question must still be
 # in Asked (a settled card is never edited), or in the --from lane (plan: Working). No waiting, no comments.
@@ -46,18 +47,22 @@ done
 QCARD="$SRC/$QID"
 [ -f "$QCARD/index.md" ] || { echo "file-record.sh: $QID is not a card in $FROM (file the record before it leaves $FROM)" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
-QTITLE=$(strip_quotes "$(fm_value "$QCARD/index.md" title)" | perl -pe 's/\\(.)/$1/g; s/([\\\[\]])/\\$1/g')
-CTITLE=$(title_str "$TITLE")
+QTITLE=$(card_ref "$QCARD/index.md")
 
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); CARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-record.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 C="$STAGE/$CARD_ID"; mkdir -p "$C"
 
-frontmatter_of "$TEMPLATES/record.md" > "$STAGE/fm.md"
-render "$STAGE/fm.md" kind "$KIND" rank "$RANK" title "$CTITLE" order "$(next_order "$DEC")" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
+if cite_enabled "$BOARD"; then   # the citation is scanned later (stamp_cite), just before the card is written
+  CITE=CITEPENDING; CTITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/record.md" > "$STAGE/fm.md"
+else
+  CITE=""; CTITLE="$KIND: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/record.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
+fi
+render "$STAGE/fm.md" kind "$KIND" cite "$CITE" rank "$RANK" title "$CTITLE" order "$(next_order "$DEC")" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-record.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
 union_lane_defaults "$DEC" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
+if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" "$KIND"); fi   # scanned here, after the slow steps
 {
   cat "$STAGE/fm.out"
   printf 'Question: [%s](lanework://%s/%s)\n\n' "$QTITLE" "$BOARD_ID" "$QID"
@@ -72,3 +77,4 @@ done
 DEC=$(lane_by_title "$BOARD" Decisions)
 mv "$C" "$DEC/$CARD_ID"
 printf 'lanework://%s/%s\n' "$BOARD_ID" "$CARD_ID"
+if [ -n "$CITE" ]; then printf 'cite %s\n' "$CITE"; fi

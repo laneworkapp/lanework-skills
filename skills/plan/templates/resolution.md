@@ -6,8 +6,8 @@ The `--resolution` file for `scripts/resolve-ticket.sh`, which writes the `## Re
 
 ```markdown
 **<YYYY-MM-DD>**: The engine runs in the app, as recommended. "<owner's words>"
-ADR: [ADR: Engine lives in the app](lanework://<board>/<card>)
-PDR: [PDR: Sync is free](lanework://<board>/<card>)
+ADR: [ADR1](lanework://<board>/<card>)
+PDR: [PDR1](lanework://<board>/<card>)
 Glossary: **Tracker**, **Remote** in CONTEXT.md
 Assets: `outline.md`, attached to the comment above
 ```
@@ -24,6 +24,6 @@ A Task handed to the owner as a checklist: their words, as HITL.
 ## Moot, out of scope
 
 ```markdown
-**<YYYY-MM-DD>**: Moot: no server, so nothing to host. Decided by [T1: Where the engine runs](lanework://<board>/<card>).
+**<YYYY-MM-DD>**: Moot: no server, so nothing to host. Decided by [T1](lanework://<board>/<card>).
 **<YYYY-MM-DD>**: Out of scope: past the destination, which covers cloud trackers only. "<owner's words, when the owner ruled>"
 ```

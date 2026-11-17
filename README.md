@@ -28,15 +28,15 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 356 | 4,379 |
-| `work` | 16 | 434 | 7,150 |
+| `lanework` | 10 | 356 | 4,488 |
+| `work` | 16 | 434 | 7,179 |
 | `watch` | 4 | 180 | 1,602 |
-| `discovery` | 14 | 502 | 2,906 |
-| `plan` | 9 | 453 | 2,675 |
+| `discovery` | 14 | 502 | 2,908 |
+| `plan` | 9 | 453 | 2,668 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10 (`watch`, `lanework` and `work` on 2026-11-17, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` and `plan` on 2026-11-17, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -48,11 +48,11 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework` and `work` on 2026-11-1
 | `references/finding.md` | 386 |
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
-| `references/reading.md` | 142 |
-| `references/writes.md` | 1,184 |
+| `references/reading.md` | 150 |
+| `references/writes.md` | 1,285 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **4,379** |
+| **total** | **4,488** |
 
 #### `work`
 
@@ -68,13 +68,13 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework` and `work` on 2026-11-1
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
-| `references/writing.md` | 1,317 |
+| `references/writing.md` | 1,346 |
 | `templates/ask.md` | 306 |
 | `templates/farmed-prompt.md` | 167 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **7,150** |
+| **total** | **7,179** |
 
 #### `watch`
 
@@ -91,35 +91,35 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework` and `work` on 2026-11-1
 | file | words |
 |---|---|
 | `SKILL.md` | 502 |
-| `references/board.md` | 347 |
+| `references/board.md` | 350 |
 | `references/conduct.md` | 157 |
 | `references/corners.md` | 171 |
-| `references/records.md` | 568 |
-| `references/rounds.md` | 319 |
-| `templates/fact-card.md` | 48 |
+| `references/records.md` | 573 |
+| `references/rounds.md` | 317 |
+| `templates/fact-card.md` | 49 |
 | `templates/glossary.md` | 46 |
 | `templates/lanes.md` | 368 |
-| `templates/map-card.md` | 92 |
+| `templates/map-card.md` | 94 |
 | `templates/question-card.md` | 66 |
 | `templates/record.md` | 91 |
-| `templates/ruling.md` | 66 |
-| `templates/topic-card.md` | 65 |
-| **total** | **2,906** |
+| `templates/ruling.md` | 58 |
+| `templates/topic-card.md` | 66 |
+| **total** | **2,908** |
 
 #### `plan`
 
 | file | words |
 |---|---|
 | `SKILL.md` | 453 |
-| `references/board.md` | 341 |
-| `references/map.md` | 308 |
+| `references/board.md` | 338 |
+| `references/map.md` | 316 |
 | `references/sessions.md` | 385 |
 | `references/tickets.md` | 480 |
 | `templates/lanes.md` | 402 |
 | `templates/map-card.md` | 101 |
-| `templates/resolution.md` | 156 |
+| `templates/resolution.md` | 144 |
 | `templates/ticket-card.md` | 49 |
-| **total** | **2,675** |
+| **total** | **2,668** |
 
 #### `merge`
 

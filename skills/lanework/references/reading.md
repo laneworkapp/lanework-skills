@@ -6,7 +6,7 @@ Lanes left → right by ascending `order`; cards top → bottom by `order` withi
 
 ## One pass
 
-`scripts/read-board.sh <board>` prints every lane and card in that order, with short ids. Then read, in order: board body, lane bodies, the cards you care about.
+`scripts/read-board.sh <board>` prints every lane and card in that order, with each card's `cite-as` before its title and its short id. Then read, in order: board body, lane bodies, the cards you care about.
 
 ## Rules
 

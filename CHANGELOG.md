@@ -2,6 +2,8 @@
 
 Version 0.9.0: the dispatch skill is retired; use /lanework:watch instead, which now catches up when it starts.
 
+Question, ticket and decision cards filed on a board whose app shows card citations now carry a citation such as Q3, T2 or ADR1 in place of a number in the title, and links to a card are labelled with it.
+
 Agents now file, move and commit cards with ready-made scripts, so moves show who made them and board commits leave your other files alone.
 
 /lanework:watch now answers comments you left while no watch was running, in every lane except Done, and reports work claims that look abandoned.
