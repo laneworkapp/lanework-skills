@@ -1556,8 +1556,8 @@ EOF
 if command -v claude >/dev/null; then
   V=$(claude plugin validate "$ROOT" 2>&1) || { echo "$V"; echo "plugin validate failed"; exit 1; }
   # newer CLIs append a "Plugin directory checks" section (catalog advice such as ICON_MISSING)
-  # that, in its own words, does not change the result: only warnings above it count
-  W=$(printf '%s\n' "$V" | sed '/^Plugin directory checks/,$d' | grep -E '^ +❯ ' | grep -v -F 'root: CLAUDE.md at the plugin root is not loaded as project context' || true)
+  # that, in its own words, does not change the result, and a "Provides:" list of the skills; only warnings above both count
+  W=$(printf '%s\n' "$V" | sed '/^Provides:/,$d' | grep -E '^ +❯ ' | grep -v -F 'root: CLAUDE.md at the plugin root is not loaded as project context' || true)
   [ -z "$W" ] || { echo "$V"; echo "plugin validate: unexpected warning"; exit 1; }
 fi
 ok "plugin manifests match the skills folders and validate"
