@@ -979,6 +979,9 @@ A8=e1000000-0000-4000-8000-000000000008; acard Shaping $A8 "Shaping: START only,
 # a lapsed lease (until 10 minutes ago), and an until 50 minutes ahead (over the 35-minute clock guard: no lease)
 AL2=e1000000-0000-4000-8000-000000000021; acard Shaping $AL2 "Shaping: lapsed lease" 5120 "$DN10"
 AL3=e1000000-0000-4000-8000-000000000022; acard Shaping $AL3 "Shaping: until too far ahead" 6144 "$UP50"; acom Shaping $AL3 f1000000-0000-4000-8000-000000000010 "$NOWS" "$AGENT" "" "**START: x.**"
+# two cards with one title, one leased: the lease joins by uuid, never by title
+AT1=e1000000-0000-4000-8000-000000000024; acard Shaping $AT1 "Shaping: twin title" 7168 "$UP20"
+AT2=e1000000-0000-4000-8000-000000000025; acard Shaping $AT2 "Shaping: twin title" 8192
 A9=e1000000-0000-4000-8000-000000000009; acard Approved $A9 "Approved: top" 1024;        acard Approved e1000000-0000-4000-8000-00000000000a "Approved: second" 2048
 AB1=e1000000-0000-4000-8000-00000000000b; acard Active $AB1 "Active: closed START" 1024; acom Active $AB1 f1000000-0000-4000-8000-00000000000b "$OLD3H" "$AGENT" "" "**START: building.**"; acom Active $AB1 f1000000-0000-4000-8000-00000000000c "$OLD2H" "$AGENT" "" "**Merged: landed.**"
 # a live lease (until 20 minutes ahead), alone and with an unanswered owner comment
@@ -1008,6 +1011,8 @@ exp=$(cm Ideas $A1 "Ideas: owner question" f1000000-0000-4000-8000-000000000001
   cm Shaping $A8 "Shaping: START only, owner waiting" f1000000-0000-4000-8000-00000000000a
   al stale $AL2 Shaping "Shaping: lapsed lease" - Xm
   al arm $AL3 Shaping "Shaping: until too far ahead" - -
+  al held $AT1 Shaping "Shaping: twin title" - Xm
+  al arm $AT2 Shaping "Shaping: twin title" - -
   cm Proposed $A3 "Proposed: owner question" f1000000-0000-4000-8000-000000000004
   al arm $A9 Approved "Approved: top" - -
   al arm $AB1 Active "Active: closed START" - -
@@ -1040,10 +1045,17 @@ ok "arm-pass.sh: leaves every card file byte-identical"
 [ "$("$AP" "$AB" Ideas | grep '^arm' | cut -f3-4)" = "$(printf '%s\tIdeas' $A2)" ] || { echo "arm-pass.sh: the agent lane titles on the command line are ignored"; exit 1; }
 ! "$AP" "$T" 2>/dev/null || { echo "arm-pass.sh accepted a non-board"; exit 1; }
 ok "arm-pass.sh: lane titles on the command line replace the board-kinds.md agent rows; a non-board exits non-zero"
+# two cards sharing a title, one leased: the leased one is held, the other an arm
+{ grep -qE "^held	$AN	$AT1	" <<<"$AO" && grep -qE "^arm	$AN	$AT2	" <<<"$AO" && ! grep -qE "^(held|stale)	$AN	$AT2	" <<<"$AO" && ! grep -qE "^arm	$AN	$AT1	" <<<"$AO"; } || { echo "two cards with one title, one leased: the lease must join by uuid:"; echo "$AO"; exit 1; }
+ok "arm-pass.sh: of two cards sharing a title, the leased one prints held and the other arm (the lease joins by uuid)"
 # lease.sh missing: no lease is known, so no arm, held or stale line; the comment lines still print, exit 1, a note on stderr
 SNL="$T/skills-nolease"; cp -R "$SK" "$SNL"; rm "$SNL/lanework/scripts/lease.sh"; rc=0; out=$("$SNL/watch/scripts/arm-pass.sh" "$AB" 2>"$T/arm.err") || rc=$?
 { [ "$rc" = 1 ] && grep -q '^comment	' <<<"$out" && ! grep -qE '^(arm|held|stale)	' <<<"$out" && grep -q 'lease.sh list failed or is missing' "$T/arm.err"; } || { echo "arm-pass.sh without lease.sh (rc=$rc):"; echo "$out"; cat "$T/arm.err"; exit 1; }
 ok "arm-pass.sh: with lease.sh missing it prints comment lines only, says so on stderr and exits 1"
+# lease.sh list failing: its own stderr reaches ours, beside the arm-pass note
+printf '#!/bin/bash\necho "boom: no lease today" >&2\nexit 1\n' > "$SNL/lanework/scripts/lease.sh"; rc=0; out=$("$SNL/watch/scripts/arm-pass.sh" "$AB" 2>"$T/arm.err") || rc=$?
+{ [ "$rc" = 1 ] && ! grep -qE '^(arm|held|stale)	' <<<"$out" && grep -q 'boom: no lease today' "$T/arm.err" && grep -q 'lease.sh list failed or is missing' "$T/arm.err"; } || { echo "arm-pass.sh with a failing lease.sh list (rc=$rc):"; cat "$T/arm.err"; exit 1; }
+ok "arm-pass.sh: a failing lease.sh list has its own stderr passed through, beside the arm-pass note, and exit 1"
 validate "$AB" >/dev/null; ok "the arm-pass fixture board validates"
 
 # merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
@@ -1076,7 +1088,7 @@ ok "the lane -> actor table lives only in board-kinds.md, with a row per pipelin
 
 { ! grep -q 'a move' <(grep -E '^6\. ' "$SK/watch/references/events.md") && ! grep -qiE 'requested' <(grep '^description:' "$SK/watch/SKILL.md") &&
   grep -q 'Arming pass' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md" &&
-  grep -q 'no valid lease' "$SK/watch/references/arming.md" && grep -q 'companions.md' "$SK/watch/references/responding.md" && ! grep -q 'Ideas, Proposed' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
+  grep -q 'no lease (none' "$SK/watch/references/arming.md" && grep -q 'companions.md' "$SK/watch/references/responding.md" && ! grep -q 'Ideas, Proposed' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
 ok "watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move"
 
 EV="$SK/watch/references/events.md"
@@ -1084,7 +1096,7 @@ EV="$SK/watch/references/events.md"
 ok "watch events: a move receipt is a record and moved.by names the mover"
 # 8: watch prose: the lease is the claim; its rules are linked, never restated; a subagent never stakes
 WR="$SK/watch/references/responding.md"; WS="$SK/watch/SKILL.md"
-{ grep -q '`held`' "$SK/watch/references/arming.md" && grep -q 'no valid lease' "$SK/watch/references/arming.md" \
+{ grep -q '`held`' "$SK/watch/references/arming.md" && grep -q 'no lease (none' "$SK/watch/references/arming.md" \
   && ! { grep -rhw 'START' "$SK/watch" | grep -qv 'no claim\|not a claim'; } && ! grep -rq 'STALE_MINUTES' "$SK/watch" \
   && grep -q 'writes.md` § Lease' "$SK/watch/references/arming.md" && grep -q 'writes.md` § Lease' "$WR" \
   && grep -q 'lease.sh stake' "$WR" && grep -q 'held by another session' "$WR" && grep -q 'lease.sh release' "$WR" && grep -q 'never to stake' "$WR" && grep -q 'farmed-prompt.md' "$WR" \
