@@ -1,7 +1,7 @@
 #!/bin/bash
 # release.sh: cut a release of the lanework plugin from main.
 # usage: scripts/release.sh <version> [--dry-run]
-# Checks: on main, in sync with origin, no tracked changes outside the board folder (Lanework/, or legacy Pitlane/), tag unused,
+# Checks: on main, in sync with origin, no tracked changes outside the board folder (Lanework/, Boards/, or legacy Pitlane/), tag unused,
 # version not below plugin.json's, CHANGELOG.md carries a "Version <version>:" entry, smoke green.
 # Warns (stderr, never stops, never changes the exit code) when the Skills Pipeline board's guide or schema, in the
 # working tree or in HEAD, is ahead of the stamp in CLAUDE.md; runs before the checks above, in --dry-run too.
@@ -17,7 +17,7 @@ die() { echo "release.sh: $*" >&2; exit 1; }
 TAG="v$V"; M=.claude-plugin/plugin.json
 
 # advisory: board guide/schema ahead of the stamp in CLAUDE.md (working tree and HEAD); a warning, never a stop
-BD="Lanework/Skills Pipeline.lanework"
+BD="Boards/Skills Pipeline.lanework"
 ver() { grep -o -E "$1 v[0-9]+" | grep -o -E '[0-9]+$' | head -1 || true; }
 SG=$(cat CLAUDE.md 2>/dev/null | ver lanework-agent-guide || true); SS=$(cat CLAUDE.md 2>/dev/null | ver lanework-schema || true)
 for WHERE in "the working tree" HEAD; do
@@ -29,7 +29,7 @@ for WHERE in "the working tree" HEAD; do
 done
 
 [ "$(git symbolic-ref --short HEAD)" = main ] || die "not on main"
-[ -z "$(git status --porcelain --untracked-files=no -- . ':!Lanework' ':!Pitlane')" ] || die "tracked changes outside Lanework/ and Pitlane/; commit or drop them first"
+[ -z "$(git status --porcelain --untracked-files=no -- . ':!Lanework' ':!Boards' ':!Pitlane')" ] || die "tracked changes outside Lanework/, Boards/ and Pitlane/; commit or drop them first"
 git fetch -q origin main
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || die "main and origin/main differ; pull or push first"
 ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || die "$TAG already exists"

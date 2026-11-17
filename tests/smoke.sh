@@ -4,7 +4,7 @@
 # The validator is borrowed from the Skills Pipeline board's app-installed .schema/.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
-VAL="$ROOT/Lanework/Skills Pipeline.lanework/.schema"
+VAL="$ROOT/Boards/Skills Pipeline.lanework/.schema"
 T="${1:-$(mktemp -d "${TMPDIR:-/tmp}/lanework-smoke.XXXXXX")}"
 pass=0
 ok() { pass=$((pass+1)); echo "ok $pass - $1"; }
@@ -1483,9 +1483,9 @@ fi
 
 # release.sh warns, never stops, when the board's guide or schema is ahead of the stamp: a scratch repo on a branch
 # other than main, so the run ends at its first hard check ("not on main") whether or not it warned
-R="$T/release-warn"; mkdir -p "$R/scripts" "$R/Lanework/Skills Pipeline.lanework/.schema"; cp "$ROOT/scripts/release.sh" "$R/scripts/"
+R="$T/release-warn"; mkdir -p "$R/scripts" "$R/Boards/Skills Pipeline.lanework/.schema"; cp "$ROOT/scripts/release.sh" "$R/scripts/"
 printf 'stamp: lanework-agent-guide v10, lanework-schema v1\n' > "$R/CLAUDE.md"
-printf '<!-- lanework-agent-guide v11 - app guide -->\n' > "$R/Lanework/Skills Pipeline.lanework/CLAUDE.md"; printf 'lanework-schema v1\n' > "$R/Lanework/Skills Pipeline.lanework/.schema/VERSION"
+printf '<!-- lanework-agent-guide v11 - app guide -->\n' > "$R/Boards/Skills Pipeline.lanework/CLAUDE.md"; printf 'lanework-schema v1\n' > "$R/Boards/Skills Pipeline.lanework/.schema/VERSION"
 git -C "$R" init -q -b scratch && git -C "$R" add -A && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m seed
 rw() { (cd "$R" && scripts/release.sh 9.9.9 --dry-run 2>&1 >/dev/null; echo "exit $?"); }
 W=$(rw); WC=$(grep -c 'warning: the board in' <<<"$W" || true)
@@ -1493,7 +1493,7 @@ W=$(rw); WC=$(grep -c 'warning: the board in' <<<"$W" || true)
 printf 'stamp: lanework-agent-guide v11, lanework-schema v1\n' > "$R/CLAUDE.md"
 W=$(rw); { ! grep -q warning <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should not warn when the stamp is current: $W"; exit 1; }
 # a missing board folder, or a board CLAUDE.md missing from HEAD, is no reason for the advisory block to stop the script
-git -C "$R" rm -q -r --cached "Lanework" >/dev/null && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m unboard && rm -rf "${R:?}/Lanework"
+git -C "$R" rm -q -r --cached "Boards" >/dev/null && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m unboard && rm -rf "${R:?}/Boards"
 W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no board folder: $W"; exit 1; }
 rm -f "$R/CLAUDE.md"; W=$(rw); { ! grep -q -i 'warning\|line [0-9]\|No such' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no CLAUDE.md: $W"; exit 1; }
 ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp, stays quiet when not, and exits the same either way"

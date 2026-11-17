@@ -9,7 +9,7 @@
 #   appside: side B is bytes the Lanework app wrote (tests/fixtures/app-writes/), side A is scripted edits to the same items
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
-VAL="$ROOT/Lanework/Skills Pipeline.lanework"
+VAL="$ROOT/Boards/Skills Pipeline.lanework"
 T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove, dirty or appside}"
 case "$MODE" in merge|rebase|nodriver|clean|rebasemove|dirty|appside) ;; *) echo "merge-case: unknown mode '$MODE'" >&2; exit 2 ;; esac
 . "$SK/lanework/scripts/lib.sh"
