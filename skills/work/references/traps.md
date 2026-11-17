@@ -15,6 +15,8 @@ Commands that return a **plausible answer to a different question**: mostly a fa
 | `xargs` on paths with spaces | splits the path. Loop, or `find -exec … {} +` |
 | `log show` in zsh | a **builtin**, returns nothing. `/usr/bin/log`, whole-second `--start` / `--end` |
 | filtering fswatch event paths | drops owner comments and card moves. Why: `watch/scripts/watch-boards.sh` header |
+| `while pgrep -f <pat>` | matches **itself**: the pattern sits on the calling shell's own command line, so the loop never ends. `kill -0 <pid>` (true on a zombie too) |
+| `grep … "$LANE"/*/index.md` | an empty lane matches nothing: `grep` reads stdin and hangs (zsh `nullglob`), or the shell stops with `no matches found`. Add `/dev/null` as an extra file. Filing a card: `scripts/file-card.sh` |
 
 ## Git
 
