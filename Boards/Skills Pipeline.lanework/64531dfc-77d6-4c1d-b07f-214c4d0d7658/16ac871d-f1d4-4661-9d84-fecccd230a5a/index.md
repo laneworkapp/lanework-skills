@@ -5,7 +5,7 @@ title: "Smoke's guide-version check has no positive control and skips scripts"
 order: 1024
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T01:34:03Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
-modified: {at: 2026-11-12T01:34:03Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-17T11:48:13Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 ---
 `tests/smoke.sh` checks that no skill file names a guide version (the stamp lives only in the repo `CLAUDE.md`). The check was widened in the guide v114 catch-up to catch a version written as a floor, such as "v105+", in any skill `.md`.
 
