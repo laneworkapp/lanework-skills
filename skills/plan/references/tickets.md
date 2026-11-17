@@ -25,14 +25,17 @@ Ticket = one question whose resolution is a decision, sized to one session. Card
 
 ## Claim
 
-- `scripts/claim-ticket.sh`: Frontier → Working + a Claimed comment, **before any work**. Refuses a card not in Frontier.
-- Concurrent sessions skip Working tickets. A HITL ticket waits there wearing `waiting`.
+- `scripts/claim-ticket.sh`, **before any work**: stakes the card's lease while it is in Frontier, then Frontier → Working + a Claimed comment. Lease rules: `lanework/references/writes.md` § Lease. The lane shows the stage; the lease, the one holder.
+- Refuses a card not in Frontier, one another session holds, or a session with no `CLAUDE_CODE_SESSION_ID`.
+- One machine: across machines a lease is a hint.
+- Concurrent sessions skip Working tickets. A HITL ticket waits there wearing `waiting`, **its lease released** before the session stops: `lanework/scripts/lease.sh release`.
+- **Resume** a Working ticket = stake again, no move, no claim: `lanework/scripts/lease.sh stake`.
 
 ## Resolve
 
 1. Resolution clears the bar (`discovery/references/records.md` § Bar) → file the ADR/PDR first: `discovery/scripts/file-record.sh <board> <ticket-uuid> --from Working …`. Its link goes in the Resolution.
 2. Write the Resolution: `templates/resolution.md`.
-3. `scripts/resolve-ticket.sh` → Resolved. Blocked tickets whose dependencies are all Resolved move to Frontier.
+3. `scripts/resolve-ticket.sh` → Resolved, the lease released in that write. Blocked tickets whose dependencies are all Resolved move to Frontier.
 
 - **Moot**: invalidated by another decision → resolve as `Moot: <why>`, linking the deciding ticket. Claim it first.
 - Missed record (ticket already Resolved) → a new ticket linking the old one files it.
