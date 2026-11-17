@@ -16,7 +16,17 @@ Each `/watch` argument is a board name or path:
 
 Then, **per board, now**: read the guide, the board body and **every lane body**, so later wake-ups act without re-reading. A lane body is the only place a lane says it's out of scope for agents.
 
-**Arming pass**: `agent` rows of the tables (`lanework/references/board-kinds.md`; board bodies win). Every unclaimed card there (no START or plan comment: `work/references/companions.md`) = work order, acted on as a move (`responding.md` § A move into an agent lane). No event fires for cards already sitting. Any other lane: no work order, report.
+## Arming pass
+
+Once per board, after the reads. No event fires for what is already sitting, so classify every card now: `scripts/arm-pass.sh <board>`, passing the board's own agent lane titles when its bodies name lanes other than the `agent` rows of `lanework/references/board-kinds.md`. A lane whose body puts it out of scope: its lines are skipped. Per line:
+
+| line | do |
+|---|---|
+| `comment` | read the card whole (`events.md` item 3). Already answered (a later agent record answers it, or its ruling is folded in the body) → no reply, one report line. Else answer it as a new owner comment (`responding.md`). A thread answered without `in-reply-to` prints this line falsely; reading the card catches it |
+| `arm` | an unclaimed card (no START or plan comment: `work/references/companions.md`) in an agent lane = work order, only when the lane body agrees and the card waits on nobody (no `waiting`): `responding.md` § A move into an agent lane. Else one report line |
+| `stale` | report only: lane, title, minutes quiet. Never released, never worked |
+
+Done is never swept. A card in a non-agent lane: no work order, report.
 
 ## Monitor
 
@@ -37,3 +47,4 @@ One persistent Monitor (`persistent: true`) for all boards:
 - The watch runs until TaskStop or session end. It dies with the session and must be re-armed after a resume (`/watch` again).
 - "Stop" tears it down (TaskStop). Watching fewer boards = stop and re-arm with the rest.
 - The Monitor **survives `/clear`**: events keep arriving without this context. After a clear, re-read each board's authority chain before acting on one, or tear the watch down if the user has moved on.
+- After a **compaction**, re-read each board's authority chain before acting, and re-derive work in flight (running builds, open claims, pending asks) from the board and git, never from the summary. A card path comes from `ls`, never from memory.
