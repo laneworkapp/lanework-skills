@@ -1,0 +1,82 @@
+ok 1 - syntax check on every script, by its shebang
+ok 2 - no skill folder or plugin.json entry is named pitlane, pitwall or dispatch
+ok 3 - legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop
+ok 4 - pipeline founded, 8 lanes read
+ok 5 - pipeline vars rendered
+ok 6 - pipeline lanes carry their template icons (Issues tinted, Ideas plain, all 8 set)
+ok 7 - pipeline board validates
+ok 8 - empty collapsed cell keeps the lane body in place
+ok 9 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 10 - collapsed: yes lane starts collapsed with its body; design-loop lanes carry icons, datapoint lanes none
+ok 11 - validator control: a bare-colon title fails
+ok 12 - refuses a non-empty board folder
+ok 13 - lease: stake writes claimed with by.session and until 30 minutes ahead; the board validates and the heal dry run lists nothing
+ok 14 - lease: no session id or no CLAUDE_PID is exit 2 and writes nothing
+ok 15 - lease: two racing stakes leave one holder
+ok 16 - lease: stake over another session's live lease is refused
+ok 17 - lease: renew moves until forward and restamps modified, and leaves the body byte for byte
+}}} in the body: stake rc 1, renew rc 1
+  ^ FAIL-BEFORE
+}}} in the body: check '' rc 1
+  ^ FAIL-BEFORE
+}}} in the body: release rc 1
+---
+schema: 1
+kind: card
+title: "Five b"
+order: 1024
+created:  {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}
+modified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}
+claimed:
+  by: {name: claude, kind: agent, model: smoke, session: "S-brace"}
+  until: 2026-11-17T15:27:25Z
+---
+Body line one.
+
+Body: two, with "quotes" and a trailing space. 
+
+```json
+{"a": {"b": {"c": 1}}}
+```
+  ^ FAIL-BEFORE
+ok 18 - lease: a card with }}} in its body is staked, renewed, checked and released, the body byte for byte
+stake on a remembered card with claimed gone: stake rc 0, check rc 0 'held', records 0
+---
+schema: 1
+kind: card
+title: "Six gone"
+order: 1024
+created:  {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}
+modified: {at: 2026-11-17T15:28:27Z, by: {name: claude, kind: agent, model: smoke, session: "S-six"}}
+claimed: {by: {name: "claude", kind: "agent", model: "smoke", session: "S-six"}, until: 2026-11-17T15:58:27Z}
+---
+Body line one.
+
+Body: two, with "quotes" and a trailing space. 
+  ^ FAIL-BEFORE
+ok 19 - lease: a changed by yields one Lease lost record naming branch, directory and files, and no further write; staking a remembered card whose claimed is gone is the same loss
+ok 20 - lease: the timer and six concurrent checks racing on one loss post exactly one Lease lost record
+no until: holder S-seven, ignored records 0
+  ^ FAIL-BEFORE
+ok 21 - lease: an until over 35 minutes ahead, or none, is no lease; stake posts Lease ignored
+ok 22 - lease: takeover posts the notice and waits; the holder renewing makes the taker back off; no change makes it stake
+ok 23 - lease: check prints held, lost or never-held; renews a lapsed lease of its own and restarts a dead timer; compares the session id, not by.name; and writes nothing for a card this session never staked, free or held by another
+ok 24 - lease: the loss record opens with LEASE_LOST_PREFIX
+releasing B stopped A's timer through a stale pid
+  ^ FAIL-BEFORE
+releasing one of three disturbed the others
+  ^ FAIL-BEFORE
+ok 25 - lease: one session holds three leases at once: three files, three timers, and releasing one leaves the other two held, even through a stale pid
+ok 26 - lease: release removes claimed and stops the timer; another session's release is refused; --force releases and records it
+ok 27 - lease: the timer renews by elapsed time, answers a notice within one poll, and exits when its CLAUDE_PID is gone or the lease is lost
+list lapsed: 671cff80-2071-4167-a141-4d9830ede173	Lapsed one	claude (S-gone)	10 min lapsed	lapsed
+  ^ FAIL-BEFORE
+list voided: 7271a069-bad4-4392-873e-95bf1fac9ce0	Voided one	claude (S-skew)	119 min left	voided
+  ^ FAIL-BEFORE
+list unreadable: 78a7abc4-0b57-4e43-9b21-4957234490f8	Unreadable one	claude (S-skew)	-	voided
+  ^ FAIL-BEFORE
+list live: 41729d27-8f27-44b2-88cc-9351d472bf72	A	claude (S-multi)	29 min left	live
+  ^ FAIL-BEFORE
+ok 28 - lease: list prints held cards with holder, time left, lapsed and voided, the title last
+ok 29 - lease: no timer process is left after the run
+lease-only: 29 passed

@@ -1,0 +1,5 @@
+timer and six checks: 2 loss records, want 1
+timer and six checks: 4 loss records, want 1
+timer and six checks: 6 loss records, want 1
+timer and six checks: 6 loss records, want 1
+timer and six checks: 4 loss records, want 1
