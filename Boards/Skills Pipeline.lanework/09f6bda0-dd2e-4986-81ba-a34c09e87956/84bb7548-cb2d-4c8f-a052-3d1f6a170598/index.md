@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Active lane text still says a card is claimed with a comment"
-order: 11264
+order: 2048
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T15:02:26Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T11:42:50Z}
+modified: {at: 2026-11-17T22:05:20Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Replace the Active lane's owner-facing sentence "claiming it with a comment naming the session and branch" with one that says what the claim becomes once leases exist, and teach the heal to bring boards founded with the old sentence up to it.
 
