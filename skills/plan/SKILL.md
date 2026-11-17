@@ -51,7 +51,7 @@ From the board, never memory: Work step 1. Owner wants to answer on the board wh
 |---|---|
 | `found-plan-board.sh <path> [title] --model m` | founds the board from `templates/board.md` + `templates/lanes.md` |
 | `file-ticket.sh <board> <title> --type t --body F [--depends <link>]... --model m` | next T into Frontier, or Blocked while a dependency is open |
-| `claim-ticket.sh <board> <card-uuid> --model m` | Frontier → Working + Claimed comment; refuses any other lane |
-| `resolve-ticket.sh <board> <card-uuid> --resolution F --model m` | appends it, → Resolved (or `--to out-of-scope`), unblocks dependents |
+| `claim-ticket.sh <board> <card-uuid> --model m` | stakes the lease, then Frontier → Working + Claimed comment; refuses any other lane or a held card |
+| `resolve-ticket.sh <board> <card-uuid> --resolution F --model m` | checks the lease, appends it, → Resolved (or `--to out-of-scope`), releases the lease, unblocks dependents |
 | `frontier.sh <board>` | live tickets, open dependencies; warns on drift |
 | `discovery/scripts/file-record.sh … --from Working` | ADR/PDR card into Decisions, before the ticket resolves |
