@@ -28,7 +28,7 @@ A call only the owner can make (between options, taste, scope, anything a done-w
 3. The ruling edits the open-call line in place (§ Card bodies).
 
 - **Approval rules nothing.** Approving a card moves it; its open calls stay open (`lanework/references/board-kinds.md`). No build until each one has a ruling comment.
-- **Owner in a live chat**: the ask still goes on the card, where the ruling is recorded. The chat only links to it ("asked on [<short id>](lanework://…)"). Never ask in chat instead. Before sending a reply, scan it for questions on a card's options, scope or next step: each is an ask on that card first. A question with no card yet → file the card, then ask on it.
+- **Owner in a live chat**: the ask still goes on the card, where the ruling is recorded. The chat only links to it ("asked on [<short id>](lanework://…)"). Never ask in chat instead. A chat ruling is recorded on the card and may clear `waiting`: § The ask. Before sending a reply, scan it for questions on a card's options, scope or next step: each is an ask on that card first. A question with no card yet → file the card, then ask on it.
 - **Filing a card with an open call** → its asks go out in the same pass as the founding record. An open-call list in a fresh body with no asks under it is the miss.
 - Open call found later (in Approved, Active, a review) → post the ask then, and stop work that depends on it.
 
@@ -48,7 +48,14 @@ Fill `templates/ask.md`. Hard budget:
 
 Post it with `scripts/post-ask.sh <board> <card> --body F --model m --for <anyone|handle>`: `--for` required, `@<handle>` on line 1. One step: lint (`lint-ask.sh`, fails on each mechanical item), a wait until one second past the card's newest comment, the ask stamped from the clock, then the card's `waiting` (shape: the guide's § Mentions; `comment` = the ask's uuid) and `modified` restamped. It refuses a second already on the card, a check not a lock: concurrent posters can collide.
 
-Several people → `for: [a, b]`, by hand (`post-comment.sh --ahead 1`, then `waiting`), each `@`-named on line 1; only where the board's guide § Mentions allows a list (older builds never clear one). Any one answer clears it. It marks the card and counts it in the lane header for that human. **Only the app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never clears it. Never remove it yourself. Cleared before the reply you needed → set it again.
+Several people → `for: [a, b]`, by hand (`post-comment.sh --ahead 1`, then `waiting`), each `@`-named on line 1; only where the board's guide § Mentions allows a list (older builds never clear one). Any one answer clears it. It marks the card and counts it in the lane header for that human. **The app clears it**, once a human comment lands after `since` or replies to the ask by `in-reply-to`; an agent's reply never does.
+
+**The owner's exception, a trial.** This one rule is the owner's standing exception to the in-board guide, ruled on the card "Let an agent clear waiting when it records an owner ruling given off the board". Until the guide takes it in or the trial fails, clear `waiting` only when you record an owner ruling given off the board (chat, a call, a note), in the same pass, and only if `waiting.comment` is the ask that ruling answers. A newer or different ask stays marked. `work/scripts/lint-waiting-clears.sh <board>` lists every agent clear.
+
+- Record, `in-reply-to` that ask, no handle: line 1 `**Owner ruled off the board.**`, then the owner's words verbatim as a `>` quote line, then `**Given**: <where>, <date>`.
+- Write: read the card's `index.md` fresh, delete the `waiting` key whole (block lines too), restamp `modified`, change nothing else. A human comment already after `since` → leave it to the app.
+- Not a ruling, the mark stays: a lean ("inclined"), a `Recap:` click, an answer to another question, your own summary with no owner words.
+- Nothing else lets you clear it, `move-card.sh --clear-waiting` included. Cleared before the reply you needed → set it again.
 
 Options become buttons. A click posts `<label>: <option text>` as the human's comment.
 
