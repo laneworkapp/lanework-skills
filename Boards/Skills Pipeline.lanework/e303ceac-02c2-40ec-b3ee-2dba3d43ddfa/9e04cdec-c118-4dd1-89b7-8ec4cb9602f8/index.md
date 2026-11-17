@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Skills target agent guide v117: asks address @anyone, cite-as, the reserved name anyone"
-order: 10240
+order: 62464
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}, {text: heal, kind: {type: skill, text: Skill}}, {text: dispatch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T01:57:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
-modified: {at: 2026-11-17T11:39:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-17T12:10:02Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The skills target agent guide v114, and the app has moved this board to v117, so this card brings the skills' asks, reserved names and stamp up to it: asks go to `@anyone` with `for: anyone` by default, and `anyone` becomes a name nobody signs.
 
