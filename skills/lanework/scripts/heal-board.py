@@ -63,7 +63,7 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 
-RESERVED_NAMES = {"board", "healer", "shortcuts", "tracker"}
+RESERVED_NAMES = {"anyone", "board", "healer", "shortcuts", "tracker"}
 FLOW_LIMIT = 120
 TEXT_KIND = {"type": "text", "text": "Text", "icon": {"glyph": "tag"}}
 EMBEDDED_SUGGESTED = [

@@ -71,6 +71,23 @@ owner_handle() {
   printf '%s' "$h"; [ -n "$h" ]
 }
 
+# guide_version <board>: N from the `lanework-agent-guide vN` stamp on line 1 of the board's CLAUDE.md; empty + exit 1 if none.
+guide_version() {
+  local v=""
+  local f; for f in "$1/CLAUDE.md" "$1/AGENTS.md"; do   # the app writes both, byte-identical
+    [ -r "$f" ] || continue
+    v=$(head -1 "$f" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true); [ -n "$v" ] && break
+  done
+  printf '%s' "$v"; [ -n "$v" ]
+}
+
+# ask_handle <board>: whom an ask addresses by default. `anyone` on a board whose guide is v117 or later (older builds draw no buttons for it),
+# else owner_handle (empty + exit 1 if none). A person's handle for a question that is theirs alone is the caller's call, never this one's.
+ask_handle() {
+  local v; v=$(guide_version "$1" || true)
+  if [ -n "$v" ] && [ "$v" -ge 117 ]; then printf anyone; else owner_handle "$1"; fi
+}
+
 # by_of <name> <model> [session]: the stamp's `by` mapping.
 by_of() {
   if [ -n "${3:-}" ]; then printf '{name: %s, kind: agent, model: %s, session: "%s"}' "$1" "$2" "$3"

@@ -14,7 +14,7 @@ Discovery on D: its problem and domain space, examined one question per card. Th
 
 ## How this board works
 
-- **The body holds the question; the ask comment is where it is answered.** Every question card carries one ask in its thread, with the handle on its first line, restating the question, its options and the recommendation. Reply to that comment. No other comment on the card mentions the handle.
+- **The body holds the question; the ask comment is where it is answered.** Every question card carries one ask in its thread, with `@anyone` (or the named person's handle) on its first line, restating the question, its options and the recommendation. Reply to that comment. No other comment on the card mentions the handle.
 - **Answer anywhere.** A comment on the card, or a reply in chat. The agent records a chat answer as a comment quoting it, then writes the ruling into the body under `## Ruling` and moves the card.
 - **A ruling is the owner's words**, dated. "As recommended" is a ruling. A deferral or a refusal is a ruling too, and parks the card with the reason.
 - **One question, one decision.** A round is every question whose prerequisites are settled. Questions number globally in the order asked; the round is the `Round` label.
