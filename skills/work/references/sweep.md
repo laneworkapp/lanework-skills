@@ -20,9 +20,9 @@ Per board, after the authority chain:
 | workload | shows up | who acts |
 |---|---|---|
 | **Unanswered question** | any lane: `waiting` in the frontmatter, or a thread ending in a question. `waiting.for` (or a list holding it) / the mention names the human (`anyone`, `human`, `operator`, an absent `for` or their handle all do) → on them; addressed to an agent → on you | answer, or surface |
-| **Approved, unstarted** | Approved | farm: build |
+| **Approved, unstarted** | Approved, no live lease | farm: build |
 | **Approved, unruled** | Approved or Active, with an open call and no ruling | don't build; post or re-post the ask (`writing.md` § When to ask), report it |
-| **Active, stalled** | Active, no thread movement | resume, or report why stuck |
+| **Active, stalled** | Active, its lease lapsed or none, no thread movement | resume, or report why stuck |
 | **Shaping to advance** | Shaping, below the board's proposal bar | farm: shape (label rule below); an open call → ask |
 | **At a human gate** | `gate` lanes (pipeline: Proposed, review) | report; move only as the `gate` key allows (`lanework/references/board-kinds.md`) |
 | **Holding** | Ideas (triage), Issues, Tasks | report; research or answer only (`lanework/references/board-kinds.md`) |
@@ -39,11 +39,12 @@ Per board, after the authority chain:
 
 ## 3. Triage report
 
-Always before, or alongside, farming. Per board: what waits on the human (gates, mentions, questions with stated defaults), each a link to its card's ask, never a question restated for the chat, what's being farmed and at which tier, what's deliberately left alone. "Anything on the boards?" → the report IS the deliverable. Stop there.
+Always before, or alongside, farming. Per board: what waits on the human (gates, mentions, questions with stated defaults), each a link to its card's ask, never a question restated for the chat, what's being farmed and at which tier, what's deliberately left alone, and the held cards (`lanework/scripts/lease.sh list <board>`), a lapsed lease flagged. "Anything on the boards?" → the report IS the deliverable. Stop there.
 
 ## 4. Farm
 
 - Execution leaves the main session. Synthesis, review of agent output, and every judgment-call board write stay.
+- The farming session stakes each card before farming it (`lanework/scripts/lease.sh`, rules in `lanework/references/writes.md` § Lease), and releases it in the card's closing write. The subagent never stakes.
 - Tier: `tiers.md`. Prompt: `templates/farmed-prompt.md`.
 - Workflow-scale orchestration needs the user's explicit opt-in. A handful of Agent-tool subagents doesn't. Enough parallel work for a workflow → say so and ask.
 - Substantial coding (≥2 independent Approved cards, or review independence matters) → a build team, `team.md`. Below that, work the card directly.

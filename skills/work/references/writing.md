@@ -77,6 +77,22 @@ A second click gets a second recap.
 - Cut: restating body or thread; narrating tool use; candor self-narration; ceremonial tags ("as ruled", "is not owed"); a bold headline chaining four clauses with dashes.
 - A long thought trace = its own "more context" comment, before the conclusion.
 
+## START
+
+The record a session posts when it starts working a card, after staking it. It says what. Who and until when = the lease (`lanework/references/writes.md` § Lease).
+
+```markdown
+**START: <the plan in one line>**
+
+- **Scope**: <what changes>
+- **Verify**: <the check that proves it>
+- **Where**: <branch and worktree, or the lanes it passes>
+```
+
+- About 40 words. Drop a label that has nothing; add none.
+- Opens with `START:` (bold or not): a scan for two on one thread keys on it.
+- A choice made while planning → its own record (§ The record), never inside START.
+
 ## Card references
 
 Every card named, anywhere (comment, body, commit, report), is `[<link text>](lanework://<board-id>/<card-id>)`. **Link text**: the card's `cite-as` alone (`[Q7](…)`, `[T3](…)`), else its short id or title (`lanework/scripts/lib.sh` `card_ref`); the title follows in running text where it helps. Written link text is never rewritten. A bare id is a search; a link is a click. A link may arrive short (each segment 8+ hex digits): read it by prefix, write the full form.

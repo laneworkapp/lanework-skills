@@ -11,7 +11,7 @@ Who's on a coding campaign, how they talk, and how hard the reviewer pushes. Whe
 | **reviewer** | 1 per branch, kept across rounds | lead, on Phase-2 | its branch merges | no | no | none; adversarial: a scratch one at the merge-base | `reviewer` | § Review stance |
 | **proposal reviewer** | not defined yet | | | | | | | |
 
-Only the lead runs `git worktree`, grants slots, merges, moves cards and mentions the human.
+Only the lead runs `git worktree`, stakes and releases leases, grants slots, merges, moves cards and mentions the human.
 
 ## Channels
 
