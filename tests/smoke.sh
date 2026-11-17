@@ -1851,6 +1851,208 @@ cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Q08" Q08; cardwith "$CZ" "$ZL/$(uu
 ZO=$("$SK/discovery/scripts/file-question.sh" "$CZ" "after padding" --round 1 --body "$T/cq.md" --model smoke 2>&1); grep -qx 'cite Q10' <<<"$ZO" || { echo "file-question.sh on a padded board:"; echo "$ZO"; exit 1; }
 validate "$CZ" >/dev/null; ok "cite padded and prefix: ADR9 beside ADR010 mints ADR11, Q08 and a Q09: title mint Q10, and a prefix ignores the numbers of Topic, FR12, DQ50, XADR40 and the other prefixes; file-question.sh files Q10 on that board"
 
+# lanework: lease.sh. A copy of the pipeline board with the borrowed .schema; fake session ids; stand-in CLAUDE_PIDs (sleeps this
+# smoke starts and kills); per-session memory under a TMPDIR of its own, never the real one; the test knobs keep it to seconds.
+# Every timer started here is killed on exit, and case 13 checks none outlives the cases.
+LS="$SK/lanework/scripts/lease.sh"; LT=$(mktemp -d "$T/lease-tmp.XXXXXX"); LSP=()
+lease_cleanup() {
+  local p; for p in ${LSP[@]+"${LSP[@]}"}; do kill "$p" 2>/dev/null || true; done
+  pkill -f "$LS _timer" 2>/dev/null || true
+}
+trap lease_cleanup EXIT
+standin() { sleep 600 </dev/null >/dev/null 2>&1 & SP=$!; disown "$SP"; LSP+=("$SP"); }
+standin; LPID=$SP
+# L <session> <args...>: lease.sh as that session, under the stand-in CLAUDE_PID (LPID) and the test knobs
+L() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT="${NW:-1.5}" \
+  LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY="${RE:-1000}" "$LS" "$@"; }
+LB="$T/Lease.lanework"; cp -R "$P" "$LB"; rm -rf "$LB/.schema"; cp -R "$VAL" "$LB/.schema"
+printf '<!-- lanework-agent-guide v118 -->\n\nThis machine'"'"'s human answers to `@owner`.\n' > "$LB/CLAUDE.md"
+LL=$(dirname "$(lane_of "$LB" Active)")
+lcard() { local id; id=$(uuidgen | tr A-Z a-z); mkdir -p "$LL/$id"
+  printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: 1024\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nBody line one.\n\nBody: two, with "quotes" and a trailing space. \n' "$1" > "$LL/$id/index.md"; echo "$id"; }
+lcf() { ls "$LB"/*/"$1"/index.md; }
+# cget <file> s|n|u: claimed's by.session, by.name or until, in whichever layout the compact form gave it (flow when it fits 120)
+cget() { python3 - "$1" "$2" <<'PY'
+import sys, yaml, datetime
+d = yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1]); c = d.get("claimed") or {}; b = c.get("by") or {}
+v = {"s": b.get("session"), "n": b.get("name"), "u": c.get("until")}[sys.argv[2]]
+if isinstance(v, datetime.datetime): v = v.strftime("%Y-%m-%dT%H:%M:%SZ")
+print("" if v is None else v)
+PY
+}
+csess() { cget "$1" s; }; cname() { cget "$1" n; }; cuntil() { cget "$1" u; }
+epoch() { date -j -u -f %Y-%m-%dT%H:%M:%SZ "$1" +%s; }
+iso() { date -u -r "$1" +%FT%TZ; }
+setclaim() {  # setclaim <file> <session> <until> [name]: a claimed block as another session (or this one) left it
+  local f="$1" s="$2" u="$3" n="${4:-claude}"
+  perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m; s/\A(---\n.*?\n)(---\n)/$1claimed:\n  by: {name: '"$n"', kind: agent, model: smoke, session: "'"$s"'"}\n  until: '"$u"'\n$2/s' "$f"; }
+bodyof() { awk 'f{print} /^---$/{n++; if(n==2) f=1}' "$1"; }
+mem() { printf '%s' "$LT/lanework-lease/$1/$2"; }
+mpid() { sed -n 's/^pid=//p' "$(mem "$1" "$2")"; }
+alive() { kill -0 "$1" 2>/dev/null; }
+records() { { grep -l -F -- "$2" "$(dirname "$(lcf "$1")")"/comments/*/index.md 2>/dev/null || true; } | grep -c . || true; }
+waitfor() { local i=0; while [ $i -lt 40 ]; do if eval "$1"; then return 0; fi; sleep 0.1; i=$((i+1)); done; return 1; }
+# SID1: a session id of real length (a uuid): its by passes 120 characters, so claimed keeps the 3-line block form
+SID1=$(uuidgen | tr A-Z a-z)
+# a git repo to stake from: the loss record names its branch, directory and touched files
+GR="$T/lease-repo"; mkdir -p "$GR"; git -C "$GR" init -q -b lease-br; printf 'wip\n' > "$GR/wip.txt"; GR=$(cd "$GR" && pwd -P)
+
+# 1. stake
+C1=$(lcard "One"); F1=$(lcf "$C1")
+O=$(cd "$GR" && L "$SID1" stake "$LB" "$C1" --model smoke) || { echo "stake failed: $O"; exit 1; }
+U=$(cuntil "$F1"); D=$(( $(epoch "$U") - $(date -u +%s) ))
+[ "$(csess "$F1")" = $SID1 ] && [ "$D" -ge 1790 ] && [ "$D" -le 1801 ] || { echo "stake: session $(csess "$F1"), until $U ($D s ahead)"; cat "$F1"; exit 1; }
+[ "$(grep -A2 '^claimed:$' "$F1" | sed -n '2p;3p' | grep -c -E '^  (by: \{name: claude, kind: agent, model: smoke, session: "'"$SID1"'"\}|until: [0-9TZ:-]+)$')" = 2 ] || { echo "claimed is not the 3-line block form:"; cat "$F1"; exit 1; }
+grep -q '^modified: {at: [0-9TZ:-]*, by: {name: claude, kind: agent, model: smoke, session: "'"$SID1"'"}}$' "$F1" || { echo "stake did not restamp modified"; cat "$F1"; exit 1; }
+validate "$LB" >/dev/null; HO=$(python3 "$LB/.schema/bin/lanework-heal.py" "$LB"); grep -q '^0 repairs' <<<"$HO" || { echo "heal dry run after stake: $HO"; exit 1; }
+[ -f "$(mem $SID1 "$C1")" ] && alive "$(mpid $SID1 "$C1")" || { echo "stake: no memory file or no live timer"; exit 1; }
+ok "lease: stake writes claimed with by.session and until 30 minutes ahead; the board validates and the heal dry run lists nothing"
+
+# 2. no session id, no CLAUDE_PID, no model: exit 2, nothing written
+C2=$(lcard "Two"); F2=$(lcf "$C2"); S2=$(shasum < "$F2")
+RC=0; env -u CLAUDE_CODE_SESSION_ID CLAUDE_PID="$LPID" TMPDIR="$LT" "$LS" stake "$LB" "$C2" --model smoke 2>/dev/null || RC=$?; [ $RC = 2 ] || { echo "no session id: rc $RC"; exit 1; }
+RC=0; env -u CLAUDE_PID CLAUDE_CODE_SESSION_ID=S-two TMPDIR="$LT" "$LS" stake "$LB" "$C2" --model smoke 2>/dev/null || RC=$?; [ $RC = 2 ] || { echo "no CLAUDE_PID: rc $RC"; exit 1; }
+RC=0; env -u CLAUDE_MODEL CLAUDE_CODE_SESSION_ID=S-two CLAUDE_PID="$LPID" TMPDIR="$LT" "$LS" stake "$LB" "$C2" 2>/dev/null || RC=$?; [ $RC = 2 ] || { echo "no model: rc $RC"; exit 1; }
+RC=0; L S-two stake "$LB" 00000000-0000-4000-8000-000000000000 --model smoke 2>/dev/null || RC=$?; [ $RC = 2 ] || { echo "no such card: rc $RC"; exit 1; }
+[ "$S2" = "$(shasum < "$F2")" ] && [ ! -e "$LT/lanework-lease/S-two" ] || { echo "a refused stake wrote something"; exit 1; }
+ok "lease: no session id or no CLAUDE_PID is exit 2 and writes nothing"
+
+# 3. two racing stakes
+C3=$(lcard "Three"); F3=$(lcf "$C3")
+( RC=0; L S-race-a stake "$LB" "$C3" --model smoke >/dev/null 2>&1 || RC=$?; echo "$RC" > "$T/race-a" ) & RPA=$!
+( RC=0; L S-race-b stake "$LB" "$C3" --model smoke >/dev/null 2>&1 || RC=$?; echo "$RC" > "$T/race-b" ) & RPB=$!
+wait "$RPA" "$RPB"
+RA=$(cat "$T/race-a"); RB=$(cat "$T/race-b"); WIN=$(csess "$F3")
+{ [ "$RA$RB" = 01 ] && [ "$WIN" = S-race-a ]; } || { [ "$RA$RB" = 10 ] && [ "$WIN" = S-race-b ]; } || { echo "race: a=$RA b=$RB holder=$WIN"; exit 1; }
+LOSER=S-race-a; [ "$WIN" = S-race-a ] && LOSER=S-race-b; [ ! -e "$(mem "$LOSER" "$C3")" ] || { echo "race: the loser kept a memory file"; exit 1; }
+ok "lease: two racing stakes leave one holder"
+
+# 4. another session's live lease is refused
+HS1=$(shasum < "$F1"); RC=0; L S-four stake "$LB" "$C1" --model smoke >/dev/null 2>&1 || RC=$?
+[ $RC = 1 ] && [ "$HS1" = "$(shasum < "$F1")" ] || { echo "stake over a live lease: rc $RC"; exit 1; }
+ok "lease: stake over another session's live lease is refused"
+
+# 5. renew: until forward, modified restamped, the body byte for byte
+C5=$(lcard "Five"); F5=$(lcf "$C5"); L S-five stake "$LB" "$C5" --model smoke >/dev/null
+setclaim "$F5" S-five "$(iso $(( $(date -u +%s) + 600 )))"; U0=$(cuntil "$F5"); B0=$(bodyof "$F5" | shasum)
+perl -pi -e 's/^modified: .*$/modified: {at: 2026-01-02T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}/' "$F5"
+L S-five renew "$LB" "$C5" --model smoke >/dev/null
+[ "$(epoch "$(cuntil "$F5")")" -gt "$(epoch "$U0")" ] && [ "$B0" = "$(bodyof "$F5" | shasum)" ] \
+  && grep -q '^modified: {at: 2026-1[1-9]-.*session: "S-five"}}$' "$F5" || { echo "renew:"; cat "$F5"; exit 1; }
+ok "lease: renew moves until forward and restamps modified, and leaves the body byte for byte"
+
+# 6. a changed by: the timer finds the loss and posts one record; then no further write
+TP=$(mpid $SID1 "$C1"); setclaim "$F1" S-other "$(iso $(( $(date -u +%s) + 1500 )))"
+waitfor '[ "$(records "$C1" "**Lease lost**")" = 1 ]' || { echo "no Lease lost record within 4 s"; exit 1; }
+waitfor '! alive "$TP"' || { echo "the timer outlived the loss"; exit 1; }
+R=$(grep -l -F '**Lease lost**' "$(dirname "$F1")"/comments/*/index.md)
+for w in "session $SID1 no longer holds this card; session S-other does" "branch lease-br" "directory $GR" "wip.txt" "This session writes this card no more."; do
+  grep -q -F -- "$w" "$R" || { echo "Lease lost record lacks '$w':"; cat "$R"; exit 1; }; done
+grep -q "session: \"$SID1\"" "$R" && validate "$LB" >/dev/null || { echo "loss record not signed by the loser, or the board fails"; exit 1; }
+HS1=$(shasum < "$F1"); RC=0; L "$SID1" renew "$LB" "$C1" --model smoke >/dev/null 2>&1 || RC=$?
+RC2=0; CO=$(L "$SID1" check "$LB" "$C1" --model smoke 2>/dev/null) || RC2=$?
+[ $RC = 3 ] && [ $RC2 = 3 ] && [ "$CO" = lost ] && [ "$HS1" = "$(shasum < "$F1")" ] && [ "$(records "$C1" "**Lease lost**")" = 1 ] \
+  || { echo "after the loss: renew rc $RC, check rc $RC2 '$CO', records $(records "$C1" "**Lease lost**")"; exit 1; }
+ok "lease: a changed by yields one Lease lost record naming branch, directory and files, and no further write"
+
+# 7. clock guard: an until over 35 minutes ahead is no lease
+C7=$(lcard "Seven"); F7=$(lcf "$C7"); setclaim "$F7" S-skew "$(iso $(( $(date -u +%s) + 3600 )))"
+L S-seven stake "$LB" "$C7" --model smoke >/dev/null || { echo "stake over a skewed lease was refused"; exit 1; }
+[ "$(csess "$F7")" = S-seven ] && [ "$(records "$C7" "**Lease ignored**")" = 1 ] || { echo "clock guard: holder $(csess "$F7")"; exit 1; }
+C7b=$(lcard "Seven b"); F7b=$(lcf "$C7b"); setclaim "$F7b" S-skew "$(iso $(( $(date -u +%s) + 2000 )))"; RC=0
+L S-seven stake "$LB" "$C7b" --model smoke >/dev/null 2>&1 || RC=$?; [ $RC = 1 ] || { echo "an until 33 minutes ahead must still hold: rc $RC"; exit 1; }
+ok "lease: an until over 35 minutes ahead is no lease; stake posts Lease ignored"
+
+# 8. takeover: a live holder answers the notice and the taker backs off; an unanswered notice is taken over
+C8=$(lcard "Eight"); F8=$(lcf "$C8"); L S-holder stake "$LB" "$C8" --model smoke >/dev/null
+setclaim "$F8" S-holder "$(iso $(( $(date -u +%s) - 60 )))"; sleep 1
+RC=0; NW=2 L S-taker stake "$LB" "$C8" --model smoke >/dev/null 2>&1 || RC=$?
+[ $RC = 1 ] && [ "$(csess "$F8")" = S-holder ] && [ "$(epoch "$(cuntil "$F8")")" -gt "$(date -u +%s)" ] && [ "$(records "$C8" "**Takeover notice**")" = 1 ] \
+  || { echo "takeover vs live holder: rc $RC, holder $(csess "$F8")"; cat "$F8"; exit 1; }
+grep -q -F "session S-taker takes this card from session S-holder" "$(grep -l -F '**Takeover notice**' "$(dirname "$F8")"/comments/*/index.md)" || { echo "notice wording"; exit 1; }
+C8b=$(lcard "Eight b"); F8b=$(lcf "$C8b"); setclaim "$F8b" S-dead "$(iso $(( $(date -u +%s) - 60 )))"
+mkdir -p "$(dirname "$F8b")/comments/c0000000-0000-4000-8000-0000000000aa"
+printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: claude, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: claude, kind: agent, model: smoke}}\n---\n**START: the dead holder began here.**\n\n- plan\n' > "$(dirname "$F8b")/comments/c0000000-0000-4000-8000-0000000000aa/index.md"
+t0=$(date +%s); O=$(L S-taker stake "$LB" "$C8b" --model smoke) || { echo "takeover of a dead lease refused"; exit 1; }
+[ "$(csess "$F8b")" = S-taker ] && [ "$(( $(date +%s) - t0 ))" -ge 1 ] && grep -q -F '**START: the dead holder began here.**' <<<"$O" && [ "$(records "$C8b" "**Takeover notice**")" = 1 ] \
+  || { echo "takeover: holder $(csess "$F8b"), output: $O"; exit 1; }
+validate "$LB" >/dev/null; ok "lease: takeover posts the notice and waits; the holder renewing makes the taker back off; no change makes it stake"
+
+# 9. check: held, lost, never-held
+C9=$(lcard "Nine"); F9=$(lcf "$C9"); L S-nine stake "$LB" "$C9" --model smoke >/dev/null
+[ "$(L S-nine check "$LB" "$C9" --model smoke)" = held ] || { echo "check: not held"; exit 1; }
+setclaim "$F9" S-nine "$(cuntil "$F9")" fixer; [ "$(cname "$F9")" = fixer ] && [ "$(L S-nine check "$LB" "$C9" --model smoke)" = held ] || { echo "check compared by.name"; exit 1; }
+TP=$(mpid S-nine "$C9"); kill "$TP"; waitfor '! alive "$TP"'; setclaim "$F9" S-nine "$(iso $(( $(date -u +%s) - 60 )))"
+[ "$(L S-nine check "$LB" "$C9" --model smoke)" = held ] && [ "$(epoch "$(cuntil "$F9")")" -gt "$(( $(date -u +%s) + 1700 ))" ] \
+  && TQ=$(mpid S-nine "$C9") && [ "$TQ" != "$TP" ] && alive "$TQ" || { echo "check: lapsed own lease not renewed or timer not restarted"; cat "$F9"; exit 1; }
+S9=$(shasum < "$F9"); RC=0; CO=$(L S-stranger check "$LB" "$C9" --model smoke) || RC=$?
+C9f=$(lcard "Nine free"); F9f=$(lcf "$C9f"); S9f=$(shasum < "$F9f"); RC2=0; CO2=$(L S-stranger check "$LB" "$C9f" --model smoke) || RC2=$?
+[ "$CO$RC$CO2$RC2" = never-held4never-held4 ] && [ "$S9" = "$(shasum < "$F9")" ] && [ "$S9f" = "$(shasum < "$F9f")" ] \
+  && [ "$(records "$C9" Lease)" = 0 ] && [ ! -e "$LT/lanework-lease/S-stranger" ] || { echo "check never-held: '$CO' $RC, '$CO2' $RC2"; exit 1; }
+C9g=$(lcard "Nine gone"); F9g=$(lcf "$C9g"); L S-nine stake "$LB" "$C9g" --model smoke >/dev/null; TP=$(mpid S-nine "$C9g"); kill "$TP"; waitfor '! alive "$TP"'
+perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m' "$F9g"
+RC=0; CO=$(L S-nine check "$LB" "$C9g" --model smoke) || RC=$?; RC2=0; CO2=$(L S-nine check "$LB" "$C9g" --model smoke) || RC2=$?
+[ "$CO$RC$CO2$RC2" = lost3lost3 ] && [ "$(records "$C9g" "**Lease lost**")" = 1 ] || { echo "check lost (claimed gone): '$CO' $RC, '$CO2' $RC2"; exit 1; }
+validate "$LB" >/dev/null
+ok "lease: check prints held, lost or never-held; renews a lapsed lease of its own and restarts a dead timer; compares the session id, not by.name; and writes nothing for a card this session never staked, free or held by another"
+
+# 9b. the loss record's prefix is lib.sh's constant
+LLP=$(. "$SK/lanework/scripts/lib.sh"; printf '%s' "${LEASE_LOST_PREFIX:-}"); [ "$LLP" = '**Lease lost**:' ] || { echo "LEASE_LOST_PREFIX: '$LLP'"; exit 1; }
+for c in "$C1" "$C9g"; do R=$(grep -l -F 'Lease lost' "$(dirname "$(lcf "$c")")"/comments/*/index.md); bodyof "$R" | head -1 | grep -q -F -- "$LLP" || { echo "loss record does not open with the prefix"; cat "$R"; exit 1; }; done
+ok "lease: the loss record opens with LEASE_LOST_PREFIX"
+
+# 9c. three leases at once
+CA=$(lcard "A"); CB=$(lcard "B"); CC=$(lcard "C"); for c in "$CA" "$CB" "$CC"; do L S-multi stake "$LB" "$c" --model smoke >/dev/null; done
+PA=$(mpid S-multi "$CA"); PB=$(mpid S-multi "$CB"); PC=$(mpid S-multi "$CC")
+[ "$(ls "$LT/lanework-lease/S-multi" | grep -c -E '^[0-9a-f-]{36}$')" = 3 ] && alive "$PA" && alive "$PB" && alive "$PC" && [ "$PA" != "$PB" ] && [ "$PB" != "$PC" ] || { echo "three leases: files or timers"; exit 1; }
+L S-multi release "$LB" "$CB" --model smoke >/dev/null; waitfor '! alive "$PB"' || { echo "release left B's timer"; exit 1; }
+[ "$(L S-multi check "$LB" "$CA" --model smoke)$(L S-multi check "$LB" "$CC" --model smoke)" = heldheld ] && [ -z "$(csess "$(lcf "$CB")")" ] && alive "$PA" && alive "$PC" \
+  || { echo "releasing one of three disturbed the others"; exit 1; }
+ok "lease: one session holds three leases at once: three files, three timers, and releasing one leaves the other two held"
+
+# 10. release
+C10=$(lcard "Ten"); F10=$(lcf "$C10"); L S-ten stake "$LB" "$C10" --model smoke >/dev/null; TP=$(mpid S-ten "$C10")
+L S-ten release "$LB" "$C10" --model smoke >/dev/null
+[ -z "$(csess "$F10")" ] && ! grep -q '^claimed:' "$F10" && waitfor '! alive "$TP"' && [ ! -e "$(mem S-ten "$C10")" ] && grep -q '^modified: .*session: "S-ten"}}$' "$F10" \
+  || { echo "release:"; cat "$F10"; exit 1; }
+S10=$(shasum < "$F10"); O=$(L S-ten release "$LB" "$C10" --model smoke) && [ -z "$O" ] && [ "$S10" = "$(shasum < "$F10")" ] || { echo "release of no lease: '$O'"; exit 1; }
+C10b=$(lcard "Ten b"); F10b=$(lcf "$C10b"); L S-ten stake "$LB" "$C10b" --model smoke >/dev/null; TP=$(mpid S-ten "$C10b"); S10=$(shasum < "$F10b")
+RC=0; L S-owner release "$LB" "$C10b" --model smoke >/dev/null 2>&1 || RC=$?; [ $RC = 1 ] && [ "$S10" = "$(shasum < "$F10b")" ] || { echo "release of another's lease: rc $RC"; exit 1; }
+L S-owner release "$LB" "$C10b" --model smoke --force >/dev/null
+R=$(grep -l -F '**Lease released by force**' "$(dirname "$F10b")"/comments/*/index.md)
+! grep -q '^claimed:' "$F10b" && grep -q -F "session S-ten held it until" "$R" && waitfor '! alive "$TP"' || { echo "forced release"; exit 1; }
+validate "$LB" >/dev/null; ok "lease: release removes claimed and stops the timer; another session's release is refused; --force releases and records it"
+
+# 11. the timer: renews by elapsed time, answers a notice within one poll, exits with CLAUDE_PID or the lease
+C11=$(lcard "Eleven"); F11=$(lcf "$C11"); RE=5 L S-eleven stake "$LB" "$C11" --model smoke >/dev/null; U0=$(cuntil "$F11")
+waitfor '[ "$(cuntil "$F11")" != "$U0" ]' || { echo "the timer did not renew after 5 polls"; exit 1; }
+C11n=$(lcard "Eleven n"); F11n=$(lcf "$C11n"); L S-eleven stake "$LB" "$C11n" --model smoke >/dev/null; sleep 1.1; U0=$(cuntil "$F11n")
+NI=$(uuidgen | tr A-Z a-z); mkdir -p "$(dirname "$F11n")/comments/$NI"; NA=$(date -u +%FT%TZ)
+printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: claude, kind: agent, model: smoke, session: "S-x"}}\nmodified: {at: %s, by: {name: claude, kind: agent, model: smoke, session: "S-x"}}\n---\n**Takeover notice**: session S-x takes this card from session S-eleven at %s unless the lease is renewed first. It lapsed at %s.\n' "$NA" "$NA" "$NA" "$U0" > "$(dirname "$F11n")/comments/$NI/index.md"
+t0=$(date +%s); waitfor '[ "$(cuntil "$F11n")" != "$U0" ]' || { echo "the timer did not answer the notice"; exit 1; }
+standin; P11=$SP; C11p=$(lcard "Eleven p"); LPID=$P11 L S-eleven stake "$LB" "$C11p" --model smoke >/dev/null; TP=$(mpid S-eleven "$C11p")
+alive "$TP" && kill "$P11" && waitfor '! alive "$TP"' || { echo "the timer outlived its CLAUDE_PID"; exit 1; }
+ok "lease: the timer renews by elapsed time, answers a notice within one poll, and exits when its CLAUDE_PID is gone or the lease is lost"
+
+# 12. list
+C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
+C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
+C12u=$(lcard "Unreadable one"); setclaim "$(lcf "$C12u")" S-skew "soon"
+LO=$("$LS" list "$LB"); line() { awk -F'\t' -v c="$1" '$1==c' <<<"$LO"; }
+[ "$(line "$C12l" | cut -f2-)" = "$(printf 'Lapsed one\tclaude (S-gone)\t10 min lapsed\tlapsed')" ] || { echo "list lapsed: $(line "$C12l")"; exit 1; }
+line "$C12v" | grep -q -E "$(printf '^[^\t]*\tVoided one\tclaude \\(S-skew\\)\t1[12][0-9] min left\tvoided$')" || { echo "list voided: $(line "$C12v")"; exit 1; }
+line "$C12u" | grep -q -E "$(printf '\t-\tvoided$')" || { echo "list unreadable: $(line "$C12u")"; exit 1; }
+line "$CA" | grep -q -E "$(printf '^%s\tA\tclaude \\(S-multi\\)\t(29|30) min left\tlive$' "$CA")" || { echo "list live: $(line "$CA")"; exit 1; }
+[ -z "$(line "$C10")" ] && [ -z "$(line "$C2")" ] || { echo "list printed a card with no lease"; exit 1; }
+ok "lease: list prints held cards with holder, time left, lapsed and voided"
+
+# 13. nothing left: release what is held, end the stand-ins; every timer must be gone within a poll
+for c in $(awk -F'\t' '$5=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
+  s=$(csess "$(lcf "$c")"); L "$s" release "$LB" "$c" --model smoke >/dev/null || true; done
+for p in ${LSP[@]+"${LSP[@]}"}; do kill "$p" 2>/dev/null || true; done; LSP=()
+waitfor '[ -z "$(pgrep -f "$LS _timer" || true)" ]' || { echo "timers left:"; pgrep -fl "$LS _timer"; exit 1; }
+validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
+
 # plugin: the manifest agrees with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
 import json, os, sys
