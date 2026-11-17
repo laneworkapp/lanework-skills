@@ -2,15 +2,14 @@
 schema: 1
 kind: card
 title: "Active lane text still says a card is claimed with a comment"
-order: 1024
+order: 11264
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T15:02:26Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T11:25:46Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-17T11:35:46Z, comment: 7d39a3cd-d699-4b7d-87ce-b10d28128363}
+modified: {at: 2026-11-17T11:36:44Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Replace the Active lane's owner-facing sentence "claiming it with a comment naming the session and branch" with one that says what the claim becomes once leases exist, and teach the heal to bring boards founded with the old sentence up to it.
 
-Open call (blocks the build): the exact new sentence, asked on the thread. A: `An agent moves a card in as it starts, holds it with a lease while it works, and moves it to Done when its done-when is met.` B: the same without the claim clause. Recommended: A.
+~~Open call: the exact new sentence.~~ **Ruled 2026-11-17: A.** The Active lane says: `An agent moves a card in as it starts, holds it with a lease while it works, and moves it to Done when its done-when is met.`
 
 ## Files
 
