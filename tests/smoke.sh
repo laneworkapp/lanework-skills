@@ -1085,6 +1085,9 @@ ok "Approved takes the top card unasked; Ideas, Issues and Tasks bodies have age
 for l in Ideas Issues Tasks Shaping Proposed Approved Active Done; do grep -qE "^\| $l \|" "$SK/lanework/references/board-kinds.md" || { echo "board-kinds.md table has no $l row"; exit 1; }; done
 ! grep -qE '^\| (Done|Dead ends|Filed|Facts|Settled|Decisions|Parked|Resolved|Out of scope) \| agent ' "$SK/lanework/references/board-kinds.md" || { echo "a lane an agent only files into is marked agent (a work order for the arming pass): use none"; exit 1; }
 ok "the lane -> actor table lives only in board-kinds.md, with a row per pipeline lane"
+[ "$(grep -rl --exclude-dir=__pycache__ 'claiming it with a comment' "$SK" | sed "s#^$SK/##")" = "heal/scripts/heal-descriptors.py" ] || { echo "'claiming it with a comment' must appear under skills/ only in heal/scripts/heal-descriptors.py:"; grep -rl --exclude-dir=__pycache__ 'claiming it with a comment' "$SK"; exit 1; }
+AB=$(lane_body "$P" Active); { ! grep -q 'claiming it with a comment' <<<"$AB" && grep -qF 'holds it with a lease while it works' <<<"$AB"; } || { echo "a founded pipeline board's Active body: $AB"; exit 1; }
+ok "'claiming it with a comment' lives under skills/ only in the heal's old-body table, and a board founded from the template has an Active body that holds the card with a lease"
 
 { ! grep -q 'a move' <(grep -E '^6\. ' "$SK/watch/references/events.md") && ! grep -qiE 'requested' <(grep '^description:' "$SK/watch/SKILL.md") &&
   grep -q 'Arming pass' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md" &&
@@ -1112,19 +1115,20 @@ setbody() { local f; f=$(lane_file "$X" "$1"); sed -i '' '$d' "$f"; [ -z "$2" ] 
 setbody Approved 'The ready-to-build queue, ranked in build order, top is next. The spec is frozen, so a scope change bounces the card back to Shaping.'
 setbody Tasks "Owner chores, built through Active. Nothing here needs shaping. Agents never file here."
 setbody Shaping ''
+setbody Active 'Work in progress. An agent moves a card in as it starts, claiming it with a comment naming the session and branch, and moves it to Done when its done-when is met.'
 validate "$X" >/dev/null
 Z0=$(sum "$X"); O=$("$HD" "$X")
-{ grep -q '^lane Approved: replace-body ' <<<"$O" && grep -q '^lane Tasks: insert-actor ' <<<"$O" && grep -q '^lane Shaping: fill-body ' <<<"$O" && grep -q '^3 changes in 3 files' <<<"$O"; } || { echo "$O"; exit 1; }
+{ grep -q '^lane Approved: replace-body ' <<<"$O" && grep -q '^lane Tasks: insert-actor ' <<<"$O" && grep -q '^lane Shaping: fill-body ' <<<"$O" && grep -q '^lane Active: replace-body ' <<<"$O" && grep -q '^4 changes in 4 files' <<<"$O"; } || { echo "$O"; exit 1; }
 [ "$Z0" = "$(sum "$X")" ]; ok "heal-descriptors dry run lists the old-template, customised and empty lane bodies and writes nothing"
 if "$HD" "$X" --apply >/dev/null 2>&1; then echo "--apply ran without --model"; exit 1; else [ $? -eq 2 ]; fi; [ "$Z0" = "$(sum "$X")" ]
 ok "heal-descriptors --apply without --model exits 2 and writes nothing"
 IDLE=$(lane_file "$X" Ideas); IDLE_SUM=$(shasum "$IDLE")
 "$HD" "$X" --apply --name fixer --model test >/dev/null; validate "$X" >/dev/null
 TPL() { awk -F'|' -v t="$1" '/^\| *[0-9]/ { gsub(/^ +| +$/, "", $3); gsub(/^ +| +$/, "", $6); if ($3 == t) print $6 }' "$SK/lanework/templates/pipeline-lanes.md"; }
-[ "$(lane_body "$X" Approved)" = "$(TPL Approved)" ] && [ "$(lane_body "$X" Shaping)" = "$(TPL Shaping)" ] || { echo "replace or fill did not give the current template body"; exit 1; }
+[ "$(lane_body "$X" Approved)" = "$(TPL Approved)" ] && [ "$(lane_body "$X" Shaping)" = "$(TPL Shaping)" ] && [ "$(lane_body "$X" Active)" = "$(TPL Active)" ] || { echo "replace or fill did not give the current template body"; exit 1; }
 TB=$(lane_body "$X" Tasks); AS=$(TPL Tasks | sed -E 's/^[^.]*\. //; s/\. .*$/./')
 [ "$TB" = "Owner chores, built through Active. $AS Nothing here needs shaping. Agents never file here." ] || { echo "customised body not extended in place: $TB"; exit 1; }
-for l in Approved Tasks Shaping; do grep -qE '^modified: \{at: [0-9TZ:-]+, by: \{name: fixer, kind: agent, model: test\}\}$' "$(lane_file "$X" "$l")" || { echo "$l not restamped whole"; exit 1; }; done
+for l in Approved Tasks Shaping Active; do grep -qE '^modified: \{at: [0-9TZ:-]+, by: \{name: fixer, kind: agent, model: test\}\}$' "$(lane_file "$X" "$l")" || { echo "$l not restamped whole"; exit 1; }; done
 [ "$IDLE_SUM" = "$(shasum "$IDLE")" ] || { echo "an untouched lane was rewritten"; exit 1; }
 ok "heal-descriptors --apply replaces, extends in place and fills; touched lanes restamped with the agent, others untouched, board validates"
 Z1=$(sum "$X"); O=$("$HD" "$X" --apply --name fixer --model test); [ "$Z1" = "$(sum "$X")" ] && grep -q '^0 changes' <<<"$O" || { echo "$O"; exit 1; }
