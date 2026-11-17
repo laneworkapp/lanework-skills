@@ -13,6 +13,11 @@
 # Exit 2, nothing written: no model, a bad flag, no match or several. Exit 1, nothing written: not a
 # board, no such lane, the card already in that lane (a reorder rewrites `order` only), the comment
 # refused. Exit 1 after the `mv`: the validator failed on the card.
+# The lease (lanework/references/writes.md § Lease), after the refusals above and before anything is
+# written: with CLAUDE_CODE_SESSION_ID set (never --session), `lanework/scripts/lease.sh check`. Held or
+# never held: move. Lost: lease.sh posts the Lease lost record; nothing moved, no --comment, exit 3.
+# No session id, or no lanework/scripts/lease.sh beside work (one note on stderr): no check. Another
+# check failure: exit 1, nothing written. No release here.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE="move-card.sh <board> <card-uuid-or-prefix> <lane-title> --model m [--name n] [--session s] [--comment F] [--top|--bottom] [--clear-waiting]"
@@ -72,6 +77,18 @@ if [ "$PLACE" = --top ]; then
   else ORDER=$(awk -v m="$LOW" 'BEGIN{ if (m > 0) printf "%.15g\n", m/2; else printf "%.15g\n", m-1024 }'); fi
 else
   ORDER=$(next_order "$DEST")
+fi
+
+LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ ! -f "$LEASE" ]; then
+  echo "move-card.sh: note: no lanework/scripts/lease.sh beside work; the lease is not checked" >&2
+elif [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+  rc=0; "$LEASE" check "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null || rc=$?
+  case $rc in
+    0|4) ;;
+    3) echo "move-card.sh: this session's lease on ${CID:0:8} is lost (the Lease lost record is on the card); nothing moved" >&2; exit 3 ;;
+    *) echo "move-card.sh: lease.sh check failed (exit $rc); nothing moved" >&2; exit 1 ;;
+  esac
 fi
 
 BY=$(by_of "$NAME" "$MODEL" "$SESSION")

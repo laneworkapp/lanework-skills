@@ -5,14 +5,14 @@ The main session. Orchestrate, own every worktree, grant slots, merge, close car
 ## Cycle
 
 ```
-lead creates a worktree on a new branch, hands it off
+lead creates a worktree on a new branch, stakes the card's lease, hands it off
   -> fixer reads the thread whole, posts START, writes the test, records FAIL-BEFORE, fixes
   -> fixer sends Phase-1 (= slot request, with pre-registered verification)
   -> lead grants a slot
   -> fixer runs the gate, sends Phase-2, releases the slot
   -> lead sets the review stance, dispatches the reviewer
   -> reviewer posts the verdict on the card thread (≤2 REQUEST-CHANGES rounds)
-  -> lead merges, re-verifies main, closes the card with evidence, cross-posts
+  -> lead merges, re-verifies main, closes the card with evidence, releasing the lease, cross-posts
   -> lead shuts down that reviewer + fixer, removes the worktrees
   -> next
 ```
@@ -36,6 +36,7 @@ git -C <repo> fetch origin                                                      
 git -C <repo> worktree add -b <slug> .claude/worktrees/<slug> origin/main           # or main
 ```
 
+- **The lead is the session that holds the lease.** Stake each card before the fixer gets its worktree: `lanework/scripts/lease.sh stake <board> <card-uuid> --model m`, rules in `lanework/references/writes.md` § Lease, which also says what to do when `stake` refuses (exit 1) or blocks two minutes. Release it on the closing record: `scripts/post-comment.sh` with `--release`. Exit 1 after that comment landed = the release failed: run `lanework/scripts/lease.sh release <board> <card-uuid> --model m`, never repost. The fixer's START (`writing.md` § START) is its plan, posted under this lease.
 - **Fixer prompt** = `templates/farmed-prompt.md` + the worktree's absolute path + the branch + `fixer.md` + both phase-report templates. Tier: `tiers.md`.
 - **Reviewer**, on Phase-2 arrival: prompt = card path + branch + both phase reports + `reviewer.md` + the stance and its trigger (`team.md` § Review stance). Tier per stance.
 - **Adversarial** → also a scratch worktree at the merge-base, its path in the prompt:
@@ -72,7 +73,7 @@ All required:
 
 After merging:
 
-- Close the card per the board's flow, evidence in the closing record (`writing.md`). A felt check or decision still owed = a separate ask. **A partial fix doesn't close the card**: journal what landed and what remains.
+- Close the card per the board's flow, evidence in the closing record (`writing.md`), posted with `--release` (§ Dispatch). A felt check or decision still owed = a separate ask. **A partial fix doesn't close the card**: journal what landed and what remains.
 - Post CROSS-POST on each related card, once the fix has actually landed.
 - File the reviewer's NOTEs worth keeping as cards (duplicate search per `sweep.md` § Close).
 - **Cross-post a retraction as loudly as a result.**
