@@ -13,8 +13,8 @@ A spec for two-way tracker sync, ready to hand to the pipeline board as work car
 
 ## Decisions so far
 
-- [T1: Where the engine runs](lanework://<board>/<card>): in the app, no server
-- [T3: Rate limits per tracker](lanework://<board>/<card>): 5000/h GitHub, 60/min Jira
+- [T1](lanework://<board>/<card>) Where the engine runs: in the app, no server
+- [T3](lanework://<board>/<card>) Rate limits per tracker: 5000/h GitHub, 60/min Jira
 
 ## Not yet specified
 
@@ -22,4 +22,4 @@ A spec for two-way tracker sync, ready to hand to the pipeline board as work car
 
 ## Out of scope
 
-- Jira Server: cloud trackers only for this plan. [T4: Jira Server auth](lanework://<board>/<card>)
+- Jira Server: cloud trackers only for this plan. [T4](lanework://<board>/<card>) Jira Server auth.

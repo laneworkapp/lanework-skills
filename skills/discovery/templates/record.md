@@ -1,13 +1,14 @@
 ---
 schema: 1
 kind: card
-title: "{{kind}}: {{title}}"
+title: "{{title}}"
+cite-as: {{cite}}
 order: {{order}}
 labels: [{text: {{kind}}, rank: {{rank}}, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}]
 created:  {{stamp}}
 modified: {{stamp}}
 ---
-Question: [Q<n>: <title>](lanework://<board>/<card>)
+Question: [Q<n>](lanework://<board>/<card>)
 
 <1 to 3 sentences: context, what was decided, why.>
 

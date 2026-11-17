@@ -72,7 +72,7 @@ A second click gets a second recap.
 
 ## Card references
 
-Every card named, anywhere (comment, body, commit, report), is `[<short id or title>](lanework://<board-id>/<card-id>)`. A bare id is a search; a link is a click. A link may arrive short (each segment 8+ hex digits): read it by prefix, write the full form.
+Every card named, anywhere (comment, body, commit, report), is `[<link text>](lanework://<board-id>/<card-id>)`. **Link text**: the card's `cite-as` alone (`[Q7](…)`, `[T3](…)`), else its short id or title (`lanework/scripts/lib.sh` `card_ref`); the title follows in running text where it helps. Written link text is never rewritten. A bare id is a search; a link is a click. A link may arrive short (each segment 8+ hex digits): read it by prefix, write the full form.
 
 ```bash
 bid=$(awk '/^id:/{print $2}' "$BOARD/index.md"); cid=$(basename "$CARD")

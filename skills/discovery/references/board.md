@@ -34,7 +34,7 @@ Ruling + chat record: `templates/ruling.md`. Templates: `{{key}}` script-filled 
 ## Order
 
 - Placing: `lanework/references/writes.md` § Placing. A moved card goes to the bottom of its destination, so Settled reads as the sequence of rulings.
-- Q numbers: global, in filing order. Mint from the highest `Q<n>` across all lanes (`file-question.sh` does).
+- Q numbers: `cite-as: Q<n>`, global, in filing order; mint rule `lanework/references/writes.md` (`file-question.sh` does). A fact: `cite-as: F<n>`, by hand.
 
 ## Older boards
 

@@ -2,7 +2,8 @@
 # file-question.sh: file the next question card into Asked.
 # usage: file-question.sh <board> "<title, no Q-number>" --round N --body F \
 #          --model m [--ask F] [--depends <link>]... [--why T] [--name n] [--session s]
-# Mints Q<n> from the highest across all lanes. Card frontmatter from templates/question-card.md,
+# On a board whose app draws `cite-as` (lib.sh `cite_enabled`) mints `cite-as: Q<n>` (lanework/references/writes.md) and files a bare title, printing `cite Q<n>`;
+# on any other board the title is `Q<n>: <title>` from the highest across all lanes, as before. Card frontmatter from templates/question-card.md,
 # body from --body, `## Depends on` appended from --depends; Asked's card-defaults labels are unioned in. Two comments, 1s apart: founding
 # record (--why, no handle), then the ask (`waiting.comment` points at it).
 # No --ask: built from --body (first paragraph, Options bullets, first sentence of Recommended,
@@ -40,13 +41,14 @@ ASKED=$(lane_by_title "$BOARD" Asked) || { echo "file-question.sh: no Asked lane
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
 HANDLE=$(ask_handle "$BOARD" || true); HANDLE="${HANDLE:-human}"
 
-# ---- next global Q number, every lane, dot-folders excluded ----
-MAXQ=0
-while IFS= read -r f; do
-  t=$(strip_quotes "$(fm_value "$f" title)")
-  if [[ "$t" =~ ^Q([0-9]+): ]] && [ "${BASH_REMATCH[1]}" -gt "$MAXQ" ]; then MAXQ="${BASH_REMATCH[1]}"; fi
-done < <(find "$BOARD" -mindepth 1 -maxdepth 1 -type d -name '.*' -prune -o -mindepth 3 -maxdepth 3 -type f -name index.md -print)
-NEXTQ=$((MAXQ + 1))
+# ---- an older board: next global Q number from the title prefixes, every lane, dot-folders excluded ----
+if ! cite_enabled "$BOARD"; then
+  MAXQ=0
+  while IFS= read -r f; do
+    t=$(strip_quotes "$(fm_value "$f" title)")
+    if [[ "$t" =~ ^Q([0-9]+): ]] && [ "${BASH_REMATCH[1]}" -gt "$MAXQ" ]; then MAXQ="${BASH_REMATCH[1]}"; fi
+  done < <(find "$BOARD" -mindepth 1 -maxdepth 1 -type d -name '.*' -prune -o -mindepth 3 -maxdepth 3 -type f -name index.md -print)
+fi
 
 section_of() {  # section_of <file> <heading>: lines under "## <heading>"
   awk -v h="## $2" '$0 == h { f=1; next } f && /^## / { exit } f' "$1"
@@ -71,8 +73,12 @@ CARD_ID=$(uuid); FOUND_ID=$(uuid); ASK_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-ask.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 C="$STAGE/$CARD_ID"; mkdir -p "$C/comments/$FOUND_ID" "$C/comments/$ASK_ID"
 
-frontmatter_of "$TEMPLATES/question-card.md" > "$STAGE/fm.md"
-render "$STAGE/fm.md" n "$NEXTQ" title "$(title_str "$TITLE")" order "$(next_order "$ASKED")" \
+if cite_enabled "$BOARD"; then   # scanned as late as possible: nothing narrower than this closes a race with another session
+  CITE=$(next_cite "$BOARD" Q); CARD_TITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/question-card.md" > "$STAGE/fm.md"
+else
+  CITE="Q$((MAXQ + 1))"; CARD_TITLE="$CITE: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/question-card.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
+fi
+render "$STAGE/fm.md" cite "$CITE" title "$CARD_TITLE" order "$(next_order "$ASKED")" \
   round "$ROUND" handle "$HANDLE" since "$NOW" ask_id "$ASK_ID" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 union_lane_defaults "$ASKED" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
@@ -97,3 +103,4 @@ fi
 
 mv "$C" "$ASKED/$CARD_ID"
 printf 'lanework://%s/%s\nshort id %s\nask comment %s\n' "$BOARD_ID" "$CARD_ID" "${CARD_ID:0:8}" "$ASK_ID"
+if cite_enabled "$BOARD"; then printf 'cite %s\n' "$CITE"; fi

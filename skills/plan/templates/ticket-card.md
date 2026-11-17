@@ -1,7 +1,8 @@
 ---
 schema: 1
 kind: card
-title: "T{{n}}: {{title}}"
+title: "{{title}}"
+cite-as: {{cite}}
 order: {{order}}
 labels: [{text: {{type}}, rank: {{rank}}, icon: {glyph: {{glyph}}}, kind: {type: ticket, text: Ticket}}]
 created:  {{stamp}}
@@ -11,4 +12,4 @@ modified: {{stamp}}
 
 ## Depends on
 
-- [T<n>: <title>](lanework://<board>/<card>)
+- [T<n>](lanework://<board>/<card>)
