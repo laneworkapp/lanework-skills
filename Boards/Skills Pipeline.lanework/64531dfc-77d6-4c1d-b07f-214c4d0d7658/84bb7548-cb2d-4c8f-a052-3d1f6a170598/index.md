@@ -6,7 +6,7 @@ order: 1024
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T15:02:26Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 modified: {at: 2026-11-17T11:25:46Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-17T11:25:39Z, comment: cf9a4929-da2c-432f-a458-03bf508404a3}
+waiting: {for: anyone, since: 2026-11-17T11:35:46Z, comment: 7d39a3cd-d699-4b7d-87ce-b10d28128363}
 ---
 Replace the Active lane's owner-facing sentence "claiming it with a comment naming the session and branch" with one that says what the claim becomes once leases exist, and teach the heal to bring boards founded with the old sentence up to it.
 
