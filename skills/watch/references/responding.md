@@ -12,7 +12,7 @@ Answers a question, picks an option (a button click arrives as `<label>: <option
 
 ## A move into an agent lane
 
-A bare move, or a card waiting at arming (`arming.md`), in an `agent` row of `lanework/references/board-kinds.md` = work order, if unclaimed (`work/references/companions.md`). No comment to answer:
+An owner's move (`events.md` item 5), or a card waiting at arming (`arming.md`), in an `agent` row of `lanework/references/board-kinds.md` = work order, if unclaimed (`work/references/companions.md`). No comment to answer:
 
 1. Read the card whole; act per the lane body (`work/SKILL.md`).
 2. Substantial work → § Action-calling below.
