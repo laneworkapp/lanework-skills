@@ -1,0 +1,273 @@
+#!/bin/bash
+# lease.sh: the card lease. Stake, renew, check and release a card's `claimed`, list the leases on a board, and the
+# background timer that renews them. The rules, the exit codes and the record wordings: references/writes.md § Lease.
+# usage: lease.sh stake   <board> <card-uuid> --model m [--name n]
+#        lease.sh renew   <board> <card-uuid> --model m [--name n]
+#        lease.sh check   <board> <card-uuid> --model m [--name n]     prints held | lost | never-held
+#        lease.sh release <board> <card-uuid> --model m [--name n] [--force]
+#        lease.sh list    <board>        one line per leased card, tab-separated: uuid, title, holder "name (session)",
+#                                        "N min left" | "N min lapsed" | "-" (unreadable until), live | lapsed | voided
+#        lease.sh _timer  <board> <card-uuid> <session> <claude-pid>      internal: started detached by stake, check, renew
+# The holder is CLAUDE_CODE_SESSION_ID (never a flag); stake needs CLAUDE_PID, the session's process, which the timer
+# outlives by at most one poll. Exit: 0 ok (check: held), 1 refused, 2 usage / no model / no session id / no CLAUDE_PID /
+# not exactly one card with that uuid, 3 lost, 4 check: never held.
+# Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<card-uuid> (key=value lines: board,
+# timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
+# <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
+# Reads git (branch, `git status --porcelain`) for the loss record; never stages or commits.
+# Test-only knobs, read by tests/smoke.sh: LEASE_TEST_STAKE_WAIT (seconds, default 1), LEASE_TEST_NOTICE_WAIT (120),
+# LEASE_TEST_POLL (60), LEASE_TEST_RENEW_EVERY (polls between renewals, 15). Fractional seconds are fine.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; SELF="$HERE/lease.sh"
+. "$HERE/lib.sh"
+USAGE="lease.sh stake|renew|check|release <board> <card-uuid> --model m [--name n] [--force] | lease.sh list <board>"
+LEASE_SECS=1800; GUARD_SECS=2100
+STAKE_WAIT="${LEASE_TEST_STAKE_WAIT:-1}"; NOTICE_WAIT="${LEASE_TEST_NOTICE_WAIT:-120}"
+POLL="${LEASE_TEST_POLL:-60}"; RENEW_EVERY="${LEASE_TEST_RENEW_EVERY:-15}"
+UUID_RE='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+usage() { printf 'lease.sh: %s\nusage: %s\n' "$1" "$USAGE" >&2; exit 2; }
+
+# find_card: the card's index.md, resolved fresh. 0 + path; 1 none; 2 several
+find_card() {
+  local m n; m=$(ls "$BOARD"/*/"$CID"/index.md 2>/dev/null || true); n=$(printf '%s' "$m" | grep -c . || true)
+  if [ "$n" -eq 1 ]; then printf '%s' "$m"; return 0; fi
+  if [ "$n" -eq 0 ]; then return 1; fi; return 2
+}
+card_file() { local f; if f=$(find_card); then printf '%s' "$f"; else echo "lease.sh: not exactly one card $CID on $BOARD" >&2; exit 2; fi; }
+
+# read_claim <index.md>: CL_TEXT (the claimed lines, block or flow), CL_SESS, CL_NAME, CL_UNTIL
+read_claim() {
+  CL_TEXT=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {exit}
+    fm && c && /^[ \t]/ {print; next} fm {c=0} fm && /^claimed:/ {c=1; print}' "$1")
+  CL_SESS=""; CL_NAME=""; CL_UNTIL=""
+  local rs='session:[[:space:]]*"?([^",}[:space:]]*)' rn='name:[[:space:]]*"?([^",}]*)' ru='until:[[:space:]]*"?([^",}[:space:]]*)'
+  if [[ $CL_TEXT =~ $rs ]]; then CL_SESS="${BASH_REMATCH[1]}"; fi
+  if [[ $CL_TEXT =~ $rn ]]; then CL_NAME="${BASH_REMATCH[1]}"; fi
+  if [[ $CL_TEXT =~ $ru ]]; then CL_UNTIL="${BASH_REMATCH[1]}"; fi
+}
+# status_of: ST = none | live | lapsed | voided (the clock guard: until unreadable or over 35 minutes ahead); UE = until's epoch
+status_of() {
+  NOWE=$(date -u +%s); UE=""
+  if [ -z "$CL_TEXT" ]; then ST=none; return 0; fi
+  UE=$(date -j -u -f %Y-%m-%dT%H:%M:%SZ "$CL_UNTIL" +%s 2>/dev/null || true)
+  if [ -z "$UE" ] || [ $((UE - NOWE)) -gt "$GUARD_SECS" ]; then ST=voided
+  elif [ "$UE" -gt "$NOWE" ]; then ST=live; else ST=lapsed; fi
+}
+
+# write_card set|clear: rewrite claimed (set: the 3-line block, until 30 min from now) and modified whole; staged, then mv
+write_card() {
+  local f stage now by until=""
+  f=$(find_card) || return 1
+  now=$(now_utc); by=$(by_of "$NAME" "$MODEL" "$SESSION"); [ "$1" != set ] || until=$(now_utc "$LEASE_SECS")
+  stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX")
+  awk -v m="modified: {at: $now, by: $by}" -v set="$1" -v b="  by: $by" -v u="  until: $until" '
+    NR == 1 && $0 == "---" { fm = 1; print; next }
+    fm && drop && /^[ \t]/ { next }
+    fm { drop = 0 }
+    fm && $0 == "---" { if (!sm) print m; if (set == "set") { print "claimed:"; print b; print u }; fm = 0; print; next }
+    fm && /^modified:/ { print m; sm = 1; drop = 1; next }
+    fm && /^claimed:/ { drop = 1; next }
+    { print }' "$f" > "$stage/index.md"
+  if [ "$(head -1 "$stage/index.md")" != "---" ] || grep -q '}}}' "$stage/index.md"; then
+    rm -rf "$stage"; echo "lease.sh: $f: no frontmatter, or a broken stamp after the rewrite; nothing written" >&2; return 1
+  fi
+  compact_fm "$stage/index.md"
+  f=$(find_card) || { rm -rf "$stage"; return 1; }   # fresh, just before the mv
+  mv "$stage/index.md" "$f"; rm -rf "$stage"; WROTE_UNTIL="$until"
+}
+
+# thread <card dir>: "created.at<TAB>first body line" per comment
+thread() {
+  local f
+  for f in "$1"/comments/*/index.md; do
+    [ -f "$f" ] || continue
+    awk 'NR==1 && $0=="---" {fm=1; next}
+      fm && /^created:/ {inc=1} fm && /^[^ \t]/ && !/^created:/ {inc=0}
+      fm && inc && match($0, /at:[ \t]*"?[0-9][0-9TZ:.+-]*/) { a = substr($0, RSTART, RLENGTH); sub(/^at:[ \t]*"?/, "", a); inc=0 }
+      fm && $0=="---" {fm=0; next}
+      !fm && NF {print a "\t" $0; exit}' "$f"
+  done
+}
+# post_record <text>: a record on the card, stamped from the clock in a second no other comment there holds
+post_record() {
+  local f c now i stage coid
+  f=$(find_card) || return 1; c=$(dirname "$f")
+  for i in 1 2 3 4 5; do
+    now=$(now_utc)
+    if ! grep -qs -E "^created:.*[{,][[:space:]]*at:[[:space:]]*[\"']?$now|^[[:space:]]+at:[[:space:]]*[\"']?$now" "$c"/comments/*/index.md; then break; fi
+    sleep 1
+  done
+  stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-comment.XXXXXX"); coid=$(uuid); mkdir "$stage/$coid"
+  printf '%s\n' "$1" | comment_file "$stage/$coid/index.md" "$now" "$(by_of "$NAME" "$MODEL" "$SESSION")"
+  f=$(find_card) || { rm -rf "$stage"; return 1; }; c=$(dirname "$f")
+  [ -d "$c/comments" ] || mkdir "$c/comments"
+  mv "$stage/$coid" "$c/comments/$coid"; rm -rf "$stage"
+}
+
+# memory: M_* <-> the per-session file
+mem_load() {
+  M_PID=""; M_CPID=""; M_DIR=""; M_BRANCH=""; M_NAME=""; M_MODEL=""; M_NOTICE=""; M_STATE=""
+  [ -f "$MEM" ] || return 0
+  local k v
+  while IFS='=' read -r k v; do
+    case "$k" in pid) M_PID=$v ;; cpid) M_CPID=$v ;; dir) M_DIR=$v ;; branch) M_BRANCH=$v ;; name) M_NAME=$v ;;
+      model) M_MODEL=$v ;; notice) M_NOTICE=$v ;; state) M_STATE=$v ;; esac
+  done < "$MEM"
+}
+mem_save() {
+  mkdir -p "$MEMD"; local t; t=$(mktemp "$MEMD/.mem.XXXXXX")
+  printf 'board=%s\npid=%s\ncpid=%s\ndir=%s\nbranch=%s\nname=%s\nmodel=%s\nnotice=%s\nstate=%s\n' \
+    "$BOARD" "$M_PID" "$M_CPID" "$M_DIR" "$M_BRANCH" "$M_NAME" "$M_MODEL" "$M_NOTICE" "$M_STATE" > "$t"
+  mv "$t" "$MEM"
+}
+# mem_new: the work-in-flight facts as of now (the caller's directory and branch)
+mem_new() {
+  M_PID=""; M_CPID="${CLAUDE_PID:-}"; M_DIR=$(pwd -P); M_NAME=$NAME; M_MODEL=$MODEL; M_NOTICE=$(now_utc); M_STATE=held
+  # the branch (an unborn one too), else a detached head's sha, else none
+  M_BRANCH=$(git -C "$M_DIR" symbolic-ref --short -q HEAD 2>/dev/null || git -C "$M_DIR" rev-parse --short HEAD 2>/dev/null || true)
+  [ -n "$M_BRANCH" ] || M_BRANCH=none
+  mem_save
+}
+is_timer() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null && ps -p "$1" -o command= 2>/dev/null | grep -q -F 'lease.sh _timer'; }
+stop_timer() { if is_timer "$M_PID"; then kill "$M_PID" 2>/dev/null || true; fi; }
+# ensure_timer: start a timer unless this card's is running; needs a live CLAUDE_PID (the environment's, else the one saved at stake)
+ensure_timer() {
+  local cp="${CLAUDE_PID:-$M_CPID}"
+  if is_timer "$M_PID"; then return 0; fi
+  if [ -z "$cp" ] || ! kill -0 "$cp" 2>/dev/null; then echo "lease.sh: no live CLAUDE_PID; no timer for ${CID:0:8}" >&2; return 0; fi
+  nohup "$SELF" _timer "$BOARD" "$CID" "$SESSION" "$cp" </dev/null >/dev/null 2>&1 &
+  M_PID=$!; M_CPID=$cp; mem_save
+}
+# lose <the other session, or none>: once per card and session, the loss record, and the memory marked lost
+lose() {
+  mem_load
+  mkdir "$MEM.lost" 2>/dev/null || return 0
+  M_STATE=lost; mem_save; NAME=${M_NAME:-$NAME}; MODEL=${M_MODEL:-$MODEL}
+  local files=""
+  if [ -n "$M_DIR" ] && [ -d "$M_DIR" ]; then
+    files=$(git -C "$M_DIR" status --porcelain 2>/dev/null | cut -c4- | paste -sd, - | sed 's/,/, /g' || true)
+  fi
+  post_record "$LEASE_LOST_PREFIX session $SESSION no longer holds this card; session $1 does. Work left in place: branch ${M_BRANCH:-none}, directory ${M_DIR:-unknown}, files touched: ${files:-none}. This session writes this card no more."
+}
+# own_held: the lease is this session's: renew it when lapsed or voided (or always, with "renew"), keep the memory and the timer
+own_held() {
+  if [ "${1:-}" = renew ] || [ "$ST" != live ]; then write_card set; fi
+  mem_load; [ -f "$MEM" ] || mem_new
+  ensure_timer
+}
+
+timer() {
+  local f n=0 na
+  while :; do
+    sleep "$POLL"; n=$((n + 1))
+    kill -0 "$TCPID" 2>/dev/null || exit 0
+    [ -f "$MEM" ] && [ ! -d "$MEM.lost" ] || exit 0
+    mem_load; [ "$M_PID" = "$$" ] || exit 0          # released, or a newer timer took over
+    NAME=${M_NAME:-claude}; MODEL=${M_MODEL:-unknown}
+    f=$(find_card) || exit 0
+    read_claim "$f"; [ -n "$CL_TEXT" ] || exit 0     # released
+    if [ "$CL_SESS" != "$SESSION" ]; then lose "$CL_SESS" || true; exit 0; fi
+    na=$(thread "$(dirname "$f")" | awk -F'\t' -v s="$SESSION" 'index($2, "**Takeover notice**:") == 1 && index($2, "from session " s " at ") {print $1}' | sort | tail -1)
+    if [ -n "$na" ] && [[ "$na" > "$M_NOTICE" ]]; then
+      M_NOTICE=$na; mem_save; write_card set || true; n=0; continue
+    fi
+    if [ $((n % RENEW_EVERY)) -eq 0 ]; then write_card set || true; fi
+  done
+}
+
+list() {
+  local f t mins
+  for f in "$BOARD"/*/*/index.md; do
+    [ "$(fm_value "$f" kind)" = card ] || continue
+    read_claim "$f"; [ -n "$CL_TEXT" ] || continue
+    status_of; t=$(strip_quotes "$(fm_value "$f" title)")
+    if [ -z "$UE" ]; then mins="-"
+    elif [ "$UE" -gt "$NOWE" ]; then mins="$(( (UE - NOWE) / 60 )) min left"
+    else mins="$(( (NOWE - UE) / 60 )) min lapsed"; fi
+    printf '%s\t%s\t%s (%s)\t%s\t%s\n' "$(basename "$(dirname "$f")")" "$t" "${CL_NAME:-?}" "${CL_SESS:-?}" "$mins" "$ST"
+  done
+}
+
+SUB="${1:-}"; [ $# -gt 0 ] && shift
+case "$SUB" in
+  list) [ $# -eq 1 ] || usage "list takes one board"; BOARD="$1"; [ -f "$BOARD/index.md" ] || usage "not a board: $BOARD"; list; exit 0 ;;
+  _timer)
+    [ $# -eq 4 ] || exit 2; BOARD="$1"; CID="$2"; SESSION="$3"; TCPID="$4"; MODEL=""; NAME=claude
+    R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION"; MEM="$MEMD/$CID"; timer; exit 0 ;;
+  stake|renew|check|release) ;;
+  *) usage "unknown subcommand: ${SUB:-none}" ;;
+esac
+[ $# -ge 2 ] || usage "$SUB needs <board> <card-uuid>"
+BOARD="$1"; CID="$2"; shift 2; MODEL=""; NAME=claude; FORCE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --model) [ $# -ge 2 ] || usage "--model needs a value"; MODEL="$2"; shift 2 ;;
+    --name)  [ $# -ge 2 ] || usage "--name needs a value"; NAME="$2"; shift 2 ;;
+    --force) [ "$SUB" = release ] || usage "--force is release's"; FORCE=1; shift ;;
+    *) usage "unknown argument: $1" ;;
+  esac
+done
+require_model lease.sh "$USAGE"
+SESSION="${CLAUDE_CODE_SESSION_ID:-}"
+[ -n "$SESSION" ] || usage "no CLAUDE_CODE_SESSION_ID: no session id, no lease"
+case "$SESSION" in */*|*\"*|*[[:space:]]*) usage "session id with a slash, quote or space: $SESSION" ;; esac
+[ "$SUB" != stake ] || [ -n "${CLAUDE_PID:-}" ] || usage "no CLAUDE_PID: the timer exits with the session's process"
+[[ "$CID" =~ $UUID_RE ]] || usage "not a lowercase card uuid: $CID"
+[ -f "$BOARD/index.md" ] || usage "not a board: $BOARD"
+BOARD=$(cd "$BOARD" && pwd -P)
+R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION"; MEM="$MEMD/$CID"
+F=$(card_file); read_claim "$F"; status_of
+
+case "$SUB" in
+stake)
+  if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8} and writes it no more" >&2; exit 3; fi
+  if [ "$ST" != none ] && [ "$CL_SESS" = "$SESSION" ]; then own_held renew; echo "held $CID until $WROTE_UNTIL"; exit 0; fi
+  IGNORED=""
+  case "$ST" in
+    voided) IGNORED="$CL_UNTIL"; IGN_NOW=$(now_utc) ;;
+    live) echo "lease.sh: ${CID:0:8} is held by session $CL_SESS until $CL_UNTIL" >&2; exit 1 ;;
+    lapsed)
+      OLD_S="$CL_SESS"; OLD_U="$CL_UNTIL"
+      PRIOR=$(thread "$(dirname "$F")" | awk -F'\t' 'index($2, "**Lease lost**") || $2 ~ /^(\*\*)?START/' | sort | tail -1 | cut -f2-)
+      [ -z "$PRIOR" ] || echo "prior: $PRIOR"
+      W=${NOTICE_WAIT%.*}; [ -n "$W" ] || W=0
+      post_record "**Takeover notice**: session $SESSION takes this card from session $OLD_S at $(now_utc "$W") unless the lease is renewed first. It lapsed at $OLD_U."
+      sleep "$NOTICE_WAIT"
+      F=$(card_file); read_claim "$F"
+      if [ "$CL_SESS" != "$OLD_S" ] || [ "$CL_UNTIL" != "$OLD_U" ]; then
+        echo "lease.sh: session ${CL_SESS:-none} answered the notice on ${CID:0:8}; backing off" >&2; exit 1
+      fi ;;
+  esac
+  write_card set
+  sleep "$STAKE_WAIT"
+  F=$(card_file); read_claim "$F"
+  if [ "$CL_SESS" != "$SESSION" ]; then echo "lease.sh: session ${CL_SESS:-none} staked ${CID:0:8} first; backing off" >&2; exit 1; fi
+  [ -z "$IGNORED" ] || post_record "**Lease ignored**: until $IGNORED was over 35 minutes ahead of $IGN_NOW, so the card was staked as free."
+  mem_new; ensure_timer
+  echo "held $CID until $WROTE_UNTIL" ;;
+renew)
+  if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8}" >&2; exit 3; fi
+  if [ "$ST" != none ] && [ "$CL_SESS" = "$SESSION" ]; then own_held renew; echo "held $CID until $WROTE_UNTIL"; exit 0; fi
+  if [ -f "$MEM" ]; then lose "${CL_SESS:-none}"; echo "lease.sh: lost ${CID:0:8} to session ${CL_SESS:-none}" >&2; exit 3; fi
+  if [ "$ST" = none ]; then echo "lease.sh: no lease on ${CID:0:8} to renew" >&2; exit 1; fi
+  echo "lease.sh: ${CID:0:8} is session $CL_SESS's, not this session's" >&2; exit 3 ;;
+check)
+  if [ -d "$MEM.lost" ]; then echo lost; exit 3; fi
+  if [ "$ST" != none ] && [ "$CL_SESS" = "$SESSION" ]; then own_held; echo held; exit 0; fi
+  if [ -f "$MEM" ]; then lose "${CL_SESS:-none}"; echo lost; exit 3; fi
+  echo never-held; exit 4 ;;
+release)
+  if [ -n "$FORCE" ] && [ "$ST" != none ] && [ "$CL_SESS" != "$SESSION" ]; then
+    write_card clear
+    post_record "**Lease released by force** on the owner's word: session $CL_SESS held it until $CL_UNTIL."
+    exit 0
+  fi
+  if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8} and writes it no more" >&2; exit 3; fi
+  if [ "$ST" != none ] && [ "$CL_SESS" != "$SESSION" ]; then
+    echo "lease.sh: ${CID:0:8} is held by session $CL_SESS; --force on the owner's word only" >&2; exit 1
+  fi
+  mem_load; stop_timer
+  [ "$ST" = none ] || write_card clear
+  rm -f "$MEM" ;;
+esac
+exit 0

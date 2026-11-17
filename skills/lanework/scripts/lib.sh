@@ -124,6 +124,9 @@ by_of() {
   else printf '{name: %s, kind: agent, model: %s}' "$1" "$2"; fi
 }
 
+# LEASE_LOST_PREFIX: the fixed opening of the "Lease lost" record. lease.sh writes it; a lint that counts losses greps for it.
+LEASE_LOST_PREFIX='**Lease lost**:'
+
 uuid() { uuidgen | tr 'A-Z' 'a-z'; }
 now_utc() { date -u ${1:+-v+${1}S} +%FT%TZ; }   # now_utc [seconds-ahead]
 
