@@ -658,6 +658,8 @@ ah() { ( . "$SK/lanework/scripts/lib.sh"; ask_handle "$1" ) || true; }
 { [ "$(gv "$G118")" = 118 ] && [ "$(gv "$G114")" = 114 ] && [ -z "$(gv "$GNONE")" ] \
   && [ "$(ah "$G118")" = anyone ] && [ "$(ah "$G117")" = anyone ] && [ "$(ah "$G116")" = kim ] && [ "$(ah "$G114")" = kim ] && [ -z "$(ah "$GNONE")" ]; } \
   || { echo "guide_version/ask_handle: 118=$(gv "$G118") 114=$(gv "$G114") none=$(gv "$GNONE") ah118=$(ah "$G118") ah117=$(ah "$G117") ah116=$(ah "$G116") ah114=$(ah "$G114") ahnone=$(ah "$GNONE")"; exit 1; }
+GAG="$T/GAgents.lanework"; mkguide "$GAG" 118; mv "$GAG/CLAUDE.md" "$GAG/AGENTS.md"
+{ [ "$(gv "$GAG")" = 118 ] && [ "$(ah "$GAG")" = anyone ]; } || { echo "guide_version/ask_handle ignore AGENTS.md when CLAUDE.md is absent"; exit 1; }
 rc=0; ( . "$SK/lanework/scripts/lib.sh"; ask_handle "$GNONE" ) >/dev/null || rc=$?; [ "$rc" -ne 0 ] || { echo "ask_handle on a board with no guide and no handle exited 0"; exit 1; }
 ok "guide_version reads the stamp; ask_handle is anyone from v117 on, the guide's handle below it, and empty with exit 1 when neither exists"
 printf '@anyone Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/any-good.md"
@@ -675,6 +677,12 @@ for f in any-late any-long any-norecap any-record; do "$SK/work/scripts/lint-ask
 printf '@kim maybe ship it; worth a try?\n' > "$T/kim-bad.md"
 if "$SK/work/scripts/lint-ask.sh" "$T/kim-bad.md" "$G114" >/dev/null; then echo "lint-ask passed a bad @kim ask on a v114 board"; exit 1; fi
 ok "lint-ask on a v114 board ignores @anyone and still checks the board's own handle"
+printf '**Asks changed.**\n\nThey now start `@anyone` on v118 boards. See [the guide](https://example.com/@anyone) for the reserved handle.\n' > "$T/any-quoted.md"
+printf 'We said @anyone should answer, then went on to explain why in a long mid-sentence aside.\n\nSecond line.\n' > "$T/any-mid.md"
+"$SK/work/scripts/lint-ask.sh" "$T/any-quoted.md" "$G118" || { echo "lint-ask treated a record quoting @anyone in backticks or a URL as an ask"; exit 1; }
+printf 'Context first.\n\nWe said @anyone should answer.\n' > "$T/any-mid.md"
+if "$SK/work/scripts/lint-ask.sh" "$T/any-mid.md" "$G118" >/dev/null; then echo "lint-ask passed a bare mid-thread @anyone"; exit 1; fi
+ok "lint-ask on a v118 board passes a record quoting @anyone in a code span or a URL, and still fails a bare @anyone that is not on line 1"
 printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/fq-any.md"
 for g in 118 114; do
   FQ="$T/FQ$g Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$FQ" --model smoke >/dev/null; mkguide "$FQ" "$g"

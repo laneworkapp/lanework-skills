@@ -17,7 +17,7 @@ f=${1:?usage: lint-ask.sh <file> [<board dir>]}; board=${2:-}
 body=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {fm=0; next} !fm' "$f")
 handle=""
 [ -n "$board" ] && handle=$(owner_handle "$board" || true)
-if [ -n "$board" ] && [ "$(ask_handle "$board" || true)" = anyone ] && printf '%s\n' "$body" | grep -q -i -E '(^|[^[:alnum:]_])@anyone([^[:alnum:]_-]|$)'; then handle=anyone; fi
+if [ -n "$board" ] && [ "$(ask_handle "$board" || true)" = anyone ] && printf '%s\n' "$body" | sed -E 's/`[^`]*`//g; s/\]\([^)]*\)/]/g; s#[[:alpha:]][[:alnum:]+.-]*://[^[:space:]>)]*##g' | grep -q -i -E '(^|[^[:alnum:]_])@anyone([^[:alnum:]_-]|$)'; then handle=anyone; fi
 [ -n "$handle" ] || handle=$(printf '%s\n' "$body" | grep -o -E '(^|[^[:alnum:]_])@[[:alnum:]_-]+' | head -1 | sed 's/.*@//')
 [ -n "$handle" ] || exit 0                                   # no mention anywhere: a record
 mention="(^|[^[:alnum:]_])@$handle([^[:alnum:]_-]|$)"
