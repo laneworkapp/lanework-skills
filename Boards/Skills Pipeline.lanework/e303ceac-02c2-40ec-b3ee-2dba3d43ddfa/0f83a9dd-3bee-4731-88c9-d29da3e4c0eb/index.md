@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "lanework: a lease script to stake, renew, check and release a card lease"
-order: 2048
+order: 70656
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T14:48:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T16:21:29Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-17T16:21:29Z, comment: 1868e936-f675-40b9-849b-a2ea159c4b7a}
+modified: {at: 2026-11-17T17:50:58Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Add one script, `skills/lanework/scripts/lease.sh`, that holds the whole card lease (stake, renew, check, release and list, with the background timer, the clock guard and the takeover notice) exactly as the owner ruled it on Card Lease Discovery, so the four skills that follow only call it.
 
