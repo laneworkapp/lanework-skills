@@ -26,7 +26,7 @@ Ticket = one question whose resolution is a decision, sized to one session. Card
 ## Claim
 
 - `scripts/claim-ticket.sh`, **before any work**: stakes the card's lease while it is in Frontier, then Frontier → Working + a Claimed comment. Lease rules: `lanework/references/writes.md` § Lease. The lane shows the stage; the lease, the one holder.
-- Refuses a card not in Frontier, one another session holds, or a session with no `CLAUDE_CODE_SESSION_ID`.
+- Refuses a card not in Frontier, one another session holds, or a session with no `CLAUDE_CODE_SESSION_ID` or no `CLAUDE_PID`.
 - One machine: across machines a lease is a hint.
 - Concurrent sessions skip Working tickets. A HITL ticket waits there wearing `waiting`, **its lease released** before the session stops: `lanework/scripts/lease.sh release`.
 - **Resume** a Working ticket = stake again, no move, no claim: `lanework/scripts/lease.sh stake`.
@@ -37,6 +37,7 @@ Ticket = one question whose resolution is a decision, sized to one session. Card
 2. Write the Resolution: `templates/resolution.md`.
 3. `scripts/resolve-ticket.sh` → Resolved, the lease released in that write. Blocked tickets whose dependencies are all Resolved move to Frontier.
 
+- A ticket carrying another session's lease, live or lapsed, is not resolved by a session that does not hold it: stake first (`lanework/scripts/lease.sh stake`; a lapsed lease costs the takeover notice, `lanework/references/writes.md` § Lease).
 - **Moot**: invalidated by another decision → resolve as `Moot: <why>`, linking the deciding ticket. Claim it first.
 - Missed record (ticket already Resolved) → a new ticket linking the old one files it.
 
@@ -47,4 +48,4 @@ Mis-scoped ticket → `resolve-ticket.sh --to out-of-scope` (from Frontier, Bloc
 ## Editing
 
 - Unclaimed Frontier / Blocked body: may be rewritten while sharpening (restamp `modified`). Depends on changed → `scripts/frontier.sh`, fix the drift it names.
-- Working: the claiming session only. Resolved: never edited.
+- Working: the lease's holder only. Resolved: never edited.
