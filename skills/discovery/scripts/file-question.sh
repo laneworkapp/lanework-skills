@@ -38,7 +38,7 @@ require_model file-question.sh "file-question.sh <board> <title> --round N --bod
 
 ASKED=$(lane_by_title "$BOARD" Asked) || { echo "file-question.sh: no Asked lane on $BOARD" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
-HANDLE=$(owner_handle "$BOARD" || true); HANDLE="${HANDLE:-human}"
+HANDLE=$(ask_handle "$BOARD" || true); HANDLE="${HANDLE:-human}"
 
 # ---- next global Q number, every lane, dot-folders excluded ----
 MAXQ=0
