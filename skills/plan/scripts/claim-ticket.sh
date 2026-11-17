@@ -7,7 +7,8 @@
 # Exit 1, nothing written: the card not in Frontier (claimed by another session, blocked, resolved); no
 # CLAUDE_CODE_SESSION_ID or no CLAUDE_PID (no session, no lease); no lanework/scripts/lease.sh beside plan; the stake
 # refused or lost (lease.sh names the holder on stderr; a takeover notice it posted stays). After the stake, the card
-# leaving Frontier, the lease no longer this session's, or any other abort: exit 1, the lease just staked released.
+# leaving Frontier, the lease no longer this session's, or any other abort, a TERM during the stake included: exit 1
+# (a signal: its own code), the lease just staked released. A SIGKILL strands it: the same session's next claim recovers it.
 # Staged outside the board, from the card as the stake left it; the card path is re-resolved just before landing.
 # A stake over a lapsed lease waits for the takeover notice (2 min): give the call a timeout over that.
 set -euo pipefail
@@ -51,15 +52,18 @@ HOLDER=$("$LEASE" list "$BOARD" | awk -F'\t' -v c="$CID" '$1 == c { print $2 }')
 STAKED=""; DONE=""; STAGE=""
 cleanup() {
   [ -z "$STAGE" ] || rm -rf "$STAGE"
+  # release whatever the stake left. A stake that never landed leaves nothing of this session's: release then refuses
+  # another session's lease (exit 1) or a lost one (exit 3), writing nothing and posting nothing; quiet, exit code unchanged
   if [ -n "$STAKED" ] && [ -z "$DONE" ]; then
-    "$LEASE" release "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null \
-      || echo "claim-ticket.sh: the lease on ${CID:0:8} was not released: lanework/scripts/lease.sh release by hand" >&2
+    local r=0; "$LEASE" release "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null 2>&1 || r=$?
+    case $r in 0|1|3) ;; *) echo "claim-ticket.sh: the lease on ${CID:0:8} was not released (exit $r): lanework/scripts/lease.sh release by hand" >&2 ;; esac
   fi
 }
 trap cleanup EXIT
+# marked before the stake, so a claim ended while the stake runs (a signal waits for it) still releases what it left
+case "$HOLDER" in *"($CLAUDE_CODE_SESSION_ID)") ;; *) STAKED=1 ;; esac
 rc=0; OUT=$("$LEASE" stake "$BOARD" "$CID" --model "$MODEL" --name "$NAME") || rc=$?
 [ "$rc" -eq 0 ] || { echo "claim-ticket.sh: ${CID:0:8} not claimed: lease.sh stake exit $rc; nothing else written" >&2; exit 1; }
-case "$HOLDER" in *"($CLAUDE_CODE_SESSION_ID)") ;; *) STAKED=1 ;; esac
 grep '^prior: ' <<<"$OUT" || true   # a takeover: the thread's latest START or Lease lost record, read before working
 refuse_unless_frontier
 
