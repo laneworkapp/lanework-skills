@@ -1941,6 +1941,16 @@ L S-five renew "$LB" "$C5" --model smoke >/dev/null
   && grep -q '^modified: {at: 2026-1[1-9]-.*session: "S-five"}}$' "$F5" || { echo "renew:"; cat "$F5"; exit 1; }
 ok "lease: renew moves until forward and restamps modified, and leaves the body byte for byte"
 
+# 5b. a body holding a triple brace (a JSON example) is no broken stamp: stake, renew, check (a lapsed own lease), release all write
+C5b=$(lcard "Five b"); F5b=$(lcf "$C5b"); printf '\n```json\n{"a": {"b": {"c": 1}}}\n```\n' >> "$F5b"; B0=$(bodyof "$F5b" | shasum)
+RC=0; L S-brace stake "$LB" "$C5b" --model smoke >/dev/null 2>&1 || RC=$?; RC2=0; L S-brace renew "$LB" "$C5b" --model smoke >/dev/null 2>&1 || RC2=$?
+[ "$RC$RC2" = 00 ] && [ "$(csess "$F5b")" = S-brace ] || { echo "}}} in the body: stake rc $RC, renew rc $RC2"; exit 1; }
+setclaim "$F5b" S-brace "$(iso $(( $(date -u +%s) - 60 )))"; RC=0; CO=$(L S-brace check "$LB" "$C5b" --model smoke 2>/dev/null) || RC=$?
+[ "$CO$RC" = held0 ] && [ "$(epoch "$(cuntil "$F5b")")" -gt "$(date -u +%s)" ] || { echo "}}} in the body: check '$CO' rc $RC"; exit 1; }
+RC=0; L S-brace release "$LB" "$C5b" --model smoke >/dev/null 2>&1 || RC=$?
+[ $RC = 0 ] && ! grep -q '^claimed:' "$F5b" && [ "$B0" = "$(bodyof "$F5b" | shasum)" ] || { echo "}}} in the body: release rc $RC"; cat "$F5b"; exit 1; }
+validate "$LB" >/dev/null; ok "lease: a card with }}} in its body is staked, renewed, checked and released, the body byte for byte"
+
 # 6. a changed by: the timer finds the loss and posts one record; then no further write
 TP=$(mpid $SID1 "$C1"); setclaim "$F1" S-other "$(iso $(( $(date -u +%s) + 1500 )))"
 waitfor '[ "$(records "$C1" "**Lease lost**")" = 1 ]' || { echo "no Lease lost record within 4 s"; exit 1; }
@@ -1953,7 +1963,20 @@ HS1=$(shasum < "$F1"); RC=0; L "$SID1" renew "$LB" "$C1" --model smoke >/dev/nul
 RC2=0; CO=$(L "$SID1" check "$LB" "$C1" --model smoke 2>/dev/null) || RC2=$?
 [ $RC = 3 ] && [ $RC2 = 3 ] && [ "$CO" = lost ] && [ "$HS1" = "$(shasum < "$F1")" ] && [ "$(records "$C1" "**Lease lost**")" = 1 ] \
   || { echo "after the loss: renew rc $RC, check rc $RC2 '$CO', records $(records "$C1" "**Lease lost**")"; exit 1; }
-ok "lease: a changed by yields one Lease lost record naming branch, directory and files, and no further write"
+C6g=$(lcard "Six gone"); F6g=$(lcf "$C6g"); L S-six stake "$LB" "$C6g" --model smoke >/dev/null; TP=$(mpid S-six "$C6g")
+perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m' "$F6g"; waitfor '! alive "$TP"' || { echo "the timer outlived a removed claimed"; exit 1; }
+H6=$(shasum < "$F6g"); RC=0; L S-six stake "$LB" "$C6g" --model smoke >/dev/null 2>&1 || RC=$?; RC2=0; CO=$(L S-six check "$LB" "$C6g" --model smoke 2>/dev/null) || RC2=$?
+[ "$RC$RC2$CO" = 33lost ] && [ "$H6" = "$(shasum < "$F6g")" ] && [ "$(records "$C6g" "**Lease lost**")" = 1 ] \
+  || { echo "stake on a remembered card with claimed gone: stake rc $RC, check rc $RC2 '$CO', records $(records "$C6g" "**Lease lost**")"; cat "$F6g"; exit 1; }
+ok "lease: a changed by yields one Lease lost record naming branch, directory and files, and no further write; staking a remembered card whose claimed is gone is the same loss"
+
+# 6b. the timer and six concurrent checks find one loss: exactly one record
+C6r=$(lcard "Six race"); F6r=$(lcf "$C6r"); L S-sixr stake "$LB" "$C6r" --model smoke >/dev/null; TP=$(mpid S-sixr "$C6r")
+setclaim "$F6r" S-other "$(iso $(( $(date -u +%s) + 1500 )))"; RPS=()
+for i in 1 2 3 4 5 6; do L S-sixr check "$LB" "$C6r" --model smoke >/dev/null 2>&1 & RPS+=("$!"); done
+wait "${RPS[@]}" || true; waitfor '! alive "$TP"' || { echo "the timer outlived the raced loss"; exit 1; }
+[ "$(records "$C6r" "**Lease lost**")" = 1 ] || { echo "timer and six checks: $(records "$C6r" "**Lease lost**") loss records, want 1"; exit 1; }
+ok "lease: the timer and six concurrent checks racing on one loss post exactly one Lease lost record"
 
 # 7. clock guard: an until over 35 minutes ahead is no lease
 C7=$(lcard "Seven"); F7=$(lcf "$C7"); setclaim "$F7" S-skew "$(iso $(( $(date -u +%s) + 3600 )))"
@@ -1961,7 +1984,10 @@ L S-seven stake "$LB" "$C7" --model smoke >/dev/null || { echo "stake over a ske
 [ "$(csess "$F7")" = S-seven ] && [ "$(records "$C7" "**Lease ignored**")" = 1 ] || { echo "clock guard: holder $(csess "$F7")"; exit 1; }
 C7b=$(lcard "Seven b"); F7b=$(lcf "$C7b"); setclaim "$F7b" S-skew "$(iso $(( $(date -u +%s) + 2000 )))"; RC=0
 L S-seven stake "$LB" "$C7b" --model smoke >/dev/null 2>&1 || RC=$?; [ $RC = 1 ] || { echo "an until 33 minutes ahead must still hold: rc $RC"; exit 1; }
-ok "lease: an until over 35 minutes ahead is no lease; stake posts Lease ignored"
+C7c=$(lcard "Seven c"); F7c=$(lcf "$C7c"); setclaim "$F7c" S-skew X; perl -ni -e 'print unless /^  until: X$/' "$F7c"; [ -z "$(cuntil "$F7c")" ] && [ "$(csess "$F7c")" = S-skew ] || { echo "fixture: no until"; exit 1; }
+L S-seven stake "$LB" "$C7c" --model smoke >/dev/null || { echo "stake over a claimed with no until was refused"; exit 1; }
+[ "$(csess "$F7c")" = S-seven ] && [ "$(records "$C7c" "**Lease ignored**: until none was")" = 1 ] || { echo "no until: holder $(csess "$F7c"), ignored records $(records "$C7c" "**Lease ignored**")"; exit 1; }
+ok "lease: an until over 35 minutes ahead, or none, is no lease; stake posts Lease ignored"
 
 # 8. takeover: a live holder answers the notice and the taker backs off; an unanswered notice is taken over
 C8=$(lcard "Eight"); F8=$(lcf "$C8"); L S-holder stake "$LB" "$C8" --model smoke >/dev/null
@@ -2005,10 +2031,13 @@ ok "lease: the loss record opens with LEASE_LOST_PREFIX"
 CA=$(lcard "A"); CB=$(lcard "B"); CC=$(lcard "C"); for c in "$CA" "$CB" "$CC"; do L S-multi stake "$LB" "$c" --model smoke >/dev/null; done
 PA=$(mpid S-multi "$CA"); PB=$(mpid S-multi "$CB"); PC=$(mpid S-multi "$CC")
 [ "$(ls "$LT/lanework-lease/S-multi" | grep -c -E '^[0-9a-f-]{36}$')" = 3 ] && alive "$PA" && alive "$PB" && alive "$PC" && [ "$PA" != "$PB" ] && [ "$PB" != "$PC" ] || { echo "three leases: files or timers"; exit 1; }
+# a stale pid in B's memory that is now A's timer: release must stop only a timer of B's own board and card
+perl -pi -e "s/^pid=.*/pid=$PA/" "$(mem S-multi "$CB")"
 L S-multi release "$LB" "$CB" --model smoke >/dev/null; waitfor '! alive "$PB"' || { echo "release left B's timer"; exit 1; }
+alive "$PA" || { echo "releasing B stopped A's timer through a stale pid"; exit 1; }
 [ "$(L S-multi check "$LB" "$CA" --model smoke)$(L S-multi check "$LB" "$CC" --model smoke)" = heldheld ] && [ -z "$(csess "$(lcf "$CB")")" ] && alive "$PA" && alive "$PC" \
   || { echo "releasing one of three disturbed the others"; exit 1; }
-ok "lease: one session holds three leases at once: three files, three timers, and releasing one leaves the other two held"
+ok "lease: one session holds three leases at once: three files, three timers, and releasing one leaves the other two held, even through a stale pid"
 
 # 10. release
 C10=$(lcard "Ten"); F10=$(lcf "$C10"); L S-ten stake "$LB" "$C10" --model smoke >/dev/null; TP=$(mpid S-ten "$C10")
@@ -2039,15 +2068,15 @@ C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -
 C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
 C12u=$(lcard "Unreadable one"); setclaim "$(lcf "$C12u")" S-skew "soon"
 LO=$("$LS" list "$LB"); line() { awk -F'\t' -v c="$1" '$1==c' <<<"$LO"; }
-[ "$(line "$C12l" | cut -f2-)" = "$(printf 'Lapsed one\tclaude (S-gone)\t10 min lapsed\tlapsed')" ] || { echo "list lapsed: $(line "$C12l")"; exit 1; }
-line "$C12v" | grep -q -E "$(printf '^[^\t]*\tVoided one\tclaude \\(S-skew\\)\t1[12][0-9] min left\tvoided$')" || { echo "list voided: $(line "$C12v")"; exit 1; }
-line "$C12u" | grep -q -E "$(printf '\t-\tvoided$')" || { echo "list unreadable: $(line "$C12u")"; exit 1; }
-line "$CA" | grep -q -E "$(printf '^%s\tA\tclaude \\(S-multi\\)\t(29|30) min left\tlive$' "$CA")" || { echo "list live: $(line "$CA")"; exit 1; }
+[ "$(line "$C12l" | cut -f2-)" = "$(printf 'claude (S-gone)\t10 min lapsed\tlapsed\tLapsed one')" ] || { echo "list lapsed: $(line "$C12l")"; exit 1; }
+line "$C12v" | grep -q -E "$(printf '^[^\t]*\tclaude \\(S-skew\\)\t1[12][0-9] min left\tvoided\tVoided one$')" || { echo "list voided: $(line "$C12v")"; exit 1; }
+line "$C12u" | grep -q -E "$(printf '\t-\tvoided\tUnreadable one$')" || { echo "list unreadable: $(line "$C12u")"; exit 1; }
+line "$CA" | grep -q -E "$(printf '^%s\tclaude \\(S-multi\\)\t(29|30) min left\tlive\tA$' "$CA")" || { echo "list live: $(line "$CA")"; exit 1; }
 [ -z "$(line "$C10")" ] && [ -z "$(line "$C2")" ] || { echo "list printed a card with no lease"; exit 1; }
-ok "lease: list prints held cards with holder, time left, lapsed and voided"
+ok "lease: list prints held cards with holder, time left, lapsed and voided, the title last"
 
 # 13. nothing left: release what is held, end the stand-ins; every timer must be gone within a poll
-for c in $(awk -F'\t' '$5=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
+for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
   s=$(csess "$(lcf "$c")"); L "$s" release "$LB" "$c" --model smoke >/dev/null || true; done
 for p in ${LSP[@]+"${LSP[@]}"}; do kill "$p" 2>/dev/null || true; done; LSP=()
 waitfor '[ -z "$(pgrep -f "$LS _timer" || true)" ]' || { echo "timers left:"; pgrep -fl "$LS _timer"; exit 1; }
