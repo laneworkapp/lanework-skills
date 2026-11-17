@@ -229,8 +229,8 @@ case "$SUB" in
 stake)
   if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8} and writes it no more" >&2; exit 3; fi
   if [ "$ST" != none ] && [ "$CL_SESS" = "$SESSION" ]; then own_held renew; echo "held $CID until $WROTE_UNTIL"; exit 0; fi
-  # staked here (remembered) and claimed is gone: the owner freed it from this session, a loss
-  if [ "$ST" = none ] && [ -f "$MEM" ]; then lose none || true; echo "lease.sh: lost ${CID:0:8}: its claimed was removed" >&2; exit 3; fi
+  # staked here (remembered), and claimed is gone or another session's (live or lapsed): a loss, never a takeover
+  if [ -f "$MEM" ]; then lose "${CL_SESS:-none}" || true; echo "lease.sh: lost ${CID:0:8} to session ${CL_SESS:-none}" >&2; exit 3; fi
   IGNORED=""
   case "$ST" in
     voided) IGNORED="${CL_UNTIL:-none}"; IGN_NOW=$(now_utc) ;;
