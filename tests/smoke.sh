@@ -535,6 +535,11 @@ ok "a title with a line break and a '## ' cannot open a body section (heading an
 
 # plan: found, file, claim, resolve, unblock, out of scope, frontier, records from Working
 PS="$SK/plan/scripts"; PL="$T/Sync: v2 Plan.lanework"
+# claim-ticket.sh stakes through lanework/scripts/lease.sh, so the plan scripts run as a session: PE, as session S-plan under a
+# stand-in CLAUDE_PID (a sleep ended by its pid on exit and before the lease cases' last check), a TMPDIR of their own, the test knobs
+PT=$(mktemp -d "$T/plan-tmp.XXXXXX"); sleep 600 </dev/null >/dev/null 2>&1 & PSP=$!; disown "$PSP"; trap 'kill "$PSP" 2>/dev/null || true' EXIT
+PE() { CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1000 "$@"; }
 "$PS/found-plan-board.sh" "$PL" --model smoke >/dev/null
 grep -q '^title: "Sync: v2 Plan"$' "$PL/index.md" && grep -q '^A plan for Sync: v2:' "$PL/index.md" && ! grep -q '{{' "$PL/index.md" || { echo "plan board title or topic not rendered"; exit 1; }
 [ "$(grep -l '^icon: ' "$PL"/*/index.md | grep -c .)" -eq 7 ] && grep -qx 'collapsed: true' "$(grep -l '^title: "Out of scope"$' "$PL"/*/index.md)" || { echo "plan lanes missing icons or Out of scope not collapsed"; exit 1; }
@@ -567,35 +572,35 @@ done
 if "$PS/file-ticket.sh" "$PL" "Bad" --type nope --body "$T/t.md" --model smoke 2>/dev/null; then echo "accepted a bad type"; exit 1; fi
 [ "$S3" = "$(sum "$PL")" ] || { echo "a refused file-ticket wrote something"; exit 1; }
 ok "file-ticket.sh refuses another board's link, a non-link, a missing card and a bad type, writing nothing"
-if "$PS/claim-ticket.sh" "$PL" "$T3" --model smoke 2>"$T/err.txt"; then echo "claimed a Blocked ticket"; exit 1; fi
+if PE "$PS/claim-ticket.sh" "$PL" "$T3" --model smoke 2>"$T/err.txt"; then echo "claimed a Blocked ticket"; exit 1; fi
 grep -q 'is in Blocked, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
-"$PS/claim-ticket.sh" "$PL" "$T1" --model smoke --session s1 >/dev/null
+PE "$PS/claim-ticket.sh" "$PL" "$T1" --model smoke --session s1 >/dev/null
 [ "$(plane "$T1")" = Working ] && grep -qx '\*\*Claimed\*\* by claude, session s1.' "$PL"/*/"$T1"/comments/*/index.md || { echo "claim did not move to Working with a Claimed comment"; exit 1; }
 grep -q 'modified: {at: .*, by: {name: claude, kind: agent, model: smoke, session: "s1"}}' "$(ls "$PL"/*/"$T1"/index.md)" || { echo "claim did not restamp modified"; exit 1; }
-if "$PS/claim-ticket.sh" "$PL" "$T1" --model smoke 2>"$T/err.txt"; then echo "claimed a Working ticket twice"; exit 1; fi
+if PE "$PS/claim-ticket.sh" "$PL" "$T1" --model smoke 2>"$T/err.txt"; then echo "claimed a Working ticket twice"; exit 1; fi
 grep -q 'is in Working, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
-if "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/t.md" --model smoke 2>/dev/null; then echo "resolved an unclaimed ticket"; exit 1; fi
+if PE "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/t.md" --model smoke 2>/dev/null; then echo "resolved an unclaimed ticket"; exit 1; fi
 ok "claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one"
 # a Working ticket wearing waiting loses it on resolve; one of two deps resolved keeps T3 Blocked, unblocks T4
 WBLOCK='waiting:\n  for: [rzen, bobsmith, carol, dave]\n  since: 2026-10-10T00:00:00Z\n  comment: 11111111-1111-4111-8111-111111111111'   # past 120 characters: a block (awk -v reads the \n)
 TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$TF1" > "$T/w.md"; mv "$T/w.md" "$TF1"; grep -q '^  for: \[rzen, bobsmith' "$TF1"
 printf '**2026-10-10**: In the app, as recommended. "Yes."\n' > "$T/res1.md"
-RO1=$("$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/res1.md" --model smoke)
+RO1=$(PE "$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/res1.md" --model smoke)
 TF1="$(ls "$PL"/*/"$T1"/index.md)"
 { [ "$(plane "$T1")" = Resolved ] && ! grep -q -E '^(waiting:|  (for|since|comment):)' "$TF1" && fm_parses "$TF1" && grep -qx '## Resolution' "$TF1" && grep -qF '"Yes."' "$TF1" &&
   [ "$(plane "$T4")" = Frontier ] && [ "$(plane "$T3")" = Blocked ] && grep -qx 'unblocked T4' <<<"$RO1" && ! grep -q 'unblocked T3' <<<"$RO1" && [ "$(tail -1 <<<"$RO1")" = "$TL1" ]; } || { echo "resolve/unblock wrong: $RO1"; exit 1; }
-"$PS/claim-ticket.sh" "$PL" "$T2" --model smoke >/dev/null
-RO2=$("$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/res1.md" --model smoke)
+PE "$PS/claim-ticket.sh" "$PL" "$T2" --model smoke >/dev/null
+RO2=$(PE "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/res1.md" --model smoke)
 [ "$(plane "$T3")" = Frontier ] && grep -qx 'unblocked T3' <<<"$RO2" || { echo "T3 not unblocked once both deps resolved: $RO2"; exit 1; }
 [ "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T3"/index.md)")" -gt "$(sed -n 's/^order: //p' "$(ls "$PL"/*/"$T4"/index.md)")" ] || { echo "unblocked ticket not at the bottom of Frontier"; exit 1; }
 validate "$PL" >/dev/null; ok "resolve-ticket.sh appends the resolution, drops a block-form list waiting whole, moves to Resolved; unblocks exactly the tickets whose deps are all Resolved (two deps: only after both), to the bottom of Frontier"
 # out of scope: from Frontier; a new ticket depending on it is refused; Resolved can't go out of scope
 printf '**2026-10-10**: Out of scope: past the destination.\n' > "$T/oos.md"
-"$PS/resolve-ticket.sh" "$PL" "$T4" --resolution "$T/oos.md" --to out-of-scope --model smoke >/dev/null
+PE "$PS/resolve-ticket.sh" "$PL" "$T4" --resolution "$T/oos.md" --to out-of-scope --model smoke >/dev/null
 [ "$(plane "$T4")" = "Out of scope" ] || { echo "out-of-scope did not move the ticket"; exit 1; }
 if "$PS/file-ticket.sh" "$PL" "Needs four" --type grilling --body "$T/t.md" --depends "lanework://$PBID/$T4" --model smoke 2>"$T/err.txt"; then echo "accepted an out-of-scope dependency"; exit 1; fi
 grep -q 'is Out of scope: rule this ticket out too, or drop the dependency' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
-if "$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/oos.md" --to out-of-scope --model smoke 2>/dev/null; then echo "moved a Resolved ticket out of scope"; exit 1; fi
+if PE "$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/oos.md" --to out-of-scope --model smoke 2>/dev/null; then echo "moved a Resolved ticket out of scope"; exit 1; fi
 ok "resolve-ticket.sh --to out-of-scope moves a Frontier ticket; file-ticket.sh refuses a dependency on it; a Resolved ticket can't go out of scope"
 # frontier.sh: lists in order, blocked deps shown; drift warned on stderr, exit 0
 TO5=$("$PS/file-ticket.sh" "$PL" "Five" --type grilling --body "$T/t.md" --depends "lanework://$PBID/$T3" --model smoke); T5=$(head -1 <<<"$TO5" | sed 's#.*/##')
@@ -609,20 +614,22 @@ grep -q 'drift: T3: Both \[x\] "q" is Blocked but every dependency is Resolved' 
 mv "$BL/$T3" "$FR/$T3"
 ok "frontier.sh prints Frontier, Blocked with open deps, Working; warns on a Blocked ticket with every dep Resolved and a dep on an Out of scope card; exits 0"
 # records from Working: file-record.sh --from Working; default (Asked) refuses on a plan board
-"$PS/claim-ticket.sh" "$PL" "$T3" --model smoke >/dev/null
+PE "$PS/claim-ticket.sh" "$PL" "$T3" --model smoke >/dev/null
 printf 'Engine in the app.\n' > "$T/adrp.md"
-PR=$("$SK/discovery/scripts/file-record.sh" "$PL" "$T3" --record ADR --title "Engine in the app" --body "$T/adrp.md" --from Working --model smoke)
+PR=$(PE "$SK/discovery/scripts/file-record.sh" "$PL" "$T3" --record ADR --title "Engine in the app" --body "$T/adrp.md" --from Working --model smoke)
 PK=${PR##*/}; PKF="$(ls "$PL"/*/"$PK"/index.md)"
 [ "$(plane "$PK")" = Decisions ] && [ "$(awk '/^---$/ { n++; next } n == 2 && NF { print; exit }' "$PKF")" = "Question: [T3: Both \[x\] \"q\"](lanework://$PBID/$T3)" ] || { echo "plan record not filed from Working:"; cat "$PKF"; exit 1; }
-if "$SK/discovery/scripts/file-record.sh" "$PL" "$T3" --record ADR --title x --body "$T/adrp.md" --model smoke 2>"$T/err.txt"; then echo "default --from accepted a plan board"; exit 1; fi
+if PE "$SK/discovery/scripts/file-record.sh" "$PL" "$T3" --record ADR --title x --body "$T/adrp.md" --model smoke 2>"$T/err.txt"; then echo "default --from accepted a plan board"; exit 1; fi
 grep -q 'no Asked lane' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
-if "$SK/discovery/scripts/file-record.sh" "$PL" "$T5" --record ADR --title x --body "$T/adrp.md" --from Working --model smoke 2>"$T/err.txt"; then echo "--from Working accepted a Blocked ticket"; exit 1; fi
+if PE "$SK/discovery/scripts/file-record.sh" "$PL" "$T5" --record ADR --title x --body "$T/adrp.md" --from Working --model smoke 2>"$T/err.txt"; then echo "--from Working accepted a Blocked ticket"; exit 1; fi
 grep -q 'is not a card in Working' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
 if "$SK/discovery/scripts/file-record.sh" "$D" "$C2" --record ADR --title x --body "$T/adrp.md" --model smoke 2>"$T/err.txt"; then echo "default --from accepted a non-Asked question"; exit 1; fi
 grep -q 'is not a card in Asked' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
 TF3="$(ls "$PL"/*/"$T3"/index.md)"; cp "$TF3" "$T/t3.md"; awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$T/t3.md" > "$TF3"
 grep -q "^T3: .*(lanework://$PBID/$T3)  (waiting)\$" <<<"$("$PS/frontier.sh" "$PL" 2>/dev/null)" || { echo "frontier.sh lost the (waiting) mark on a block-form waiting"; "$PS/frontier.sh" "$PL"; exit 1; }
 cp "$T/t3.md" "$TF3"
+PE "$SK/lanework/scripts/lease.sh" release "$PL" "$T3" --model smoke   # T3 stays in Working: release what its claim staked
+[ -z "$("$SK/lanework/scripts/lease.sh" list "$PL")" ] || { echo "a plan case left a lease on its board"; "$SK/lanework/scripts/lease.sh" list "$PL"; exit 1; }
 validate "$PL" >/dev/null; ok "file-record.sh --from Working files a plan record linking its ticket; the default still demands Asked, and --from refuses a card outside that lane; frontier.sh marks a block-form waiting"
 # a model is required: every plan script that writes exits 2 and writes nothing
 S4=$(sum "$PL")
@@ -1835,8 +1842,8 @@ for e in "$ET2|T2|Wire: both" "$ET3|T3|Third, no colon"; do
   IFS='|' read -r id ci ti <<<"$e"; perl -pi -e 's/^title: ".*"$/title: "'"$ti"'"\ncite-as: '"$ci"'/' "$(ls "$CP"/*/"$id"/index.md)"
 done
 grep -qx 'cite-as: T2' "$(ls "$CP"/*/"$ET2"/index.md)" && grep -qx 'title: "Wire: both"' "$(ls "$CP"/*/"$ET2"/index.md)" || { echo "fixture not written"; exit 1; }
-"$PS/claim-ticket.sh" "$CP" "$ET1" --model smoke >/dev/null
-RO=$("$PS/resolve-ticket.sh" "$CP" "$ET1" --resolution "$T/cres.md" --model smoke)
+PE "$PS/claim-ticket.sh" "$CP" "$ET1" --model smoke >/dev/null
+RO=$(PE "$PS/resolve-ticket.sh" "$CP" "$ET1" --resolution "$T/cres.md" --model smoke)
 { grep -qx 'unblocked T2' <<<"$RO" && grep -qx 'unblocked T3' <<<"$RO" && ! grep -q -e 'Wire' -e 'Third' <<<"$RO"; } || { echo "resolve-ticket.sh did not name the citations:"; echo "$RO"; exit 1; }
 validate "$CP" >/dev/null; ok "cite resolve unblocked: resolving T1 prints unblocked T2 and unblocked T3 for bare titles (one with a colon), never the title"
 # cite-as: a zero-padded number is decimal, and a prefix counts only its own cards
@@ -1862,7 +1869,7 @@ validate "$CZ" >/dev/null; ok "cite padded and prefix: ADR9 beside ADR010 mints 
 # Every timer started here is killed on exit, and case 13 checks none outlives the cases.
 LS="$SK/lanework/scripts/lease.sh"; LT=$(mktemp -d "$T/lease-tmp.XXXXXX"); LSP=()
 lease_cleanup() {
-  local p; for p in ${LSP[@]+"${LSP[@]}"}; do kill "$p" 2>/dev/null || true; done
+  local p; for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do kill "$p" 2>/dev/null || true; done
   pkill -f "$LS _timer" 2>/dev/null || true
   [ -z "${LB:-}" ] || chmod -R u+w "$LB" 2>/dev/null || true   # a case makes a comments folder read-only
 }
@@ -2280,10 +2287,122 @@ grep -q '^Lease: ' "$SK/work/templates/farmed-prompt.md" && grep -q -i 'never ru
   || lw_fail "the lease is not named in farmed-prompt.md, fixer.md or team.md"
 ok "work prose: no START read as a claim; START defined once, in writing.md, and linked from companions, fixer and lead; the farmed prompt names the lease; a fixer never stakes"
 
+# plan: claim-ticket.sh stakes and resolve-ticket.sh checks and releases, through lease.sh, on a plan board of their own. PLS <session>
+# <cmd...>: the command as that session, under CLAUDE_PID=PCP (a stand-in of its own, else L's), L's TMPDIR and the test knobs
+PB="$T/Lease Plan.lanework"; "$PS/found-plan-board.sh" "$PB" --model smoke >/dev/null; PBR=$(cd "$PB" && pwd -P)
+PLS() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="${PCP:-$LPID}" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT="${NW:-1.5}" \
+  LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$@"; }
+ptk() { "$PS/file-ticket.sh" "$PB" "$1" --type research --body "$T/t.md" --model smoke | head -1 | sed 's#.*/##'; }
+pf() { ls "$PB"/*/"$1"/index.md; }
+plb() { sed -n 's/^title: "\(.*\)"$/\1/p' "$(dirname "$(dirname "$(pf "$1")")")/index.md"; }
+pmem() { printf '%s' "$LT/lanework-lease/$1/$(printf '%s' "$PBR" | shasum | cut -c1-16)/$2"; }
+pmpid() { sed -n 's/^pid=//p' "$(pmem "$1" "$2")"; }
+pcount() { { grep -l -F -- "$2" "$(dirname "$(pf "$1")")"/comments/*/index.md 2>/dev/null || true; } | grep -c . || true; }
+pclaim() { PLS "$1" "$PS/claim-ticket.sh" "$PB" "$2" --model smoke >/dev/null; }
+pres() { local s="$1" c="$2"; shift 2; PLS "$s" "$PS/resolve-ticket.sh" "$PB" "$c" --resolution "$T/res1.md" --model smoke "$@"; }
+pl_fail() { echo "$1"; exit 1; }
+# released <session> <card> <timer pid>: no claimed key in any layout, the timer gone, the memory file gone, no Lease lost record
+released() { [ -n "$3" ] && ! grep -q -E '^(claimed:|  (by|until):)' "$(pf "$2")" && fm_parses "$(pf "$2")" && waitfor "! alive $3" && [ ! -e "$(pmem "$1" "$2")" ] \
+  && [ "$(pcount "$2" "**Lease lost**")" = 0 ]; }
+
+# P1. claim stakes, then moves
+PC1=$(ptk "Staked"); RC=0; PLS S-pa "$PS/claim-ticket.sh" "$PB" "$PC1" --model smoke >/dev/null || RC=$?
+F=$(pf "$PC1"); U=$(cuntil "$F"); D=$(( $(epoch "${U:-1970-01-01T00:00:00Z}") - $(date -u +%s) ))
+[ $RC = 0 ] && [ "$(plb "$PC1")" = Working ] && [ "$(csess "$F")" = S-pa ] && [ "$D" -ge 1790 ] && [ "$D" -le 1801 ] && [ "$(pcount "$PC1" '**Claimed** by')" = 1 ] \
+  && alive "$(pmpid S-pa "$PC1")" || pl_fail "plan claim: rc $RC, lane $(plb "$PC1"), session '$(csess "$F")', until '$U'"
+validate "$PB" >/dev/null; PLS S-pa "$LS" release "$PB" "$PC1" --model smoke
+ok "plan claim stakes a lease and moves to Working: claimed.by.session is the session, until 30 minutes ahead, one Claimed comment, the board validates"
+
+# P2. a Frontier ticket another session holds: the claim backs off, writing nothing, the holder named
+PC2=$(ptk "Held"); PLS S-pholder "$LS" stake "$PB" "$PC2" --model smoke >/dev/null; H=$(sum "$PB")
+RC=0; PLS S-pa "$PS/claim-ticket.sh" "$PB" "$PC2" --model smoke >/dev/null 2>"$T/pl-err.txt" || RC=$?
+[ $RC = 1 ] && [ "$(plb "$PC2")" = Frontier ] && [ "$(pcount "$PC2" '**Claimed**')" = 0 ] && [ "$(csess "$(pf "$PC2")")" = S-pholder ] && [ "$H" = "$(sum "$PB")" ] \
+  && grep -q S-pholder "$T/pl-err.txt" && [ ! -e "$(pmem S-pa "$PC2")" ] || pl_fail "plan claim over a held ticket: rc $RC, lane $(plb "$PC2"), err: $(cat "$T/pl-err.txt")"
+PLS S-pholder "$LS" release "$PB" "$PC2" --model smoke
+ok "plan claim backs off a Frontier ticket another session holds: exit 1, the holder on stderr, the board byte for byte"
+
+# P3. two claims at once from two sessions: one holder, one Claimed comment
+PC3=$(ptk "Raced")
+( RC=0; PLS S-pra "$PS/claim-ticket.sh" "$PB" "$PC3" --model smoke >/dev/null 2>&1 || RC=$?; echo "$RC" > "$T/pr-a" ) & RPA=$!
+( RC=0; PLS S-prb "$PS/claim-ticket.sh" "$PB" "$PC3" --model smoke >/dev/null 2>&1 || RC=$?; echo "$RC" > "$T/pr-b" ) & RPB=$!
+wait "$RPA" "$RPB"; RA=$(cat "$T/pr-a"); RB=$(cat "$T/pr-b"); WIN=$(csess "$(pf "$PC3")")
+{ { [ "$RA$RB" = 01 ] && [ "$WIN" = S-pra ]; } || { [ "$RA$RB" = 10 ] && [ "$WIN" = S-prb ]; }; } && [ "$(plb "$PC3")" = Working ] && [ "$(pcount "$PC3" '**Claimed**')" = 1 ] \
+  || pl_fail "plan claim race: a=$RA b=$RB holder=$WIN lane $(plb "$PC3") claimed comments $(pcount "$PC3" '**Claimed**')"
+LOSER=S-pra; [ "$WIN" = S-pra ] && LOSER=S-prb; [ ! -e "$(pmem "$LOSER" "$PC3")" ] || pl_fail "plan claim race: the loser kept a lease memory"
+PLS "$WIN" "$LS" release "$PB" "$PC3" --model smoke; validate "$PB" >/dev/null
+ok "plan claim race leaves one holder: one exit 0, one exit 1, one Claimed comment, the lease naming the winner"
+
+# P4. no session id, or no CLAUDE_PID: exit 1, nothing written (--session is a stamp label, never the holder)
+PC4=$(ptk "Sessionless"); H=$(sum "$PB")
+RC=0; env -u CLAUDE_CODE_SESSION_ID CLAUDE_PID="$LPID" TMPDIR="$LT" "$PS/claim-ticket.sh" "$PB" "$PC4" --model smoke --session s1 >/dev/null 2>&1 || RC=$?
+RC2=0; env -u CLAUDE_PID CLAUDE_CODE_SESSION_ID=S-pa TMPDIR="$LT" "$PS/claim-ticket.sh" "$PB" "$PC4" --model smoke >/dev/null 2>&1 || RC2=$?
+[ "$RC$RC2" = 11 ] && [ "$H" = "$(sum "$PB")" ] && [ "$(plb "$PC4")" = Frontier ] || pl_fail "plan claim without a session id or CLAUDE_PID: rc $RC $RC2"
+ok "plan claim without a session id (--session given or not) or a CLAUDE_PID exits 1 and writes nothing"
+
+# P5. resolve drops claimed (the flow line of a short session id, the 3-line block of a real one) with waiting, and stops the timer
+SIDP=$(uuidgen | tr A-Z a-z); PC5=$(ptk "Flow lease"); PC5b=$(ptk "Block lease")
+pclaim S-pa "$PC5"; pclaim "$SIDP" "$PC5b"; grep -q '^claimed: {' "$(pf "$PC5")" && grep -q '^claimed:$' "$(pf "$PC5b")" || pl_fail "plan resolve: the fixtures are not one flow and one block claimed"
+for e in "S-pa $PC5" "$SIDP $PC5b"; do
+  read -r s c <<<"$e"; TP=$(pmpid "$s" "$c"); F=$(pf "$c"); awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$F" > "$T/pw.md"; mv "$T/pw.md" "$F"
+  RC=0; pres "$s" "$c" >/dev/null 2>"$T/pl-err.txt" || RC=$?
+  [ $RC = 0 ] && [ "$(plb "$c")" = Resolved ] && ! grep -q -E '^(waiting:|  (for|since|comment):)' "$(pf "$c")" && released "$s" "$c" "$TP" \
+    || { cat "$(pf "$c")"; pl_fail "plan resolve did not release ($s): rc $RC, err: $(cat "$T/pl-err.txt")"; }
+done
+validate "$PB" >/dev/null; ok "plan resolve releases the lease: no claimed in flow or block form, waiting dropped with it, the timer stopped, no Lease lost record"
+
+# P6. resolve refuses another session's lease, writing nothing: one this session lost (the check posts the one loss record), and one
+# it never held, live or lapsed. A Working ticket with no lease (claimed before the lease) still resolves
+# the lost one: its timer stopped first, so the resolve's own check finds the loss (else the timer may post the record first)
+PC6=$(ptk "Lost"); pclaim S-pa "$PC6"; TP=$(pmpid S-pa "$PC6"); kill "$TP"; waitfor "! alive $TP"; setclaim "$(pf "$PC6")" S-pthief "$(iso $(( $(date -u +%s) + 1500 )))"; H=$(shasum < "$(pf "$PC6")")
+RC=0; pres S-pa "$PC6" >/dev/null 2>"$T/pl-err.txt" || RC=$?
+[ $RC = 1 ] && [ "$(plb "$PC6")" = Working ] && [ "$H" = "$(shasum < "$(pf "$PC6")")" ] && [ "$(pcount "$PC6" "**Lease lost**")" = 1 ] \
+  || pl_fail "plan resolve on a lost lease: rc $RC, lane $(plb "$PC6"), loss records $(pcount "$PC6" "**Lease lost**"), err: $(cat "$T/pl-err.txt")"
+PLS S-pthief "$LS" release "$PB" "$PC6" --model smoke   # the stand-in thief's claimed, written by hand: gone before the last check
+PC6b=$(ptk "Theirs"); pclaim S-powner "$PC6b"
+for u in "$(iso $(( $(date -u +%s) + 1500 )))" "$(iso $(( $(date -u +%s) - 60 )))"; do
+  setclaim "$(pf "$PC6b")" S-powner "$u"; H=$(sum "$PB"); RC=0; pres S-pa "$PC6b" >/dev/null 2>"$T/pl-err.txt" || RC=$?
+  [ $RC = 1 ] && [ "$(plb "$PC6b")" = Working ] && [ "$H" = "$(sum "$PB")" ] && grep -q S-powner "$T/pl-err.txt" \
+    || pl_fail "plan resolve over another session's lease (until $u): rc $RC, err: $(cat "$T/pl-err.txt")"
+done
+PLS S-powner "$LS" release "$PB" "$PC6b" --model smoke
+RC=0; pres S-pa "$PC6b" >/dev/null || RC=$?; [ $RC = 0 ] && [ "$(plb "$PC6b")" = Resolved ] || pl_fail "plan resolve of a Working ticket with no lease: rc $RC"
+validate "$PB" >/dev/null; ok "plan resolve refuses another session's lease: lost here (one Lease lost record) or never held here, live or lapsed: exit 1, nothing written; a Working ticket with no lease resolves"
+
+# P7. out of scope from Working releases
+PC7=$(ptk "Ruled out"); pclaim S-pa "$PC7"; TP=$(pmpid S-pa "$PC7")
+RC=0; pres S-pa "$PC7" --to out-of-scope >/dev/null || RC=$?
+[ $RC = 0 ] && [ "$(plb "$PC7")" = "Out of scope" ] && released S-pa "$PC7" "$TP" || pl_fail "plan out-of-scope from Working: rc $RC, lane $(plb "$PC7")"
+ok "plan out-of-scope from Working releases the lease"
+
+# P8. resume: lease.sh stake on a Working ticket, no move. Refused while the holder's lease is live; staked after a release; a lapsed
+# lease of a session that died is taken after the notice (the knob's wait), and the taker resolves
+PC8=$(ptk "Resumed"); standin; PCP=$SP pclaim S-pfirst "$PC8"; O8=$(sed -n 's/^order: //p' "$(pf "$PC8")")
+RC=0; PLS S-pnext "$LS" stake "$PB" "$PC8" --model smoke >/dev/null 2>&1 || RC=$?
+[ $RC = 1 ] && [ "$(csess "$(pf "$PC8")")" = S-pfirst ] || pl_fail "plan resume over a live lease: rc $RC, holder $(csess "$(pf "$PC8")")"
+PLS S-pfirst "$LS" release "$PB" "$PC8" --model smoke; RC=0; PLS S-pnext "$LS" stake "$PB" "$PC8" --model smoke >/dev/null || RC=$?
+[ $RC = 0 ] && [ "$(csess "$(pf "$PC8")")" = S-pnext ] && [ "$(plb "$PC8")" = Working ] && [ "$(sed -n 's/^order: //p' "$(pf "$PC8")")" = "$O8" ] \
+  && [ "$(pcount "$PC8" "**Takeover notice**")" = 0 ] || pl_fail "plan resume after a release: rc $RC, holder $(csess "$(pf "$PC8")")"
+PLS S-pnext "$LS" release "$PB" "$PC8" --model smoke
+PC8b=$(ptk "Orphaned"); standin; DEAD=$SP; PCP=$DEAD pclaim S-pdead "$PC8b"; TP=$(pmpid S-pdead "$PC8b")
+kill "$DEAD"; waitfor "! alive $TP" || pl_fail "plan resume: the dead session's timer outlived its CLAUDE_PID"
+RC=0; PLS S-pnext "$LS" stake "$PB" "$PC8b" --model smoke >/dev/null 2>&1 || RC=$?
+[ $RC = 1 ] && [ "$(csess "$(pf "$PC8b")")" = S-pdead ] || pl_fail "plan resume took a live lease of a dead session: rc $RC"
+setclaim "$(pf "$PC8b")" S-pdead "$(iso $(( $(date -u +%s) - 60 )))"
+t0=$(date +%s); RC=0; PLS S-pnext "$LS" stake "$PB" "$PC8b" --model smoke >/dev/null || RC=$?
+[ $RC = 0 ] && [ "$(( $(date +%s) - t0 ))" -ge 1 ] && [ "$(csess "$(pf "$PC8b")")" = S-pnext ] && [ "$(plb "$PC8b")" = Working ] \
+  && [ "$(pcount "$PC8b" "**Takeover notice**")" = 1 ] || pl_fail "plan resume of a lapsed lease: rc $RC, holder $(csess "$(pf "$PC8b")")"
+TP=$(pmpid S-pnext "$PC8b"); RC=0; pres S-pnext "$PC8b" >/dev/null || RC=$?
+[ $RC = 0 ] && [ "$(plb "$PC8b")" = Resolved ] && released S-pnext "$PC8b" "$TP" || pl_fail "plan resume: the taker's resolve: rc $RC"
+validate "$PB" >/dev/null; ok "plan resume stakes a Working ticket without moving it: refused while the lease is live, staked after a release, and a dead session's lapsed lease taken after the notice"
+
+# every plan case released what it staked: no lease on the board, no timer for it
+[ -z "$("$LS" list "$PB")" ] && waitfor '[ -z "$(pgrep -f "$LS _timer $PBR " || true)" ]' || pl_fail "plan cases left a lease or a timer: $("$LS" list "$PB")"
+ok "plan cases leave no lease and no timer on their board"
+
 # 13. nothing left: release what is held, end the stand-ins; every timer must be gone within a poll
 for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
   s=$(csess "$(lcf "$c")"); L "$s" release "$LB" "$c" --model smoke >/dev/null || true; done
-for p in ${LSP[@]+"${LSP[@]}"}; do kill "$p" 2>/dev/null || true; done; LSP=()
+for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do kill "$p" 2>/dev/null || true; done; LSP=()
 waitfor '[ -z "$(pgrep -f "$LS _timer" || true)" ]' || { echo "timers left:"; pgrep -fl "$LS _timer"; exit 1; }
 validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
 
