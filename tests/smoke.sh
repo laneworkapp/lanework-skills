@@ -2317,9 +2317,20 @@ ok "plan claim stakes a lease and moves to Working: claimed.by.session is the se
 PC2=$(ptk "Held"); PLS S-pholder "$LS" stake "$PB" "$PC2" --model smoke >/dev/null; H=$(sum "$PB")
 RC=0; PLS S-pa "$PS/claim-ticket.sh" "$PB" "$PC2" --model smoke >/dev/null 2>"$T/pl-err.txt" || RC=$?
 [ $RC = 1 ] && [ "$(plb "$PC2")" = Frontier ] && [ "$(pcount "$PC2" '**Claimed**')" = 0 ] && [ "$(csess "$(pf "$PC2")")" = S-pholder ] && [ "$H" = "$(sum "$PB")" ] \
-  && grep -q S-pholder "$T/pl-err.txt" && [ ! -e "$(pmem S-pa "$PC2")" ] || pl_fail "plan claim over a held ticket: rc $RC, lane $(plb "$PC2"), err: $(cat "$T/pl-err.txt")"
+  && grep -q S-pholder "$T/pl-err.txt" && ! grep -q 'not released' "$T/pl-err.txt" && [ ! -e "$(pmem S-pa "$PC2")" ] || pl_fail "plan claim over a held ticket: rc $RC, lane $(plb "$PC2"), err: $(cat "$T/pl-err.txt")"
 PLS S-pholder "$LS" release "$PB" "$PC2" --model smoke
 ok "plan claim backs off a Frontier ticket another session holds: exit 1, the holder on stderr, the board byte for byte"
+
+# P2b. a claim ended (TERM) during its stake: the stake lands, then the claim's trap releases it. A long stake wait opens the window
+PC2b=$(ptk "Ended"); F=$(pf "$PC2b")
+env CLAUDE_CODE_SESSION_ID=S-pterm CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 \
+  "$PS/claim-ticket.sh" "$PB" "$PC2b" --model smoke >/dev/null 2>"$T/pl-err.txt" & CLP=$!
+waitfor 'grep -q "^claimed" "$F"' || pl_fail "plan claim TERM: the stake never wrote claimed"
+kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
+[ "$RC" != 0 ] && [ "$(plb "$PC2b")" = Frontier ] && ! grep -q -E '^(claimed:|  (by|until):)' "$(pf "$PC2b")" && [ ! -e "$(pmem S-pterm "$PC2b")" ] \
+  && waitfor '[ -z "$(pgrep -f "$LS _timer $PBR $PC2b " || true)" ]' && [ "$(pcount "$PC2b" '**Claimed**')" = 0 ] && [ "$(pcount "$PC2b" "**Lease lost**")" = 0 ] \
+  || pl_fail "plan claim TERM during the stake: rc $RC, lane $(plb "$PC2b"), session '$(csess "$(pf "$PC2b")")', err: $(cat "$T/pl-err.txt")"
+ok "plan claim ended during its stake releases what the stake left: Frontier, no claimed, no timer, no memory, no Claimed comment"
 
 # P3. two claims at once from two sessions: one holder, one Claimed comment
 PC3=$(ptk "Raced")
@@ -2328,7 +2339,7 @@ PC3=$(ptk "Raced")
 wait "$RPA" "$RPB"; RA=$(cat "$T/pr-a"); RB=$(cat "$T/pr-b"); WIN=$(csess "$(pf "$PC3")")
 { { [ "$RA$RB" = 01 ] && [ "$WIN" = S-pra ]; } || { [ "$RA$RB" = 10 ] && [ "$WIN" = S-prb ]; }; } && [ "$(plb "$PC3")" = Working ] && [ "$(pcount "$PC3" '**Claimed**')" = 1 ] \
   || pl_fail "plan claim race: a=$RA b=$RB holder=$WIN lane $(plb "$PC3") claimed comments $(pcount "$PC3" '**Claimed**')"
-LOSER=S-pra; [ "$WIN" = S-pra ] && LOSER=S-prb; [ ! -e "$(pmem "$LOSER" "$PC3")" ] || pl_fail "plan claim race: the loser kept a lease memory"
+LOSER=S-pra; [ "$WIN" = S-pra ] && LOSER=S-prb; [ ! -e "$(pmem "$LOSER" "$PC3")" ] && [ "$(pcount "$PC3" "**Lease lost**")" = 0 ] || pl_fail "plan claim race: the loser kept a lease memory or a loss was recorded"
 PLS "$WIN" "$LS" release "$PB" "$PC3" --model smoke; validate "$PB" >/dev/null
 ok "plan claim race leaves one holder: one exit 0, one exit 1, one Claimed comment, the lease naming the winner"
 
@@ -2344,8 +2355,10 @@ SIDP=$(uuidgen | tr A-Z a-z); PC5=$(ptk "Flow lease"); PC5b=$(ptk "Block lease")
 pclaim S-pa "$PC5"; pclaim "$SIDP" "$PC5b"; grep -q '^claimed: {' "$(pf "$PC5")" && grep -q '^claimed:$' "$(pf "$PC5b")" || pl_fail "plan resolve: the fixtures are not one flow and one block claimed"
 for e in "S-pa $PC5" "$SIDP $PC5b"; do
   read -r s c <<<"$e"; TP=$(pmpid "$s" "$c"); F=$(pf "$c"); awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$F" > "$T/pw.md"; mv "$T/pw.md" "$F"
-  RC=0; pres "$s" "$c" >/dev/null 2>"$T/pl-err.txt" || RC=$?
+  RC=0; pres "$s" "$c" --session R-label >/dev/null 2>"$T/pl-err.txt" || RC=$?
+  # one write: the card's last stamp is the resolve's own (--session R-label), never a release clearing claimed after it
   [ $RC = 0 ] && [ "$(plb "$c")" = Resolved ] && ! grep -q -E '^(waiting:|  (for|since|comment):)' "$(pf "$c")" && released "$s" "$c" "$TP" \
+    && grep -q '^modified: {at: [0-9TZ:-]*, by: {name: claude, kind: agent, model: smoke, session: "R-label"}}$' "$(pf "$c")" \
     || { cat "$(pf "$c")"; pl_fail "plan resolve did not release ($s): rc $RC, err: $(cat "$T/pl-err.txt")"; }
 done
 validate "$PB" >/dev/null; ok "plan resolve releases the lease: no claimed in flow or block form, waiting dropped with it, the timer stopped, no Lease lost record"
@@ -2353,7 +2366,7 @@ validate "$PB" >/dev/null; ok "plan resolve releases the lease: no claimed in fl
 # P6. resolve refuses another session's lease, writing nothing: one this session lost (the check posts the one loss record), and one
 # it never held, live or lapsed. A Working ticket with no lease (claimed before the lease) still resolves
 # the lost one: its timer stopped first, so the resolve's own check finds the loss (else the timer may post the record first)
-PC6=$(ptk "Lost"); pclaim S-pa "$PC6"; TP=$(pmpid S-pa "$PC6"); kill "$TP"; waitfor "! alive $TP"; setclaim "$(pf "$PC6")" S-pthief "$(iso $(( $(date -u +%s) + 1500 )))"; H=$(shasum < "$(pf "$PC6")")
+PC6=$(ptk "Lost"); pclaim S-pa "$PC6"; TP=$(pmpid S-pa "$PC6"); kill "$TP" 2>/dev/null || true; waitfor "! alive $TP"; setclaim "$(pf "$PC6")" S-pthief "$(iso $(( $(date -u +%s) + 1500 )))"; H=$(shasum < "$(pf "$PC6")")
 RC=0; pres S-pa "$PC6" >/dev/null 2>"$T/pl-err.txt" || RC=$?
 [ $RC = 1 ] && [ "$(plb "$PC6")" = Working ] && [ "$H" = "$(shasum < "$(pf "$PC6")")" ] && [ "$(pcount "$PC6" "**Lease lost**")" = 1 ] \
   || pl_fail "plan resolve on a lost lease: rc $RC, lane $(plb "$PC6"), loss records $(pcount "$PC6" "**Lease lost**"), err: $(cat "$T/pl-err.txt")"
