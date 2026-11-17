@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Move the owner's install to lanework-marketplace"
-order: 1024
+order: 3072
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-05T00:31:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "marketplace chat"}}
-modified: {at: 2026-11-12T18:56:26Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5}}
+modified: {at: 2026-11-17T11:38:47Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 ---
 The owner's own Claude Code installs `lanework` from this repo's old catalog URL, and this card points it at `lanework-marketplace` instead.
 

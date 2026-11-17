@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Remove this repo's own marketplace.json"
-order: 3072
+order: 4096
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-05T00:31:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "marketplace chat"}}
-modified: {at: 2026-11-13T23:01:36Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-17T11:38:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 ---
 This card deletes the repo's own `.claude-plugin/marketplace.json`, so the central marketplace is the only catalog that lists the plugin.
 
