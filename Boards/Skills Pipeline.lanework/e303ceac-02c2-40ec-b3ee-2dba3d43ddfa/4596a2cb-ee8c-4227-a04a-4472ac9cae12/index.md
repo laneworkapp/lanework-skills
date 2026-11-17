@@ -2,14 +2,14 @@
 schema: 1
 kind: card
 title: "Give numbered cards a citable label and cross-reference by it"
-order: 2048
+order: 67584
 labels:
   - {text: discovery, kind: {type: skill, text: Skill}}
   - {text: plan, kind: {type: skill, text: Skill}}
   - {text: work, kind: {type: skill, text: Skill}}
   - {text: lanework, kind: {type: skill, text: Skill}}
 created:  {at: 2026-11-14T14:20:28Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-17T13:44:35Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-17T14:21:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The skills should give the cards they number a citable label (`Q15`, `T3`, `ADR2`) in the card's `cite-as` key, leave it out of the title, and use it as the link text wherever a card is cross-referenced, so a card reads the same on its face, in search and in every link to it.
 
