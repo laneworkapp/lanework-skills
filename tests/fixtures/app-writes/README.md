@@ -15,4 +15,4 @@ The `before` column is the parent of the `after` commit; each `before` file is i
 
 Not here: the app clearing `waiting`. Every `waiting` removal in the history was an agent's write.
 
-Re-copy at each guide-version bump (the repo `CLAUDE.md` names the step): find fresh app writes with `git log -p -- "Lanework/Skills Pipeline.lanework"` and look for `modified: {at: …}` with no `by`, then replace these files and the ids at the top of the `appside` case in `tests/merge-case.sh`.
+Re-copy at each guide-version bump (the repo `CLAUDE.md` names the step): find fresh app writes with `git log -p -- "Boards/Skills Pipeline.lanework"` and look for `modified: {at: …}` with no `by`, then replace these files and the ids at the top of the `appside` case in `tests/merge-case.sh`.

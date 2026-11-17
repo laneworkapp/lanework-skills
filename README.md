@@ -184,7 +184,7 @@ The skills are written for Claude Code, the one supported harness: `discovery`, 
 
 ## Repository layout
 
-The skills live under `skills/`, one folder each, and that folder is all that ships. `Lanework/Skills Pipeline.lanework` is the Lanework board where work on the skills is tracked, from ideas and issues to shipped changes. `CLAUDE.md` has the conventions for working in the repo, `CHANGELOG.md` what each release changed, and `scripts/release.sh` cuts a release.
+The skills live under `skills/`, one folder each, and that folder is all that ships. `Boards/Skills Pipeline.lanework` is the Lanework board where work on the skills is tracked, from ideas and issues to shipped changes. `CLAUDE.md` has the conventions for working in the repo, `CHANGELOG.md` what each release changed, and `scripts/release.sh` cuts a release.
 
 ## Defaults, not rules
 
