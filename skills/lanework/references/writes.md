@@ -57,20 +57,20 @@ claimed:
 - **Layout**: the compact form (§ Every write). A real session id makes `by` pass 120 characters: the 3-line block above.
 - **Length**: 30 min from stake or renewal. A detached timer, started by `stake` with the session's `CLAUDE_PID`, renews every 15 min of elapsed time (counted by waiting, never by `until`), reads the card each minute, and exits when the lease is released or lost, or `CLAUDE_PID` is gone. One memory file and one timer per card: a session may hold any number.
 - **Stake**: write, wait 1 s, read back. Another session's `by` → back off. A lease this session already holds renews.
-- **Clock guard**: `until` unreadable or over 35 min ahead of now = no lease. Staking over one posts **Lease ignored**. A past `until` is lapsed, not guarded.
+- **Clock guard**: `until` missing, unreadable or over 35 min ahead of now = no lease. Staking over one posts **Lease ignored**. A past `until` is lapsed, not guarded.
 - **Takeover** of a lapsed lease: post the notice, wait 2 min, read again. `until` or `by` changed → back off; unchanged → stake. A live holder's timer renews on a notice naming it. So `stake` over a lapsed lease **blocks 2 min**: give the call a timeout over that. Before working, read the thread's latest START or **Lease lost** record (`stake` prints its first line): it may point at work to keep.
 - **Lapsed and still yours** (a sleep): renew and carry on.
 - **Lost** (another session's `by`, or `claimed` gone, on a card this session staked): stop. One **Lease lost** record naming the work left in place (branch, directory, files touched at stake's directory), then never write that card again. The work stays; the new holder decides.
 - **Check before every card write**: `lease.sh check` → `held` (a lapsed own lease renewed, a dead timer restarted), `lost`, or `never-held` (free, or another's, and never staked here: not blocked, nothing written).
 - **Release** in the holder's closing write (done, at a gate, given up): `claimed` deleted, timer stopped. `--force` only on the owner's word: posts **Lease released by force**.
 - **Writes**: every stake, renewal and release restamps `modified` whole with the writer's `by`. Never committed alone: it rides with the holder's next board commit. A merge keeps the side with the later `modified`, as for any state.
-- **Exit codes**: 0 ok (`check`: held); 1 refused (held by another, or backed off); 2 usage, no model, no session id, no `CLAUDE_PID` (`stake`), or not one card with that uuid; 3 lost; 4 `check`: never held.
+- **Exit codes**: 0 ok (`check`: held); 1 refused (held by another, backed off, or nothing to renew); 2 usage, no model, no session id, no `CLAUDE_PID` (`stake`), or not one card with that uuid; 3 lost; 4 `check`: never held.
 
 Records, fixed wording (match keys for the timer and lints; never an ask, no handle):
 
 - `**Lease lost**: session <session> no longer holds this card; session <other> does. Work left in place: branch <b>, directory <d>, files touched: <list>. This session writes this card no more.` (`<other>` is `none` when `claimed` was removed; the opening is `lib.sh` `LEASE_LOST_PREFIX`)
 - `**Takeover notice**: session <taker> takes this card from session <holder> at <time> unless the lease is renewed first. It lapsed at <until>.`
-- `**Lease ignored**: until <x> was over 35 minutes ahead of <now>, so the card was staked as free.`
+- `**Lease ignored**: until <x> was over 35 minutes ahead of <now>, so the card was staked as free.` (`<x>` is `none` when `until` is missing)
 - `**Lease released by force** on the owner's word: session <s> held it until <until>.`
 
 ## Tracker keys
