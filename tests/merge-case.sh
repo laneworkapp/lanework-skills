@@ -31,7 +31,10 @@ T0=2026-01-01T00:00:00Z; TA=2026-01-02T00:00:00Z; TB=2026-01-03T00:00:00Z; TA2=2
 BY0='{name: owner, kind: human}'; BYA='{name: alice, kind: human}'; BYB='{name: bob, kind: human}'
 TXT='kind: {type: text, text: Text, icon: {glyph: tag}}'
 PRI='kind: {type: priority, text: Priority, icon: {glyph: flag}}'
-for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT AA D1 KC AT R1 RL RT RNA RNB RR RTO; do eval "$n=$(uuid)"; done
+for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT AA D1 KC AT R1 RL RT RNA RNB RR RTO LC; do eval "$n=$(uuid)"; done
+# two differing leases (lease.sh's block form, real-length session ids): Q6, the later `modified` side's `claimed` wins whole
+LSA=$(uuid); LSB=$(uuid)
+leaseof() { printf 'claimed:\n  by: {name: claude, kind: agent, model: test, session: "%s"}\n  until: %s' "$1" "$2"; }
 
 # card <repo> <lane> <id> <title> <at> <by> <body> [extra frontmatter lines]
 card() {
@@ -59,7 +62,7 @@ setboard() { # <repo> <at> <by> <value:rank>...
 cardfile() { echo "$1/$BN/$(cd "$1/$BN" && ls -d */"$2" .trash/"$2" 2>/dev/null | head -1)/index.md"; }
 
 # ---- base
-for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT D1 R1; do
+for n in T1 Y1 K1 AT1 L1 S1 M1 M2 TR1 TR2 TT D1 R1 LC; do
   extra=""; [ "$n" = L1 ] && extra="labels: [{text: \"x\", $TXT}]"; ORD=1024; [ "$n" = S1 ] && ORD=5000
   ORD=$ORD card "$O" "$IDEAS" "${!n}" "$n base" "$T0" "$BY0" "$n base body." "$extra"
 done
@@ -259,6 +262,7 @@ card "$A" "$IDEAS" "$TR2" "TR2 base" "$TA2" "$BYA" "TR2 body TOKEN_A_TR2."
 mkdir -p "$A/$BN/.trash"; G "$A" mv "$BN/$IDEAS/$TT" "$BN/.trash/$TT"; restamp "$A" "$TA" "$BYA" "$TT"
 card "$A" "$IDEAS" "$AA" "AA alpha" "$TA" "$BYA" "AA body TOKEN_A_AA."
 card "$A" "$IDEAS" "$D1" "D1 base" "$TA" "$BYA" "D1 body TOKEN_A_D1."
+card "$A" "$IDEAS" "$LC" "LC base" "$TA" "$BYA" "LC base body." "$(leaseof "$LSA" 2026-01-02T00:30:00Z)"
 setboard "$A" "$TA" "$BYA" Open:1 Doing:2
 sed -i '' '1s/v[0-9][0-9]*/v900/' "$A/$BN/CLAUDE.md"; printf 'NOTES_A\n' > "$A/$BN/notes.txt"
 echo "2026-01-02T00:00:00Z info card.edit alice" >> "$A/$BN/.log/2026-01-01.log"
@@ -285,6 +289,7 @@ G "$B" mv "$BN/$IDEAS/$TR1" "$BN/.trash/$TR1"; restamp "$B" "$TB" "$BYB" "$TR1"
 G "$B" mv "$BN/$IDEAS/$TR2" "$BN/.trash/$TR2"; restamp "$B" "$TB" "$BYB" "$TR2"
 G "$B" mv "$BN/$IDEAS/$TT" "$BN/.trash/$TT"; restamp "$B" "$TB" "$BYB" "$TT"
 card "$B" "$IDEAS" "$AA" "AA beta" "$TB" "$BYB" "AA body TOKEN_B_AA."
+card "$B" "$IDEAS" "$LC" "LC base" "$TB" "$BYB" "LC base body." "$(leaseof "$LSB" 2026-01-03T00:30:00Z)"
 G "$B" rm -rq "$BN/$IDEAS/$D1"
 setboard "$B" "$TB" "$BYB" Open:1 Closed:3
 sed -i '' '1s/v[0-9][0-9]*/v901/' "$B/$BN/CLAUDE.md"; printf 'NOTES_B\n' > "$B/$BN/notes.txt"
@@ -328,6 +333,10 @@ grep -q TOKEN_A_TR1 "$D/.trash/$TR1/index.md" || fail "later trash: the trashed 
 grep -q '^title: "T1 beta"$' "$D/$IDEAS/$T1/index.md" || fail "title: later wins"
 grep -q 'TOKEN_B_Y1' "$D/$IDEAS/$Y1/index.md" || fail "body: later wins"
 grep -q 'TOKEN_B_K1' "$D/$IDEAS/$K1/comments/$KC/index.md" || fail "comment: later wins"
+# two differing leases: the later side's claimed, whole, in the 3-line block form (no merge comment: the loop below wants none on LC)
+LCL=$(awk 'NR>1 && /^---$/ {exit} /^claimed:/ {c=1; print; next} c && /^[ \t]/ {print; next} c {exit}' "$D/$IDEAS/$LC/index.md")
+[ "$LCL" = "$(leaseof "$LSB" 2026-01-03T00:30:00Z)" ] || fail "lease: the later side's claimed must win whole: $LCL"
+grep -q "^modified: {at: $TB, by: $BYB}\$" "$D/$IDEAS/$LC/index.md" || fail "lease: the later modified must win"
 # a relation merges as a comment does, live or in relations/.trash: the later edit in place, the earlier body in the merge comment
 R="$D/$IDEAS/$R1/relations"
 grep -q 'TOKEN_B_RL' "$R/$RL/index.md" || fail "relation: later wins"
