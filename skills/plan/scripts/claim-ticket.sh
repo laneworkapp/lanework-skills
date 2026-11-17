@@ -8,7 +8,9 @@
 # CLAUDE_CODE_SESSION_ID or no CLAUDE_PID (no session, no lease); no lanework/scripts/lease.sh beside plan; the stake
 # refused or lost (lease.sh names the holder on stderr; a takeover notice it posted stays). After the stake, the card
 # leaving Frontier, the lease no longer this session's, or any other abort, a TERM during the stake included: exit 1
-# (a signal: its own code), the lease just staked released. A SIGKILL strands it: the same session's next claim recovers it.
+# (a signal: its own code), the lease just staked released. Once the card is in Working the claim has landed: an abort
+# keeps the lease, at worst without the Claimed comment. A SIGKILL before that strands the stake: the same session's next
+# claim recovers it.
 # Staged outside the board, from the card as the stake left it; the card path is re-resolved just before landing.
 # A stake over a lapsed lease waits for the takeover notice (2 min): give the call a timeout over that.
 set -euo pipefail
@@ -53,10 +55,11 @@ STAKED=""; DONE=""; STAGE=""
 cleanup() {
   [ -z "$STAGE" ] || rm -rf "$STAGE"
   # release whatever the stake left. A stake that never landed leaves nothing of this session's: release then refuses
-  # another session's lease (exit 1) or a lost one (exit 3), writing nothing and posting nothing; quiet, exit code unchanged
+  # another session's lease (exit 1), a lost one (exit 3) or a usage it shares with the stake (exit 2), writing nothing and
+  # posting nothing; quiet, exit code unchanged
   if [ -n "$STAKED" ] && [ -z "$DONE" ]; then
     local r=0; "$LEASE" release "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null 2>&1 || r=$?
-    case $r in 0|1|3) ;; *) echo "claim-ticket.sh: the lease on ${CID:0:8} was not released (exit $r): lanework/scripts/lease.sh release by hand" >&2 ;; esac
+    case $r in 0|1|2|3) ;; *) echo "claim-ticket.sh: the lease on ${CID:0:8} was not released (exit $r): lanework/scripts/lease.sh release by hand" >&2 ;; esac
   fi
 }
 trap cleanup EXIT
@@ -87,8 +90,8 @@ if [ "$rc" -ne 0 ]; then
 fi
 mv "$STAGE/index.md" "$FRONTIER/$CID/index.md"
 mv "$FRONTIER/$CID" "$DEST/$CID"
+DONE=1   # landed: in Working with its lease; an abort from here keeps the lease, at worst without the Claimed comment
 mkdir -p "$DEST/$CID/comments"; mv "$STAGE/comment" "$DEST/$CID/comments/$COID"
-DONE=1
 
 printf 'claimed %s -> Working (order %s)\n' "${CID:0:8}" "$ORDER"
 printf 'lanework://%s/%s\n' "$(fm_value "$BOARD/index.md" id)" "$CID"
