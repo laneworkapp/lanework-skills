@@ -1,0 +1,16 @@
+ok 1 - syntax check on every script, by its shebang
+ok 2 - no skill folder or plugin.json entry is named pitlane, pitwall or dispatch
+ok 3 - legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop
+ok 4 - pipeline founded, 8 lanes read
+ok 5 - pipeline vars rendered
+ok 6 - pipeline lanes carry their template icons (Issues tinted, Ideas plain, all 8 set)
+ok 7 - pipeline board validates
+ok 8 - empty collapsed cell keeps the lane body in place
+ok 9 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 10 - collapsed: yes lane starts collapsed with its body; design-loop lanes carry icons, datapoint lanes none
+ok 11 - validator control: a bare-colon title fails
+ok 12 - refuses a non-empty board folder
+/private/tmp/claude-501/-Users-rzen-Indie-Projects-Lanework-lanework-skills/8a1a40af-9f60-4879-984b-68b4c8585042/scratchpad/lease-only.sh: line 108: /Users/rzen/Indie/Projects/Lanework/lanework-skills/.claude/worktrees/lease-script/skills/lanework/scripts/lease.sh: No such file or directory
+stake failed: 
+/private/tmp/claude-501/-Users-rzen-Indie-Projects-Lanework-lanework-skills/8a1a40af-9f60-4879-984b-68b4c8585042/scratchpad/lease-only.sh: line 100: 65102 Terminated: 15          sleep 600 < /dev/null > /dev/null 2>&1
+rc=1

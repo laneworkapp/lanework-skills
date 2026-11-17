@@ -1,0 +1,12 @@
+== merge: losing session a0ed7442-ca2a-4759-ac02-46dded1a56b7, card 3123e1a9
+  files in the merged board naming the losing session: none
+  card folder: index.md 
+  git log -p of the merge result naming the losing session: 1 lines (history keeps side A's commit)
+== rebase: losing session c62b0266-fbf5-4dac-9149-6cf57aeb75af, card fe8ad18b
+  files in the merged board naming the losing session: none
+  card folder: index.md 
+  git log -p of the merge result naming the losing session: 1 lines (history keeps side A's commit)
+== nodriver: losing session 10d7193f-20c7-48e5-bd72-7ed695d3a960, card 1248c00d
+  files in the merged board naming the losing session: none
+  card folder: index.md 
+  git log -p of the merge result naming the losing session: 1 lines (history keeps side A's commit)
