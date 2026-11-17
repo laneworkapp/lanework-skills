@@ -4,7 +4,7 @@
 # Rules: every row of a skill's table = wc -w of that file; `total` = sum of the rows;
 # the summary table's files / SKILL.md words / words an agent reads = the skill table's
 # row count / SKILL.md row / total. SKILL.md and every references/*.md must have a row.
-# Templates are checked only when listed.
+# Templates are checked only when listed. Every skill named in a summary row or a `####` table must have a folder.
 set -uo pipefail
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$ROOT" || exit 1
@@ -26,6 +26,11 @@ parsed=$(awk '
   n==4 { print "R", sk, c[2], c[3] }
   ' README.md)
 [ -n "$parsed" ] || { echo "check-sizes: no § Sizes tables found in README.md"; exit 1; }
+
+# a § Sizes row or table for a skill with no folder would pass the walk below unseen
+for s in $(awk '$1=="S"||$1=="T"||$1=="R" { print $2 }' <<<"$parsed" | sort -u); do
+  [ -d "skills/$s" ] || fail "$s: README has a § Sizes row or table, but skills/$s does not exist"
+done
 
 for d in skills/*/; do
   s=$(basename "$d")
