@@ -29,8 +29,8 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
 | `lanework` | 10 | 356 | 4,488 |
-| `work` | 16 | 434 | 7,179 |
-| `watch` | 4 | 180 | 1,602 |
+| `work` | 16 | 444 | 7,384 |
+| `watch` | 4 | 180 | 1,611 |
 | `discovery` | 14 | 502 | 2,908 |
 | `plan` | 9 | 453 | 2,668 |
 | `merge` | 2 | 362 | 1,612 |
@@ -58,7 +58,7 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` an
 
 | file | words |
 |---|---|
-| `SKILL.md` | 434 |
+| `SKILL.md` | 444 |
 | `references/companions.md` | 213 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
@@ -68,13 +68,13 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` an
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
-| `references/writing.md` | 1,346 |
+| `references/writing.md` | 1,541 |
 | `templates/ask.md` | 306 |
 | `templates/farmed-prompt.md` | 167 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **7,179** |
+| **total** | **7,384** |
 
 #### `watch`
 
@@ -82,9 +82,9 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` an
 |---|---|
 | `SKILL.md` | 180 |
 | `references/arming.md` | 649 |
-| `references/events.md` | 400 |
+| `references/events.md` | 409 |
 | `references/responding.md` | 373 |
-| **total** | **1,602** |
+| **total** | **1,611** |
 
 #### `discovery`
 
