@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "work: card-writing scripts check the lease, and START shrinks to a short plan"
-order: 2048
+order: 71680
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T14:48:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T17:51:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-17T19:08:42Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Make the `work` skill honor the card lease: `post-comment.sh` checks the lease before it writes, the session that works a card stakes it before starting and releases it in its closing write, and the START comment shrinks to a short plan that is no longer a claim.
 
