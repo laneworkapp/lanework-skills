@@ -5,7 +5,7 @@ title: "Scripts refuse valid cards that contain a triple closing brace"
 order: 5120
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}, {text: plan, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T15:55:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T15:55:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-17T16:21:28Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 `move-card.sh` refuses to move a valid card when a label's kind carries an icon, or when the card's body contains three closing braces, and six more scripts carry the same guard.
 
@@ -44,3 +44,5 @@ Check only the lines the script writes (`modified`, `waiting`, `order`), as the 
 | 1 | `lanework/scripts/lease.sh`, reading `until` | a lease date with fractional seconds or `+00:00` reads as unreadable, so that lease is staked over with no takeover wait. The script writes only the `Z` form | measured by the reviewer |
 | 2 | `lease.sh`, and the other restamping scripts | a body with no trailing newline gains one on the first write | measured by the reviewer for `lease.sh` |
 | 3 | `lease.sh`, `move-card.sh` | a card with CRLF line endings that the validator passes is refused with exit 1, "no frontmatter" | measured by the reviewer |
+| 4 | `lease.sh`, `compact_fm` on every lease write | a `labels` line the heal already flags is rewritten to block form, though the script does not own it. Not done by `move-card.sh` or `post-ask.sh`. Ways out: say so in `lanework/references/writes.md` § Lease, or compact only the lines the script writes | measured by the reviewer: 59 of 114 real cards, 0 values changed, 57 match the heal's own layout |
+| 5 | every script taking `--model` | a `}` in the model value closes `by` early and the card fails the validator; the value is never sanitized | measured by the reviewer for `lease.sh` |
