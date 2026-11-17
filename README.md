@@ -28,15 +28,15 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 356 | 4,362 |
-| `work` | 16 | 406 | 7,066 |
+| `lanework` | 10 | 356 | 4,379 |
+| `work` | 16 | 434 | 7,150 |
 | `watch` | 4 | 180 | 1,602 |
 | `discovery` | 14 | 502 | 2,906 |
 | `plan` | 9 | 453 | 2,675 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10 (`watch` on 2026-11-17, `lanework`, `work` and `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`watch`, `lanework` and `work` on 2026-11-17, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -49,16 +49,16 @@ Measured with `wc -w` on 2026-10-10 (`watch` on 2026-11-17, `lanework`, `work` a
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 1,167 |
+| `references/writes.md` | 1,184 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **4,362** |
+| **total** | **4,379** |
 
 #### `work`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 406 |
+| `SKILL.md` | 434 |
 | `references/companions.md` | 213 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 391 |
@@ -67,14 +67,14 @@ Measured with `wc -w` on 2026-10-10 (`watch` on 2026-11-17, `lanework`, `work` a
 | `references/sweep.md` | 741 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
-| `references/traps.md` | 377 |
+| `references/traps.md` | 445 |
 | `references/writing.md` | 1,317 |
-| `templates/ask.md` | 318 |
+| `templates/ask.md` | 306 |
 | `templates/farmed-prompt.md` | 167 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **7,066** |
+| **total** | **7,150** |
 
 #### `watch`
 

@@ -1460,6 +1460,202 @@ PYEND
 setdef "$DP" Frontier -
 ok "card-defaults: a kinded entry's rank stays an integer on the card (listed-kind and undefined-kind alike), while bare 2026 and {text: 1.10} still read as typed names"
 
+# work: the board-write helpers. file-card, move-card and post-ask on a copy of the pipeline board with a v118 guide line and the
+# borrowed .schema copied in (each script validates through the board's own validator); commit-board in a temp repo with a bare origin
+FC="$SK/work/scripts/file-card.sh"; MC="$SK/work/scripts/move-card.sh"; PA="$SK/work/scripts/post-ask.sh"; LST="$SK/work/scripts/lint-stamps.sh"
+WB="$T/Helpers.lanework"; cp -R "$P" "$WB"; cp -R "$VAL" "$WB/.schema"
+printf '<!-- lanework-agent-guide v118 -->\n\nThis machine'"'"'s human answers to `@owner`.\n' > "$WB/CLAUDE.md"
+lanedir() { dirname "$(lane_of "$1" "$2")"; }
+cardf() { ls "$WB"/*/"$1"/index.md; }
+# others <board> <rel path>...: one hash over every file of the board outside the named paths
+others() { local b=$1 f x skip; shift; (cd "$b" && find . -type f | sed 's#^\./##' | LC_ALL=C sort | while IFS= read -r f; do
+  skip=; for x in "$@"; do case "$f" in "$x"|"$x"/*) skip=1 ;; esac; done; [ -n "$skip" ] || shasum "$f"; done) | shasum; }
+rel() { printf '%s' "${1#"$WB"/}"; }
+fmline() { grep -m1 "^$2:" "$1"; }
+atof() { sed -n "s/^$2: *{at: \([^,}]*\).*/\1/p" "$1" | head -1; }
+BYF='{name: fixer, kind: agent, model: smoke, session: "smoke"}'
+
+# file-card: an empty lane, a timed call (the hand-rolled glob read stdin and hung there); 1024, the caller's stamp, nothing else touched
+printf 'Ship the thing.\n\n## Done when\n\n- it ships\n' > "$T/fc.md"; AP=$(lanedir "$WB" Approved)
+[ "$(ls "$AP")" = index.md ] || { echo "Approved is not empty"; exit 1; }
+S8=$(others "$WB"); t0=$(date -u +%FT%TZ)
+# stdin is a pipe that stays open past the alarm: a stdin read hangs until the alarm kills it
+F1=$(perl -e 'alarm 10; exec @ARGV' "$FC" "$WB" Approved "Fix: the thing" --body "$T/fc.md" --model smoke --name fixer --session smoke < <(sleep 12)) || { echo "file-card into an empty lane failed or hung"; exit 1; }
+t1=$(date -u +%FT%TZ); C1F=$(basename "$F1"); CF="$AP/$C1F/index.md"
+[ "$F1" = "$AP/$C1F" ] && [[ "$C1F" =~ ^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$ ]] || { echo "file-card printed $F1"; exit 1; }
+[ "$(fmline "$CF" order)" = "order: 1024" ] && [ "$(fmline "$CF" kind)" = "kind: card" ] && [ "$(fmline "$CF" title)" = 'title: "Fix: the thing"' ] \
+  && grep -qxF "created:  {at: $(atof "$CF" created), by: $BYF}" "$CF" && grep -qxF "modified: {at: $(atof "$CF" created), by: $BYF}" "$CF" \
+  && [[ ! "$(atof "$CF" created)" < "$t0" && ! "$(atof "$CF" created)" > "$t1" ]] && ! grep -q '^labels:' "$CF" || { echo "file-card wrote:"; cat "$CF"; exit 1; }
+[ "$(cd "$AP" && find . -type f | LC_ALL=C sort | tr '\n' ' ')" = "./$C1F/index.md ./index.md " ] && tail -n +2 "$CF" | sed '1,/^---$/d' | cmp -s - "$T/fc.md" || { echo "file-card left a stray file, or changed the body"; exit 1; }
+[ "$S8" = "$(others "$WB" "$(rel "$AP/$C1F")")" ] && validate "$WB" >/dev/null && "$LST" "$WB" || { echo "file-card touched another file, or the board fails"; exit 1; }
+F2=$("$FC" "$WB" Approved "Second" --body "$T/fc.md" --model smoke); C2F=$(basename "$F2")
+[ "$(fmline "$F2/index.md" order)" = "order: 2048" ] && grep -q '^created:  {at: [^,]*, by: {name: claude, kind: agent, model: smoke}}$' "$F2/index.md" || { echo "file-card: second card:"; cat "$F2/index.md"; exit 1; }
+ok "file-card.sh into an empty lane: order 1024 within 10 s with stdin held open, caller's by on created and modified from the clock, no temp file beside it, no other file changed; the next lands at max + 1024"
+setdef "$DP" Frontier '{labels: [{text: High, kind: {type: priority}}, {text: Urgent, kind: {type: priority}}, extra]}'
+F3=$("$FC" "$DP" Frontier "Defaulted" --body "$T/fc.md" --model smoke); C3F=$(basename "$F3")
+[ "$(labels_of "$DP" "$C3F")" = "labels: [{text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: extra, $TXT}]" ] \
+  || { echo "file-card: lane defaults not unioned:"; labels_of "$DP" "$C3F"; exit 1; }
+nothing_to_heal "$DP" || { echo "file-card: plan board not clean"; exit 1; }
+setdef "$DP" Frontier -
+ok "file-card.sh unions the lane's card-defaults (a single kind's lowest rank kept, a free label stamped as text), in the compact form; heal finds nothing"
+S9=$(sum "$WB"); S9D=$(sum "$DP")
+rc=0; "$FC" "$WB" "No such lane" "x" --body "$T/fc.md" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "file-card, missing lane: want exit 1, got $rc"; exit 1; }
+rc=0; "$FC" "$WB" Approved "x" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "file-card, no --body: want exit 2, got $rc"; exit 1; }
+printf -- '---\nkind: card\n---\nx\n' > "$T/fcfm.md"; rc=0; "$FC" "$WB" Approved "x" --body "$T/fcfm.md" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "file-card, body with frontmatter: want exit 1, got $rc"; exit 1; }
+refused file-card "$FC" "$WB" Approved "x" --body "$T/fc.md"
+setdef "$DP" Frontier nope; rc=0; "$FC" "$DP" Frontier "x" --body "$T/fc.md" --model smoke >/dev/null 2>&1 || rc=$?; setdef "$DP" Frontier -
+[ "$rc" -eq 1 ] && [ "$S9" = "$(sum "$WB")" ] && [ "$S9D" = "$(sum "$DP")" ] || { echo "a refused file-card wrote something (rc $rc)"; exit 1; }
+ok "file-card.sh: a missing lane and a malformed card-defaults exit 1, no --body and no --model exit 2, a body with frontmatter exits 1; nothing written"
+
+# move-card: owner-filed cards (no by on any stamp) seeded by hand, two sharing a prefix, one waiting
+IDEAS=$(lanedir "$WB" Ideas); OW1=abcd0000-0000-4000-8000-000000000001; OW2=abcd0000-0000-4000-8000-000000000002; AQ=abcd0000-0000-4000-8000-0000000000aa
+for c in $OW1 $OW2; do mkdir -p "$IDEAS/$c"; printf -- '---\nschema: 1\nkind: card\ntitle: "Owner %s"\norder: %s\ncreated: {at: 2026-10-01T00:00:00Z}\nmodified: {at: 2026-10-01T00:00:00Z}\n---\nFiled in the app.\n' "${c: -1}" "${c: -1}024" > "$IDEAS/$c/index.md"; done
+perl -pi -e "s/^modified:/waiting: {for: anyone, since: 2026-10-01T00:00:00Z, comment: $AQ}\nmodified:/" "$IDEAS/$OW2/index.md"
+ISS=$(basename "$("$FC" "$WB" Issues "Broken" --body "$T/fc.md" --model smoke)")
+ACT=$(lanedir "$WB" Active); validate "$WB" >/dev/null
+# moved <card> <dest lane dir>: the card's body and every frontmatter line but order, modified and waiting are unchanged from <saved copy>
+moved() { diff <(grep -v -E '^(order|modified|waiting):' "$3") <(grep -v -E '^(order|modified|waiting):' "$2/$1/index.md") >/dev/null; }
+S10=$(others "$WB" "$(rel "$AP/$C1F")" "$(rel "$ACT/$C1F")"); cp "$AP/$C1F/index.md" "$T/mv1.md"; t0=$(date -u +%FT%TZ)
+M1=$("$MC" "$WB" "${C1F:0:8}" Active --model smoke --name fixer --session smoke) || { echo "move-card from Approved failed"; exit 1; }
+t1=$(date -u +%FT%TZ); MF="$ACT/$C1F/index.md"
+[ "$M1" = "$ACT/$C1F" ] && [ ! -e "$AP/$C1F" ] && [ "$(fmline "$MF" order)" = "order: 1024" ] && grep -qxF "modified: {at: $(atof "$MF" modified), by: $BYF}" "$MF" \
+  && [[ ! "$(atof "$MF" modified)" < "$t0" && ! "$(atof "$MF" modified)" > "$t1" ]] && moved "$C1F" "$ACT" "$T/mv1.md" || { echo "move-card from Approved wrote:"; cat "$MF"; exit 1; }
+[ "$S10" = "$(others "$WB" "$(rel "$AP/$C1F")" "$(rel "$ACT/$C1F")")" ] && validate "$WB" >/dev/null && "$LST" "$WB" || { echo "move-card touched another file, or the board fails"; exit 1; }
+"$MC" "$WB" "$ISS" Active --model smoke >/dev/null; [ "$(fmline "$ACT/$ISS/index.md" order)" = "order: 2048" ] && [ ! -e "$(lanedir "$WB" Issues)/$ISS" ] || { echo "move-card from Issues: not at max + 1024"; exit 1; }
+"$MC" "$WB" "$C2F" Active --top --model smoke >/dev/null; [ "$(fmline "$ACT/$C2F/index.md" order)" = "order: 512" ] || { echo "move-card --top: want 512 (half of 1024)"; fmline "$ACT/$C2F/index.md" order; exit 1; }
+ok "move-card.sh from Approved (by prefix) and from Issues: order max + 1024 (1024 into an empty lane), --top half the lowest, modified rewritten whole with the caller's by and the clock; nothing else changed; validates, lint-stamps clean"
+S11=$(sum "$WB")
+for p in ffffffff abcd0000 ABCD0000 '' 'abcd*'; do rc=0; "$MC" "$WB" "$p" Shaping --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "move-card '$p': want exit 2, got $rc"; exit 1; }; done
+rc=0; "$MC" "$WB" "$OW1" "No such lane" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "move-card, missing lane: want exit 1, got $rc"; exit 1; }
+rc=0; "$MC" "$WB" "$ISS" Active --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "move-card into its own lane: want exit 1, got $rc"; exit 1; }
+rc=0; "$MC" "$WB" "$OW1" Shaping --top --bottom --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "move-card --top --bottom: want exit 2, got $rc"; exit 1; }
+refused move-card "$MC" "$WB" "$OW1" Shaping
+[ "$S11" = "$(sum "$WB")" ] || { echo "a refused move-card wrote something"; exit 1; }
+ok "move-card.sh: no match, two prefix matches, an uppercase, empty or glob prefix exit 2; a missing lane or its own lane exit 1; --top with --bottom and no model exit 2; nothing written"
+SH=$(lanedir "$WB" Shaping); PR=$(lanedir "$WB" Proposed); cp "$IDEAS/$OW2/index.md" "$T/mv2.md"
+"$MC" "$WB" "$OW1" Shaping --model smoke --name fixer --session smoke >/dev/null
+grep -qxF "modified: {at: $(atof "$SH/$OW1/index.md" modified), by: $BYF}" "$SH/$OW1/index.md" && grep -qxF 'created: {at: 2026-10-01T00:00:00Z}' "$SH/$OW1/index.md" || { echo "owner-filed card not stamped by the caller:"; cat "$SH/$OW1/index.md"; exit 1; }
+"$MC" "$WB" "$OW2" Shaping --model smoke >/dev/null; grep -qxF "waiting: {for: anyone, since: 2026-10-01T00:00:00Z, comment: $AQ}" "$SH/$OW2/index.md" && moved "$OW2" "$SH" "$T/mv2.md" || { echo "move-card dropped waiting by default"; exit 1; }
+printf 'Shaped: scope settled.\n\n**Evidence**: none needed.\n' > "$T/mvc.md"
+"$MC" "$WB" "$OW2" Proposed --clear-waiting --comment "$T/mvc.md" --model smoke --name fixer --session smoke >/dev/null
+! grep -q '^waiting:' "$PR/$OW2/index.md" && moved "$OW2" "$PR" "$T/mv2.md" || { echo "--clear-waiting left waiting, or changed another line"; cat "$PR/$OW2/index.md"; exit 1; }
+MCF=$(ls "$PR/$OW2"/comments/*/index.md); [ "$(echo "$MCF" | wc -l | tr -d ' ')" -eq 1 ] && grep -q "^created:  {at: [^,]*, by: $BYF}\$" "$MCF" && grep -q 'Shaped: scope settled' "$MCF" || { echo "--comment did not carry the caller's by"; cat "$MCF"; exit 1; }
+validate "$WB" >/dev/null && "$LST" "$WB" || exit 1
+ok "move-card.sh: an owner-filed card (no by) comes out stamped by the caller, created untouched; waiting kept by default, dropped with --clear-waiting; --comment posts with the same by; validates, lint-stamps clean"
+WG="$T/helpers-git"; mkdir -p "$WG"; cp -R "$WB" "$WG/Helpers.lanework"; gw() { GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -C "$WG" "$@"; }
+gw init -q -b main && gw config user.name smoke && gw config user.email smoke@example.com && gw add -A && gw commit -q -m seed; h0=$(gw rev-parse HEAD)
+"$MC" "$WG/Helpers.lanework" "$OW1" Proposed --model smoke >/dev/null
+[ "$(gw rev-parse HEAD)" = "$h0" ] && gw diff --cached --quiet && [ -n "$(gw status --porcelain)" ] || { echo "move-card staged or committed in git"; gw status --short; exit 1; }
+ok "move-card.sh in a git repo: the move is on disk only, nothing staged, nothing committed"
+
+# post-ask: a record then the ask straight after; the ask waits for the next second, sets waiting to itself and restamps the card
+printf '@anyone Ship the thing today?\n\nOptions:\n- A: Ship it.\n- B: Hold it.\n- Recap: Explain this in plain terms first\n\nWhy now: it is ready.\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/ask1.md"
+sed 's/^@anyone /@kim /' "$T/ask1.md" > "$T/ask2.md"
+# the record goes --ahead 1: an ask posted without the wait would land a second before it, every time
+cp "$MF" "$T/pa1.md"; R1=$("$SK/work/scripts/post-comment.sh" "$WB" "$C1F" --body "$T/pc.md" --model smoke --ahead 1)
+A1=$("$PA" "$WB" "$C1F" --body "$T/ask1.md" --for anyone --model smoke --name fixer --session smoke --in-reply-to "$R1") || { echo "post-ask failed"; exit 1; }
+AF="$ACT/$C1F/comments/$A1/index.md"; RA=$(atof "$ACT/$C1F/comments/$R1/index.md" created); AA=$(atof "$AF" created)
+[[ "$AA" > "$RA" ]] || { echo "the ask ($AA) is not after the record ($RA)"; exit 1; }
+grep -qxF "waiting: {for: anyone, since: $AA, comment: $A1}" "$MF" && grep -qxF "modified: {at: $(atof "$MF" modified), by: $BYF}" "$MF" && [[ ! "$(atof "$MF" modified)" < "$AA" ]] \
+  && grep -qxF "in-reply-to: $R1" "$AF" && moved "$C1F" "$ACT" "$T/pa1.md" || { echo "post-ask: waiting or modified wrong:"; cat "$MF"; exit 1; }
+"$SK/work/scripts/lint-ask.sh" "$AF" "$WB" && validate "$WB" >/dev/null && "$LST" "$WB" || { echo "post-ask: the landed ask fails lint, or the board fails"; exit 1; }
+A2=$("$PA" "$WB" "$ISS" --body "$T/ask2.md" --for kim --model smoke) && grep -qxF "waiting: {for: kim, since: $(atof "$ACT/$ISS/comments/$A2/index.md" created), comment: $A2}" "$ACT/$ISS/index.md" \
+  && "$SK/work/scripts/lint-ask.sh" "$ACT/$ISS/comments/$A2/index.md" "$WB" || { echo "post-ask --for kim:"; cat "$ACT/$ISS/index.md"; exit 1; }
+ok "post-ask.sh: the ask lands after a record stamped a second ahead, waiting.comment is its uuid and since its created.at, modified restamped by the caller; --for anyone and --for kim both lint clean"
+S12=$(sum "$WB")
+printf '@kim maybe ship it; worth a try? and also this?\n' > "$T/ask3.md"
+rc=0; "$PA" "$WB" "$C2F" --body "$T/ask3.md" --for kim --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "post-ask, a failing ask for a person: want exit 1, got $rc"; exit 1; }
+sed 's/^@kim /@anyone /' "$T/ask3.md" > "$T/ask4.md"; rc=0; "$PA" "$WB" "$C2F" --body "$T/ask4.md" --for anyone --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "post-ask, a failing ask: want exit 1, got $rc"; exit 1; }
+rc=0; "$PA" "$WB" "$C2F" --body "$T/ask1.md" --for kim --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "post-ask, --for not on line 1: want exit 1, got $rc"; exit 1; }
+rc=0; "$PA" "$WB" "$C2F" --body "$T/ask1.md" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "post-ask, no --for: want exit 2, got $rc"; exit 1; }
+rc=0; "$PA" "$WB" "${C2F:0:8}" --body "$T/ask1.md" --for anyone --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "post-ask, a prefix: want exit 1, got $rc"; exit 1; }
+refused post-ask "$PA" "$WB" "$C2F" --body "$T/ask1.md" --for anyone
+[ "$S12" = "$(sum "$WB")" ] && ! grep -q '^waiting:' "$ACT/$C2F/index.md" || { echo "a refused post-ask wrote something"; exit 1; }
+ok "post-ask.sh: a body failing lint-ask (for a person, and for anyone), --for not on line 1, a prefix uuid exit 1; no --for and no model exit 2; nothing written, waiting unset"
+
+# commit-board: a temp repo with a bare origin and a second clone; global and system git config shut out, identity set in each repo
+CB="$SK/work/scripts/commit-board.sh"; G="$T/cb"; mkdir -p "$G"
+gx() { GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git "$@"; }; g() { gx -C "$G/work" "$@"; }; go() { gx -C "$G/other" "$@"; }
+cb() { (cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$CB" "$@"); }
+gx init -q --bare -b main "$G/origin.git"; gx init -q -b main "$G/work"; g config user.name smoke; g config user.email smoke@example.com
+CP="B.lanework/lane/card/index.md"; mkdir -p "$G/work/B.lanework/lane/card"; echo a > "$G/work/$CP"; echo x > "$G/work/notes.txt"
+g add -A; g commit -q -m seed; g remote add origin "$G/origin.git"; g push -q -u origin main 2>/dev/null
+gx clone -q "$G/origin.git" "$G/other"; go config user.name other; go config user.email other@example.com
+echo y > "$G/work/notes.txt"; g stash -q; echo z > "$G/work/notes.txt"; g add notes.txt; echo junk > "$G/work/junk.txt"; echo b > "$G/work/$CP"
+st0=$(g stash list | wc -l | tr -d ' '); o0=$(gx --git-dir="$G/origin.git" rev-parse main)
+O=$(cb "B: card edited" "$CP") || { echo "commit-board failed: $O"; exit 1; }
+[ "$(g show --name-only --format= HEAD)" = "$CP" ] && [ "$(g log -1 --format=%B | sed '/^$/d')" = "B: card edited" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$o0" ] \
+  && [ "$(g diff --cached --name-only)" = notes.txt ] && [ "$(g status --porcelain -- "$CP")" = "" ] && [ "$(g status --porcelain -- junk.txt)" = "?? junk.txt" ] \
+  && [ "$(g stash list | wc -l | tr -d ' ')" = "$st0" ] || { echo "commit-board: wrong commit or touched the rest:"; g log -1 --stat; g status --short; exit 1; }
+ok "commit-board.sh commits only the named path: the owner's staged and untracked files stay as they were, no trailer, no push without --push, stash count unchanged"
+echo c > "$G/work/$CP"; cb --push --trailer "Claude-Session: smoke" --trailer "Reviewed-by: smoke" "B: pushed" "$CP" >/dev/null || { echo "commit-board --push failed"; exit 1; }
+[ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%B | sed '/^$/d' | tr '\n' '|')" = "B: pushed|Claude-Session: smoke|Reviewed-by: smoke|" ] || { echo "commit-board --push --trailer:"; g log -1; exit 1; }
+# a rejected push: the pre-push hook lands another clone's commit first, once; the script un-commits, fast-forwards and retries
+cat > "$G/work/.git/hooks/pre-push" <<HOOK
+#!/bin/bash
+[ -e "$G/hooked" ] && exit 0; touch "$G/hooked"; unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+cd "$G/other" && GIT_CONFIG_GLOBAL=/dev/null git pull -q && echo o > other.txt && GIT_CONFIG_GLOBAL=/dev/null git add other.txt && GIT_CONFIG_GLOBAL=/dev/null git commit -q -m other && GIT_CONFIG_GLOBAL=/dev/null git push -q 2>/dev/null
+HOOK
+chmod +x "$G/work/.git/hooks/pre-push"; echo d > "$G/work/$CP"
+O=$(cb --push "B: retried" "$CP" 2>&1) || { echo "commit-board did not recover from a rejected push: $O"; exit 1; }
+[ -e "$G/hooked" ] && grep -q 'rejected' <<<"$O" && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s HEAD^)" = other ] \
+  && [ "$(g show --name-only --format= HEAD)" = "$CP" ] && [ -f "$G/work/other.txt" ] && [ "$(g log --format=%s | grep -c '^B: retried$')" -eq 1 ] || { echo "rejected push, retry: $O"; g log --oneline -4; exit 1; }
+rm -f "$G/work/.git/hooks/pre-push"
+ok "commit-board.sh --push lands on origin, trailers only from --trailer, each once, two kept in order; a rejected push un-commits, fast-forwards over the other commit and retries once"
+# a kill while the push hangs (a pre-push hook that sleeps, then refuses): HEAD has the commit and the index already matches it,
+# so the owner's next plain commit cannot revert the board write; SIGKILL, then SIGTERM
+printf '#!/bin/bash\ntouch "%s/inpush"; sleep 3; touch "%s/pushdone"; exit 1\n' "$G" "$G" > "$G/work/.git/hooks/pre-push"; chmod +x "$G/work/.git/hooks/pre-push"
+for sig in KILL TERM; do
+  rm -f "$G/inpush" "$G/pushdone"; echo "k$sig" > "$G/work/$CP"
+  (cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: killed $sig" "$CP") >/dev/null 2>&1 & KP=$!
+  perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/inpush' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the push never reached the hook"; exit 1; }
+  kill -"$sig" "$KP"; wait "$KP" 2>/dev/null || true
+  perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/pushdone' ]; do sleep 0.1; done"; sleep 0.5
+  [ "$(g log -1 --format=%s)" = "B: killed $sig" ] && g diff --cached --quiet -- "$CP" && g diff --quiet -- "$CP" || { echo "killed ($sig) mid-push: the index does not match HEAD on $CP"; g status --short; g diff --cached --stat; exit 1; }
+done
+rm -f "$G/work/.git/hooks/pre-push"
+ok "commit-board.sh killed mid-push (SIGKILL, SIGTERM): HEAD holds the commit and the index already matches it on the named path"
+# diverged: the other clone and a local commit both change the card file
+go pull -q; echo e > "$G/other/$CP"; go commit -q -am theirs; go push -q 2>/dev/null; echo f > "$G/work/$CP"; g commit -q -am ours; h1=$(g rev-parse HEAD)
+echo g > "$G/work/$CP"; rc=0; O=$(cb --push "B: diverged" "$CP" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && grep -qxF "  $CP" <<<"$O" && [ "$(g rev-parse HEAD)" = "$h1" ] && [ "$(g stash list | wc -l | tr -d ' ')" = "$st0" ] || { echo "diverged: want exit 1 naming $CP, HEAD kept (rc $rc): $O"; exit 1; }
+g reset -q --hard origin/main; g stash list >/dev/null
+# dirty overlap: origin changed a file the owner has uncommitted edits to
+go pull -q; echo h > "$G/other/notes.txt"; go commit -q -am notes; go push -q 2>/dev/null; echo mine > "$G/work/notes.txt"; echo i > "$G/work/$CP"; h2=$(g rev-parse HEAD)
+rc=0; O=$(cb "B: overlap" "$CP" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && grep -qx '  notes.txt' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h2" ] && [ "$(cat "$G/work/notes.txt")" = mine ] || { echo "dirty overlap: want exit 1 naming notes.txt (rc $rc): $O"; exit 1; }
+g checkout -q -- notes.txt; cb "B: caught up" "$CP" >/dev/null && [ "$(g log -1 --format=%s HEAD^)" = notes ] || { echo "commit-board did not fast-forward first"; exit 1; }
+[ "$(g stash list | wc -l | tr -d ' ')" = "$st0" ] || { echo "stash count changed"; exit 1; }
+ok "commit-board.sh stops (exit 1, HEAD kept) on a diverged branch and on a dirty overlap, naming the file each time; otherwise fast-forwards first; stash count unchanged throughout"
+# refusals: outside the work tree, the root, .DS_Store named or inside a named folder, a glob pathspec, no paths
+h3=$(g rev-parse HEAD); echo j > "$G/work/$CP"; echo k > "$T/outside.md"; touch "$G/work/B.lanework/lane/card/.DS_Store"
+for a in "$T/outside.md" ../outside.md . "$G/work" B.lanework/lane/card/.DS_Store B.lanework/lane/card; do
+  rc=0; cb "B: refused" "$a" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h3" ] || { echo "commit-board '$a': want exit 1 and no commit, got $rc"; exit 1; }
+done
+rc=0; cb "B: no paths" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "commit-board with no paths: want exit 2, got $rc"; exit 1; }
+rc=0; cb --trailer >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "commit-board --trailer with no value: want exit 2, got $rc"; exit 1; }
+rm -f "$G/work/B.lanework/lane/card/.DS_Store"; mkdir -p "$G/work/B.lanework/lane/card/comments/.draft"; echo draft > "$G/work/B.lanework/lane/card/comments/.draft/index.md"
+rc=0; cb "B: draft" B.lanework/lane/card >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h3" ] || { echo "commit-board: a folder holding an owner's draft: want exit 1, got $rc"; exit 1; }
+rm -rf "$G/work/B.lanework/lane/card/comments"
+ok "commit-board.sh refuses a path outside the work tree, the root, .DS_Store named or inside a named folder, and an owner's comments/.draft (exit 1, no commit); no paths exits 2"
+O=$(cb "B: one gone" B.lanework/old/card/index.md "$CP" 2>&1) && grep -q 'B.lanework/old/card/index.md is neither on disk nor in HEAD' <<<"$O" && [ "$(g show --name-only --format= HEAD)" = "$CP" ] \
+  || { echo "commit-board: a never-committed old path beside a real one: $O"; exit 1; }
+BR="B.lanework/lane [x]/i?.md"; mkdir -p "$G/work/B.lanework/lane [x]"; echo q > "$G/work/$BR"
+cb "B: brackets" "$BR" >/dev/null && [ "$(g show --name-only --format= HEAD)" = "$BR" ] || { echo "commit-board: a real path with [ and ? was not committed"; exit 1; }
+h4=$(g rev-parse HEAD); O=$(cb "B: glob" '*.md' 2>&1) && grep -q '^nothing to commit$' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h4" ] || { echo "commit-board: a glob matching no path: $O"; exit 1; }
+h3=$(g rev-parse HEAD); echo j2 > "$G/work/$CP"
+ok "commit-board.sh skips a named path neither on disk nor in HEAD (a card's old lane path, filed since; a glob, read literally) and commits the rest; a real path with [ and ? commits"
+# the lock: held by a live pid, the second invocation waits; held by a dead pid, it is reclaimed
+LK="$(cd "$G/work" && cd "$(gx rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.lock"
+sleep 30 & HP=$!; mkdir "$LK"; echo "$HP" > "$LK/pid"
+( cb "B: after the lock" "$CP" > "$T/cb-wait.txt" 2>&1; echo "exit $?" >> "$T/cb-wait.txt" ) & WP=$!
+sleep 2; [ "$(g rev-parse HEAD)" = "$h3" ] && grep -q "$HP" "$T/cb-wait.txt" || { kill "$HP" "$WP" 2>/dev/null; echo "commit-board did not wait on a live lock:"; cat "$T/cb-wait.txt"; exit 1; }
+kill "$HP"; wait "$HP" 2>/dev/null || true; perl -e 'alarm 20; exec @ARGV' bash -c "while kill -0 $WP 2>/dev/null; do sleep 0.2; done" || { echo "commit-board hung after the holder died"; exit 1; }
+grep -q '^exit 0$' "$T/cb-wait.txt" && [ "$(g log -1 --format=%s)" = "B: after the lock" ] && [ ! -e "$LK" ] || { echo "commit-board after a lock:"; cat "$T/cb-wait.txt"; exit 1; }
+sh -c 'exit 0' & DPID=$!; wait "$DPID"; mkdir "$LK"; echo "$DPID" > "$LK/pid"; echo l > "$G/work/$CP"
+perl -e 'alarm 20; exec @ARGV' bash -c "cd '$G/work' && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 '$CB' 'B: reclaimed' '$CP'" >/dev/null 2>&1 && [ "$(g log -1 --format=%s)" = "B: reclaimed" ] && [ ! -e "$LK" ] || { echo "commit-board did not reclaim a dead pid's lock"; exit 1; }
+ok "commit-board.sh waits while the lock's pid is alive, then commits; a dead pid's lock is reclaimed; the lock is gone after"
+
 # release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
 BS=$(head -1 "$VAL/VERSION" | tr -d '\r' | grep -o -E 'lanework-schema v[0-9]+ *$' | grep -o -E '[0-9]+' || true)
