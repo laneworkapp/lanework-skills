@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Work skill: ship move-card, post-ask and commit-board helpers"
-order: 2048
+order: 1024
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T17:55:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Main"}}
-modified: {at: 2026-11-17T11:38:47Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-17T12:39:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Ship four board-write helpers in the `work` skill (`move-card.sh`, `post-ask.sh`, `commit-board.sh`, `file-card.sh`) so coordinator sessions stop hand-rolling scripts that mis-stamp, mis-order and over-stage.
 
