@@ -36,7 +36,7 @@ A call only the owner can make (between options, taste, scope, anything a done-w
 
 Fill `templates/ask.md`. Hard budget:
 
-- **address `@anyone`, `for: anyone`** (on a guide v117+ board only; older builds draw no buttons for it, so there the guide's handle: `lanework/scripts/lib.sh` `ask_handle`). A person's handle only for a question that is theirs alone, a gate the board's sheet names. Never take it from the guide's "answers to" line (that says whose machine ran, not who is asked). Agents never act on `@anyone`
+- **address `@anyone`, `for: anyone`** (`lanework/scripts/lib.sh` `ask_handle` decides: older boards draw no buttons for it, so there the guide's handle). A person's handle only for a question that is theirs alone, a gate the board's sheet names. Never take it from the guide's "answers to" line (that says whose machine ran, not who is asked). Agents never act on `@anyone`
 - every handle on line 1, ask in that sentence: a question mark or an imperative
 - one ask per comment; two asks = two comments
 - under 80 words; one clause per sentence (no em-dash, no semicolon)
