@@ -14,7 +14,8 @@
 # Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<board key>/<card-uuid>, the board key
 # the first 16 hex of the shasum of the board's resolved path (`pwd -P`: a symlink or a trailing slash is the same board), so the
 # same card uuid on another copy of the board is never held there. A file in the older <session>/<card-uuid> layout is never
-# read. Each file: key=value lines: board,
+# read. Limit: a board folder renamed or moved under a live lease is a new key, never-held; lapsed and taken over, the next write lands, no loss record.
+# Each file: key=value lines: board,
 # timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
 # <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
 # Reads git (branch, `git --no-optional-locks status --porcelain`) for the loss record; never writes the repo, stages or commits.
