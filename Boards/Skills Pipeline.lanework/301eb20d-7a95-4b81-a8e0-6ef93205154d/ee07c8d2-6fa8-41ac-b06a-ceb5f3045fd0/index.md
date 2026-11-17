@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Retire the dispatch skill and move its arming sweep and a compaction rule into watch"
-order: 2048
+order: 7168
 labels: [{text: watch, kind: {type: skill, text: Skill}}, {text: dispatch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T11:33:01Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-17T11:42:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-17T11:42:25Z, comment: a0f296f5-504b-4f94-a03e-60e0b051a182}
+modified: {at: 2026-11-17T11:43:00Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Remove the `dispatch` skill, and give `watch` the two things that make a long watch safe without it: the scripted arming sweep, and a rule for what to do after the session's context is compacted.
 
@@ -56,9 +55,9 @@ Each item from the filed card, and what settled it (the evidence is in the threa
   - B1 (ruled): closed as withdrawn when this card lands, each with a record naming this card. The `waiting` mark on f36f6a5d stays until the owner next comments there, since only the app clears it.
   - B2: closed as withdrawn now.
   - B3: kept, and the rest of the trial runs before dispatch goes.
-- **C. The version.** Asked on the thread.
-  - C1 (recommended): 1.0.0, by this repo's rule (major for a removed skill).
-  - C2: 0.9.0, keeping 1.0.0 for a later milestone.
+- ~~**C. The version.**~~ **Ruled 2026-11-17: C2, 0.9.0.**
+  - C1: 1.0.0, by this repo's rule (major for a removed skill).
+  - C2 (ruled): 0.9.0, keeping 1.0.0 for a later milestone.
 
 ## Verified
 
@@ -99,13 +98,13 @@ Each item from the filed card, and what settled it (the evidence is in the threa
 
 ## Release
 
-A removed skill is a major bump by this repo's rule. The number is open call C. Draft entries for `CHANGELOG.md`, under the release month:
+A removed skill is a major bump by this repo's rule. The owner ruled 0.9.0 for this release (call C), keeping 1.0.0 for a later milestone. Draft entries for `CHANGELOG.md`, under the release month:
 
-- `Version 1.0.0: the dispatch skill is retired. Use /lanework:watch instead, which now catches up when it starts.`
+- `Version 0.9.0: the dispatch skill is retired. Use /lanework:watch instead, which now catches up when it starts.`
 - `/watch now answers comments you left while no watch was running, in every lane except Done, and reports work claims that look abandoned.`
 - `/watch now re-reads your boards after its conversation is compacted, instead of trusting its summary.`
 - `If you installed the skills by hand, remove the old link with rm ~/.claude/skills/dispatch.`
 
 ## Recommendation
 
-Build it under A1 and B1, before the lease chain, as one card with the board-body write in its own commit. Release it on its own as 1.0.0 (C1), so the changelog's retirement note is not buried among lease entries.
+Build it under A1 and B1, before the lease chain, as one card with the board-body write in its own commit. Release it on its own as 0.9.0 (C2), so the changelog's retirement note is not buried among lease entries.
