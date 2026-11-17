@@ -1,0 +1,17 @@
+move-card.sh (to Active): claimed intact (3 lines, byte for byte)
+    validates
+move-card.sh --top (to Done): claimed intact (3 lines, byte for byte)
+    validates
+post-ask.sh (waiting added): claimed intact (3 lines, byte for byte)
+    validates
+move-card.sh --clear-waiting: claimed intact (3 lines, byte for byte)
+    validates
+post-comment.sh: card file untouched (it never rewrites the card)
+settle-question.sh --to settled (waiting dropped): claimed intact (3 lines, byte for byte)
+    validates
+settle-question.sh --to parked (waiting dropped): claimed intact (3 lines, byte for byte)
+    validates
+claim-ticket.sh: claimed intact (3 lines, byte for byte)
+    validates
+resolve-ticket.sh: claimed intact (3 lines, byte for byte)
+    validates
