@@ -65,7 +65,7 @@ MATCH = 0.75
 # Bodies earlier templates shipped, per lane set and lane title. A board founded before a template changed
 # carries one of these word for word. Source: `git log -p` of the four lanes tables
 # (lanework/templates/{pipeline,design-loop,datapoint}-lanes.md, discovery/templates/lanes.md, and their
-# earlier paths under lanework-boards/), every distinct body per lane on main up to 35ba2ce (released history
+# earlier paths under lanework-boards/), every distinct body per lane on main up to the v0.8.0 release (released history
 # only). Not covered: the grill-me predecessor board's bodies (found-grill-board.sh), whose Brief differs. When a
 # released template body changes, add the body it replaces here, in the same commit.
 OLD_BODIES = {
@@ -90,6 +90,7 @@ OLD_BODIES = {
         ],
         "Active": [
             "The build lane. One session holds a card at a time, claiming it with a comment naming the session and the branch.",
+            "Work in progress. An agent moves a card in as it starts, claiming it with a comment naming the session and branch, and moves it to Done when its done-when is met.",
         ],
         "Done": [
             "Shipped work. A card arrives when its done-when is met, with a closing comment carrying the evidence.",
