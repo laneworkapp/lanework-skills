@@ -5,7 +5,8 @@ title: "Work skill: ship move-card, post-ask and commit-board helpers"
 order: 2048
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T17:55:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Main"}}
-modified: {at: 2026-11-12T18:56:42Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5}}
+modified: {at: 2026-11-17T00:53:01Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+waiting: {for: anyone, since: 2026-11-17T00:53:01Z, comment: 776fefb5-e099-4a4d-88dc-ba141553e9f7}
 ---
 Ship three board-write helpers in the `work` skill (`move-card.sh`, `post-ask.sh`, `commit-board.sh`) so coordinator sessions stop hand-rolling scripts that mis-stamp, mis-order and over-stage.
 
