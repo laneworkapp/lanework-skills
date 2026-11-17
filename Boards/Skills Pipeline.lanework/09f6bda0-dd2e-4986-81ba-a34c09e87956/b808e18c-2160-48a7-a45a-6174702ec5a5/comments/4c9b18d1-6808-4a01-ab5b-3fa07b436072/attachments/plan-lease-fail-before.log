@@ -1,0 +1,20 @@
+T=/var/folders/vt/spvgqs0d6kvd76lxgchh60_00000gn/T//fb-plan.oGXutn
+plan claim: rc 0, lane Working, session '', until ''
+CASE FAILED: # P1.  (rc 1)
+plan claim over a held ticket: rc 0, lane Working, err: 
+CASE FAILED: # P2.  (rc 1)
+plan claim race: a=1 b=0 holder= lane Working claimed comments 1
+CASE FAILED: # P3.  (rc 1)
+plan claim without a session id or CLAUDE_PID: rc 0 1
+CASE FAILED: # P4.  (rc 1)
+plan resolve: the fixtures are not one flow and one block claimed
+CASE FAILED: # P5.  (rc 1)
+sed: /var/folders/vt/spvgqs0d6kvd76lxgchh60_00000gn/T//fb-plan.oGXutn/lease-tmp.uvbbvt/lanework-lease/S-pa/131a0e321e504484/f3285161-36a9-476f-bcf1-d928d131b82b: No such file or directory
+/private/tmp/claude-501/-Users-rzen-Indie-Projects-Lanework-lanework-skills/8a1a40af-9f60-4879-984b-68b4c8585042/scratchpad/fb-run-base.sh: line 130: kill: `': not a pid or valid job spec
+/private/tmp/claude-501/-Users-rzen-Indie-Projects-Lanework-lanework-skills/8a1a40af-9f60-4879-984b-68b4c8585042/scratchpad/fb-run-base.sh: line 46: $1: unbound variable
+CASE FAILED: # P6.  (rc 1)
+sed: /var/folders/vt/spvgqs0d6kvd76lxgchh60_00000gn/T//fb-plan.oGXutn/lease-tmp.uvbbvt/lanework-lease/S-pa/131a0e321e504484/d4bce4f8-9eb6-47b0-9626-d1388afe3343: No such file or directory
+plan out-of-scope from Working: rc 0, lane Out of scope
+CASE FAILED: # P7.  (rc 1)
+plan resume over a live lease: rc 0, holder S-pnext
+CASE FAILED: # P8.  (rc 1)
