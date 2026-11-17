@@ -53,8 +53,8 @@ NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); CARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-record.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 C="$STAGE/$CARD_ID"; mkdir -p "$C"
 
-if cite_enabled "$BOARD"; then   # scanned as late as possible, here, just before the card is staged
-  CITE=$(next_cite "$BOARD" "$KIND"); CTITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/record.md" > "$STAGE/fm.md"
+if cite_enabled "$BOARD"; then   # the citation is scanned later (stamp_cite), just before the card is written
+  CITE=CITEPENDING; CTITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/record.md" > "$STAGE/fm.md"
 else
   CITE=""; CTITLE="$KIND: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/record.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
 fi
@@ -62,6 +62,7 @@ render "$STAGE/fm.md" kind "$KIND" cite "$CITE" rank "$RANK" title "$CTITLE" ord
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-record.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
 union_lane_defaults "$DEC" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
+if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" "$KIND"); fi   # scanned here, after the slow steps
 {
   cat "$STAGE/fm.out"
   printf 'Question: [%s](lanework://%s/%s)\n\n' "$QTITLE" "$BOARD_ID" "$QID"
