@@ -1,0 +1,34 @@
+ok 1 - syntax check on every script, by its shebang
+ok 2 - no skill folder or plugin.json entry is named pitlane, pitwall or dispatch
+ok 3 - legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop
+ok 4 - pipeline founded, 8 lanes read
+ok 5 - pipeline vars rendered
+ok 6 - pipeline lanes carry their template icons (Issues tinted, Ideas plain, all 8 set)
+ok 7 - pipeline board validates
+ok 8 - empty collapsed cell keeps the lane body in place
+ok 9 - design-loop (6 lanes) and datapoint (5) founded from templates, validate
+ok 10 - collapsed: yes lane starts collapsed with its body; design-loop lanes carry icons, datapoint lanes none
+ok 11 - validator control: a bare-colon title fails
+ok 12 - refuses a non-empty board folder
+ok 13 - lease: stake writes claimed with by.session and until 30 minutes ahead; the board validates and the heal dry run lists nothing
+ok 14 - lease: no session id or no CLAUDE_PID is exit 2 and writes nothing
+ok 15 - lease: two racing stakes leave one holder
+ok 16 - lease: stake over another session's live lease is refused
+ok 17 - lease: renew moves until forward and restamps modified, and leaves the body byte for byte
+ok 18 - lease: a card with }}} in its body is staked, renewed, checked and released, the body byte for byte
+stake on a remembered card held by another (until now1500 s): rc 1, lost 0, notices 0
+  ^ FAIL-BEFORE
+stake on a remembered card held by another (until now-60 s): rc 0, lost 0, notices 1
+  ^ FAIL-BEFORE
+ok 19 - lease: a changed by yields one Lease lost record naming branch, directory and files, and no further write; staking a remembered card whose claimed is gone, or held by another, live or lapsed, is the same loss
+ok 20 - lease: the timer and six concurrent checks racing on one loss post exactly one Lease lost record
+ok 21 - lease: an until over 35 minutes ahead, or none, is no lease; stake posts Lease ignored
+ok 22 - lease: takeover posts the notice and waits; the holder renewing makes the taker back off; no change makes it stake
+ok 23 - lease: check prints held, lost or never-held; renews a lapsed lease of its own and restarts a dead timer; compares the session id, not by.name; and writes nothing for a card this session never staked, free or held by another
+ok 24 - lease: the loss record opens with LEASE_LOST_PREFIX
+ok 25 - lease: one session holds three leases at once: three files, three timers, and releasing one leaves the other two held, even through a stale pid
+ok 26 - lease: release removes claimed and stops the timer; another session's release is refused; --force releases and records it
+ok 27 - lease: the timer renews by elapsed time, answers a notice within one poll, and exits when its CLAUDE_PID is gone or the lease is lost
+ok 28 - lease: list prints held cards with holder, time left, lapsed and voided, the title last
+ok 29 - lease: no timer process is left after the run
+lease-only: 29 passed
