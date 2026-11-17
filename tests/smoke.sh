@@ -951,56 +951,99 @@ else
   echo "skip - fswatch not installed"
 fi
 
-# arm-pass.sh: the arming pass classes each card from its files; Done is never swept, a claim is flagged and never worked
+# arm-pass.sh: the arming pass classes each card from its files and the card leases (read through lease.sh list); Done is never swept,
+# a held or lapsed lease is reported and never worked, a START comment is no claim
 AB="$T/Arm Pipeline.lanework"; AN="${AB##*/}"
 "$SK/lanework/scripts/found-board.sh" "$AB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Arm --var verified=make --model smoke >/dev/null
 alane() { dirname "$(lane_of "$AB" "$1")"; }
 AP="$SK/watch/scripts/arm-pass.sh"; NOWS=$(date -u +%FT%TZ); OLD='2026-10-01T00:00:00Z'; AGENT='{name: claude, kind: agent, model: x}'
 OLD2H=$(date -u -v-2H +%FT%TZ); OLD3H=$(date -u -v-3H +%FT%TZ); HUMAN='{name: "Rouslan Z", kind: "human"}'
-# acard <lane> <uuid> <title> <order>; acom <lane> <card> <uuid> <at> <by or ""> <in-reply-to or ""> <body>
-acard() { mkdir -p "$(alane "$1")/$2"; printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: %s\ncreated:  {at: %s}\nmodified: {at: %s}\n---\nBody.\n' "$3" "$4" "$OLD" "$OLD" > "$(alane "$1")/$2/index.md"; }
+# acard <lane> <uuid> <title> <order> [<until>]: a lease is hand-written into the front matter (no lease.sh stake: no timer)
+acard() { local cl=""; [ -z "${5:-}" ] || cl=$(printf 'claimed:\n  by: {name: claude, kind: agent, model: x, session: "s-%s"}\n  until: %s\n' "$2" "$5")
+  mkdir -p "$(alane "$1")/$2"; printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: %s\ncreated:  {at: %s}\nmodified: {at: %s}\n%s---\nBody.\n' "$3" "$4" "$OLD" "$OLD" "${cl:+$cl
+}" > "$(alane "$1")/$2/index.md"; }
+# acom <lane> <card> <uuid> <at> <by or ""> <in-reply-to or ""> <body>
 acom() { local d; d="$(alane "$1")/$2/comments/$3"; mkdir -p "$d"; printf -- '---\nschema: 1\nkind: comment\n%screated:  {at: %s%s}\nmodified: {at: %s%s}\n---\n%s\n' "${6:+in-reply-to: $6
 }" "$4" "${5:+, by: $5}" "$4" "${5:+, by: $5}" "$7" > "$d/index.md"; }
+UP20=$(date -u -v+20M +%FT%TZ); DN10=$(date -u -v-10M +%FT%TZ); UP50=$(date -u -v+50M +%FT%TZ)
 A1=e1000000-0000-4000-8000-000000000001; acard Ideas $A1 "Ideas: owner question" 1024;   acom Ideas $A1 f1000000-0000-4000-8000-000000000001 "$OLD2H" "" "" "Why?"
 A2=e1000000-0000-4000-8000-000000000002; acard Ideas $A2 "Ideas: answered" 2048;         acom Ideas $A2 f1000000-0000-4000-8000-000000000002 "$OLD3H" "$HUMAN" "" "Why?"; acom Ideas $A2 f1000000-0000-4000-8000-000000000003 "$OLD2H" "$AGENT" f1000000-0000-4000-8000-000000000002 "Because."
 A3=e1000000-0000-4000-8000-000000000003; acard Proposed $A3 "Proposed: owner question" 1024; acom Proposed $A3 f1000000-0000-4000-8000-000000000004 "$OLD2H" "" "" "Why?"
-A4=e1000000-0000-4000-8000-000000000004; acard Done $A4 "Done: old question" 1024;       acom Done $A4 f1000000-0000-4000-8000-000000000005 "$OLD2H" "" "" "Why?"; acom Done $A4 f1000000-0000-4000-8000-000000000006 "$OLD3H" "$AGENT" "" "**START: never closed.**"
-A5=e1000000-0000-4000-8000-000000000005; acard Shaping $A5 "Shaping: dead claim" 1024;   acom Shaping $A5 f1000000-0000-4000-8000-000000000007 "$OLD2H" "$AGENT" "" "**START: shaping.**"
-A6=e1000000-0000-4000-8000-000000000006; acard Shaping $A6 "Shaping: fresh claim" 2048;  acom Shaping $A6 f1000000-0000-4000-8000-000000000008 "$NOWS" "$AGENT" "" "**START: shaping.**"
+# Done: an old question, a START never closed, and a live lease: none of it is swept
+A4=e1000000-0000-4000-8000-000000000004; acard Done $A4 "Done: old question" 1024 "$UP20"; acom Done $A4 f1000000-0000-4000-8000-000000000005 "$OLD2H" "" "" "Why?"; acom Done $A4 f1000000-0000-4000-8000-000000000006 "$OLD3H" "$AGENT" "" "**START: never closed.**"
+# a START with no lease is no claim: an old one and a fresh one are both arms
+A5=e1000000-0000-4000-8000-000000000005; acard Shaping $A5 "Shaping: START only, old" 1024;   acom Shaping $A5 f1000000-0000-4000-8000-000000000007 "$OLD2H" "$AGENT" "" "**START: shaping.**"
+A6=e1000000-0000-4000-8000-000000000006; acard Shaping $A6 "Shaping: START only, fresh" 2048; acom Shaping $A6 f1000000-0000-4000-8000-000000000008 "$NOWS" "$AGENT" "" "**START: shaping.**"
 A7=e1000000-0000-4000-8000-000000000007; acard Shaping $A7 "Shaping: unclaimed" 3072
-A8=e1000000-0000-4000-8000-000000000008; acard Shaping $A8 "Shaping: claimed, owner waiting" 4096; acom Shaping $A8 f1000000-0000-4000-8000-000000000009 "$OLD3H" "$AGENT" "" "START: plain"; acom Shaping $A8 f1000000-0000-4000-8000-00000000000a "$OLD2H" "" "" "Status?"
+A8=e1000000-0000-4000-8000-000000000008; acard Shaping $A8 "Shaping: START only, owner waiting" 4096; acom Shaping $A8 f1000000-0000-4000-8000-000000000009 "$OLD3H" "$AGENT" "" "START: plain"; acom Shaping $A8 f1000000-0000-4000-8000-00000000000a "$OLD2H" "" "" "Status?"
+# a lapsed lease (until 10 minutes ago), and an until 50 minutes ahead (over the 35-minute clock guard: no lease)
+AL2=e1000000-0000-4000-8000-000000000021; acard Shaping $AL2 "Shaping: lapsed lease" 5120 "$DN10"
+AL3=e1000000-0000-4000-8000-000000000022; acard Shaping $AL3 "Shaping: until too far ahead" 6144 "$UP50"; acom Shaping $AL3 f1000000-0000-4000-8000-000000000010 "$NOWS" "$AGENT" "" "**START: x.**"
 A9=e1000000-0000-4000-8000-000000000009; acard Approved $A9 "Approved: top" 1024;        acard Approved e1000000-0000-4000-8000-00000000000a "Approved: second" 2048
-AB1=e1000000-0000-4000-8000-00000000000b; acard Active $AB1 "Active: closed claim" 1024; acom Active $AB1 f1000000-0000-4000-8000-00000000000b "$OLD3H" "$AGENT" "" "**START: building.**"; acom Active $AB1 f1000000-0000-4000-8000-00000000000c "$OLD2H" "$AGENT" "" "**Merged: landed.**"
-# a by-stamped owner comment is an owner's whatever the quote (the app writes kind: "human"; YAML allows 'human'); a CRLF file is read;
-# a fractional-second stamp parses and a stamp that is not plain ...Z is never judged stale
+AB1=e1000000-0000-4000-8000-00000000000b; acard Active $AB1 "Active: closed START" 1024; acom Active $AB1 f1000000-0000-4000-8000-00000000000b "$OLD3H" "$AGENT" "" "**START: building.**"; acom Active $AB1 f1000000-0000-4000-8000-00000000000c "$OLD2H" "$AGENT" "" "**Merged: landed.**"
+# a live lease (until 20 minutes ahead), alone and with an unanswered owner comment
+AL1=e1000000-0000-4000-8000-000000000020; acard Active $AL1 "Active: held lease" 2048 "$UP20"
+AL4=e1000000-0000-4000-8000-000000000023; acard Active $AL4 "Active: held lease, owner waiting" 3072 "$UP20"; acom Active $AL4 f1000000-0000-4000-8000-00000000000f "$OLD2H" "" "" "Status?"
+# a by-stamped owner comment is an owner's whatever the quote (the app writes kind: "human"; YAML allows 'human'); a CRLF file is read
 A10=e1000000-0000-4000-8000-000000000010; acard Issues $A10 "Issues: app-stamped owner" 1024; acom Issues $A10 f1000000-0000-4000-8000-000000000010 "$OLD2H" '{name: Bob, kind: "human"}' "" "Why?"
 A11=e1000000-0000-4000-8000-000000000011; acard Issues $A11 "Issues: single-quoted owner" 2048; acom Issues $A11 f1000000-0000-4000-8000-000000000011 "$OLD2H" "{name: Bob, kind: 'human'}" "" "Why?"
-A12=e1000000-0000-4000-8000-000000000012; acard Issues $A12 "Issues: fractional fresh claim" 3072; acom Issues $A12 f1000000-0000-4000-8000-000000000012 "${NOWS%Z}.123Z" "$AGENT" "" "**START: x.**"
-A13=e1000000-0000-4000-8000-000000000013; acard Issues $A13 "Issues: offset claim" 4096; acom Issues $A13 f1000000-0000-4000-8000-000000000013 "2026-10-01T00:00:00+00:00" "$AGENT" "" "**START: x.**"
 A14=e1000000-0000-4000-8000-000000000014; acard Tasks $A14 "Tasks: CRLF owner" 1024; acom Tasks $A14 f1000000-0000-4000-8000-000000000014 "$OLD2H" "" "" "Why?"
 sed -i '' 's/$/\r/' "$(alane Tasks)/$A14/comments/f1000000-0000-4000-8000-000000000014/index.md"
-# an app move receipt (signed board, with a moved: key) is no reply, claim or activity: it neither clears an owner comment nor freshens a dead claim
+# an app move receipt (signed board, with a moved: key) is no reply: it does not clear an owner comment
 AR='{name: board, kind: agent}'
 acom Shaping $A5 f1000000-0000-4000-8000-00000000000d "$NOWS" "$AR" "" "moved"
 acom Ideas $A1 f1000000-0000-4000-8000-00000000000e "$NOWS" "$AR" f1000000-0000-4000-8000-000000000001 "moved"
-AO=$("$AP" "$AB")
-exp=$(printf 'comment\t%s\t%s\tIdeas\tIdeas: owner question\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000001/index.md\n' "$AN" $A1 "$(basename "$(alane Ideas)")" $A1
-  printf 'comment\t%s\t%s\tIssues\tIssues: app-stamped owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000010/index.md\n' "$AN" $A10 "$(basename "$(alane Issues)")" $A10
-  printf 'comment\t%s\t%s\tIssues\tIssues: single-quoted owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000011/index.md\n' "$AN" $A11 "$(basename "$(alane Issues)")" $A11
-  printf 'comment\t%s\t%s\tTasks\tTasks: CRLF owner\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000014/index.md\n' "$AN" $A14 "$(basename "$(alane Tasks)")" $A14
-  printf 'stale\t%s\t%s\tShaping\tShaping: dead claim\t-\tXm\n' "$AN" $A5
-  printf 'arm\t%s\t%s\tShaping\tShaping: unclaimed\t-\t-\n' "$AN" $A7
-  printf 'comment\t%s\t%s\tShaping\tShaping: claimed, owner waiting\towner\t%s/%s/comments/f1000000-0000-4000-8000-00000000000a/index.md\n' "$AN" $A8 "$(basename "$(alane Shaping)")" $A8
-  printf 'stale\t%s\t%s\tShaping\tShaping: claimed, owner waiting\t-\tXm\n' "$AN" $A8
-  printf 'comment\t%s\t%s\tProposed\tProposed: owner question\towner\t%s/%s/comments/f1000000-0000-4000-8000-000000000004/index.md\n' "$AN" $A3 "$(basename "$(alane Proposed)")" $A3
-  printf 'arm\t%s\t%s\tApproved\tApproved: top\t-\t-\n' "$AN" $A9
-  printf 'arm\t%s\t%s\tActive\tActive: closed claim\t-\t-\n' "$AN" $AB1)
-got=$(sed -E 's/\t(1[12][0-9])m$/\tXm/' <<<"$AO")
-[ "$got" = "$exp" ] || { echo "arm-pass.sh lines:"; echo "want:"; echo "$exp"; echo "got:"; echo "$got"; exit 1; }
-ok "arm-pass.sh: an unanswered owner comment is a comment line in any lane but Done (a reply in-reply-to clears it); an unclaimed agent-lane card is an arm line, Approved its top card only; a closed claim does not hold a card; a board move receipt is no reply and no activity; a by-stamped owner comment (either quote) and a CRLF one answer; a fractional or offset stamp is never stale; comment wins over arm; Done prints nothing"
-[ "$(STALE_MINUTES=240 "$AP" "$AB" | grep -c '^stale')" = 0 ] && [ "$("$AP" "$AB" Ideas | grep '^arm' | cut -f3-4)" = "$(printf '%s\tIdeas' $A2)" ] || { echo "arm-pass.sh: STALE_MINUTES or the agent lane titles ignored"; exit 1; }
+find "$AB" -type f -exec shasum {} + | sort -k2 | shasum > "$T/arm.before"
+AO=$("$AP" "$AB"); AOX=$(sed -E 's/\t(1[0-9]|20|9)m$/\tXm/' <<<"$AO")
+find "$AB" -type f -exec shasum {} + | sort -k2 | shasum > "$T/arm.after"
+al() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$AN" "$2" "$3" "$4" "$5" "$6"; }   # kind uuid lane title author paths
+cm() { printf 'comment\t%s\t%s\t%s\t%s\towner\t%s/%s/comments/%s/index.md\n' "$AN" "$2" "$1" "$3" "$(basename "$(alane "$1")")" "$2" "$4"; }
+exp=$(cm Ideas $A1 "Ideas: owner question" f1000000-0000-4000-8000-000000000001
+  cm Issues $A10 "Issues: app-stamped owner" f1000000-0000-4000-8000-000000000010
+  cm Issues $A11 "Issues: single-quoted owner" f1000000-0000-4000-8000-000000000011
+  cm Tasks $A14 "Tasks: CRLF owner" f1000000-0000-4000-8000-000000000014
+  al arm $A5 Shaping "Shaping: START only, old" - -
+  al arm $A6 Shaping "Shaping: START only, fresh" - -
+  al arm $A7 Shaping "Shaping: unclaimed" - -
+  cm Shaping $A8 "Shaping: START only, owner waiting" f1000000-0000-4000-8000-00000000000a
+  al stale $AL2 Shaping "Shaping: lapsed lease" - Xm
+  al arm $AL3 Shaping "Shaping: until too far ahead" - -
+  cm Proposed $A3 "Proposed: owner question" f1000000-0000-4000-8000-000000000004
+  al arm $A9 Approved "Approved: top" - -
+  al arm $AB1 Active "Active: closed START" - -
+  al held $AL1 Active "Active: held lease" - Xm
+  cm Active $AL4 "Active: held lease, owner waiting" f1000000-0000-4000-8000-00000000000f
+  al held $AL4 Active "Active: held lease, owner waiting" - Xm)
+[ "$AOX" = "$exp" ] || { echo "arm-pass.sh lines:"; echo "want:"; echo "$exp"; echo "got:"; echo "$AO"; exit 1; }
+ok "arm-pass.sh: every line of the arming pass on the fixture board, in reading order (comment lines, arm lines for agent-lane cards without a lease, Approved its top card only, held and stale lines for leases, Done nothing)"
+# 1: a valid lease in an agent lane: one held line with the minutes left, no arm
+[ "$(grep -c "	$AL1	" <<<"$AO")" = 1 ] && grep -qE "^held	$AN	$AL1	Active	Active: held lease	-	(19|20)m$" <<<"$AO" || { echo "no single held line with 19m or 20m for the leased Active card:"; echo "$AO"; exit 1; }
+ok "arm-pass.sh: a card with a valid lease in an agent lane is no arm and prints one held line with the minutes left"
+# 2: a lapsed lease: a stale line with the minutes since until, no arm
+[ "$(grep -c "	$AL2	" <<<"$AO")" = 1 ] && grep -qE "^stale	$AN	$AL2	Shaping	Shaping: lapsed lease	-	(10|11)m$" <<<"$AO" || { echo "no single stale line with 10m or 11m for the lapsed card:"; echo "$AO"; exit 1; }
+ok "arm-pass.sh: a lapsed lease prints a stale line with the minutes since until, and no arm"
+# 3: a START comment is not a claim (old or fresh), and a START in a closed shape neither
+for u in $A5 $A6 $AB1; do grep -qE "^arm	$AN	$u	" <<<"$AO" && ! grep -qE "^(held|stale)	$AN	$u	" <<<"$AO" || { echo "a card with only a START comment is not an arm: $u"; echo "$AO"; exit 1; }; done
+ok "arm-pass.sh: a START comment with no lease is an arm"
+# 4: the clock guard (until over 35 minutes ahead) is no lease, so an arm
+grep -qE "^arm	$AN	$AL3	" <<<"$AO" && ! grep -qE "^(held|stale)	$AN	$AL3	" <<<"$AO" || { echo "an until 50 minutes ahead was read as a lease:"; echo "$AO"; exit 1; }
+ok "arm-pass.sh: an until more than 35 minutes ahead is no lease, so the card is an arm"
+# 5: Done is never swept, a lease or not
+[ "$(grep -c "$A4" <<<"$AO")" = 0 ] || { echo "a Done card was swept:"; echo "$AO"; exit 1; }
+ok "arm-pass.sh: a leased card in Done prints nothing"
+# 6: an unanswered owner comment on a held card: comment, then held, no arm
+[ "$(grep -n "	$AL4	" <<<"$AO" | cut -d: -f2 | cut -f1 | paste -sd, -)" = "comment,held" ] || { echo "the held card with an owner comment must print comment then held:"; echo "$AO"; exit 1; }
+ok "arm-pass.sh: an unanswered owner comment on a held card prints comment, then held"
+# 7: the pass writes nothing
+cmp -s "$T/arm.before" "$T/arm.after" || { echo "arm-pass.sh changed a file on the board"; exit 1; }
+ok "arm-pass.sh: leaves every card file byte-identical"
+[ "$("$AP" "$AB" Ideas | grep '^arm' | cut -f3-4)" = "$(printf '%s\tIdeas' $A2)" ] || { echo "arm-pass.sh: the agent lane titles on the command line are ignored"; exit 1; }
 ! "$AP" "$T" 2>/dev/null || { echo "arm-pass.sh accepted a non-board"; exit 1; }
-ok "arm-pass.sh: STALE_MINUTES moves the stale line; lane titles on the command line replace the board-kinds.md agent rows; a non-board exits non-zero"
+ok "arm-pass.sh: lane titles on the command line replace the board-kinds.md agent rows; a non-board exits non-zero"
+# lease.sh missing: no lease is known, so no arm, held or stale line; the comment lines still print, exit 1, a note on stderr
+SNL="$T/skills-nolease"; cp -R "$SK" "$SNL"; rm "$SNL/lanework/scripts/lease.sh"; rc=0; out=$("$SNL/watch/scripts/arm-pass.sh" "$AB" 2>"$T/arm.err") || rc=$?
+{ [ "$rc" = 1 ] && grep -q '^comment	' <<<"$out" && ! grep -qE '^(arm|held|stale)	' <<<"$out" && grep -q 'lease.sh list failed or is missing' "$T/arm.err"; } || { echo "arm-pass.sh without lease.sh (rc=$rc):"; echo "$out"; cat "$T/arm.err"; exit 1; }
+ok "arm-pass.sh: with lease.sh missing it prints comment lines only, says so on stderr and exits 1"
 validate "$AB" >/dev/null; ok "the arm-pass fixture board validates"
 
 # merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
@@ -1033,12 +1076,21 @@ ok "the lane -> actor table lives only in board-kinds.md, with a row per pipelin
 
 { ! grep -q 'a move' <(grep -E '^6\. ' "$SK/watch/references/events.md") && ! grep -qiE 'requested' <(grep '^description:' "$SK/watch/SKILL.md") &&
   grep -q 'Arming pass' "$SK/watch/references/arming.md" && grep -q '^## A move' "$SK/watch/references/responding.md" &&
-  grep -q 'unclaimed' "$SK/watch/references/arming.md" && grep -q 'companions.md' "$SK/watch/references/responding.md" && ! grep -q 'Ideas, Proposed' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
+  grep -q 'no valid lease' "$SK/watch/references/arming.md" && grep -q 'companions.md' "$SK/watch/references/responding.md" && ! grep -q 'Ideas, Proposed' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
 ok "watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move"
 
 EV="$SK/watch/references/events.md"
 { grep -q 'moved:' <(sed -n '/^4\. /,/^5\. /p' "$EV") && grep -q 'moved\.by' <(sed -n '/^5\. /,/^6\. /p' "$EV") && grep -q 'to\.lane' <(sed -n '/^5\. /,/^6\. /p' "$EV") && ! grep -q 'bare move with no comment' "$EV"; } || { echo "events.md item 4 lacks moved: as a receipt, item 5 lacks moved.by or to.lane (which receipt counts), or it still says bare move with no comment"; exit 1; }
 ok "watch events: a move receipt is a record and moved.by names the mover"
+# 8: watch prose: the lease is the claim; its rules are linked, never restated; a subagent never stakes
+WR="$SK/watch/references/responding.md"; WS="$SK/watch/SKILL.md"
+{ grep -q '`held`' "$SK/watch/references/arming.md" && grep -q 'no valid lease' "$SK/watch/references/arming.md" \
+  && ! { grep -rhw 'START' "$SK/watch" | grep -qv 'no claim\|not a claim'; } && ! grep -rq 'STALE_MINUTES' "$SK/watch" \
+  && grep -q 'writes.md` § Lease' "$SK/watch/references/arming.md" && grep -q 'writes.md` § Lease' "$WR" \
+  && grep -q 'lease.sh stake' "$WR" && grep -q 'held by another session' "$WR" && grep -q 'lease.sh release' "$WR" && grep -q 'never to stake' "$WR" && grep -q 'farmed-prompt.md' "$WR" \
+  && grep -q 'stake, then act' "$EV" && grep -q 'lease write' <(sed -n '/^6\. /,/^7\. /p' "$EV") \
+  && grep -q 'held cards, lapsed leases' "$WS" && ! grep -rqE '35 min|30 min' "$SK/watch/references"; } || { echo "watch prose: a START still reads as a claim, the lease rules are restated or not linked, the work order does not stake first, release at a gate or say a subagent never stakes, or events item 6 / SKILL.md lack the lease"; exit 1; }
+ok "watch prose: arming defines no claim by a START and names held; responding stakes before a work order, releases at a gate or when done, and never lets a subagent stake; events item 6 names a lease write as context"
 
 HD="$SK/heal/scripts/heal-descriptors.py"
 X="$T/Heal Me.lanework"

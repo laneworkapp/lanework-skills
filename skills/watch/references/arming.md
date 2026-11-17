@@ -22,11 +22,12 @@ Once per board, after the reads. No event fires for what is already sitting, so 
 
 | line | do |
 |---|---|
-| `comment` | read the card whole (`events.md` item 3). Already answered (a later agent record answers it, or its ruling is folded in the body) → no reply, one report line. Else answer it as a new owner comment (`responding.md`). Either way, then carry on as `arm` when the card sits unclaimed in an agent lane (Approved: its top card), because the script prints `comment` in place of `arm`. A thread answered without `in-reply-to` prints this line falsely; reading the card catches it |
-| `arm` | an unclaimed card (no START or plan comment: `work/references/companions.md`) in an agent lane = work order, only when the lane body agrees and the card waits on nobody (no `waiting`): `responding.md` § A move into an agent lane. Else one report line |
-| `stale` | report only: lane, title, minutes quiet, in the arming message to the user (§ Tell the user), for the owner to free or leave. Never released, never worked |
+| `comment` | read the card whole (`events.md` item 3). Already answered (a later agent record answers it, or its ruling is folded in the body) → no reply, one report line. Else answer it as a new owner comment (`responding.md`). Either way, then carry on as `arm` when the card sits in an agent lane with no valid lease (Approved: its top card; a `held` or `stale` line for the same card right after = a lease, so no), because the script prints `comment` in place of `arm`. A thread answered without `in-reply-to` prints this line falsely; reading the card catches it |
+| `arm` | a card in an agent lane with no valid lease = work order, only when the lane body agrees and the card waits on nobody (no `waiting`): `responding.md` § A move into an agent lane. Else one report line. A START or plan comment is not a claim: only a lease is (`lanework/references/writes.md` § Lease) |
+| `held` | report only: a valid lease, minutes left. Lane, title, minutes, in the arming message (§ Tell the user). Never worked, whoever holds it |
+| `stale` | report only: a lapsed lease, minutes since its `until`. Same report place. Never worked, never taken over, never released: the owner frees it, or asks an agent to take it through `work` (the takeover waits two minutes, which an arming pass must not block on) |
 
-Done is never swept. A card in a non-agent lane: no work order, report.
+Done is never swept. A card in a non-agent lane: no work order, report. The script reads leases once through `lanework/scripts/lease.sh list` and writes nothing. That call failing = exit 1 with `comment` lines only and a stderr note: report it, arm nothing that pass.
 
 ## Monitor
 
@@ -44,8 +45,8 @@ One persistent Monitor (`persistent: true`) for all boards:
 ## Tell the user
 
 - Which boards are watched.
-- What the arming pass reported: stale claims and report-only lines.
+- What the arming pass reported: held cards (minutes left), lapsed leases (minutes since `until`) and other report-only lines.
 - The watch runs until TaskStop or session end. It dies with the session and must be re-armed after a resume (`/watch` again).
 - "Stop" tears it down (TaskStop). Watching fewer boards = stop and re-arm with the rest.
 - The Monitor **survives `/clear`**: events keep arriving without this context. After a clear, re-read each board's authority chain before acting on one, or tear the watch down if the user has moved on.
-- After a **compaction**, re-read each board's authority chain before acting, and re-derive work in flight (running builds, open claims, pending asks) from the board and git, never from the summary. A card path comes from `ls`, never from memory.
+- After a **compaction**, re-read each board's authority chain before acting, and re-derive work in flight (running builds, held leases, pending asks) from the board and git, never from the summary. A card path comes from `ls`, never from memory.

@@ -8,7 +8,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 |---|---|
 | `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, the card lease that marks a card one session is working, healing a damaged board, the default lane sets, and founding a new board with a catalog of common label kinds (priority, component, type, size, platform, round, release, epic) to pick from |
 | `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
-| `watch` | a standing watch on one or more boards, responding to changes as they arrive. At start-up it catches up on what happened while no watch ran: comments left unanswered, cards waiting in agent lanes and work claims that look abandoned. After its conversation is compacted it re-reads the boards instead of trusting its summary |
+| `watch` | a standing watch on one or more boards, responding to changes as they arrive. At start-up it catches up on what happened while no watch ran: comments left unanswered, cards waiting in agent lanes, cards another session holds and leases that have lapsed. It stakes a card before it works one. After its conversation is compacted it re-reads the boards instead of trusting its summary |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce, filed as cards in a Decisions lane beside the questions |
 | `plan` | planning an idea too big for one session on a plan board: name the destination, chart the open decisions as ticket cards, then resolve one ticket per session until nothing is left to decide. It produces decisions, not deliverables, and files work cards only when you say so |
 | `merge` | resolves git merge, pull and rebase conflicts on a board with no human: a merge driver plus a placement pass, keeping both sides' content and the later stamp's state |
@@ -30,7 +30,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 |---|---|---|---|
 | `lanework` | 10 | 382 | 5,198 |
 | `work` | 16 | 444 | 7,779 |
-| `watch` | 4 | 180 | 1,716 |
+| `watch` | 4 | 182 | 1,965 |
 | `discovery` | 14 | 502 | 2,908 |
 | `plan` | 9 | 467 | 2,843 |
 | `merge` | 2 | 362 | 1,612 |
@@ -80,11 +80,11 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` an
 
 | file | words |
 |---|---|
-| `SKILL.md` | 180 |
-| `references/arming.md` | 649 |
-| `references/events.md` | 511 |
-| `references/responding.md` | 376 |
-| **total** | **1,716** |
+| `SKILL.md` | 182 |
+| `references/arming.md` | 764 |
+| `references/events.md` | 521 |
+| `references/responding.md` | 498 |
+| **total** | **1,965** |
 
 #### `discovery`
 
