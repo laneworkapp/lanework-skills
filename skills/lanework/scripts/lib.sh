@@ -88,6 +88,36 @@ ask_handle() {
   if [ -n "$v" ] && [ "$v" -ge 117 ]; then printf anyone; else owner_handle "$1"; fi
 }
 
+# cite_enabled <board>: true when the board's guide line reads v117 or later, the builds that draw a card's `cite-as`. Only then does a script
+# mint a citation and write a bare title; below it, or with no readable stamp (a board no app has opened), it files as before. ask_handle's gate.
+cite_enabled() { local v; v=$(guide_version "$1" || true); [ -n "$v" ] && [ "$v" -ge 117 ]; }
+
+# cite_of <index.md>: the card's `cite-as`, quotes stripped; empty when it has none.
+cite_of() { fm_value "$1" cite-as | sed -E "s/[[:space:]]+\$//; s/^[\"']//; s/[\"']\$//"; }
+
+# card_ref <index.md>: what to write between the brackets of a link to the card: its citation, else its title, escaped as link text.
+card_ref() {
+  local c; c=$(cite_of "$1"); [ -n "$c" ] || c=$(strip_quotes "$(fm_value "$1" title)")
+  printf '%s' "$c" | perl -pe 's/\\(.)/$1/g; s/([\\\[\]])/\\$1/g'
+}
+
+# next_cite <board> <prefix>: the next citation for a prefix (`Q`, `T`, `ADR`, `PDR`): the highest trailing number over every card, `.trash/`
+# flat and in trashed lanes included, plus one. Counts a `cite-as: <prefix><n>` and a legacy `<prefix><n>: ` title prefix. Call it as late as possible.
+next_cite() {
+  local f c t max=0 re_c="^$2([0-9]+)\$" re_t="^$2([0-9]+): "
+  for f in "$1"/*/*/index.md "$1"/.trash/*/index.md "$1"/.trash/*/*/index.md; do
+    [ -f "$f" ] || continue
+    c=$(cite_of "$f"); t=$(strip_quotes "$(fm_value "$f" title)")
+    if [[ "$c" =~ $re_c ]] && [ "$((10#${BASH_REMATCH[1]}))" -gt "$max" ]; then max=$((10#${BASH_REMATCH[1]})); fi   # 10#: a zero-padded number is decimal
+    if [[ "$t" =~ $re_t ]] && [ "$((10#${BASH_REMATCH[1]}))" -gt "$max" ]; then max=$((10#${BASH_REMATCH[1]})); fi
+  done
+  printf '%s%s' "$2" $((max + 1))
+}
+
+# stamp_cite <staged frontmatter> <board> <prefix>: a gated filing script renders `cite-as: CITEPENDING`; this scans (next_cite) and fills it in,
+# so the scan runs after everything slow and just before the card is written. Prints the citation.
+stamp_cite() { local c; c=$(next_cite "$2" "$3"); perl -pi -e "s/^cite-as: CITEPENDING\$/cite-as: $c/" "$1"; printf '%s' "$c"; }
+
 # by_of <name> <model> [session]: the stamp's `by` mapping.
 by_of() {
   if [ -n "${3:-}" ]; then printf '{name: %s, kind: agent, model: %s, session: "%s"}' "$1" "$2" "$3"

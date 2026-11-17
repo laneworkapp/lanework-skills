@@ -2,10 +2,11 @@
 # file-ticket.sh: file the next ticket card into Frontier, or Blocked while a dependency is open.
 # usage: file-ticket.sh <board> "<title, no T-number>" --type grilling|research|prototype|task \
 #          --body F --model m [--depends <link>]... [--why T] [--name n] [--session s]
-# Mints T<n> from the highest across all lanes. Frontmatter from templates/ticket-card.md (flattened
+# On a board whose app draws `cite-as` (lib.sh `cite_enabled`) mints `cite-as: T<n>` (lanework/references/writes.md) and files a bare title; on any other
+# board the title is `T<n>: <title>` from the highest across all lanes, as before. Frontmatter from templates/ticket-card.md (flattened
 # `Ticket` label), body from --body, `## Depends on` appended from --depends: each a
 # lanework://<this board's id>/<card-uuid> link to a ticket already on the board, written as
-# `- [T<n>: <title>](<link>)`. A dependency in Out of scope is refused (rule the dependent out too,
+# `- [<citation, else title>](<link>)`. A dependency in Out of scope is refused (rule the dependent out too,
 # or drop it). Lands at the bottom of Frontier when every dependency is in Resolved (or none),
 # else the bottom of Blocked. The destination lane's card-defaults labels are unioned in. One founding comment (--why, default "**Charted.**"). No waiting.
 # Prints the card's link, its short id and the lane it landed in.
@@ -52,7 +53,7 @@ for link in ${DEPENDS[@]+"${DEPENDS[@]}"}; do
   dcard=$(ls -d "$BOARD"/*/"${BASH_REMATCH[1]}" 2>/dev/null | head -1 || true)
   [ -n "$dcard" ] && [ -f "$dcard/index.md" ] || { echo "file-ticket.sh: no card ${BASH_REMATCH[1]} on the board (file dependencies first)" >&2; exit 1; }
   dlane=$(strip_quotes "$(fm_value "$(dirname "$dcard")/index.md" title)")
-  dtitle=$(strip_quotes "$(fm_value "$dcard/index.md" title)" | perl -pe 's/\\(.)/$1/g; s/([\\\[\]])/\\$1/g')
+  dtitle=$(card_ref "$dcard/index.md")
   case "$dlane" in
     "Out of scope") echo "file-ticket.sh: $dtitle is Out of scope: rule this ticket out too, or drop the dependency" >&2; exit 1 ;;
     Resolved) ;;
@@ -62,25 +63,31 @@ for link in ${DEPENDS[@]+"${DEPENDS[@]}"}; do
 done
 if [ "$OPEN" -eq 1 ]; then DEST="$BLOCKED"; DEST_TITLE=Blocked; else DEST="$FRONTIER"; DEST_TITLE=Frontier; fi
 
-# ---- next global T number, every lane, dot-folders excluded ----
-MAXT=0
-while IFS= read -r f; do
-  t=$(strip_quotes "$(fm_value "$f" title)")
-  if [[ "$t" =~ ^T([0-9]+): ]] && [ "${BASH_REMATCH[1]}" -gt "$MAXT" ]; then MAXT="${BASH_REMATCH[1]}"; fi
-done < <(find "$BOARD" -mindepth 1 -maxdepth 1 -type d -name '.*' -prune -o -mindepth 3 -maxdepth 3 -type f -name index.md -print)
-NEXTT=$((MAXT + 1))
+# ---- an older board: next global T number from the title prefixes, every lane, dot-folders excluded ----
+if ! cite_enabled "$BOARD"; then
+  MAXT=0
+  while IFS= read -r f; do
+    t=$(strip_quotes "$(fm_value "$f" title)")
+    if [[ "$t" =~ ^T([0-9]+): ]] && [ "${BASH_REMATCH[1]}" -gt "$MAXT" ]; then MAXT="${BASH_REMATCH[1]}"; fi
+  done < <(find "$BOARD" -mindepth 1 -maxdepth 1 -type d -name '.*' -prune -o -mindepth 3 -maxdepth 3 -type f -name index.md -print)
+fi
 
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION")
 CARD_ID=$(uuid); FOUND_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/plan-ticket.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 C="$STAGE/$CARD_ID"; mkdir -p "$C/comments/$FOUND_ID"
 
-frontmatter_of "$TEMPLATES/ticket-card.md" > "$STAGE/fm.md"
-render "$STAGE/fm.md" n "$NEXTT" title "$(title_str "$TITLE")" order "$(next_order "$DEST")" \
+if cite_enabled "$BOARD"; then   # the citation is scanned later (stamp_cite), just before the card is written
+  CITE=CITEPENDING; CARD_TITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/ticket-card.md" > "$STAGE/fm.md"
+else
+  CITE="T$((MAXT + 1))"; CARD_TITLE="$CITE: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/ticket-card.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
+fi
+render "$STAGE/fm.md" cite "$CITE" title "$CARD_TITLE" order "$(next_order "$DEST")" \
   type "$LABEL" rank "$RANK" glyph "$GLYPH" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-ticket.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
 union_lane_defaults "$DEST" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
+if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" T); fi   # scanned here, after the slow steps
 {
   cat "$STAGE/fm.out"
   cat "$BODY_FILE"
@@ -92,4 +99,4 @@ printf '%s\n' "$WHY" | comment_file "$C/comments/$FOUND_ID/index.md" "$(now_utc 
 
 DEST=$(lane_by_title "$BOARD" "$DEST_TITLE")
 mv "$C" "$DEST/$CARD_ID"
-printf 'lanework://%s/%s\nshort id %s\nT%s -> %s\n' "$BOARD_ID" "$CARD_ID" "${CARD_ID:0:8}" "$NEXTT" "$DEST_TITLE"
+printf 'lanework://%s/%s\nshort id %s\n%s -> %s\n' "$BOARD_ID" "$CARD_ID" "${CARD_ID:0:8}" "$CITE" "$DEST_TITLE"
