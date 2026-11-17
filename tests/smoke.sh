@@ -1968,7 +1968,15 @@ perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m' "$F6g"; waitfor '! alive "$TP"' 
 H6=$(shasum < "$F6g"); RC=0; L S-six stake "$LB" "$C6g" --model smoke >/dev/null 2>&1 || RC=$?; RC2=0; CO=$(L S-six check "$LB" "$C6g" --model smoke 2>/dev/null) || RC2=$?
 [ "$RC$RC2$CO" = 33lost ] && [ "$H6" = "$(shasum < "$F6g")" ] && [ "$(records "$C6g" "**Lease lost**")" = 1 ] \
   || { echo "stake on a remembered card with claimed gone: stake rc $RC, check rc $RC2 '$CO', records $(records "$C6g" "**Lease lost**")"; cat "$F6g"; exit 1; }
-ok "lease: a changed by yields one Lease lost record naming branch, directory and files, and no further write; staking a remembered card whose claimed is gone is the same loss"
+# staking a remembered card now held by another session, live or lapsed: the loss, no takeover notice (its timer stopped first, so stake finds it)
+for u in 1500 -60; do
+  C6o=$(lcard "Six other $u"); F6o=$(lcf "$C6o"); L S-sixo stake "$LB" "$C6o" --model smoke >/dev/null; TP=$(mpid S-sixo "$C6o"); kill "$TP"; waitfor '! alive "$TP"'
+  setclaim "$F6o" S-other "$(iso $(( $(date -u +%s) + u )))"; H6=$(shasum < "$F6o"); RC=0; L S-sixo stake "$LB" "$C6o" --model smoke >/dev/null 2>&1 || RC=$?
+  [ $RC = 3 ] && [ "$H6" = "$(shasum < "$F6o")" ] && [ "$(records "$C6o" "**Lease lost**")" = 1 ] && [ "$(records "$C6o" "**Takeover notice**")" = 0 ] \
+    && grep -q -F "session S-other does" "$(grep -l -F '**Lease lost**' "$(dirname "$F6o")"/comments/*/index.md)" \
+    || { echo "stake on a remembered card held by another (until now$u s): rc $RC, lost $(records "$C6o" "**Lease lost**"), notices $(records "$C6o" "**Takeover notice**")"; exit 1; }
+done
+ok "lease: a changed by yields one Lease lost record naming branch, directory and files, and no further write; staking a remembered card whose claimed is gone, or held by another, live or lapsed, is the same loss"
 
 # 6b. the timer and six concurrent checks find one loss: exactly one record
 C6r=$(lcard "Six race"); F6r=$(lcf "$C6r"); L S-sixr stake "$LB" "$C6r" --model smoke >/dev/null; TP=$(mpid S-sixr "$C6r")
