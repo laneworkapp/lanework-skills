@@ -3,6 +3,8 @@
 # usage: tests/smoke.sh [<scratch dir>]   (default: a fresh mktemp dir, removed on success)
 # The validator is borrowed from the Skills Pipeline board's app-installed .schema/.
 set -euo pipefail
+# the session running smoke is no session of the cases: the card-writing scripts check a lease only under a session id, set per case
+unset CLAUDE_CODE_SESSION_ID CLAUDE_PID
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Boards/Skills Pipeline.lanework/.schema"
 T="${1:-$(mktemp -d "${TMPDIR:-/tmp}/lanework-smoke.XXXXXX")}"
@@ -2111,6 +2113,136 @@ line "$C12u" | grep -q -E "$(printf '\t-\tvoided\tUnreadable one$')" || { echo "
 line "$CA" | grep -q -E "$(printf '^%s\tclaude \\(S-multi\\)\t(29|30) min left\tlive\tA$' "$CA")" || { echo "list live: $(line "$CA")"; exit 1; }
 [ -z "$(line "$C10")" ] && [ -z "$(line "$C2")" ] || { echo "list printed a card with no lease"; exit 1; }
 ok "lease: list prints held cards with holder, time left, lapsed and voided, the title last"
+
+# work: the card-writing scripts check the lease first (post-comment, move-card, post-ask), on the lease board, before 13 releases
+# what is left. LW <session> <cmd...>: the command as that session, with L's stand-in CLAUDE_PID, TMPDIR and knobs; LN: no session id
+LW() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 \
+  LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$@"; }
+LN() { env -u CLAUDE_CODE_SESSION_ID CLAUDE_PID="$LPID" TMPDIR="$LT" "$@"; }
+lw_fail() { echo "$1"; exit 1; }
+PCS="$SK/work/scripts/post-comment.sh"; MCS="$SK/work/scripts/move-card.sh"; PAS="$SK/work/scripts/post-ask.sh"
+cdir() { dirname "$(lcf "$1")"; }
+ncom() { { ls "$(cdir "$1")/comments" 2>/dev/null || true; } | grep -c . || true; }
+landed() { [ -n "$2" ] && [ -f "$(cdir "$1")/comments/$2/index.md" ]; }
+# lostcard <session> <title>: a card that session staked, its timer stopped (so the script's own check finds the loss), now S-other's
+lostcard() { local c tp; c=$(lcard "$2"); L "$1" stake "$LB" "$c" --model smoke >/dev/null; tp=$(mpid "$1" "$c"); kill "$tp"; waitfor '! alive "$tp"'
+  setclaim "$(lcf "$c")" S-other "$(iso $(( $(date -u +%s) + 1500 )))"; echo "$c"; }
+
+# 1. held: the comment lands, the card file (claimed with it) byte for byte
+K1=$(lcard "PC held"); FK1=$(lcf "$K1"); L SW-one stake "$LB" "$K1" --model smoke >/dev/null; H=$(shasum < "$FK1")
+RC=0; O=$(LW SW-one "$PCS" "$LB" "$K1" --body "$T/pc.md" --model smoke) || RC=$?
+[ $RC = 0 ] && landed "$K1" "$O" && [ "$(ncom "$K1")" = 1 ] && [ "$H" = "$(shasum < "$FK1")" ] && [ "$(csess "$FK1")" = SW-one ] \
+  || lw_fail "post-comment on a held card: rc $RC, comment '$O', comments $(ncom "$K1")"
+ok "post-comment.sh on a card this session holds writes the comment and leaves the card, claimed with it, as it was"
+
+# 2. a lapsed lease still this session's, its timer dead: renewed (until 30 minutes out, a new timer), then the comment lands
+K2=$(lcard "PC lapsed"); FK2=$(lcf "$K2"); L SW-two stake "$LB" "$K2" --model smoke >/dev/null; TP=$(mpid SW-two "$K2"); kill "$TP"; waitfor '! alive "$TP"'
+setclaim "$FK2" SW-two "$(iso $(( $(date -u +%s) - 60 )))"
+RC=0; O=$(LW SW-two "$PCS" "$LB" "$K2" --body "$T/pc.md" --model smoke) || RC=$?; TQ=$(mpid SW-two "$K2")
+[ $RC = 0 ] && landed "$K2" "$O" && [ "$(epoch "$(cuntil "$FK2")")" -gt $(( $(date -u +%s) + 1700 )) ] && [ "$TQ" != "$TP" ] && alive "$TQ" \
+  || lw_fail "post-comment on a lapsed own lease: rc $RC, until $(cuntil "$FK2"), timer $TQ (was $TP)"
+ok "post-comment.sh on a lapsed lease still this session's renews it, restarts its timer, and writes"
+
+# 3. lost (another session's by on a card this session staked): exit 3, only the Lease lost record lands; a second call writes nothing
+K3=$(lostcard SW-three "PC lost"); FK3=$(lcf "$K3"); H=$(shasum < "$FK3")
+RC=0; O=$(LW SW-three "$PCS" "$LB" "$K3" --body "$T/pc.md" --model smoke 2>"$T/lw-err.txt") || RC=$?
+[ $RC = 3 ] && [ -z "$O" ] && grep -q 'lost' "$T/lw-err.txt" && [ "$(records "$K3" "**Lease lost**")" = 1 ] && [ "$(ncom "$K3")" = 1 ] \
+  && [ "$(records "$K3" 'Checked the clock rule')" = 0 ] && [ "$H" = "$(shasum < "$FK3")" ] \
+  || lw_fail "post-comment on a lost lease: rc $RC, out '$O', comments $(ncom "$K3"), err: $(cat "$T/lw-err.txt")"
+RC=0; LW SW-three "$PCS" "$LB" "$K3" --body "$T/pc.md" --model smoke --ahead 2 >/dev/null 2>&1 || RC=$?
+[ $RC = 3 ] && [ "$(ncom "$K3")" = 1 ] && [ "$H" = "$(shasum < "$FK3")" ] || lw_fail "post-comment, a second call on a lost lease: rc $RC, comments $(ncom "$K3")"
+ok "post-comment.sh on a lost lease exits 3 with the reason on stderr; only the Lease lost record lands, and a second call writes nothing at all"
+
+# 4. not blocked: a free card, another session's lease this session never held, and no session id (even on the card lost in 3)
+K4=$(lcard "PC free"); FK4=$(lcf "$K4"); H=$(shasum < "$FK4")
+RC=0; O=$(LW SW-four "$PCS" "$LB" "$K4" --body "$T/pc.md" --model smoke) || RC=$?
+[ $RC = 0 ] && landed "$K4" "$O" && [ "$H" = "$(shasum < "$FK4")" ] && [ ! -e "$LT/lanework-lease/SW-four" ] || lw_fail "post-comment on a free card: rc $RC"
+K4o=$(lcard "PC another's"); FK4o=$(lcf "$K4o"); L SW-four-o stake "$LB" "$K4o" --model smoke >/dev/null; H=$(shasum < "$FK4o")
+RC=0; O=$(LW SW-four "$PCS" "$LB" "$K4o" --body "$T/pc.md" --model smoke) || RC=$?
+[ $RC = 0 ] && landed "$K4o" "$O" && [ "$H" = "$(shasum < "$FK4o")" ] && [ "$(csess "$FK4o")" = SW-four-o ] || lw_fail "post-comment on another session's lease, never held here: rc $RC"
+RC=0; O=$(LN "$PCS" "$LB" "$K3" --body "$T/pc.md" --model smoke --ahead 3) || RC=$?
+[ $RC = 0 ] && landed "$K3" "$O" && [ "$(ncom "$K3")" = 2 ] || lw_fail "post-comment with no session id: rc $RC (the check must be skipped)"
+ok "post-comment.sh writes as today on a free card, on another session's lease this session never held, and with no session id"
+
+# 5. a subagent: the lead's session id, --name fixer, writes under the lead's lease
+K5=$(lcard "PC fixer"); FK5=$(lcf "$K5"); L SW-five stake "$LB" "$K5" --model smoke >/dev/null; H=$(shasum < "$FK5")
+RC=0; O=$(LW SW-five "$PCS" "$LB" "$K5" --body "$T/pc.md" --model smoke --name fixer) || RC=$?
+[ $RC = 0 ] && landed "$K5" "$O" && grep -q '^created:  {at: [^,]*, by: {name: fixer, kind: agent, model: smoke}}$' "$(cdir "$K5")/comments/$O/index.md" && [ "$H" = "$(shasum < "$FK5")" ] \
+  || lw_fail "post-comment as fixer under the lead's lease: rc $RC"
+ok "post-comment.sh as a subagent (the session's id, --name fixer) writes under its session's lease"
+
+# 6. --session is a stamp label, never the holder: it neither rescues a lost lease nor blocks a held one
+RC=0; LW SW-three "$PCS" "$LB" "$K3" --body "$T/pc.md" --model smoke --session SW-four-o --ahead 4 >/dev/null 2>&1 || RC=$?
+[ $RC = 3 ] && [ "$(ncom "$K3")" = 2 ] || lw_fail "--session on a lost lease: rc $RC, comments $(ncom "$K3")"
+RC=0; O=$(LW SW-one "$PCS" "$LB" "$K1" --body "$T/pc.md" --model smoke --session "some label" --ahead 2) || RC=$?
+[ $RC = 0 ] && landed "$K1" "$O" && grep -q 'session: "some label"}}$' "$(cdir "$K1")/comments/$O/index.md" || lw_fail "--session on a held lease: rc $RC"
+ok "post-comment.sh checks the environment's session id: --session neither rescues a lost lease nor blocks a held one"
+
+# 7. --release: the comment lands, then claimed is gone and the timer has exited; on a lost lease nothing is released
+K7=$(lcard "PC release"); FK7=$(lcf "$K7"); L SW-seven stake "$LB" "$K7" --model smoke >/dev/null; TP=$(mpid SW-seven "$K7")
+RC=0; O=$(LW SW-seven "$PCS" "$LB" "$K7" --body "$T/pc.md" --model smoke --release) || RC=$?
+[ $RC = 0 ] && landed "$K7" "$O" && ! grep -q '^claimed:' "$FK7" && waitfor '! alive "$TP"' && [ ! -e "$(mem SW-seven "$K7")" ] \
+  || lw_fail "post-comment --release: rc $RC, comment '$O'"
+K7l=$(lostcard SW-seven "PC release lost"); FK7l=$(lcf "$K7l"); H=$(shasum < "$FK7l")
+RC=0; LW SW-seven "$PCS" "$LB" "$K7l" --body "$T/pc.md" --model smoke --release >/dev/null 2>&1 || RC=$?
+[ $RC = 3 ] && [ "$H" = "$(shasum < "$FK7l")" ] && [ "$(csess "$FK7l")" = S-other ] && [ "$(ncom "$K7l")" = 1 ] || lw_fail "post-comment --release on a lost lease: rc $RC"
+ok "post-comment.sh --release lands the comment, then claimed is gone and the timer has exited; on a lost lease it releases nothing"
+
+# 8. every existing refusal stays a no-op, lease untouched: a lapsed own lease (a check that ran would renew it) under a bad ask,
+# a body with frontmatter, a taken second (every second from now to 10 s ahead seeded) and two cards with one uuid
+K8=$(lcard "PC refusals"); FK8=$(lcf "$K8"); D8=$(cdir "$K8"); L SW-eight stake "$LB" "$K8" --model smoke >/dev/null; TP=$(mpid SW-eight "$K8"); kill "$TP"; waitfor '! alive "$TP"'
+setclaim "$FK8" SW-eight "$(iso $(( $(date -u +%s) - 60 )))"; H=$(shasum < "$FK8"); M8=$(shasum < "$(mem SW-eight "$K8")")
+printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/lw-badask.md"
+RC=0; LW SW-eight "$PCS" "$LB" "$K8" --body "$T/lw-badask.md" --model smoke >/dev/null 2>&1 || RC=$?; [ $RC = 1 ] || lw_fail "a failing ask under a lease: want exit 1, got $RC"
+RC=0; LW SW-eight "$PCS" "$LB" "$K8" --body "$T/fm.md" --model smoke >/dev/null 2>&1 || RC=$?; [ $RC = 1 ] || lw_fail "a body with frontmatter under a lease: want exit 1, got $RC"
+n=$(date -u +%s); for i in 0 1 2 3 4 5 6 7 8 9 10; do s=$(iso $((n + i))); mkdir -p "$D8/comments/00000000-8888-4888-8888-0000000000$((10 + i))"
+  printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s}\nmodified: {at: %s}\n---\nseed\n' "$s" "$s" > "$D8/comments/00000000-8888-4888-8888-0000000000$((10 + i))/index.md"; done
+RC=0; LW SW-eight "$PCS" "$LB" "$K8" --body "$T/pc.md" --model smoke --ahead 5 >/dev/null 2>"$T/lw-err.txt" || RC=$?
+[ $RC = 1 ] && grep -q -- '--ahead' "$T/lw-err.txt" || lw_fail "a taken second under a lease: want exit 1 naming --ahead, got $RC"
+rm -rf "$D8"/comments/00000000-8888-*
+DUP8="$LB/00000000-0000-4000-8000-0000000000d8"; mkdir -p "$DUP8"; cp -R "$D8" "$DUP8/"
+RC=0; LW SW-eight "$PCS" "$LB" "$K8" --body "$T/pc.md" --model smoke >/dev/null 2>&1 || RC=$?; rm -rf "$DUP8"; [ $RC = 2 ] || lw_fail "two cards with one uuid under a lease: want exit 2, got $RC"
+[ "$H" = "$(shasum < "$FK8")" ] && [ "$(ncom "$K8")" = 0 ] && [ "$M8" = "$(shasum < "$(mem SW-eight "$K8")")" ] && ! alive "$TP" && [ "$(records "$K8" Lease)" = 0 ] \
+  || lw_fail "a refused post touched the lease or wrote: comments $(ncom "$K8")"
+ok "post-comment.sh stays a no-op on every existing refusal (bad ask, frontmatter, a taken second, two cards with one uuid), the lease untouched"
+
+# move-card: held moves; lost is exit 3, nothing moved or posted; another's lease, a free card and no session id move as today
+SHL=$(dirname "$(lane_of "$LB" Shaping)"); printf 'Moved on.\n\n**Evidence**: none needed.\n' > "$T/lw-mc.md"
+M1=$(lcard "MC held"); L SW-m stake "$LB" "$M1" --model smoke >/dev/null
+RC=0; O=$(LW SW-m "$MCS" "$LB" "$M1" Shaping --model smoke --comment "$T/lw-mc.md") || RC=$?
+[ $RC = 0 ] && [ -f "$SHL/$M1/index.md" ] && [ ! -e "$LL/$M1" ] && [ "$(csess "$SHL/$M1/index.md")" = SW-m ] && [ "$(ncom "$M1")" = 1 ] || lw_fail "move-card on a held card: rc $RC, '$O'"
+M2=$(lostcard SW-m "MC lost"); H=$(shasum < "$LL/$M2/index.md")
+RC=0; LW SW-m "$MCS" "$LB" "$M2" Shaping --model smoke --comment "$T/lw-mc.md" >/dev/null 2>"$T/lw-err.txt" || RC=$?
+[ $RC = 3 ] && grep -q 'lost' "$T/lw-err.txt" && [ -f "$LL/$M2/index.md" ] && [ ! -e "$SHL/$M2" ] && [ "$H" = "$(shasum < "$LL/$M2/index.md")" ] \
+  && [ "$(ncom "$M2")" = 1 ] && [ "$(records "$M2" "**Lease lost**")" = 1 ] || lw_fail "move-card on a lost lease: rc $RC, comments $(ncom "$M2"), err: $(cat "$T/lw-err.txt")"
+M3=$(lcard "MC another's"); L SW-m-o stake "$LB" "$M3" --model smoke >/dev/null; M4=$(lcard "MC free")
+for c in "$M3" "$M4"; do RC=0; LW SW-m "$MCS" "$LB" "$c" Shaping --model smoke >/dev/null || RC=$?; [ $RC = 0 ] && [ -f "$SHL/$c/index.md" ] || lw_fail "move-card on a card never held here: rc $RC"; done
+[ "$(csess "$SHL/$M3/index.md")" = SW-m-o ] && [ ! -e "$(mem SW-m "$M4")" ] || lw_fail "move-card on a card never held here touched its lease"
+RC=0; LN "$MCS" "$LB" "$M2" Shaping --model smoke >/dev/null || RC=$?; [ $RC = 0 ] && [ -f "$SHL/$M2/index.md" ] || lw_fail "move-card with no session id: rc $RC"
+validate "$LB" >/dev/null
+ok "move-card.sh checks the lease before it moves: held moves; lost exits 3, nothing moved or posted; another's lease, a free card and no session id move as today"
+
+# post-ask: on a lost lease neither the ask nor waiting lands; held (the control) lands both
+A1=$(lostcard SW-a "PA lost"); FA1=$(lcf "$A1"); H=$(shasum < "$FA1")
+RC=0; LW SW-a "$PAS" "$LB" "$A1" --body "$T/ask1.md" --for anyone --model smoke >/dev/null 2>&1 || RC=$?
+[ $RC = 1 ] && [ "$H" = "$(shasum < "$FA1")" ] && ! grep -q '^waiting:' "$FA1" && [ "$(ncom "$A1")" = 1 ] && [ "$(records "$A1" "**Lease lost**")" = 1 ] \
+  && [ "$(records "$A1" 'Ship the thing today')" = 0 ] || lw_fail "post-ask on a lost lease: rc $RC, comments $(ncom "$A1")"
+A2=$(lcard "PA held"); FA2=$(lcf "$A2"); L SW-a stake "$LB" "$A2" --model smoke >/dev/null
+RC=0; O=$(LW SW-a "$PAS" "$LB" "$A2" --body "$T/ask1.md" --for anyone --model smoke) || RC=$?
+[ $RC = 0 ] && landed "$A2" "$O" && grep -q "^waiting: {for: anyone, since: [^,]*, comment: $O}\$" "$FA2" && [ "$(csess "$FA2")" = SW-a ] || lw_fail "post-ask on a held lease: rc $RC"
+validate "$LB" >/dev/null
+ok "post-ask.sh on a lost lease writes neither the ask nor waiting (exit 1, the Lease lost record only); on a held one both land"
+
+# 9. the prose: under skills/work/ no START is read as a claim; START is defined once, in writing.md, and linked; the lease is named to subagents
+printf '%s\n' '- **A START / plan comment is a claim.**' | grep 'START' | grep -q -i 'claim' || lw_fail "the START-claim pattern misses the line it retired"
+SC=$(grep -rn 'START' "$SK/work" | grep -i 'claim' || true); [ -z "$SC" ] || lw_fail "a START read as a claim under skills/work/: $SC"
+[ "$(grep -c '^## START$' "$SK/work/references/writing.md" || true)" = 1 ] && [ -z "$(grep -rl '^#* START' "$SK/work" | grep -v '/references/writing\.md$' || true)" ] \
+  || lw_fail "START is not defined once, in writing.md"
+for f in companions fixer lead; do grep -q -F '`writing.md` § START' "$SK/work/references/$f.md" || lw_fail "$f.md does not link writing.md § START"; done
+grep -q '^Lease: ' "$SK/work/templates/farmed-prompt.md" && grep -q -i 'never run the lease script to stake' "$SK/work/templates/farmed-prompt.md" \
+  && grep -q 'A fixer never stakes' "$SK/work/references/fixer.md" && grep -q 'stakes and releases leases' "$SK/work/references/team.md" \
+  || lw_fail "the lease is not named in farmed-prompt.md, fixer.md or team.md"
+ok "work prose: no START read as a claim; START defined once, in writing.md, and linked from companions, fixer and lead; the farmed prompt names the lease; a fixer never stakes"
 
 # 13. nothing left: release what is held, end the stand-ins; every timer must be gone within a poll
 for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
