@@ -8,8 +8,9 @@
 # CLAUDE_CODE_SESSION_ID or no CLAUDE_PID (no session, no lease); no lanework/scripts/lease.sh beside plan; the stake
 # refused or lost (lease.sh names the holder on stderr; a takeover notice it posted stays). After the stake, the card
 # leaving Frontier, the lease no longer this session's, or any other abort, a TERM during the stake included: exit 1
-# (a signal: its own code), the lease just staked released. Once the card is in Working the claim has landed: an abort
-# keeps the lease, at worst without the Claimed comment. A SIGKILL before that strands the stake: the same session's next
+# (a signal: its own code), the lease just staked released. Once this claim's own move has put the card in Working (checked
+# on the board at exit, the move itself included) the claim has landed: an abort keeps the lease, at worst without the
+# Claimed comment. A SIGKILL before that strands the stake: the same session's next
 # claim recovers it.
 # Staged outside the board, from the card as the stake left it; the card path is re-resolved just before landing.
 # A stake over a lapsed lease waits for the takeover notice (2 min): give the call a timeout over that.
@@ -51,13 +52,17 @@ refuse_unless_frontier
 
 # a lease this session held before the claim (staked by hand) is renewed by the stake, and never released by an abort here
 HOLDER=$("$LEASE" list "$BOARD" | awk -F'\t' -v c="$CID" '$1 == c { print $2 }')
-STAKED=""; DONE=""; STAGE=""
+STAKED=""; MOVING=""; STAGE=""
+# cleanup decides by the board: the card in Working after this claim began its own move there = landed, the lease kept
+# (at worst without the Claimed comment). Anything else releases what this claim staked: a card still in Frontier, or one
+# moved out of Frontier by someone else (MOVING empty), so no lease stays on a card this claim never moved
 cleanup() {
   [ -z "$STAGE" ] || rm -rf "$STAGE"
+  if [ -n "$MOVING" ] && [ -f "$DEST/$CID/index.md" ]; then return 0; fi
   # release whatever the stake left. A stake that never landed leaves nothing of this session's: release then refuses
   # another session's lease (exit 1), a lost one (exit 3) or a usage it shares with the stake (exit 2), writing nothing and
   # posting nothing; quiet, exit code unchanged
-  if [ -n "$STAKED" ] && [ -z "$DONE" ]; then
+  if [ -n "$STAKED" ]; then
     local r=0; "$LEASE" release "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null 2>&1 || r=$?
     case $r in 0|1|2|3) ;; *) echo "claim-ticket.sh: the lease on ${CID:0:8} was not released (exit $r): lanework/scripts/lease.sh release by hand" >&2 ;; esac
   fi
@@ -89,8 +94,8 @@ if [ "$rc" -ne 0 ]; then
   echo "claim-ticket.sh: ${CID:0:8}'s lease is no longer this session's (lease.sh check exit $rc); nothing moved" >&2; exit 1
 fi
 mv "$STAGE/index.md" "$FRONTIER/$CID/index.md"
+MOVING=1   # set before the move, so a claim ended while the mv runs (a signal waits for it) finds its card in Working
 mv "$FRONTIER/$CID" "$DEST/$CID"
-DONE=1   # landed: in Working with its lease; an abort from here keeps the lease, at worst without the Claimed comment
 mkdir -p "$DEST/$CID/comments"; mv "$STAGE/comment" "$DEST/$CID/comments/$COID"
 
 printf 'claimed %s -> Working (order %s)\n' "${CID:0:8}" "$ORDER"

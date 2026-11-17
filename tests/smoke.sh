@@ -2332,19 +2332,37 @@ kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
   || pl_fail "plan claim TERM during the stake: rc $RC, lane $(plb "$PC2b"), session '$(csess "$(pf "$PC2b")")', err: $(cat "$T/pl-err.txt")"
 ok "plan claim ended during its stake releases what the stake left: Frontier, no claimed, no timer, no memory, no Claimed comment"
 
-# P2c. a claim ended once the card is in Working has landed: it keeps the lease. A mkdir shim on PATH holds the claim between the
-# card's move and its Claimed comment (it marks a file, then waits on the comments folder), so the TERM lands there every time
-PSH="$T/plan-shim"; mkdir -p "$PSH"; printf '%s\n' '#!/bin/bash' 'case "${@: -1}" in */comments) [ -z "${PL_SHIM_MARK:-}" ] || : > "$PL_SHIM_MARK"; sleep 3 ;; esac' \
-  'exec /bin/mkdir "$@"' > "$PSH/mkdir"; chmod +x "$PSH/mkdir"
-PC2c=$(ptk "Landed"); rm -f "$T/pl-mark"
-env PATH="$PSH:$PATH" PL_SHIM_MARK="$T/pl-mark" CLAUDE_CODE_SESSION_ID=S-pkeep CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
-  LEASE_TEST_RENEW_EVERY=1000 "$PS/claim-ticket.sh" "$PB" "$PC2c" --model smoke >/dev/null 2>"$T/pl-err.txt" & CLP=$!
-waitfor '[ -f "$T/pl-mark" ]' || waitfor '[ -f "$T/pl-mark" ]' || pl_fail "plan claim landed: the shim never held the claim"
-kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
-[ "$RC" != 0 ] && [ "$(plb "$PC2c")" = Working ] && [ "$(csess "$(pf "$PC2c")")" = S-pkeep ] && [ -f "$(pmem S-pkeep "$PC2c")" ] && alive "$(pmpid S-pkeep "$PC2c")" \
-  && [ "$(pcount "$PC2c" "**Lease lost**")" = 0 ] || pl_fail "plan claim ended after landing: rc $RC, lane $(plb "$PC2c"), session '$(csess "$(pf "$PC2c")")', err: $(cat "$T/pl-err.txt")"
-PLS S-pkeep "$LS" release "$PB" "$PC2c" --model smoke; validate "$PB" >/dev/null
-ok "plan claim ended once the card is in Working keeps its lease: claimed, the timer and the memory stay"
+# P2c. a claim ended once its own move has put the card in Working has landed: it keeps the lease. Shims on that one claim's
+# PATH hold it at a set point (each marks a file, then waits): mv just after the card's own move into Working, mkdir on the
+# comments folder after it. The TERM lands there every time
+PSH="$T/plan-shim"; mkdir -p "$PSH"
+printf '%s\n' '#!/bin/bash' 'r=0; /bin/mv "$@" || r=$?' \
+  'case "${@: -1}" in *"/${PL_SHIM_MV:-none}") : > "$PL_SHIM_MARK"; sleep 3 ;; esac' 'exit $r' > "$PSH/mv"
+printf '%s\n' '#!/bin/bash' 'case "${@: -1}" in */comments) [ -z "${PL_SHIM_DIR:-}" ] || { : > "$PL_SHIM_MARK"; sleep 3; } ;; esac' \
+  'exec /bin/mkdir "$@"' > "$PSH/mkdir"; chmod +x "$PSH/mv" "$PSH/mkdir"
+WLN=$(basename "$(dirname "$(lane_of "$PB" Working)")")
+for hold in move comment; do
+  PC2c=$(ptk "Landed $hold"); rm -f "$T/pl-mark"; SV=PL_SHIM_MV; SVV="$WLN/$PC2c"; [ $hold = move ] || { SV=PL_SHIM_DIR; SVV=1; }
+  env PATH="$PSH:$PATH" "$SV=$SVV" PL_SHIM_MARK="$T/pl-mark" CLAUDE_CODE_SESSION_ID=S-pkeep CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 \
+    LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/claim-ticket.sh" "$PB" "$PC2c" --model smoke >/dev/null 2>"$T/pl-err.txt" & CLP=$!
+  waitfor '[ -f "$T/pl-mark" ]' || waitfor '[ -f "$T/pl-mark" ]' || pl_fail "plan claim landed ($hold): the shim never held the claim"
+  kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
+  [ "$RC" != 0 ] && [ "$(plb "$PC2c")" = Working ] && [ "$(csess "$(pf "$PC2c")")" = S-pkeep ] && [ -f "$(pmem S-pkeep "$PC2c")" ] && alive "$(pmpid S-pkeep "$PC2c")" \
+    && [ "$(pcount "$PC2c" "**Lease lost**")" = 0 ] || pl_fail "plan claim ended at the $hold: rc $RC, lane $(plb "$PC2c"), session '$(csess "$(pf "$PC2c")")', err: $(cat "$T/pl-err.txt")"
+  PLS S-pkeep "$LS" release "$PB" "$PC2c" --model smoke
+done
+validate "$PB" >/dev/null
+ok "plan claim ended during or after its own move into Working keeps its lease: claimed, the timer and the memory stay"
+
+# P2e. a card moved out of Frontier into Working by someone else while the stake waits: the claim refuses and releases its stake
+PC2e=$(ptk "Moved away"); F=$(pf "$PC2e"); RC=0
+env CLAUDE_CODE_SESSION_ID=S-pmoved CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=2 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 \
+  "$PS/claim-ticket.sh" "$PB" "$PC2e" --model smoke >/dev/null 2>"$T/pl-err.txt" & CLP=$!
+waitfor 'grep -q "^claimed" "$F"' || pl_fail "plan claim moved away: the stake never wrote claimed"
+mv "$(dirname "$F")" "$(dirname "$(lane_of "$PB" Working)")/$PC2e"; wait "$CLP" 2>/dev/null || RC=$?
+[ $RC = 1 ] && [ "$(plb "$PC2e")" = Working ] && ! grep -q -E '^(claimed:|  (by|until):)' "$(pf "$PC2e")" && [ ! -e "$(pmem S-pmoved "$PC2e")" ] \
+  && grep -q 'is in Working, not Frontier' "$T/pl-err.txt" && [ "$(pcount "$PC2e" '**Claimed**')" = 0 ] || pl_fail "plan claim on a card moved away: rc $RC, err: $(cat "$T/pl-err.txt")"
+ok "plan claim on a card moved into Working by someone else during the stake exits 1 and releases its stake"
 
 # P2d. a stake refused with exit 2 (a session id with a space) leaves nothing to release: no false "release by hand"
 PC2d=$(ptk "Bad session"); H=$(sum "$PB")
