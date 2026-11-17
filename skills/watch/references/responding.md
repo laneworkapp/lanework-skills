@@ -13,13 +13,13 @@ Answers a question, picks an option (a button click arrives as `<label>: <option
 
 ## A move into an agent lane
 
-An owner's move (`events.md` item 5), or a card waiting at arming (`arming.md`), in an `agent` row of `lanework/references/board-kinds.md` = work order, if it holds no valid lease (`work/references/companions.md`). No comment to answer:
+An owner's move (`events.md` item 5), or a card waiting at arming (`arming.md`), in an `agent` row of `lanework/references/board-kinds.md` = work order, if it holds no lease (none, or voided by the clock guard: `work/references/companions.md`). A lapsed lease is `stale`, no arm; an owner's move of such a card is the owner asking, and the stake takes it over (`lanework/references/writes.md` § Lease). No comment to answer:
 
-1. **Stake first**: `lanework/scripts/lease.sh stake <board> <card-uuid> --model m`; rules, exit codes and the two-minute takeover wait: `lanework/references/writes.md` § Lease. Refused (exit 1) → no work: one report line, "held by another session".
-2. Read the card whole; act per the lane body (`work/SKILL.md`).
-3. Substantial work → § Action-calling below.
-4. **Release** when the card is handed to a gate or done, in the closing write, before the closing commit (`lead.md` § Dispatch: `--release`, else `lease.sh release`), so the release rides in that commit.
-5. Any other lane: no work order, report.
+1. Read the card whole; act per the lane body (`work/SKILL.md`). Not this card's work (any other lane, `waiting`, lane body out of scope, Approved but not the top) → no work order, report. No stake.
+2. **Stake** only the card to work, immediately before the first write or hand-off: `lanework/scripts/lease.sh stake <board> <card-uuid> --model m`; rules, exit codes and the two-minute takeover wait: `lanework/references/writes.md` § Lease. Refused (exit 1) → no work: one report line, "held by another session".
+3. A card staked and then not worked (a later refusal, a change of plan) → `lanework/scripts/lease.sh release` at once.
+4. Substantial work → § Action-calling below.
+5. **Release** when the card is handed to a gate or done, in the closing write, before the closing commit (`work/references/lead.md` § Dispatch: `--release`, else `lanework/scripts/lease.sh release`), so the release rides in that commit.
 
 ## Action-calling
 

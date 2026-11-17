@@ -11,7 +11,7 @@
 # (<kind> <board folder> <card uuid> <lane title> <card title> <author> <paths>):
 #   comment  the card's newest owner comment has no agent comment `in-reply-to` it. Author `owner`,
 #            paths = that comment's path. Wins over arm on the same card.
-#   arm      a card in an agent lane with no valid lease (Approved: its top card only, by `order`). Author and paths `-`.
+#   arm      a card in an agent lane with no lease (none, or voided by the clock guard; Approved: its top card only, by `order`). Author and paths `-`.
 #            A START comment is no claim: only a lease is.
 #   held     a valid lease: any lane but Done. Author `-`, paths = the minutes left, `<n>m`. Report-only.
 #   stale    a lapsed lease (past `until`): any lane but Done. Author `-`, paths = the minutes since `until`, `<n>m`.
@@ -32,7 +32,7 @@ BOARD="${1%/}"; shift
 BOARD="$(cd "$BOARD" && pwd)"; NAME="${BOARD##*/}"
 LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
 LEASES=; LEASE_OK=1
-if [ -f "$LEASE" ] && LEASES=$(bash "$LEASE" list "$BOARD" 2>/dev/null); then :
+if [ -f "$LEASE" ] && LEASES=$(bash "$LEASE" list "$BOARD"); then :
 else LEASES=; LEASE_OK=; echo "arm-pass.sh: lease.sh list failed or is missing: no arm, held or stale lines; comment lines only" >&2; fi
 AGENT_LANES=$'\n'
 if [ $# -gt 0 ]; then for t in "$@"; do AGENT_LANES+="$t"$'\n'; done
