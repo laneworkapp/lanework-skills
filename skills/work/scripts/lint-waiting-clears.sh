@@ -1,0 +1,66 @@
+#!/bin/bash
+# Lint a board for asks whose `waiting` an agent cleared (the owner's trial, work/references/writing.md § The ask).
+# Usage: lint-waiting-clears.sh <board dir>
+# Read-only. For each card: its newest ask is the newest comment by an agent whose body starts with `@` (any handle,
+# the anyone handle or a person's). The card is listed when that ask has no later human comment, no human comment
+# `in-reply-to` it, and the card has no `waiting` (flow or block form). One line per card on stdout:
+#   QUOTED <card> <ask uuid>      an agent comment `in-reply-to` the ask has a `>` line and a `**Given**` line
+#   NO-QUOTE <card> <ask uuid>    none does (also an ask that never got a mark: the two look alike)
+# then `QUOTED <n>, NO-QUOTE <m>`. Silent exit 0 when nothing is listed; exit 1 when any NO-QUOTE; exit 2
+# (message on stderr) on a missing path, a file, a bad flag or no argument. Skips .trash, .log, .schema and attachments.
+# An ask here is looser than lint-ask.sh's: that one needs the board's human handle (guide line, or the anyone handle)
+# on line 1 and checks the shape; this one takes any `@` that starts the first non-blank line and checks nothing else.
+# Agent = a `created.by` with `kind: agent`; human = no `by`, or any other kind.
+set -u
+. "$(dirname "$0")/../../lanework/scripts/lib.sh"
+USAGE="usage: lint-waiting-clears.sh <board dir>"
+[ $# -ge 1 ] || { echo "$USAGE" >&2; exit 2; }
+board=$1; shift
+[ $# -eq 0 ] || { echo "lint-waiting-clears.sh: unknown argument: $1" >&2; exit 2; }
+[ -e "$board" ] || { echo "no such path: $board" >&2; exit 2; }
+[ -d "$board" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
+# comment_row <comment index.md>: created.at, agent|human, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
+comment_row() {
+  awk -v id="$(basename "$(dirname "$1")")" '
+    { sub(/\r$/, "") }
+    NR == 1 { if ($0 == "---") fm = 1; next }
+    fm && $0 == "---" { fm = 0; body = 1; next }
+    fm && /^[A-Za-z-]+:/ { key = $0; sub(/:.*/, "", key); if (key == "created") cr = cr " " $0; if (key == "in-reply-to") { irt = $0; sub(/^[^:]*:[ \t]*["\x27]?/, "", irt); sub(/["\x27 \t]*$/, "", irt) } next }
+    fm && key == "created" && /^[ \t]/ { cr = cr " " $0; next }
+    body && !seen && $0 !~ /^[ \t]*$/ { seen = 1; ask = ($0 ~ /^@/) }
+    body && /^>/ { q = 1 }
+    body && /\*\*Given\*\*/ { g = 1 }
+    END {
+      at = ""
+      if (match(cr, /(^|[ {,])at:[ \t]*["\x27]?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z/)) { s = substr(cr, RSTART, RLENGTH); match(s, /[0-9]{4}-.*$/); at = substr(s, RSTART) }
+      kind = (cr ~ /(^|[ {,])by:/ && cr ~ /kind:[ \t]*["\x27]?agent/) ? "agent" : "human"
+      printf "%s\t%s\t%s\t%d\t%d\t%s\n", at, kind, irt, ask + 0, (q && g) + 0, id
+    }' "$1"
+}
+# has_waiting <card index.md>: a top-level `waiting:` key in the frontmatter, flow or block
+has_waiting() { awk 'NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { exit } fm && /^waiting:/ { f = 1 } END { exit !f }' "$1"; }
+quoted=0; noquote=0
+for idx in "$board"/*/*/index.md; do   # globs skip the dot folders (.trash, .log, .schema); a card is <board>/<lane>/<card>/index.md
+  [ -f "$idx" ] || continue
+  card=$(dirname "$idx"); has_waiting "$idx" && continue
+  rows=""
+  for c in "$card"/comments/*/index.md; do
+    [ -f "$c" ] || continue
+    rows="$rows$(comment_row "$c")"$'\n'
+  done
+  [ -n "$rows" ] || continue
+  res=$(printf '%s' "$rows" | awk -F'\t' '
+    $1 != "" { n++; c[n] = $1; k[n] = $2; r[n] = $3; a[n] = $4; q[n] = $5; u[n] = $6 }
+    END {
+      for (i = 1; i <= n; i++) if (k[i] == "agent" && a[i] == 1 && (!b || c[i] > c[b] || (c[i] == c[b] && u[i] > u[b]))) b = i
+      if (!b) exit
+      for (i = 1; i <= n; i++) if (k[i] == "human" && (c[i] > c[b] || r[i] == u[b])) exit
+      s = "NO-QUOTE"; for (i = 1; i <= n; i++) if (k[i] == "agent" && r[i] == u[b] && q[i] == 1) s = "QUOTED"
+      print s, u[b]
+    }')
+  [ -n "$res" ] || continue
+  echo "${res%% *} $(basename "$card") ${res#* }"
+  case "$res" in QUOTED*) quoted=$((quoted + 1)) ;; *) noquote=$((noquote + 1)) ;; esac
+done
+[ $((quoted + noquote)) -eq 0 ] || echo "QUOTED $quoted, NO-QUOTE $noquote"
+[ "$noquote" -eq 0 ]
