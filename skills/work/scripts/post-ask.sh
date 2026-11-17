@@ -12,8 +12,10 @@
 # (`for: [a, b]`) is written by hand.
 # Exit 2, nothing written: no model, no --body, no --for, a bad flag or handle, no card or several.
 # Exit 1, nothing written: not a board, not a lowercase uuid, the body fails lint or lacks @<handle>
-# on line 1, the newest comment over 30 s ahead of the clock, post-comment.sh refused. Exit 1 after
-# the ask landed: the card could not be restamped (set `waiting` by hand).
+# on line 1, the newest comment over 30 s ahead of the clock, post-comment.sh refused. Exit 3, nothing
+# written but the Lease lost record: post-comment.sh found this session's lease on the card lost
+# (lanework/references/writes.md § Lease); `waiting` untouched. Exit 1 after the ask landed: the card
+# could not be restamped (set `waiting` by hand).
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 HERE="$(dirname "${BASH_SOURCE[0]}")"
@@ -72,7 +74,8 @@ N=$(newest)
 while [ "$(date -u +%s)" -le "$N" ]; do sleep 0.1; done
 
 COID=$("$HERE/post-comment.sh" "$BOARD" "$CID" --body "$BODY" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} ${REPLY:+--in-reply-to "$REPLY"}) \
-  || { echo "post-ask.sh: post-comment.sh refused the ask; nothing written" >&2; exit 1; }
+  || { rc=$?; if [ "$rc" -eq 3 ]; then echo "post-ask.sh: the lease on ${CID:0:8} is lost; nothing written, waiting untouched" >&2; exit 3; fi
+       echo "post-ask.sh: post-comment.sh refused the ask; nothing written" >&2; exit 1; }
 
 CARD=$(card)
 SINCE=$(sed -n 's/^created: *{at: \([^,}]*\).*/\1/p' "$CARD/comments/$COID/index.md" | head -1)

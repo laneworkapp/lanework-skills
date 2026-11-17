@@ -54,6 +54,7 @@ claimed:
 ```
 
 - **Holder** = the session: `by.session` from `CLAUDE_CODE_SESSION_ID`, never a flag. Only the session id is compared, never `by.name`, so a fixer under its lead's session passes. No session id → no lease. Subagents never stake. One machine; across machines a lease is a hint that lapses by its `until`.
+- **Memory is per board folder path**: a copy of a board is another board (its cards never held). A board folder renamed or moved while a lease is live → the session no longer remembers holding the card; lapsed and taken by another session, its next write lands, no **Lease lost** record.
 - **Layout**: the compact form (§ Every write). A real session id makes `by` pass 120 characters: the 3-line block above.
 - **Length**: 30 min from stake or renewal. A detached timer, started by `stake` with the session's `CLAUDE_PID`, renews every 15 min of elapsed time (counted by waiting, never by `until`), reads the card each minute, and exits when the lease is released or lost, or `CLAUDE_PID` is gone. One memory file and one timer per card: a session may hold any number.
 - **Stake**: write, wait 1 s, read back. Another session's `by` → back off. A lease this session already holds renews.
