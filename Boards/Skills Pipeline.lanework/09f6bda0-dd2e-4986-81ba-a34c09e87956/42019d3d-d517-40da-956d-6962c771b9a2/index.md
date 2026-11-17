@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "watch: read a move receipt as the move it records"
-order: 12288
+order: 4096
 labels: [{text: watch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T01:22:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
-modified: {at: 2026-11-17T11:47:33Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-17T16:21:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Watch should treat a move receipt, the `board`-signed comment with a `moved:` key, as the record of a move: never answered, and the source of who moved the card.
 
