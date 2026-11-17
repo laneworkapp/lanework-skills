@@ -1686,14 +1686,12 @@ W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <
 rm -f "$R/CLAUDE.md"; W=$(rw); { ! grep -q -i 'warning\|line [0-9]\|No such' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no CLAUDE.md: $W"; exit 1; }
 ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp, stays quiet when not, and exits the same either way"
 
-# plugin: manifests agree with the skills folders; one version, in plugin.json
+# plugin: the manifest agrees with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
 import json, os, sys
-d, sk = sys.argv[1:]; p = json.load(open(f"{d}/plugin.json")); m = json.load(open(f"{d}/marketplace.json"))
+d, sk = sys.argv[1:]; p = json.load(open(f"{d}/plugin.json"))
 want = sorted(f"./skills/{n}" for n in os.listdir(sk) if os.path.isfile(f"{sk}/{n}/SKILL.md"))
 assert sorted(p["skills"]) == want, f"plugin.json skills {p['skills']} != folders {want}"
-assert [e["name"] for e in m["plugins"]] == [p["name"]], "marketplace.json must list exactly the plugin in plugin.json"
-assert "version" not in m["plugins"][0], "version lives only in plugin.json"
 EOF
 # claude plugin validate: errors fail (exit status). Warnings fail too, except the one known
 # warning: this repo's CLAUDE.md is its dev guide, which sits at the plugin root by design.
