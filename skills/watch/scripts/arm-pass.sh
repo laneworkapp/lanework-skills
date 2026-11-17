@@ -2,7 +2,7 @@
 # arm-pass.sh: class every card at arming from its files, so the watch learns which cards to open.
 # usage: arm-pass.sh <board> [<agent lane title>...]
 #
-# Lanes: every lane but Done is swept (Done is never a work order and its claims are history).
+# Lanes: every lane but Done is swept (Done is never a work order and its leases are history).
 # `agent` lanes = the lane titles given, else every `| <lane> | agent |` row of
 # lanework/references/board-kinds.md (a board's own lane bodies still win: a lane whose body says it's
 # out of scope is skipped by the watch).
@@ -11,15 +11,18 @@
 # (<kind> <board folder> <card uuid> <lane title> <card title> <author> <paths>):
 #   comment  the card's newest owner comment has no agent comment `in-reply-to` it. Author `owner`,
 #            paths = that comment's path. Wins over arm on the same card.
-#   arm      an unclaimed card in an agent lane (Approved: its top card only, by `order`). Author and paths `-`.
-#   stale    a claim, and nothing newer on the card for STALE_MINUTES (default 30). Author `-`, paths =
-#            the minutes of silence, `<n>m`. Report-only: never worked, nothing is released.
-# Claim = the card's last comment opening `START` (bold or plain) with no later closing comment. A closing
-# comment opens `Merged`, `Closed`, `Shipped`, `Done`, `Confirmed done`, `Released`, `Landed` or `Abandoned`
-# (bold or plain); a closing comment in any other shape reads as still claimed.
-# A comment signed `board` (the app's move receipt, a `moved:` key) counts for nothing: not a reply, a claim, a closing or newer activity.
-# Owner = no `by`, or `by.kind: human` (either quote). CRLF files are read; fractional seconds are dropped; a `created.at` that is
-# not plain `...Z` (an offset, a space) is never judged stale. Every comment's `created.at` orders the thread.
+#   arm      a card in an agent lane with no lease (none, or voided by the clock guard; Approved: its top card only, by `order`). Author and paths `-`.
+#            A START comment is no claim: only a lease is.
+#   held     a valid lease: any lane but Done. Author `-`, paths = the minutes left, `<n>m`. Report-only.
+#   stale    a lapsed lease (past `until`): any lane but Done. Author `-`, paths = the minutes since `until`, `<n>m`.
+#            Report-only: never worked, never taken over, never released.
+# Leases are read once, through the read-only `lease.sh list <board>`, and joined to cards by uuid. Its state column decides:
+# live = held, lapsed = stale, voided (the clock guard) or no row = no lease. No lease rule is restated here, and nothing is
+# written. `lease.sh list` needs no session id. If it fails or is missing, no lease is known, so nothing is armed or reported
+# as held: `comment` lines still print (they read no lease), the failure goes to stderr and the exit is 1. An `arm` printed
+# without leases could double-dispatch a card another session holds.
+# A comment signed `board` (the app's move receipt, a `moved:` key) counts for nothing: not a reply.
+# Owner = no `by`, or `by.kind: human` (either quote). CRLF files are read. Every comment's `created.at` orders the thread.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE="usage: arm-pass.sh <board> [<agent lane title>...]"
@@ -27,7 +30,10 @@ USAGE="usage: arm-pass.sh <board> [<agent lane title>...]"
 BOARD="${1%/}"; shift
 [ -f "$BOARD/index.md" ] || { echo "arm-pass.sh: not a board: $BOARD" >&2; exit 2; }
 BOARD="$(cd "$BOARD" && pwd)"; NAME="${BOARD##*/}"
-STALE_MIN="${STALE_MINUTES:-30}"
+LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
+LEASES=; LEASE_OK=1
+if [ -f "$LEASE" ] && LEASES=$(bash "$LEASE" list "$BOARD"); then :
+else LEASES=; LEASE_OK=; echo "arm-pass.sh: lease.sh list failed or is missing: no arm, held or stale lines; comment lines only" >&2; fi
 AGENT_LANES=$'\n'
 if [ $# -gt 0 ]; then for t in "$@"; do AGENT_LANES+="$t"$'\n'; done
 else
@@ -35,7 +41,6 @@ else
   [ -f "$KINDS" ] || { echo "arm-pass.sh: no $KINDS: pass the agent lane titles" >&2; exit 2; }
   AGENT_LANES+="$(awk -F'|' '$3 ~ /^ *agent *$/ { t=$2; gsub(/^ +| +$/, "", t); print t }' "$KINDS")"$'\n'
 fi
-epoch() { date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || echo; }   # empty = a stamp that is not plain ...Z (an offset, a space)
 title_of() { local t; t=$(strip_quotes "$(fm_value "$1" title)"); printf '%s' "${t:--}"; }
 
 # row <comment index.md>: "<at>|<author>|<in-reply-to>|<first body line>"
@@ -55,7 +60,6 @@ row() {
   ' "$1"
 }
 
-now=$(date +%s)
 printf '%s\n' "$BOARD"/*/ | while IFS= read -r lane; do
   lane="${lane%/}"; [ -f "$lane/index.md" ] || continue
   case "$(basename "$lane")" in .*) continue ;; esac
@@ -77,31 +81,32 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
       cn="${c##*/}"; [ "${cn#.}" = "$cn" ] || continue   # a dot-folder (.draft)
       printf '%s|%s|%s\n' "$(basename "$c")" "$c" "$(row "$c/index.md")"
     done | awk -F'|' '{ print $3 "|" $0 }' | sort | cut -d'|' -f2-)
-    own_uuid=; own_path=; start_at=; closed=; newest=
+    own_uuid=; own_path=
     declare -a replies=()
-    while IFS='|' read -r uuid path at who rep first; do
+    while IFS='|' read -r uuid path _ who rep _; do
       [ -n "$uuid" ] || continue
-      [ "$who" = board ] && continue   # the app'"'"'s move receipt: no reply, no claim, no activity
-      newest="$at"
+      [ "$who" = board ] && continue   # the app'"'"'s move receipt: no reply
       [ "$who" = owner ] && { own_uuid=$uuid; own_path="${path#"$BOARD"/}/index.md"; }
       [ "$who" = agent ] && [ -n "$rep" ] && replies+=("$rep")
-      b="${first#\*\*}"; b="${b#\*}"
-      case "$b" in START*) start_at="$at"; closed= ;; esac
-      if [ -n "$start_at" ]; then case "$b" in Merged*|Closed*|Shipped*|Done*|Confirmed\ done*|Released*|Landed*|Abandoned*) closed=1 ;; esac; fi
     done <<<"$rows"
-    claimed=; [ -n "$start_at" ] && [ -z "$closed" ] && claimed=1
+    lstate=; lmins=
+    if [ -n "$LEASE_OK" ]; then
+      lrow=$(printf '%s\n' "$LEASES" | awk -F'\t' -v u="$id" '$1 == u { print $4 "\t" $3; exit }')
+      lstate="${lrow%%$'\t'*}"; lmins="${lrow#*$'\t'}"; lmins="${lmins%% *}"
+      case "$lstate" in live|lapsed) ;; *) lstate= ;; esac   # voided and no row: no lease
+    fi
     answered=; for r in ${replies[@]+"${replies[@]}"}; do [ "$r" = "$own_uuid" ] && answered=1; done
     istop=$top; top=
-    # the top card of Approved is the first in order, claimed or not; the next never takes its place
+    # the top card of Approved is the first in order, leased or not; the next never takes its place
     if [ -n "$own_uuid" ] && [ -z "$answered" ]; then
       printf 'comment\t%s\t%s\t%s\t%s\towner\t%s\n' "$NAME" "$id" "$lt" "$ct" "$own_path"
-    elif [ -n "$agent" ] && [ -z "$claimed" ] && { [ "$lt" != Approved ] || [ -n "$istop" ]; }; then
+    elif [ -n "$LEASE_OK" ] && [ -n "$agent" ] && [ -z "$lstate" ] && { [ "$lt" != Approved ] || [ -n "$istop" ]; }; then
       printf 'arm\t%s\t%s\t%s\t%s\t-\t-\n' "$NAME" "$id" "$lt" "$ct"
     fi
-    if [ -n "$claimed" ]; then
-      ne=$(epoch "$newest"); [ -n "$ne" ] || continue   # never judge a stamp we cannot read
-      quiet=$(( (now - ne) / 60 ))
-      [ "$quiet" -lt "$STALE_MIN" ] || printf 'stale\t%s\t%s\t%s\t%s\t-\t%sm\n' "$NAME" "$id" "$lt" "$ct" "$quiet"
-    fi
+    case "$lstate" in
+      live) printf 'held\t%s\t%s\t%s\t%s\t-\t%sm\n' "$NAME" "$id" "$lt" "$ct" "$lmins" ;;
+      lapsed) printf 'stale\t%s\t%s\t%s\t%s\t-\t%sm\n' "$NAME" "$id" "$lt" "$ct" "$lmins" ;;
+    esac
   done
 done
+[ -n "$LEASE_OK" ] || exit 1
