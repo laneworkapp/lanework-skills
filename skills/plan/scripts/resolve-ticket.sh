@@ -8,6 +8,13 @@
 # `## Depends on` links are all in Resolved moves to the bottom of Frontier (fresh order,
 # `modified` rewritten whole), one `unblocked <name>` line each (its citation; a card with none: the `T<n>` of a legacy `T<n>: ` title, else the title). Staged outside the board; each
 # card path is re-resolved just before landing. Prints the resolved card's link.
+# The lease (lanework/references/writes.md § Lease), after the refusals above and before anything is written: with
+# CLAUDE_CODE_SESSION_ID set (never --session), `lanework/scripts/lease.sh check`. Held: resolve, `claimed` dropped with
+# `waiting` in the same write, then `lease.sh release` once, which stops the timer. Lost: lease.sh posts the Lease lost
+# record; exit 1, nothing else written. Never held here, or no session id: a card with no lease (or a voided one) resolves
+# as before; another session's lease, live or lapsed, is exit 1, nothing written: stake it first (a lapsed one is taken
+# over). Another check failure: exit 1, nothing written. No lanework/scripts/lease.sh beside plan: one note, no check.
+# Exit 1 after the card landed: the release failed; lease.sh release by hand.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 
@@ -44,12 +51,13 @@ deps_of() {  # deps_of <card index.md>: card uuids linked under "## Depends on"
   awk '/^## Depends on[ \t]*$/ { f=1; next } f && /^## / { exit } f' "$1" |
     grep -oE 'lanework://[^/)]+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | sed 's#.*/##' || true
 }
-restamp() {  # restamp <src> <order> <dest>: fresh order + modified, waiting dropped
-  awk -v o="order: $2" -v m="modified: {at: $NOW, by: $BY}" '
+restamp() {  # restamp <src> <order> <dest> [claimed]: fresh order + modified, waiting dropped, and claimed with "claimed"
+  awk -v o="order: $2" -v m="modified: {at: $NOW, by: $BY}" -v cl="${4:-}" '
     /^---[ \t]*$/ { n++ }
     n==1 && drop && /^[ \t]/ { next }          # its block lines, where the compact form opened it out
     { drop = 0 }
     n==1 && /^waiting:/ { drop = 1; next }
+    n==1 && cl == "claimed" && /^claimed:/ { drop = 1; next }
     n==1 && /^order:/ { print o; next }
     n==1 && /^modified:/ { print m; next }
     { print }' "$1" > "$3"
@@ -65,9 +73,25 @@ case " $FROM " in *" $HERE_LANE "*) ;; *)
   exit 1 ;;
 esac
 
+LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"; HELD=""
+if [ ! -f "$LEASE" ]; then
+  echo "resolve-ticket.sh: note: no lanework/scripts/lease.sh beside plan; the lease is not checked" >&2
+else
+  rc=4
+  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then rc=0; "$LEASE" check "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null || rc=$?; fi
+  case $rc in
+    0) HELD=1 ;;
+    3) echo "resolve-ticket.sh: this session's lease on ${CID:0:8} is lost (the Lease lost record is on the card); nothing written" >&2; exit 1 ;;
+    4) # never held here: another session's lease (list: uuid, holder, time, live | lapsed | voided, title) is not this resolve's
+      ROW=$("$LEASE" list "$BOARD" | awk -F'\t' -v c="$CID" '$1 == c && ($4 == "live" || $4 == "lapsed") { print $2 " (" $4 ")" }')
+      [ -z "$ROW" ] || { echo "resolve-ticket.sh: ${CID:0:8} is leased by $ROW: not this session's; nothing written. Stake it first: lanework/scripts/lease.sh stake" >&2; exit 1; } ;;
+    *) echo "resolve-ticket.sh: lease.sh check failed (exit $rc); nothing written" >&2; exit 1 ;;
+  esac
+fi
+
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); ORDER=$(next_order "$DEST")
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/plan-resolve.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
-restamp "$CARD/index.md" "$ORDER" "$STAGE/index.md"
+restamp "$CARD/index.md" "$ORDER" "$STAGE/index.md" claimed
 { printf '\n## Resolution\n\n'; cat "$RESOLUTION"; } >> "$STAGE/index.md"
 
 CARD=$(card_of "$CID")
@@ -75,6 +99,12 @@ CARD=$(card_of "$CID")
 mv "$STAGE/index.md" "$CARD/index.md"
 [ "$CARD" = "$DEST/$CID" ] || mv "$CARD" "$DEST/$CID"
 printf 'resolved %s -> %s (order %s)\n' "${CID:0:8}" "$LANE_TITLE" "$ORDER"
+# the card landed without claimed: release finds no lease there, stops the timer and forgets the card, writing nothing (no loss)
+RC=0
+if [ -n "$HELD" ]; then
+  "$LEASE" release "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null \
+    || { RC=1; echo "resolve-ticket.sh: ${CID:0:8} resolved, but lease.sh release failed: release by hand" >&2; }
+fi
 
 # ---- unblock: Blocked tickets whose every dependency is now Resolved -> bottom of Frontier ----
 if [ "$TO" = resolved ]; then
@@ -98,3 +128,4 @@ if [ "$TO" = resolved ]; then
   fi
 fi
 printf 'lanework://%s/%s\n' "$BOARD_ID" "$CID"
+exit "$RC"

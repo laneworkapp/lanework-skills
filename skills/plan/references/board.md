@@ -27,7 +27,7 @@ Only the agent, only by script. Owner never moves cards: a comment or chat reply
 | move | when | script |
 |---|---|---|
 | new → Frontier / Blocked | filed; Blocked while a dependency isn't Resolved | `scripts/file-ticket.sh` |
-| Frontier → Working | claimed, before any work | `scripts/claim-ticket.sh` |
+| Frontier → Working | claimed, before any work; the claim stakes the lease first | `scripts/claim-ticket.sh` |
 | Working → Resolved | Resolution written | `scripts/resolve-ticket.sh` |
 | Blocked → Frontier | its last dependency resolves | same run, automatically |
 | Frontier / Blocked / Working → Out of scope | ruled past the destination | `resolve-ticket.sh --to out-of-scope` |
