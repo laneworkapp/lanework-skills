@@ -1028,7 +1028,7 @@ ok "the lane -> actor table lives only in board-kinds.md, with a row per pipelin
 ok "watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move"
 
 EV="$SK/watch/references/events.md"
-{ grep -q 'moved:' <(sed -n '/^4\. /,/^5\. /p' "$EV") && grep -q 'moved\.by' <(sed -n '/^5\. /,/^6\. /p' "$EV") && ! grep -q 'bare move with no comment' "$EV"; } || { echo "events.md item 4 lacks moved: as a receipt, item 5 lacks moved.by, or it still says bare move with no comment"; exit 1; }
+{ grep -q 'moved:' <(sed -n '/^4\. /,/^5\. /p' "$EV") && grep -q 'moved\.by' <(sed -n '/^5\. /,/^6\. /p' "$EV") && grep -q 'to\.lane' <(sed -n '/^5\. /,/^6\. /p' "$EV") && ! grep -q 'bare move with no comment' "$EV"; } || { echo "events.md item 4 lacks moved: as a receipt, item 5 lacks moved.by or to.lane (which receipt counts), or it still says bare move with no comment"; exit 1; }
 ok "watch events: a move receipt is a record and moved.by names the mover"
 
 HD="$SK/heal/scripts/heal-descriptors.py"
