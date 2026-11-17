@@ -6,7 +6,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | what it's for |
 |---|---|
-| `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, healing a damaged board, the default lane sets, and founding a new board with a catalog of common label kinds (priority, component, type, size, platform, round, release, epic) to pick from |
+| `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, the card lease that marks a card one session is working, healing a damaged board, the default lane sets, and founding a new board with a catalog of common label kinds (priority, component, type, size, platform, round, release, epic) to pick from |
 | `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `watch` | a standing watch on one or more boards, responding to changes as they arrive. At start-up it catches up on what happened while no watch ran: comments left unanswered, cards waiting in agent lanes and work claims that look abandoned. After its conversation is compacted it re-reads the boards instead of trusting its summary |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce, filed as cards in a Decisions lane beside the questions |
@@ -28,7 +28,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 356 | 4,488 |
+| `lanework` | 10 | 382 | 5,145 |
 | `work` | 16 | 444 | 7,384 |
 | `watch` | 4 | 180 | 1,611 |
 | `discovery` | 14 | 502 | 2,908 |
@@ -42,17 +42,17 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` an
 
 | file | words |
 |---|---|
-| `SKILL.md` | 356 |
+| `SKILL.md` | 382 |
 | `references/authority.md` | 129 |
 | `references/board-kinds.md` | 1,241 |
 | `references/finding.md` | 386 |
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 150 |
-| `references/writes.md` | 1,285 |
+| `references/writes.md` | 1,916 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **4,488** |
+| **total** | **5,145** |
 
 #### `work`
 

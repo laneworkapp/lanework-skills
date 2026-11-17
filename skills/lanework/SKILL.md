@@ -15,7 +15,7 @@ A board is a folder of plain dirs + Markdown that the Lanework app renders live.
 | authority chain: read before any write | `references/authority.md` |
 | where boards live | `references/finding.md` |
 | reading order, one-pass read, threads | `references/reading.md` |
-| write rules: stamps, atomic, paths, placing, healing, git | `references/writes.md` |
+| write rules: stamps, atomic, paths, placing, the lease, healing, git | `references/writes.md` |
 | founding a new board | `references/founding.md` |
 | default lane sets and who moves cards | `references/board-kinds.md` |
 | index and lane templates; the label-kind catalog | `templates/` |
@@ -27,6 +27,7 @@ A board is a folder of plain dirs + Markdown that the Lanework app renders live.
 | `scripts/read-board.sh <board>` | prints lanes and cards in reading order |
 | `scripts/found-board.sh <board> --index F --lanes F --model m [--labels k,...]` | founds a board from templates; `--labels` writes catalog kinds (`templates/label-kinds.md`) into `config.labels` |
 | `scripts/heal-board.py <board> [--apply --name N --model M]` | repairs known board damage; when, and which copy wins: `references/writes.md` § Healing |
+| `scripts/lease.sh stake\|renew\|check\|release <board> <card-uuid> --model m` · `list <board>` | the card lease: `claimed`, its timer and records; rules: `references/writes.md` § Lease |
 | `scripts/lib.sh` | shared helpers, sourced by every skill's scripts |
 
 ## Built on this
