@@ -1551,7 +1551,8 @@ ok "move-card.sh in a git repo: the move is on disk only, nothing staged, nothin
 # post-ask: a record then the ask straight after; the ask waits for the next second, sets waiting to itself and restamps the card
 printf '@anyone Ship the thing today?\n\nOptions:\n- A: Ship it.\n- B: Hold it.\n- Recap: Explain this in plain terms first\n\nWhy now: it is ready.\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/ask1.md"
 sed 's/^@anyone /@kim /' "$T/ask1.md" > "$T/ask2.md"
-cp "$MF" "$T/pa1.md"; R1=$("$SK/work/scripts/post-comment.sh" "$WB" "$C1F" --body "$T/pc.md" --model smoke)
+# the record goes --ahead 1: an ask posted without the wait would land a second before it, every time
+cp "$MF" "$T/pa1.md"; R1=$("$SK/work/scripts/post-comment.sh" "$WB" "$C1F" --body "$T/pc.md" --model smoke --ahead 1)
 A1=$("$PA" "$WB" "$C1F" --body "$T/ask1.md" --for anyone --model smoke --name fixer --session smoke --in-reply-to "$R1") || { echo "post-ask failed"; exit 1; }
 AF="$ACT/$C1F/comments/$A1/index.md"; RA=$(atof "$ACT/$C1F/comments/$R1/index.md" created); AA=$(atof "$AF" created)
 [[ "$AA" > "$RA" ]] || { echo "the ask ($AA) is not after the record ($RA)"; exit 1; }
@@ -1560,7 +1561,7 @@ grep -qxF "waiting: {for: anyone, since: $AA, comment: $A1}" "$MF" && grep -qxF 
 "$SK/work/scripts/lint-ask.sh" "$AF" "$WB" && validate "$WB" >/dev/null && "$LST" "$WB" || { echo "post-ask: the landed ask fails lint, or the board fails"; exit 1; }
 A2=$("$PA" "$WB" "$ISS" --body "$T/ask2.md" --for kim --model smoke) && grep -qxF "waiting: {for: kim, since: $(atof "$ACT/$ISS/comments/$A2/index.md" created), comment: $A2}" "$ACT/$ISS/index.md" \
   && "$SK/work/scripts/lint-ask.sh" "$ACT/$ISS/comments/$A2/index.md" "$WB" || { echo "post-ask --for kim:"; cat "$ACT/$ISS/index.md"; exit 1; }
-ok "post-ask.sh: the ask lands a second after the record before it, waiting.comment is its uuid and since its created.at, modified restamped by the caller; --for anyone and --for kim both lint clean"
+ok "post-ask.sh: the ask lands after a record stamped a second ahead, waiting.comment is its uuid and since its created.at, modified restamped by the caller; --for anyone and --for kim both lint clean"
 S12=$(sum "$WB")
 printf '@kim maybe ship it; worth a try? and also this?\n' > "$T/ask3.md"
 rc=0; "$PA" "$WB" "$C2F" --body "$T/ask3.md" --for kim --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "post-ask, a failing ask for a person: want exit 1, got $rc"; exit 1; }
@@ -1587,8 +1588,8 @@ O=$(cb "B: card edited" "$CP") || { echo "commit-board failed: $O"; exit 1; }
   && [ "$(g diff --cached --name-only)" = notes.txt ] && [ "$(g status --porcelain -- "$CP")" = "" ] && [ "$(g status --porcelain -- junk.txt)" = "?? junk.txt" ] \
   && [ "$(g stash list | wc -l | tr -d ' ')" = "$st0" ] || { echo "commit-board: wrong commit or touched the rest:"; g log -1 --stat; g status --short; exit 1; }
 ok "commit-board.sh commits only the named path: the owner's staged and untracked files stay as they were, no trailer, no push without --push, stash count unchanged"
-echo c > "$G/work/$CP"; cb --push --trailer "Claude-Session: smoke" "B: pushed" "$CP" >/dev/null || { echo "commit-board --push failed"; exit 1; }
-[ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%B | sed '/^$/d' | tr '\n' '|')" = "B: pushed|Claude-Session: smoke|" ] || { echo "commit-board --push --trailer:"; g log -1; exit 1; }
+echo c > "$G/work/$CP"; cb --push --trailer "Claude-Session: smoke" --trailer "Reviewed-by: smoke" "B: pushed" "$CP" >/dev/null || { echo "commit-board --push failed"; exit 1; }
+[ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%B | sed '/^$/d' | tr '\n' '|')" = "B: pushed|Claude-Session: smoke|Reviewed-by: smoke|" ] || { echo "commit-board --push --trailer:"; g log -1; exit 1; }
 # a rejected push: the pre-push hook lands another clone's commit first, once; the script un-commits, fast-forwards and retries
 cat > "$G/work/.git/hooks/pre-push" <<HOOK
 #!/bin/bash
@@ -1600,7 +1601,20 @@ O=$(cb --push "B: retried" "$CP" 2>&1) || { echo "commit-board did not recover f
 [ -e "$G/hooked" ] && grep -q 'rejected' <<<"$O" && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s HEAD^)" = other ] \
   && [ "$(g show --name-only --format= HEAD)" = "$CP" ] && [ -f "$G/work/other.txt" ] && [ "$(g log --format=%s | grep -c '^B: retried$')" -eq 1 ] || { echo "rejected push, retry: $O"; g log --oneline -4; exit 1; }
 rm -f "$G/work/.git/hooks/pre-push"
-ok "commit-board.sh --push lands on origin, the trailer only from --trailer and once; a rejected push un-commits, fast-forwards over the other commit and retries once"
+ok "commit-board.sh --push lands on origin, trailers only from --trailer, each once, two kept in order; a rejected push un-commits, fast-forwards over the other commit and retries once"
+# a kill while the push hangs (a pre-push hook that sleeps, then refuses): HEAD has the commit and the index already matches it,
+# so the owner's next plain commit cannot revert the board write; SIGKILL, then SIGTERM
+printf '#!/bin/bash\ntouch "%s/inpush"; sleep 3; touch "%s/pushdone"; exit 1\n' "$G" "$G" > "$G/work/.git/hooks/pre-push"; chmod +x "$G/work/.git/hooks/pre-push"
+for sig in KILL TERM; do
+  rm -f "$G/inpush" "$G/pushdone"; echo "k$sig" > "$G/work/$CP"
+  (cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: killed $sig" "$CP") >/dev/null 2>&1 & KP=$!
+  perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/inpush' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the push never reached the hook"; exit 1; }
+  kill -"$sig" "$KP"; wait "$KP" 2>/dev/null || true
+  perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/pushdone' ]; do sleep 0.1; done"; sleep 0.5
+  [ "$(g log -1 --format=%s)" = "B: killed $sig" ] && g diff --cached --quiet -- "$CP" && g diff --quiet -- "$CP" || { echo "killed ($sig) mid-push: the index does not match HEAD on $CP"; g status --short; g diff --cached --stat; exit 1; }
+done
+rm -f "$G/work/.git/hooks/pre-push"
+ok "commit-board.sh killed mid-push (SIGKILL, SIGTERM): HEAD holds the commit and the index already matches it on the named path"
 # diverged: the other clone and a local commit both change the card file
 go pull -q; echo e > "$G/other/$CP"; go commit -q -am theirs; go push -q 2>/dev/null; echo f > "$G/work/$CP"; g commit -q -am ours; h1=$(g rev-parse HEAD)
 echo g > "$G/work/$CP"; rc=0; O=$(cb --push "B: diverged" "$CP" 2>&1) || rc=$?
@@ -1615,7 +1629,7 @@ g checkout -q -- notes.txt; cb "B: caught up" "$CP" >/dev/null && [ "$(g log -1 
 ok "commit-board.sh stops (exit 1, HEAD kept) on a diverged branch and on a dirty overlap, naming the file each time; otherwise fast-forwards first; stash count unchanged throughout"
 # refusals: outside the work tree, the root, .DS_Store named or inside a named folder, a glob pathspec, no paths
 h3=$(g rev-parse HEAD); echo j > "$G/work/$CP"; echo k > "$T/outside.md"; touch "$G/work/B.lanework/lane/card/.DS_Store"
-for a in "$T/outside.md" ../outside.md . "$G/work" B.lanework/lane/card/.DS_Store B.lanework/lane/card '*.md'; do
+for a in "$T/outside.md" ../outside.md . "$G/work" B.lanework/lane/card/.DS_Store B.lanework/lane/card; do
   rc=0; cb "B: refused" "$a" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h3" ] || { echo "commit-board '$a': want exit 1 and no commit, got $rc"; exit 1; }
 done
 rc=0; cb "B: no paths" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "commit-board with no paths: want exit 2, got $rc"; exit 1; }
@@ -1623,11 +1637,14 @@ rc=0; cb --trailer >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "commit-b
 rm -f "$G/work/B.lanework/lane/card/.DS_Store"; mkdir -p "$G/work/B.lanework/lane/card/comments/.draft"; echo draft > "$G/work/B.lanework/lane/card/comments/.draft/index.md"
 rc=0; cb "B: draft" B.lanework/lane/card >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h3" ] || { echo "commit-board: a folder holding an owner's draft: want exit 1, got $rc"; exit 1; }
 rm -rf "$G/work/B.lanework/lane/card/comments"
-ok "commit-board.sh refuses a path outside the work tree, the root, .DS_Store named or inside a named folder, an owner's comments/.draft, and a glob (exit 1, no commit); no paths exits 2"
+ok "commit-board.sh refuses a path outside the work tree, the root, .DS_Store named or inside a named folder, and an owner's comments/.draft (exit 1, no commit); no paths exits 2"
 O=$(cb "B: one gone" B.lanework/old/card/index.md "$CP" 2>&1) && grep -q 'B.lanework/old/card/index.md is neither on disk nor in HEAD' <<<"$O" && [ "$(g show --name-only --format= HEAD)" = "$CP" ] \
   || { echo "commit-board: a never-committed old path beside a real one: $O"; exit 1; }
+BR="B.lanework/lane [x]/i?.md"; mkdir -p "$G/work/B.lanework/lane [x]"; echo q > "$G/work/$BR"
+cb "B: brackets" "$BR" >/dev/null && [ "$(g show --name-only --format= HEAD)" = "$BR" ] || { echo "commit-board: a real path with [ and ? was not committed"; exit 1; }
+h4=$(g rev-parse HEAD); O=$(cb "B: glob" '*.md' 2>&1) && grep -q '^nothing to commit$' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h4" ] || { echo "commit-board: a glob matching no path: $O"; exit 1; }
 h3=$(g rev-parse HEAD); echo j2 > "$G/work/$CP"
-ok "commit-board.sh skips a named path neither on disk nor in HEAD (a card's old lane path, filed since) and commits the rest"
+ok "commit-board.sh skips a named path neither on disk nor in HEAD (a card's old lane path, filed since; a glob, read literally) and commits the rest; a real path with [ and ? commits"
 # the lock: held by a live pid, the second invocation waits; held by a dead pid, it is reclaimed
 LK="$(cd "$G/work" && cd "$(gx rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.lock"
 sleep 30 & HP=$!; mkdir "$LK"; echo "$HP" > "$LK/pid"

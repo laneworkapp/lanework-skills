@@ -8,26 +8,30 @@
 # naming the files), then commit through a private GIT_INDEX_FILE read from HEAD plus only the named
 # paths (`add -A` per path, literal pathspecs, so deletions and moves count; a path neither on disk nor
 # in HEAD, such as a card's old lane path when it was filed since, is skipped). The message is <msg>, and
-# T as its last paragraph only when --trailer gives one. --push pushes <branch> to origin; a rejected
-# push un-commits (the branch ref only, files stay on disk) and retries from the fetch, up to 5 tries:
-# safe only because the lock serialises commits. --push pushes the branch, so earlier unpushed commits
+# the --trailer values (repeatable, in order, one per line) as its last paragraph only when given.
+# --push pushes <branch> to origin; a rejected push un-commits (the branch ref only, files stay on
+# disk) and retries from the fetch, up to 5 tries: safe only because the lock serialises commits. --push pushes the branch, so earlier unpushed commits
 # on it go too. Without --push nothing leaves the machine.
 # Never stashes (warns if the stash count changed), never `add -A` without paths, never rebases.
-# Closing `git reset -q -- <paths>` syncs the real index for the named paths only: anything the owner
-# had staged under them is unstaged, everything else they staged stays staged.
+# `git reset -q -- <paths>` right after the commit, and again after each un-commit, syncs the real index
+# for the named paths only (anything the owner had staged under them is unstaged, everything else they
+# staged stays staged), so a kill during the push leaves an index matching HEAD; once a commit starts,
+# the EXIT trap syncs it again, which covers SIGTERM and SIGINT anywhere. Window left: a SIGKILL between
+# `git commit` (or `update-ref`) returning and the next line; `git status` then shows the path as MM,
+# and `git reset -q -- <path>` repairs it.
 # Prints the new commit's one-line log, or "nothing to commit".
 # Exit 2: a bad flag, no message, no paths. Exit 1, nothing committed: not in a work tree, detached HEAD,
-# a path outside the work tree, the root itself or a glob, a `.DS_Store` or an owner's `comments/.draft/`
+# a path outside the work tree or the root itself, a `.DS_Store` or an owner's `comments/.draft/`
 # among what would be staged, a path git cannot add, --push with no origin, the lock not taken in
 # time or lost, the fast-forward refused, the push failed 5 times.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE='commit-board.sh [--push] [--trailer T] "<msg>" <paths...>'
-PUSH=""; TRAILER=""
+PUSH=""; TRAILERS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --push)    PUSH=1; shift ;;
-    --trailer) [ $# -ge 2 ] && [ -n "$2" ] || { echo "commit-board.sh: --trailer needs a value" >&2; echo "usage: $USAGE" >&2; exit 2; }; TRAILER="$2"; shift 2 ;;
+    --trailer) [ $# -ge 2 ] && [ -n "$2" ] || { echo "commit-board.sh: --trailer needs a value" >&2; echo "usage: $USAGE" >&2; exit 2; }; TRAILERS+=("$2"); shift 2 ;;
     --)        shift; break ;;
     -*)        echo "commit-board.sh: unknown argument: $1" >&2; echo "usage: $USAGE" >&2; exit 2 ;;
     *)         break ;;
@@ -46,7 +50,6 @@ for p in "$@"; do   # resolved from the caller's directory, before the cd below
     "$TOP"/*) ;;
     *) echo "commit-board.sh: $p is outside the work tree $TOP" >&2; exit 1 ;;
   esac
-  case "$p" in *[\*\?\[]*) echo "commit-board.sh: refusing $p: a glob; name each path" >&2; exit 1 ;; esac
   [ "$(basename "$abs")" != .DS_Store ] || { echo "commit-board.sh: refusing $p: .DS_Store is never committed" >&2; exit 1; }
   REL+=("${abs#"$TOP"/}")
 done
@@ -62,7 +65,11 @@ LOCK="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-commit.XXXXXX")
 mvdir() { perl -e 'rename($ARGV[0], $ARGV[1]) or exit 1' "$1" "$2" 2>/dev/null; }   # rename(2): fails onto a non-empty dir
 own() { [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ]; }
-release() { if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"; }
+ADD=(); HEAD0=""
+release() {
+  if [ "${#ADD[@]}" -gt 0 ] && [ -n "$HEAD0" ]; then git reset -q -- "${ADD[@]}" || true; fi
+  if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"
+}
 trap release EXIT
 reclaim() {   # reclaim <dead pid>: move the lock aside, keep it gone only if it was that pid's; a live one goes back
   local aside="$LOCK.stale.$$"
@@ -112,13 +119,18 @@ sync() {
     return 0   # ahead of origin: --push carries those commits too
   else
     base=$(git merge-base HEAD "$UP"); in=$(git diff --name-only "$base" "$UP"); ours=$(git diff --name-only "$base" HEAD; dirty)
-    echo "commit-board.sh: $BRANCH and origin/$BRANCH have diverged ($(git rev-list --count "$base..HEAD") local, $(git rev-list --count "$base..$UP") incoming); changed on both sides:" >&2
-    both "$(printf '%s\n' "$ours" | sort -u)" "$in" | sed 's/^/  /' >&2; exit 1
+    common=$(both "$(printf '%s\n' "$ours" | sort -u)" "$in")
+    echo "commit-board.sh: $BRANCH and origin/$BRANCH have diverged ($(git rev-list --count "$base..HEAD") local, $(git rev-list --count "$base..$UP") incoming); nothing committed." >&2
+    if [ -n "$common" ]; then echo "changed on both sides:" >&2; sed 's/^/  /' <<<"$common" >&2
+    else echo "no file changed on both sides: rebase or merge $BRANCH onto origin/$BRANCH, then run this again." >&2; fi
+    exit 1
   fi
 }
 
+# sync_index: the real index for the named paths = HEAD's, so a later plain `git commit` cannot revert the board write
+sync_index() { git reset -q -- "${ADD[@]}" || echo "commit-board.sh: warning: could not sync the real index for the named paths (git reset)" >&2; }
 STASH0=$(git stash list | wc -l | tr -d ' ')
-{ printf '%s\n' "$MSG"; [ -z "$TRAILER" ] || printf '\n%s\n' "$TRAILER"; } > "$STAGE/msg"
+{ printf '%s\n' "$MSG"; [ "${#TRAILERS[@]}" -eq 0 ] || { printf '\n'; printf '%s\n' "${TRAILERS[@]}"; }; } > "$STAGE/msg"
 OK=""; NEW=""
 for try in 1 2 3 4 5; do
   sync
@@ -136,7 +148,9 @@ for try in 1 2 3 4 5; do
   [ -z "$BAD" ] || { echo "commit-board.sh: refusing, these would be committed (.DS_Store, or an owner's unposted draft); name the files instead:" >&2; sed 's/^/  /' <<<"$BAD" >&2; exit 1; }
   if [ -z "$STAGED" ]; then echo "nothing to commit"; exit 0; fi
   mine
+  HEAD0=1   # from here the EXIT trap syncs the index to whatever HEAD is
   GIT_INDEX_FILE="$IDX" git commit -q -F "$STAGE/msg"
+  sync_index   # before the push: a kill from here on leaves an index that matches HEAD
   NEW=$(git rev-parse HEAD)
   [ -n "$PUSH" ] || { OK=1; break; }
   mine
@@ -145,9 +159,9 @@ for try in 1 2 3 4 5; do
   sed 's/^/  git: /' "$STAGE/push.err" >&2
   mine
   git update-ref "refs/heads/$BRANCH" "$NEW^" "$NEW"
+  sync_index
   sleep 1
 done
-git reset -q -- "${ADD[@]}" 2>/dev/null || echo "commit-board.sh: warning: could not sync the real index for the named paths (git reset)" >&2
 [ "$(git stash list | wc -l | tr -d ' ')" = "$STASH0" ] || echo "commit-board.sh: WARNING: the stash count changed while committing; tell the coordinator" >&2
 [ -n "$OK" ] || { echo "commit-board.sh: push failed 5 times; nothing committed, files on disk" >&2; exit 1; }
 git log --oneline -1 | cat
