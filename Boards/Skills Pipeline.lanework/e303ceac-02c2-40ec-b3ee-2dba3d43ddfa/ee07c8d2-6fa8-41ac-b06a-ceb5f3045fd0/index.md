@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Retire the dispatch skill and move its arming sweep and a compaction rule into watch"
-order: 10240
+order: 65536
 labels: [{text: watch, kind: {type: skill, text: Skill}}, {text: dispatch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T11:33:01Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-17T12:10:45Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-17T12:39:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Remove the `dispatch` skill, and give `watch` the two things that make a long watch safe without it: the scripted arming sweep, and a rule for what to do after the session's context is compacted.
 
