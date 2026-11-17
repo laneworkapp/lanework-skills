@@ -770,9 +770,10 @@ ok "lint-stamps: --slack with no value and no arguments exit 2, and the error go
 LL="$SK/work/scripts/lint-leases.sh"; LLB="$T/LeaseLint.lanework"; LLBASE="$T/LeaseLintBase.lanework"; cp -R "$D" "$LLBASE"
 LLN=$(basename "$(dirname "$(ls "$LLBASE"/*/index.md | sed -n 2p)")"); rm -rf "${LLBASE:?}"/*/*/
 LLPRE=$(. "$SK/lanework/scripts/lib.sh"; printf '%s' "$LEASE_LOST_PREFIX")
-llago() { date -u -v-${1}S +%FT%TZ; }; llahead() { date -u -v+${1}S +%FT%TZ; }
+# every fixture time of a case is an offset from ONE epoch (LLNOW, taken by llfresh), so no two stamps straddle a second boundary
+llago() { date -u -r $((LLNOW - $1)) +%Y-%m-%dT%H:%M:%SZ; }; llahead() { date -u -r $((LLNOW + $1)) +%Y-%m-%dT%H:%M:%SZ; }
 # llfresh: a new board from the base; llcard <card> [claimed text]; llcom <card> <comment id> <at> <session> <first line> [crlf|block]
-llfresh() { rm -rf "${LLB:?}"; cp -R "$LLBASE" "$LLB"; }
+llfresh() { LLNOW=$(date -u +%s); rm -rf "${LLB:?}"; cp -R "$LLBASE" "$LLB"; }
 llcard() { mkdir -p "$LLB/$LLN/$1"
   { printf -- '---\nschema: 1\nkind: card\ntitle: "Lint %s"\norder: 1024\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n' "$1"
     [ -z "${2:-}" ] || printf '%s\n' "$2"; printf -- '---\nBody.\n'; } > "$LLB/$LLN/$1/index.md"; }
@@ -799,7 +800,7 @@ lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 2, lease 
 ok "lint-leases is silent, exits 0 and tallies the leased cards on a board with only one-session STARTs (flow, block and CRLF comments read)"
 
 # 2. a lease-lost record
-LT2=$(llago 600); llfresh; llcard $LA; llcom $LA c2000000-0000-4000-8000-000000000001 "$LT2" S-gone "$LLPRE session S-gone no longer holds this card; session S-other does."
+llfresh; LT2=$(llago 600); llcard $LA; llcom $LA c2000000-0000-4000-8000-000000000001 "$LT2" S-gone "$LLPRE session S-gone no longer holds this card; session S-other does."
 # not hits: the prefix quoted mid-line, and on the second line
 llcom $LA c2000000-0000-4000-8000-000000000002 "$(llago 500)" S-gone "A note quoting $LLPRE mid-line, and nothing else."
 llcom $LA c2000000-0000-4000-8000-000000000003 "$(llago 400)" S-gone $'A note whose second line starts it.\n'"$LLPRE not the opening."
@@ -868,14 +869,15 @@ ok "lint-leases leaves every file of the board unchanged (checksum before and af
 # 8. a symlinked board reads like its target; 9. a board passed twice (any spelling) counts once, and the lines print the first spelling given
 llfresh; llcard $LA "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llago 2000)}"; llcom $LA c8000000-0000-4000-8000-000000000001 "$(llago 600)" S-gone "$LLPRE x"
 llcom $LA c8000000-0000-4000-8000-000000000002 "$(llago 5000)" S-a '**START: a**'
-lint "$LLB"; LO1=$LO; LE1=$LE; [ "$LR" = 1 ] && [ "$LE1" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 1" ] || llfail "case 8: the real folder"
+llnorm() { sed -E "s/is [0-9]+s lapsed/is Ns lapsed/"; }   # the lapsed seconds move with the lint's own clock; compare the rest
+lint "$LLB"; LO1=$(llnorm <<<"$LO"); LE1=$LE; [ "$LR" = 1 ] && [ "$LE1" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 1" ] || llfail "case 8: the real folder"
 ln -s "$LLB" "$T/LeaseLintLink.lanework"
-lint "$T/LeaseLintLink.lanework"; [ "$LR" = 1 ] && [ "$LE" = "$LE1" ] && [ "$LO" = "$(sed "s#^$LLB/#$T/LeaseLintLink.lanework/#" <<<"$LO1")" ] || llfail "case 8: a symlinked board must read like its target and print the spelling given"
+lint "$T/LeaseLintLink.lanework"; [ "$LR" = 1 ] && [ "$LE" = "$LE1" ] && [ "$(llnorm <<<"$LO")" = "$(sed "s#^$LLB/#$T/LeaseLintLink.lanework/#" <<<"$LO1")" ] || llfail "case 8: a symlinked board must read like its target and print the spelling given"
 lint "$T/LeaseLintLink.lanework/"; [ "$LR" = 1 ] && [ "$LE" = "$LE1" ] || llfail "case 8: a symlink with a trailing slash"
 ok "lint-leases reads a symlinked board like the folder it points at, and prints the spelling it was given"
-lint "$LLB" "$LLB"; [ "$LR" = 1 ] && [ "$LO" = "$LO1" ] && [ "$LE" = "$LE1" ] || llfail "case 9: a board passed twice"
-lint "$LLB" "$T/LeaseLintLink.lanework" "$LLB/"; [ "$LR" = 1 ] && [ "$LO" = "$LO1" ] && [ "$LE" = "$LE1" ] || llfail "case 9: a board passed as itself, a symlink and with a slash"
-(cd "$T" && LR=0 && LO=$("$LL" "./LeaseLint.lanework" "LeaseLint.lanework" "$LLB" 2>"$T/ll.err") || LR=$?; [ "$LO" = "$(sed "s#^$LLB/#./LeaseLint.lanework/#" <<<"$LO1")" ] && [ "$(cat "$T/ll.err")" = "$LE1" ]) || llfail "case 9: X, ./X and the absolute path"
+lint "$LLB" "$LLB"; [ "$LR" = 1 ] && [ "$(llnorm <<<"$LO")" = "$LO1" ] && [ "$LE" = "$LE1" ] || llfail "case 9: a board passed twice"
+lint "$LLB" "$T/LeaseLintLink.lanework" "$LLB/"; [ "$LR" = 1 ] && [ "$(llnorm <<<"$LO")" = "$LO1" ] && [ "$LE" = "$LE1" ] || llfail "case 9: a board passed as itself, a symlink and with a slash"
+(cd "$T" && LR=0 && LO=$("$LL" "./LeaseLint.lanework" "LeaseLint.lanework" "$LLB" 2>"$T/ll.err") || LR=$?; [ "$(llnorm <<<"$LO")" = "$(sed "s#^$LLB/#./LeaseLint.lanework/#" <<<"$LO1")" ] && [ "$(cat "$T/ll.err")" = "$LE1" ]) || llfail "case 9: X, ./X and the absolute path"
 ok "lint-leases counts a board passed twice once, in the same spelling, as X and ./X, and through a symlink"
 
 # 7. the real record: lease.sh loses a card (staked, its timer ended, claimed taken by another session, then checked); the lint finds it
