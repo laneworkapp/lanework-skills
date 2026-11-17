@@ -766,6 +766,131 @@ rc=0; "$LS" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: w
 [ -z "$("$LS" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
 ok "lint-stamps: --slack with no value and no arguments exit 2, and the error goes to stderr"
 
+# work: lint-leases (a copy of the discovery board with its cards removed and the comments, claimed keys and START records seeded here; read-only, so the tree is byte-identical after)
+LL="$SK/work/scripts/lint-leases.sh"; LLB="$T/LeaseLint.lanework"; LLBASE="$T/LeaseLintBase.lanework"; cp -R "$D" "$LLBASE"
+LLN=$(basename "$(dirname "$(ls "$LLBASE"/*/index.md | sed -n 2p)")"); rm -rf "${LLBASE:?}"/*/*/
+LLPRE=$(. "$SK/lanework/scripts/lib.sh"; printf '%s' "$LEASE_LOST_PREFIX")
+llago() { date -u -v-${1}S +%FT%TZ; }; llahead() { date -u -v+${1}S +%FT%TZ; }
+# llfresh: a new board from the base; llcard <card> [claimed text]; llcom <card> <comment id> <at> <session> <first line> [crlf|block]
+llfresh() { rm -rf "${LLB:?}"; cp -R "$LLBASE" "$LLB"; }
+llcard() { mkdir -p "$LLB/$LLN/$1"
+  { printf -- '---\nschema: 1\nkind: card\ntitle: "Lint %s"\norder: 1024\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n' "$1"
+    [ -z "${2:-}" ] || printf '%s\n' "$2"; printf -- '---\nBody.\n'; } > "$LLB/$LLN/$1/index.md"; }
+llcom() { local d="$LLB/$LLN/$1/comments/$2" f; mkdir -p "$d"; f="$d/index.md"
+  if [ "${6:-}" = block ]; then
+    printf -- '---\nschema: 1\nkind: comment\ncreated:\n  at: %s\n  by: {name: x, kind: agent, model: smoke, session: "%s"}\n---\n%s\n' "$3" "$4" "$5" > "$f"
+  else
+    printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: x, kind: agent, model: smoke, session: "%s"}}\nmodified: {at: %s, by: {name: x, kind: agent, model: smoke, session: "%s"}}\n---\n%s\n' "$3" "$4" "$3" "$4" "$5" > "$f"
+  fi
+  if [ "${6:-}" = crlf ]; then perl -pi -e 's/\n/\r\n/' "$f"; fi; }
+# lint <args>: LO stdout, LE stderr, LR exit
+lint() { LR=0; LO=$("$LL" "$@" 2>"$T/ll.err") || LR=$?; LE=$(cat "$T/ll.err"); }
+llfail() { echo "$1"; echo "stdout: $LO"; echo "stderr: $LE"; echo "exit: $LR"; exit 1; }
+LA=d1000000-0000-4000-8000-000000000001; LB2=d1000000-0000-4000-8000-000000000002; LC=d1000000-0000-4000-8000-000000000003
+LD=d1000000-0000-4000-8000-000000000004; LH=d1000000-0000-4000-8000-000000000005; LF=d1000000-0000-4000-8000-000000000006; LG=d1000000-0000-4000-8000-000000000007
+
+# 1. one-session STARTs only (flow, block and CRLF comments, a non-START comment, a card with no comment): silent, exit 0, tally on stderr
+llfresh; llcard $LA; llcard $LB2; llcard $LC
+llcom $LA c1000000-0000-4000-8000-000000000001 "$(llago 7200)" S-one '**START: first**'
+llcom $LA c1000000-0000-4000-8000-000000000002 "$(llago 7100)" S-one 'START: again after a compaction' block
+llcom $LA c1000000-0000-4000-8000-000000000003 "$(llago 7000)" S-one 'Just a note.'
+llcom $LB2 c1000000-0000-4000-8000-000000000004 "$(llago 7200)" S-two '**START: b**' crlf
+lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 2, lease lost: 0, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on one-session STARTs: want silent exit 0 and the tally on stderr"
+ok "lint-leases is silent, exits 0 and tallies the leased cards on a board with only one-session STARTs (flow, block and CRLF comments read)"
+
+# 2. a lease-lost record
+LT2=$(llago 600); llfresh; llcard $LA; llcom $LA c2000000-0000-4000-8000-000000000001 "$LT2" S-gone "$LLPRE session S-gone no longer holds this card; session S-other does."
+# not hits: the prefix quoted mid-line, and on the second line
+llcom $LA c2000000-0000-4000-8000-000000000002 "$(llago 500)" S-gone "A note quoting $LLPRE mid-line, and nothing else."
+llcom $LA c2000000-0000-4000-8000-000000000003 "$(llago 400)" S-gone $'A note whose second line starts it.\n'"$LLPRE not the opening."
+lint "$LLB"
+[ "$LR" = 1 ] && [ "$LO" = "$LLB/$LLN/$LA: lease lost c2000000-0000-4000-8000-000000000001 $LT2" ] && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on a lease-lost record"
+ok "lint-leases finds a lease-lost record, naming the card and the comment id and its time"
+
+# 3. two STARTs
+llfresh; for c in $LD $LH $LF $LG; do llcard $c; done
+llcom $LD c3000000-0000-4000-8000-000000000001 "$(llago 5000)" S-a '**START: d1**'; llcom $LD c3000000-0000-4000-8000-000000000002 "$(llago 4900)" S-b 'START: d2' block
+llcom $LD c3000000-0000-4000-8000-000000000003 "$(llago 4000)" S-a 'The first session writes again.'
+llcom $LH c3000000-0000-4000-8000-000000000004 "$(llago 5000)" S-a '**START: e1**'; llcom $LH c3000000-0000-4000-8000-000000000005 "$(llago 4900)" S-b '**START: e2**'
+llcom $LF c3000000-0000-4000-8000-000000000006 "$(llago 5000)" S-a '**START: f1**'; llcom $LF c3000000-0000-4000-8000-000000000007 "$(llago 4900)" S-a '**START: f2**'
+llcom $LG c3000000-0000-4000-8000-000000000008 "$(llago 5000)" S-a '**START: g1**'; llcom $LG c3000000-0000-4000-8000-000000000009 "$(llago 2000)" S-b '**START: g2**'
+lint "$LLB"
+[ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 2 ] \
+  && grep -qE ": two STARTs c3000000-0000-4000-8000-000000000001 c3000000-0000-4000-8000-000000000002 100s apart first session wrote again\$" <<<"$(grep "/$LD:" <<<"$LO")" \
+  && grep -qE ": two STARTs c3000000-0000-4000-8000-000000000004 c3000000-0000-4000-8000-000000000005 100s apart\$" <<<"$(grep "/$LH:" <<<"$LO")" \
+  && [ "$LE" = "leased cards: 4, lease lost: 0, two STARTs: 2, lapsed: 0" ] || llfail "lint-leases two STARTs: want D tagged, E plain, F (one session) and G (3000 s apart) passed"
+lint "$LLB" --window 4000; [ "$(grep -c . <<<"$LO")" = 3 ] && grep -q "/$LG: two STARTs .* 3000s apart\$" <<<"$LO" || llfail "--window 4000 should add G"
+ok "lint-leases finds two STARTs from two sessions inside the window, tags first session wrote again, and passes two from one session and two from sessions farther apart than the window (--window widens it)"
+
+# 4. a lapsed claimed
+llfresh
+llcard $LD "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llago 2000)}"
+llcard $LH "claimed:
+  by: {name: c, kind: agent, model: smoke, session: \"S-x\"}
+  until: $(llago 2000)"
+llcard $LF "claimed:
+  by: {name: c, kind: agent, model: smoke, session: \"S-x\"}
+  until: $(llahead 1500)"
+llcard $LG "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llago 100)}"
+lint "$LLB"
+[ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 2 ] && grep -qE "/$LD: claimed until 20[0-9-]+T[0-9:]+Z is 20[0-9][0-9]s lapsed\$" <<<"$LO" \
+  && grep -qE "/$LH: claimed until 20[0-9-]+T[0-9:]+Z is 20[0-9][0-9]s lapsed\$" <<<"$LO" && [ "$LE" = "leased cards: 0, lease lost: 0, two STARTs: 0, lapsed: 2" ] || llfail "lint-leases lapsed: want the flow and block claims 2000 s lapsed, the live one and the one inside the grace passed"
+lint "$LLB" --grace 50; [ "$(grep -c . <<<"$LO")" = 3 ] && grep -q "/$LG: claimed until" <<<"$LO" || llfail "--grace 50 should add the 100 s lapse"
+# a voided claim (until over 35 minutes ahead, or unreadable) is no lapse
+llcard $LD "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llahead 9000)}"; llcard $LH "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: tomorrow}"
+rm -rf "${LLB:?}/$LLN/$LF" "${LLB:?}/$LLN/$LG"; lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] || llfail "a voided claim (until far ahead or unreadable) must not be reported lapsed"
+ok "lint-leases finds a claimed lapsed past the grace in flow and block form, passes a live lease and one lapsed inside the grace (--grace narrows it), and skips a voided claim"
+
+# 5. --since and --first
+llfresh; for c in $LA $LB2 $LC $LD; do llcard $c; done
+llcom $LA c5000000-0000-4000-8000-000000000001 "$(llago 4000)" S-a '**START: a**'; llcom $LA c5000000-0000-4000-8000-000000000002 "$(llago 3900)" S-a "$LLPRE one"
+llcom $LB2 c5000000-0000-4000-8000-000000000003 "$(llago 3000)" S-a '**START: b**'; llcom $LB2 c5000000-0000-4000-8000-000000000004 "$(llago 2950)" S-b '**START: b2**'
+llcom $LC c5000000-0000-4000-8000-000000000005 "$(llago 2000)" S-a '**START: c**'
+llcom $LD c5000000-0000-4000-8000-000000000006 "$(llago 1000)" S-a '**START: d**'; llcom $LD c5000000-0000-4000-8000-000000000007 "$(llago 900)" S-a "$LLPRE two"
+lint "$LLB"; [ "$LE" = "leased cards: 4, lease lost: 2, two STARTs: 1, lapsed: 0" ] || llfail "lint-leases with no --since: want all four cards"
+lint "$LLB" --since "$(llago 3500)"; [ "$LE" = "leased cards: 3, lease lost: 1, two STARTs: 1, lapsed: 0" ] && ! grep -q "/$LA:" <<<"$LO" && grep -q "/$LD: lease lost" <<<"$LO" || llfail "--since left card A's earlier START and lost record in"
+lint "$LLB" --since "$(llago 2500)"; [ "$LE" = "leased cards: 2, lease lost: 1, two STARTs: 0, lapsed: 0" ] || llfail "--since 2500 s ago: want C and D, the two-START card B out"
+lint "$LLB" --first 2; [ "$LE" = "leased cards: 2, lease lost: 1, two STARTs: 1, lapsed: 0" ] && grep -q "/$LA: lease lost" <<<"$LO" && grep -q "/$LB2: two STARTs" <<<"$LO" && ! grep -q "/$LD:" <<<"$LO" || llfail "--first 2 should keep A and B only"
+lint "$LLB" --first 3 --since "$(llago 3500)"; [ "$LE" = "leased cards: 3, lease lost: 1, two STARTs: 1, lapsed: 0" ] || llfail "--first 3 with --since: B, C, D"
+lint "$LLB" --first 1 --since "$(llago 3500)"; [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 1, lapsed: 0" ] || llfail "--first 1 with --since: B only"
+ok "lint-leases --since leaves out earlier STARTs and lost records and --first keeps the earliest n cards, for the tally and the findings"
+
+# 6. read-only, and the exit-2 edges
+llfresh; llcard $LA "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llago 2000)}"; llcom $LA c6000000-0000-4000-8000-000000000001 "$(llago 600)" S-gone "$LLPRE x"
+llcom $LA c6000000-0000-4000-8000-000000000002 "$(llago 5000)" S-a '**START: a**'; llcom $LA c6000000-0000-4000-8000-000000000003 "$(llago 4900)" S-b '**START: b**'
+S0=$(sum "$LLB"); lint "$LLB" --since "$(llago 9000)" --first 5; [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 3 ] || llfail "lint-leases did not find the three seeded findings"
+lint "$LLB" "$LLB/"; [ "$LR" = 1 ] && [ "$S0" = "$(sum "$LLB")" ] || llfail "lint-leases changed the board"
+mkdir -p "$T/not-a-board"; for a in "$T/no-such-board" "$T/not-a-board"; do lint "$a"; [ "$LR" = 2 ] && [ -z "$LO" ] && [ -n "$LE" ] || llfail "lint-leases $a: want exit 2, nothing on stdout, a message on stderr"; done
+lint; [ "$LR" = 2 ] && [ -z "$LO" ] && grep -q '^usage: lint-leases.sh' <<<"$LE" || llfail "no board: want exit 2 and the usage on stderr"
+for a in "--bogus" "--since" "--since yesterday" "--since 2026-13-01T00:00:00Z" "--since 2026-02-30T00:00:00Z" "--since 2026-01-01T24:00:00Z" "--first 0" "--first x" "--window -1" "--grace"; do lint "$LLB" $a; [ "$LR" = 2 ] && [ -z "$LO" ] && [ -n "$LE" ] || llfail "lint-leases $a: want exit 2"; done
+ok "lint-leases leaves every file of the board unchanged (checksum before and after) and exits 2 on a missing path, a folder that is no board, no board, an unknown flag and a bad flag value"
+
+# 8. a symlinked board reads like its target; 9. a board passed twice (any spelling) counts once, and the lines print the first spelling given
+llfresh; llcard $LA "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llago 2000)}"; llcom $LA c8000000-0000-4000-8000-000000000001 "$(llago 600)" S-gone "$LLPRE x"
+llcom $LA c8000000-0000-4000-8000-000000000002 "$(llago 5000)" S-a '**START: a**'
+lint "$LLB"; LO1=$LO; LE1=$LE; [ "$LR" = 1 ] && [ "$LE1" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 1" ] || llfail "case 8: the real folder"
+ln -s "$LLB" "$T/LeaseLintLink.lanework"
+lint "$T/LeaseLintLink.lanework"; [ "$LR" = 1 ] && [ "$LE" = "$LE1" ] && [ "$LO" = "$(sed "s#^$LLB/#$T/LeaseLintLink.lanework/#" <<<"$LO1")" ] || llfail "case 8: a symlinked board must read like its target and print the spelling given"
+lint "$T/LeaseLintLink.lanework/"; [ "$LR" = 1 ] && [ "$LE" = "$LE1" ] || llfail "case 8: a symlink with a trailing slash"
+ok "lint-leases reads a symlinked board like the folder it points at, and prints the spelling it was given"
+lint "$LLB" "$LLB"; [ "$LR" = 1 ] && [ "$LO" = "$LO1" ] && [ "$LE" = "$LE1" ] || llfail "case 9: a board passed twice"
+lint "$LLB" "$T/LeaseLintLink.lanework" "$LLB/"; [ "$LR" = 1 ] && [ "$LO" = "$LO1" ] && [ "$LE" = "$LE1" ] || llfail "case 9: a board passed as itself, a symlink and with a slash"
+(cd "$T" && LR=0 && LO=$("$LL" "./LeaseLint.lanework" "LeaseLint.lanework" "$LLB" 2>"$T/ll.err") || LR=$?; [ "$LO" = "$(sed "s#^$LLB/#./LeaseLint.lanework/#" <<<"$LO1")" ] && [ "$(cat "$T/ll.err")" = "$LE1" ]) || llfail "case 9: X, ./X and the absolute path"
+ok "lint-leases counts a board passed twice once, in the same spelling, as X and ./X, and through a symlink"
+
+# 7. the real record: lease.sh loses a card (staked, its timer ended, claimed taken by another session, then checked); the lint finds it
+LLT=$(mktemp -d "$T/lease-lint-tmp.XXXXXX"); sleep 600 </dev/null >/dev/null 2>&1 & LLP=$!; disown "$LLP"
+llfresh; llcard $LA; LLK=$(printf '%s' "$(cd "$LLB" && pwd -P)" | shasum | cut -c1-16)
+LLL() { CLAUDE_CODE_SESSION_ID=S-lintlease CLAUDE_PID="$LLP" TMPDIR="$LLT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$SK/lanework/scripts/lease.sh" "$@"; }
+LLL stake "$LLB" $LA --model smoke >/dev/null || { kill "$LLP"; echo "case 7: stake failed"; exit 1; }
+LLTP=$(sed -n 's/^pid=//p' "$LLT/lanework-lease/S-lintlease/$LLK/$LA"); kill "$LLTP" 2>/dev/null || true
+perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m; s/\A(---\n.*?\n)(---\n)/$1claimed:\n  by: {name: claude, kind: agent, model: smoke, session: "S-other"}\n  until: '"$(llahead 1500)"'\n$2/s' "$LLB/$LLN/$LA/index.md"
+LLR=0; LLL check "$LLB" $LA --model smoke >/dev/null 2>&1 || LLR=$?; kill "$LLP" 2>/dev/null || true
+LLREC=$(grep -l -F 'Lease lost' "$LLB/$LLN/$LA"/comments/*/index.md); LLID=$(basename "$(dirname "$LLREC")")
+[ "$LLR" = 3 ] && [ "$(awk 'f && NF {print; exit} /^---$/ {n++; if (n == 2) f = 1}' "$LLREC" | cut -c1-${#LLPRE})" = "$LLPRE" ] || llfail "case 7: lease.sh check rc $LLR; the record does not open with LEASE_LOST_PREFIX: $(cat "$LLREC")"
+lint "$LLB"; [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 1 ] && grep -qE "/$LA: lease lost $LLID 20[0-9-]+T[0-9:]+Z\$" <<<"$LO" && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0" ] || llfail "case 7: the lint did not find the real loss record"
+ok "lint-leases finds the real lease-lost record lease.sh posts on a throwaway board, which opens with LEASE_LOST_PREFIX"
+
 # work: lint-waiting-clears (the discovery board with its cards removed, so only the cards built here count; read-only, so the tree is byte-identical after)
 WL="$SK/work/scripts/lint-waiting-clears.sh"; WB="$T/Clears.lanework"; cp -R "$D" "$WB"
 WLANE=$(dirname "$(ls "$WB"/*/index.md | sed -n 2p)"); rm -rf "$WB"/*/*/
