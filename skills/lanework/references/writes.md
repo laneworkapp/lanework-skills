@@ -4,7 +4,7 @@ The guide has the full rules. These hold on every board and cost most when misse
 
 ## Every write
 
-- **Stamp it**: shape = the guide's § Stamping your work; `by.name` = you or your role. **Missing `by` claims the owner wrote it.** Never sign `shortcuts`, `healer`, `board` or `tracker`: app-reserved. **Every stamp (`created`, `modified`, `waiting.since`) comes from the clock**, taken in the same command as the write: `now_utc` from `lanework/scripts/lib.sh`, or `date -u +%FT%TZ`. Never type, copy or bump one past another to stay "later" (2026-10-11, 2026-11-10: typed stamps up to 26 min ahead, threads sorted wrong). One deliberate offset: an ask goes 1s after its record (`work/references/writing.md`), as `now_utc 1`.
+- **Stamp it**: shape = the guide's § Stamping your work; `by.name` = you or your role. **Missing `by` claims the owner wrote it.** Never sign `anyone`, `shortcuts`, `healer`, `board` or `tracker`: app-reserved (`anyone` is the mention that addresses every human). **Every stamp (`created`, `modified`, `waiting.since`) comes from the clock**, taken in the same command as the write: `now_utc` from `lanework/scripts/lib.sh`, or `date -u +%FT%TZ`. Never type, copy or bump one past another to stay "later" (2026-10-11, 2026-11-10: typed stamps up to 26 min ahead, threads sorted wrong). One deliberate offset: an ask goes 1s after its record (`work/references/writing.md`), as `now_utc 1`.
 - **Stage outside the board, then `mv` in.** App reloads on every fs event and can read a half-written file. A temp left beside a card's `index.md` is relocated into its `attachments/`, not deleted (2026-09-08). After an aborted write, check `attachments/` for strays.
 - **Double-quote every string value** (guide § Frontmatter: "Quote any `title` containing a colon", "Keep every scalar on one line"). A bare `: ` makes a nested mapping and the app refuses the whole card (2026-09-12). Also covers `#`, leading `*&![{`, bare `yes`/`no`/`null`.
 - **Labels and priority**: all `labels` entries; shape, kinds and the built-in `text` kind = the guide's § Frontmatter (`labels`) and `.schema/card.json`. A root `priority:` key is reserved: never written. A root `component:` is no reserved key, just an unknown one: left as written. Copy an entry's shape from the guide, never from another card (2026-10-02: three cards copied a custom kind's entry shape).
@@ -37,7 +37,8 @@ Guide § Moving and reordering has the full rules.
 
 - Distinct `created.at` second per comment. Identical seconds scramble thread order.
 - **Posting never restamps the card.**
-- Answering a specific comment → `in-reply-to: <its uuid>`.
+- Answering a specific comment → `in-reply-to: <its uuid>`, whoever wrote it: a human's, another agent's, your own. Not only an answer to an ask.
+- `cite-as` (a card's display name, unique by convention): never carry one into a card you copy; scan the board before minting one.
 - A posted comment is fixed at most for a typo. Otherwise post a follow-up; never rewrite, remove, or move it into `comments/.trash`.
 - Prose (record vs ask, handles, links): `work/references/writing.md`.
 

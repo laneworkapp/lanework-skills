@@ -649,6 +649,49 @@ if "$SK/work/scripts/lint-ask.sh" "$T/opt-mid.md" >/dev/null; then echo "lint-as
 [ "$(grep -v -x -F -e "$RECAP" "$T/opt-79.md" | wc -w | tr -d ' ')" -eq 79 ] && [ "$(wc -w < "$T/opt-79.md" | tr -d ' ')" -gt 80 ] || { echo "fixture is not 79 own words plus the line"; exit 1; }
 "$SK/work/scripts/lint-ask.sh" "$T/opt-79.md"; ok "lint-ask leaves the Recap line out of the 80-word count"
 
+# guide v117+: asks address @anyone; the board's own stamp gates it (ask_handle), older boards keep the handle
+mkguide() { mkdir -p "$1"; printf '<!-- lanework-agent-guide v%s - app guide -->\n\n**This board'"'"'s human answers to `@kim` right now**\n' "$2" > "$1/CLAUDE.md"; }
+G118="$T/G118.lanework"; G117="$T/G117.lanework"; G116="$T/G116.lanework"; G114="$T/G114.lanework"; GNONE="$T/GNone.lanework"
+mkguide "$G118" 118; mkguide "$G117" 117; mkguide "$G116" 116; mkguide "$G114" 114; mkdir -p "$GNONE"
+gv() { ( . "$SK/lanework/scripts/lib.sh"; guide_version "$1" ) || true; }
+ah() { ( . "$SK/lanework/scripts/lib.sh"; ask_handle "$1" ) || true; }
+{ [ "$(gv "$G118")" = 118 ] && [ "$(gv "$G114")" = 114 ] && [ -z "$(gv "$GNONE")" ] \
+  && [ "$(ah "$G118")" = anyone ] && [ "$(ah "$G117")" = anyone ] && [ "$(ah "$G116")" = kim ] && [ "$(ah "$G114")" = kim ] && [ -z "$(ah "$GNONE")" ]; } \
+  || { echo "guide_version/ask_handle: 118=$(gv "$G118") 114=$(gv "$G114") none=$(gv "$GNONE") ah118=$(ah "$G118") ah117=$(ah "$G117") ah116=$(ah "$G116") ah114=$(ah "$G114") ahnone=$(ah "$GNONE")"; exit 1; }
+rc=0; ( . "$SK/lanework/scripts/lib.sh"; ask_handle "$GNONE" ) >/dev/null || rc=$?; [ "$rc" -ne 0 ] || { echo "ask_handle on a board with no guide and no handle exited 0"; exit 1; }
+ok "guide_version reads the stamp; ask_handle is anyone from v117 on, the guide's handle below it, and empty with exit 1 when neither exists"
+printf '@anyone Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/any-good.md"
+printf 'Context first.\n\n@anyone Should we ship it?\n' > "$T/any-late.md"
+{ printf '@anyone Should we ship it?'; for i in $(seq 1 90); do printf ' word'; done; printf '\n'; } > "$T/any-long.md"
+printf '@anyone Which engine?\n\nOptions:\n- A: app\n- B: service\n\nIf no answer: blocked.\nContext: body.\n' > "$T/any-norecap.md"
+printf '**We chose the app engine.**\n\nNothing is owed in reply.\n' > "$T/any-record.md"
+"$SK/work/scripts/lint-ask.sh" "$T/any-good.md" "$G118"
+"$SK/work/scripts/lint-ask.sh" "$T/any-record.md" "$G118"
+for f in any-late any-long any-norecap; do
+  if "$SK/work/scripts/lint-ask.sh" "$T/$f.md" "$G118" >/dev/null; then echo "lint-ask passed $f on a v118 board"; exit 1; fi
+done
+ok "lint-ask on a v118 board checks an @anyone ask: passes a clean one, fails a late handle, over 80 words and options without Recap, and passes a record that names nobody"
+for f in any-late any-long any-norecap any-record; do "$SK/work/scripts/lint-ask.sh" "$T/$f.md" "$G114" || { echo "lint-ask checked @anyone on a v114 board ($f)"; exit 1; }; done
+printf '@kim maybe ship it; worth a try?\n' > "$T/kim-bad.md"
+if "$SK/work/scripts/lint-ask.sh" "$T/kim-bad.md" "$G114" >/dev/null; then echo "lint-ask passed a bad @kim ask on a v114 board"; exit 1; fi
+ok "lint-ask on a v114 board ignores @anyone and still checks the board's own handle"
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/fq-any.md"
+for g in 118 114; do
+  FQ="$T/FQ$g Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$FQ" --model smoke >/dev/null; mkguide "$FQ" "$g"
+  O=$("$SK/discovery/scripts/file-question.sh" "$FQ" "Pricing" --round 1 --body "$T/fq-any.md" --model smoke 2>&1)
+  ! grep -q 'lint-ask warning' <<<"$O" || { echo "$O"; exit 1; }
+  FC="$(ls "$FQ"/*/"$(head -1 <<<"$O" | sed 's#.*/##')"/index.md)"; FA="$(dirname "$FC")/comments/$(sed -n 's/^ask comment //p' <<<"$O")/index.md"
+  if [ "$g" = 118 ]; then want=anyone; else want=kim; fi
+  grep -q "^waiting: {for: $want, " "$FC" && grep -q "^@$want Is sync free" "$FA" || { echo "file-question on v$g: want $want"; head -12 "$FC"; cat "$FA"; exit 1; }
+done
+ok "file-question.sh writes @anyone and waiting.for: anyone on a v118 board, the handle on a v114 board"
+for s in "$SK/lanework/scripts/heal-board.py" "$SK/heal/scripts/heal-descriptors.py"; do
+  AB="$T/AnyHeal.lanework"; rm -rf "$AB"; cp -R "$D" "$AB"
+  S0=$(sum "$AB"); rc=0; "$s" "$AB" --apply --name anyone --model test >/dev/null 2>"$T/anyone.err" || rc=$?
+  [ "$rc" -eq 64 ] && grep -q 'anyone is reserved for the app' "$T/anyone.err" && [ "$S0" = "$(sum "$AB")" ] || { echo "$s --name anyone: rc=$rc"; cat "$T/anyone.err"; exit 1; }
+done
+ok "heal-board and heal-descriptors refuse --name anyone, writing nothing"
+
 # work: lint-stamps (a copy of the discovery board, so the board under test is never edited in place)
 LS="$SK/work/scripts/lint-stamps.sh"; SB="$T/Stamps.lanework"; cp -R "$D" "$SB"
 SC=$(ls "$SB"/*/*/index.md | head -1)
