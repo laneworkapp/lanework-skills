@@ -7,8 +7,7 @@ The agent skills for Lanework boards, published as a Claude Code plugin named `l
 | path | what it is |
 |---|---|
 | `skills/<name>/` | one skill per folder: `SKILL.md`, plus `references/`, `templates/` and `scripts/` as needed. This is what ships, so nothing about this repo's own process goes in here. |
-| `.claude-plugin/plugin.json` | the plugin manifest. Its `skills` list names every folder under `skills/`. Its `version` is the only version. |
-| `.claude-plugin/marketplace.json` | lists the plugin, sourced from the `stable` branch, so plugin installs only see releases |
+| `.claude-plugin/plugin.json` | the plugin manifest. Its `skills` list names every folder under `skills/`. Its `version` is the only version. The plugin is listed in `laneworkapp/lanework-marketplace`, which tracks the `stable` branch, so plugin installs only see releases. |
 | `CHANGELOG.md` | user-facing release notes, in the `app-changelog` format |
 | `scripts/release.sh` | cuts a release; `.github/workflows/smoke.yml` runs smoke on every push and pull request |
 | `Boards/Skills Pipeline.lanework/` | the development pipeline board: ideas, issues and work on the skills |
