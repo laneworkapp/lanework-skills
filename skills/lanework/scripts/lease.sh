@@ -68,8 +68,10 @@ write_card() {
     fm && /^modified:/ { print m; sm = 1; drop = 1; next }
     fm && /^claimed:/ { drop = 1; next }
     { print }' "$f" > "$stage/index.md"
-  # the triple-brace guard reads the front matter only: a body may quote `}}}` (a JSON example)
-  if [ "$(head -1 "$stage/index.md")" != "---" ] || frontmatter_of "$stage/index.md" | grep -q '}}}'; then
+  # the triple-brace guard reads only the lines written here (modified, the claimed block): every other line is copied as read,
+  # and valid ones end in `}}}` (a label whose kind carries an icon), as may the body (a JSON example)
+  if [ "$(head -1 "$stage/index.md")" != "---" ] || awk 'NR == 1 { next } $0 == "---" { exit }
+      /^[^ \t]/ { w = ($0 ~ /^(modified|claimed):/) } w' "$stage/index.md" | grep -q '}}}'; then
     rm -rf "$stage"; echo "lease.sh: $f: no frontmatter, or a broken stamp after the rewrite; nothing written" >&2; return 1
   fi
   compact_fm "$stage/index.md"
@@ -101,8 +103,8 @@ post_record() {
   stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-comment.XXXXXX"); coid=$(uuid); mkdir "$stage/$coid"
   printf '%s\n' "$1" | comment_file "$stage/$coid/index.md" "$now" "$(by_of "$NAME" "$MODEL" "$SESSION")"
   f=$(find_card) || { rm -rf "$stage"; return 1; }; c=$(dirname "$f")
-  mkdir -p "$c/comments"
-  mv "$stage/$coid" "$c/comments/$coid"; rm -rf "$stage"
+  mkdir -p "$c/comments" && mv "$stage/$coid" "$c/comments/$coid" || { rm -rf "$stage"; return 1; }
+  rm -rf "$stage"
 }
 
 # memory: M_* <-> the per-session file

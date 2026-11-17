@@ -1858,6 +1858,7 @@ LS="$SK/lanework/scripts/lease.sh"; LT=$(mktemp -d "$T/lease-tmp.XXXXXX"); LSP=(
 lease_cleanup() {
   local p; for p in ${LSP[@]+"${LSP[@]}"}; do kill "$p" 2>/dev/null || true; done
   pkill -f "$LS _timer" 2>/dev/null || true
+  [ -z "${LB:-}" ] || chmod -R u+w "$LB" 2>/dev/null || true   # a case makes a comments folder read-only
 }
 trap lease_cleanup EXIT
 standin() { sleep 600 </dev/null >/dev/null 2>&1 & SP=$!; disown "$SP"; LSP+=("$SP"); }
@@ -1951,6 +1952,21 @@ RC=0; L S-brace release "$LB" "$C5b" --model smoke >/dev/null 2>&1 || RC=$?
 [ $RC = 0 ] && ! grep -q '^claimed:' "$F5b" && [ "$B0" = "$(bodyof "$F5b" | shasum)" ] || { echo "}}} in the body: release rc $RC"; cat "$F5b"; exit 1; }
 validate "$LB" >/dev/null; ok "lease: a card with }}} in its body is staked, renewed, checked and released, the body byte for byte"
 
+# 5c. a label whose kind carries an icon ends its line in }}}: valid front matter, copied as read. The guard reads only the lines lease.sh writes
+grep -q -F '{type: priority, text: Priority, icon: {glyph: flag}' "$SK/lanework/templates/label-kinds.md" && grep -q -F '{text: Medium, rank: 2}' "$SK/lanework/templates/label-kinds.md" || { echo "label-kinds.md: the iconed priority kind moved"; exit 1; }
+# the line as the app and the scripts write it on real boards (compact, quoted): 102 characters, ending in }}}
+C5c=$(lcard "Five c"); F5c=$(lcf "$C5c"); LBL='labels: [{text: "Medium", rank: 2, kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}}]'
+perl -pi -e 's/^(order: .*)$/$1\n'"$LBL"'/' "$F5c"; grep -qxF "$LBL" "$F5c" && validate "$LB" >/dev/null || { echo "fixture: iconed label"; exit 1; }
+RC=0; L S-icon stake "$LB" "$C5c" --model smoke >/dev/null 2>&1 || RC=$?; RC2=0; L S-icon renew "$LB" "$C5c" --model smoke >/dev/null 2>&1 || RC2=$?
+setclaim "$F5c" S-icon "$(iso $(( $(date -u +%s) - 60 )))"; RC3=0; CO=$(L S-icon check "$LB" "$C5c" --model smoke 2>/dev/null) || RC3=$?
+[ "$RC$RC2$RC3$CO" = 000held ] && [ "$(epoch "$(cuntil "$F5c")")" -gt "$(date -u +%s)" ] && grep -qxF "$LBL" "$F5c" || { echo "iconed label: stake $RC, renew $RC2, check $RC3 '$CO'"; cat "$F5c"; exit 1; }
+RC=0; L S-icon release "$LB" "$C5c" --model smoke >/dev/null 2>&1 || RC=$?
+[ $RC = 0 ] && ! grep -q '^claimed:' "$F5c" && grep -qxF "$LBL" "$F5c" && validate "$LB" >/dev/null || { echo "iconed label: release rc $RC"; cat "$F5c"; exit 1; }
+# control: a broken stamp in a line lease.sh writes (a model ending in }}}) still trips the guard: refused, nothing written
+C5d=$(lcard "Five d"); F5d=$(lcf "$C5d"); H5=$(shasum < "$F5d"); RC=0; L S-icon stake "$LB" "$C5d" --model 'x}}}' >/dev/null 2>&1 || RC=$?
+[ $RC = 1 ] && [ "$H5" = "$(shasum < "$F5d")" ] || { echo "the guard let a broken modified/claimed stamp through: rc $RC"; cat "$F5d"; exit 1; }
+ok "lease: a card whose iconed label ends in }}} is staked, renewed, checked and released and validates; a broken stamp in a line lease.sh writes is still refused"
+
 # 6. a changed by: the timer finds the loss and posts one record; then no further write
 TP=$(mpid $SID1 "$C1"); setclaim "$F1" S-other "$(iso $(( $(date -u +%s) + 1500 )))"
 waitfor '[ "$(records "$C1" "**Lease lost**")" = 1 ]' || { echo "no Lease lost record within 4 s"; exit 1; }
@@ -1985,6 +2001,15 @@ for i in 1 2 3 4 5 6; do L S-sixr check "$LB" "$C6r" --model smoke >/dev/null 2>
 wait "${RPS[@]}" || true; waitfor '! alive "$TP"' || { echo "the timer outlived the raced loss"; exit 1; }
 [ "$(records "$C6r" "**Lease lost**")" = 1 ] || { echo "timer and six checks: $(records "$C6r" "**Lease lost**") loss records, want 1"; exit 1; }
 ok "lease: the timer and six concurrent checks racing on one loss post exactly one Lease lost record"
+
+# 6c. a loss record that cannot land (a read-only comments folder) leaves the loss unmarked; once writable, the next check posts it once
+C6w=$(lcard "Six ro"); F6w=$(lcf "$C6w"); L S-sixw stake "$LB" "$C6w" --model smoke >/dev/null; TP=$(mpid S-sixw "$C6w"); kill "$TP"; waitfor '! alive "$TP"'
+mkdir -p "$(dirname "$F6w")/comments"; chmod 555 "$(dirname "$F6w")/comments"; setclaim "$F6w" S-other "$(iso $(( $(date -u +%s) + 1500 )))"
+RC=0; CO=$(L S-sixw check "$LB" "$C6w" --model smoke 2>/dev/null) || RC=$?
+[ "$CO$RC" = lost3 ] && [ "$(records "$C6w" "**Lease lost**")" = 0 ] && [ ! -d "$(mem S-sixw "$C6w").lost" ] || { echo "unlanded loss record: '$CO' $RC, marked: $([ -d "$(mem S-sixw "$C6w").lost" ] && echo yes || echo no)"; chmod 755 "$(dirname "$F6w")/comments"; exit 1; }
+chmod 755 "$(dirname "$F6w")/comments"; RC=0; CO=$(L S-sixw check "$LB" "$C6w" --model smoke 2>/dev/null) || RC=$?; RC2=0; L S-sixw check "$LB" "$C6w" --model smoke >/dev/null 2>&1 || RC2=$?
+[ "$CO$RC$RC2" = lost33 ] && [ "$(records "$C6w" "**Lease lost**")" = 1 ] && [ -d "$(mem S-sixw "$C6w").lost" ] || { echo "after chmod back: '$CO' $RC $RC2, records $(records "$C6w" "**Lease lost**")"; exit 1; }
+ok "lease: a loss record that fails to land is not marked; the next check posts exactly one"
 
 # 7. clock guard: an until over 35 minutes ahead is no lease
 C7=$(lcard "Seven"); F7=$(lcf "$C7"); setclaim "$F7" S-skew "$(iso $(( $(date -u +%s) + 3600 )))"
