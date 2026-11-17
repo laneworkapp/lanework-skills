@@ -5,8 +5,8 @@ title: "Retire the dispatch skill and move its arming sweep and a compaction rul
 order: 2048
 labels: [{text: watch, kind: {type: skill, text: Skill}}, {text: dispatch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T11:33:01Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-17T11:40:53Z, by: {name: shaper, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-17T11:40:53Z, comment: 0dfa5232-aeb1-4608-ab86-567dd8811fd9}
+modified: {at: 2026-11-17T11:41:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-17T11:41:48Z, comment: 3e2c144c-c188-4624-8415-543a94fa148d}
 ---
 Remove the `dispatch` skill, and give `watch` the two things that make a long watch safe without it: the scripted arming sweep, and a rule for what to do after the session's context is compacted.
 
@@ -49,10 +49,10 @@ Each item from the filed card, and what settled it (the evidence is in the threa
 
 ## Open calls
 
-- **A. Order against the lease cards.** Both this card and [9c5ee0c7](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/9c5ee0c7-3421-4896-83d2-b44b7965c233) edit `arm-pass.sh` and `arming.md`. Asked on the thread.
-  - A1 (recommended): this card first. Watch takes today's START-based `stale`, and 9c5ee0c7 then edits `watch/scripts/arm-pass.sh` and drops its dispatch half. Nothing here waits on the lease chain.
+- ~~**A. Order against the lease cards.**~~ **Ruled 2026-11-17: A1, this card first.** Both this card and [9c5ee0c7](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/9c5ee0c7-3421-4896-83d2-b44b7965c233) edit `arm-pass.sh` and `arming.md`. 
+  - A1 (ruled): this card first. Watch takes today's START-based `stale`, and 9c5ee0c7 then edits `watch/scripts/arm-pass.sh` and drops its dispatch half. Nothing here waits on the lease chain.
   - A2: after 9c5ee0c7. The lease rewrite lands in `dispatch/` first, and this card moves the leased script. 9c5ee0c7's dispatch prose is built, then deleted.
-- **B. The two Active dispatch cards** ([f36f6a5d](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/f36f6a5d-32a5-498e-8b4c-276b2e4e80d4), [4ada828e](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/4ada828e-56a0-4f1a-9b8b-094b330c71b7)). Asked after A is ruled.
+- **B. The two Active dispatch cards** ([f36f6a5d](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/f36f6a5d-32a5-498e-8b4c-276b2e4e80d4), [4ada828e](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/4ada828e-56a0-4f1a-9b8b-094b330c71b7)). Asked on the thread.
   - B1 (recommended): closed as withdrawn when this card lands, each with a record naming this card. The `waiting` mark on f36f6a5d stays until the owner next comments there, since only the app clears it.
   - B2: closed as withdrawn now.
   - B3: kept, and the rest of the trial runs before dispatch goes.
