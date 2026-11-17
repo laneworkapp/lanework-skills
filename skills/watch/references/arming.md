@@ -22,7 +22,7 @@ Once per board, after the reads. No event fires for what is already sitting, so 
 
 | line | do |
 |---|---|
-| `comment` | read the card whole (`events.md` item 3). Already answered (a later agent record answers it, or its ruling is folded in the body) → no reply, one report line. Else answer it as a new owner comment (`responding.md`), then carry on as `arm` when the card sits unclaimed in an agent lane (Approved: its top card), because the script prints `comment` in place of `arm`. A thread answered without `in-reply-to` prints this line falsely; reading the card catches it |
+| `comment` | read the card whole (`events.md` item 3). Already answered (a later agent record answers it, or its ruling is folded in the body) → no reply, one report line. Else answer it as a new owner comment (`responding.md`). Either way, then carry on as `arm` when the card sits unclaimed in an agent lane (Approved: its top card), because the script prints `comment` in place of `arm`. A thread answered without `in-reply-to` prints this line falsely; reading the card catches it |
 | `arm` | an unclaimed card (no START or plan comment: `work/references/companions.md`) in an agent lane = work order, only when the lane body agrees and the card waits on nobody (no `waiting`): `responding.md` § A move into an agent lane. Else one report line |
 | `stale` | report only: lane, title, minutes quiet, in the arming message to the user (§ Tell the user), for the owner to free or leave. Never released, never worked |
 
