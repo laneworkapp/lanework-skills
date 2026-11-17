@@ -11,7 +11,8 @@
 # The lease (lanework/references/writes.md § Lease), after every refusal above, just before the `mv`: with CLAUDE_CODE_SESSION_ID
 # set (never --session: that is a free stamp label), `lanework/scripts/lease.sh check`. Held (a lapsed own lease renewed) or
 # never held: write. Lost: lease.sh posts the Lease lost record itself; nothing else lands, the reason on stderr, exit 3. No
-# session id: no check, write as today. Another check failure: exit 1, nothing written.
+# session id, or no lanework/scripts/lease.sh beside work (one note on stderr): no check, write as today. Another check
+# failure: exit 1, nothing written.
 # --release: after the comment lands, `lease.sh release`, only for a lease the check found held. Exit 1 after the comment
 # landed (its uuid printed): the release failed; release by hand.
 # Posting never restamps the card (a check that renews a lapsed lease does, through lease.sh).
@@ -61,7 +62,9 @@ comment_file "$STAGE/$COID/index.md" "$NOW" "$BY" "$REPLY" < "$BODY"
 "$(dirname "${BASH_SOURCE[0]}")/lint-ask.sh" "$STAGE/$COID/index.md" "$BOARD" || { echo "post-comment.sh: the body fails lint-ask.sh; nothing written" >&2; exit 1; }
 
 LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"; HELD=""
-if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ ! -f "$LEASE" ]; then
+  echo "post-comment.sh: note: no lanework/scripts/lease.sh beside work; the lease is not checked" >&2
+elif [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
   rc=0; "$LEASE" check "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null || rc=$?
   case $rc in
     0) HELD=1 ;;

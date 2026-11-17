@@ -11,7 +11,10 @@
 # The holder is CLAUDE_CODE_SESSION_ID (never a flag); stake needs CLAUDE_PID, the session's process, which the timer
 # outlives by at most one poll. Exit: 0 ok (check: held), 1 refused (held by another, backed off, nothing to renew), 2 usage / no model / no session id / no CLAUDE_PID /
 # not exactly one card with that uuid, 3 lost, 4 check: never held.
-# Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<card-uuid> (key=value lines: board,
+# Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<board key>/<card-uuid>, the board key
+# the first 16 hex of the shasum of the board's resolved path (`pwd -P`: a symlink or a trailing slash is the same board), so the
+# same card uuid on another copy of the board is never held there. A file in the older <session>/<card-uuid> layout is never
+# read. Each file: key=value lines: board,
 # timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
 # <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
 # Reads git (branch, `git --no-optional-locks status --porcelain`) for the loss record; never writes the repo, stages or commits.
@@ -26,6 +29,8 @@ STAKE_WAIT="${LEASE_TEST_STAKE_WAIT:-1}"; NOTICE_WAIT="${LEASE_TEST_NOTICE_WAIT:
 POLL="${LEASE_TEST_POLL:-60}"; RENEW_EVERY="${LEASE_TEST_RENEW_EVERY:-15}"
 UUID_RE='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 usage() { printf 'lease.sh: %s\nusage: %s\n' "$1" "$USAGE" >&2; exit 2; }
+# board_key <resolved board path>: the memory's directory level for that board
+board_key() { printf '%s' "$1" | shasum | cut -c1-16; }
 
 # find_card: the card's index.md, resolved fresh. 0 + path; 1 none; 2 several
 find_card() {
@@ -202,7 +207,7 @@ case "$SUB" in
   list) [ $# -eq 1 ] || usage "list takes one board"; BOARD="$1"; [ -f "$BOARD/index.md" ] || usage "not a board: $BOARD"; list; exit 0 ;;
   _timer)
     [ $# -eq 4 ] || exit 2; BOARD="$1"; CID="$2"; SESSION="$3"; TCPID="$4"; MODEL=""; NAME=claude
-    R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION"; MEM="$MEMD/$CID"; timer; exit 0 ;;
+    R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION/$(board_key "$BOARD")"; MEM="$MEMD/$CID"; timer; exit 0 ;;
   stake|renew|check|release) ;;
   *) usage "unknown subcommand: ${SUB:-none}" ;;
 esac
@@ -224,7 +229,7 @@ case "$SESSION" in */*|*\"*|*[[:space:]]*) usage "session id with a slash, quote
 [[ "$CID" =~ $UUID_RE ]] || usage "not a lowercase card uuid: $CID"
 [ -f "$BOARD/index.md" ] || usage "not a board: $BOARD"
 BOARD=$(cd "$BOARD" && pwd -P)
-R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION"; MEM="$MEMD/$CID"
+R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION/$(board_key "$BOARD")"; MEM="$MEMD/$CID"
 F=$(card_file); read_claim "$F"; status_of
 
 case "$SUB" in
