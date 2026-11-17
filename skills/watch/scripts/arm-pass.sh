@@ -1,24 +1,24 @@
 #!/bin/bash
-# arm-pass.sh: class every card at arming from its files, so the router never opens a card.
+# arm-pass.sh: class every card at arming from its files, so the watch learns which cards to open.
 # usage: arm-pass.sh <board> [<agent lane title>...]
 #
 # Lanes: every lane but Done is swept (Done is never a work order and its claims are history).
 # `agent` lanes = the lane titles given, else every `| <lane> | agent |` row of
-# lanework/references/board-kinds.md (a board's own lane bodies still win: the handler reports
-# `out-of-scope`, and the router excludes the lane).
+# lanework/references/board-kinds.md (a board's own lane bodies still win: a lane whose body says it's
+# out of scope is skipped by the watch).
 #
-# Prints one tab-separated line per card and kind, in reading order, the same seven fields
-# classify-event.sh prints (<kind> <board folder> <card uuid> <lane title> <card title> <author> <paths>):
+# Prints one tab-separated line per card and kind, in reading order, seven fields
+# (<kind> <board folder> <card uuid> <lane title> <card title> <author> <paths>):
 #   comment  the card's newest owner comment has no agent comment `in-reply-to` it. Author `owner`,
 #            paths = that comment's path. Wins over arm on the same card.
 #   arm      an unclaimed card in an agent lane (Approved: its top card only, by `order`). Author and paths `-`.
 #   stale    a claim, and nothing newer on the card for STALE_MINUTES (default 30). Author `-`, paths =
-#            the minutes of silence, `<n>m`. Report-only: the router never routes it, nothing is released.
+#            the minutes of silence, `<n>m`. Report-only: never worked, nothing is released.
 # Claim = the card's last comment opening `START` (bold or plain) with no later closing comment. A closing
 # comment opens `Merged`, `Closed`, `Shipped`, `Done`, `Confirmed done`, `Released`, `Landed` or `Abandoned`
 # (bold or plain); a closing comment in any other shape reads as still claimed.
 # A comment signed `board` (the app's move receipt, a `moved:` key) counts for nothing: not a reply, a claim, a closing or newer activity.
-# Owner = no `by`, or `by.kind: human` (either quote), as classify-event.sh reads it. CRLF files are read; fractional seconds are dropped; a `created.at` that is
+# Owner = no `by`, or `by.kind: human` (either quote). CRLF files are read; fractional seconds are dropped; a `created.at` that is
 # not plain `...Z` (an offset, a space) is never judged stale. Every comment's `created.at` orders the thread.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
