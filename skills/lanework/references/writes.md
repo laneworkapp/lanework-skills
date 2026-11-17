@@ -26,12 +26,13 @@ The guide has the full rules. These hold on every board and cost most when misse
 Guide § Moving and reordering has the full rules.
 
 - **Another lane** = `mv` one card folder by name (never a glob: it takes the lane's own `index.md`), a fresh `order`, and `modified` rewritten whole. **A bare `mv` reads as the owner's move.**
+- Script: `work/scripts/move-card.sh`.
 - **Same lane** = rewrite `order` only; leave `modified` alone.
 
 ## Placing
 
 - Ladder: the guide's § Creating a card (1024 steps, midpoint between). Lanes use the same ladder; inserting changes no other file.
-- Lane has `card-defaults` → union its `labels` into the new card's yourself, case-insensitively (guide § Frontmatter, lanes): a bare name = free label, a kinded entry = stamped from the board's current `config.labels`. Your own value of a `single` kind wins over the lane's; several lane values of one `single` kind → keep one (lowest `rank`, else the first). The app applies them only to cards it makes. `file-ticket.sh`, `file-question.sh` and `file-record.sh` union them for you (`union_lane_defaults`, `lanework/scripts/lib.sh`); a card you write by hand, you union yourself.
+- Lane has `card-defaults` → union its `labels` into the new card's yourself, case-insensitively (guide § Frontmatter, lanes): a bare name = free label, a kinded entry = stamped from the board's current `config.labels`. Your own value of a `single` kind wins over the lane's; several lane values of one `single` kind → keep one (lowest `rank`, else the first). The app applies them only to cards it makes. `work/scripts/file-card.sh`, `file-ticket.sh`, `file-question.sh` and `file-record.sh` union them for you (`union_lane_defaults`, `lanework/scripts/lib.sh`); a card you write by hand, you union yourself.
 
 ## Comments
 
@@ -61,4 +62,5 @@ The board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`,
 - Boards usually live in a repo, and the board body says how it's committed. Commit your own board writes, with plain messages.
 - **Stage exact paths**: the card's `index.md`, the `comments/<uuid>` you wrote. Never a lane dir, a whole card dir (it drags in the owner's unposted `comments/.draft/`), `-A` or `.`.
 - Board writes and code changes: separate commits. Shared repo: `git commit --only -- <paths>`, never amend or stash.
+- Script: `work/scripts/commit-board.sh` (named paths only, under a lock; pushes only with `--push`).
 - **Merge conflicts on a board**: never hand-edit the markers. The `merge` skill resolves them (`merge/references/rules.md`).
