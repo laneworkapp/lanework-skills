@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "plan: claim-ticket stakes a lease and still moves the ticket to Working"
-order: 10240
+order: 2048
 labels: [{text: plan, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T14:48:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T11:42:24Z}
+modified: {at: 2026-11-17T19:09:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Make `plan`'s `claim-ticket.sh` and `resolve-ticket.sh` stake and release a card lease through the lanework lease script, with claiming still moving the ticket from Frontier to Working, so the lane shows the stage and the lease shows the holder.
 
