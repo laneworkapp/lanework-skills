@@ -2,6 +2,7 @@
 schema: 1
 kind: card
 title: "Discovery map"
+cite-as: Map
 order: 2048
 icon: {glyph: point.3.connected.trianglepath.dotted}
 ---

@@ -20,7 +20,7 @@ One card, Map lane, order 1024: `templates/map-card.md`. The whole plan at low r
 
 ## Refer by name
 
-Every ticket named as a link: `[T3: <title>](lanework://<board>/<card>)`, in the map, chat, comments and resolutions. Never a bare `T3`, short id or uuid.
+Every ticket named as a link: `[T3](lanework://<board>/<card>)` (link text: `work/references/writing.md` § Card references), in the map, chat, comments and resolutions. Never a bare `T3`, short id or uuid outside a link.
 
 ## Fog or ticket?
 

@@ -40,4 +40,4 @@ Only the agent, only by script. Owner never moves cards: a comment or chat reply
 
 - Placing: `lanework/references/writes.md` § Placing. A moved card lands at the bottom: Resolved reads as the route walked.
 - Frontier top = next ticket. Reprioritising = rewrite `order` within the lane (`writes.md` § Moving).
-- T numbers: global, in filing order. Minted from the highest `T<n>` across all lanes (`file-ticket.sh` does).
+- T numbers: `cite-as: T<n>`, global, in filing order; mint rule `lanework/references/writes.md` (`file-ticket.sh` does).

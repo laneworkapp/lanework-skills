@@ -6,7 +6,7 @@
 # restamps, moves the card to the bottom of Resolved (card must be in Working) or Out of scope
 # (card in Frontier, Blocked or Working). Then, only for resolved: every Blocked ticket whose
 # `## Depends on` links are all in Resolved moves to the bottom of Frontier (fresh order,
-# `modified` rewritten whole), one `unblocked T<n>` line each. Staged outside the board; each
+# `modified` rewritten whole), one `unblocked <name>` line each (its citation; a card with none: the `T<n>` of a legacy `T<n>: ` title, else the title). Staged outside the board; each
 # card path is re-resolved just before landing. Prints the resolved card's link.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
@@ -88,8 +88,12 @@ if [ "$TO" = resolved ]; then
       restamp "$f" "$(next_order "$FRONTIER")" "$STAGE/u.md"
       [ -f "$BLOCKED/$bid/index.md" ] || continue
       mv "$STAGE/u.md" "$BLOCKED/$bid/index.md"; mv "$BLOCKED/$bid" "$FRONTIER/$bid"
-      t=$(strip_quotes "$(fm_value "$FRONTIER/$bid/index.md" title)")
-      printf 'unblocked %s\n' "${t%%:*}"
+      t=$(cite_of "$FRONTIER/$bid/index.md")
+      if [ -z "$t" ]; then
+        t=$(strip_quotes "$(fm_value "$FRONTIER/$bid/index.md" title)")
+        if [[ "$t" =~ ^T[0-9]+:\  ]]; then t="${t%%:*}"; fi
+      fi
+      printf 'unblocked %s\n' "$t"
     done < <(for g in "$BLOCKED"/*/index.md; do [ -f "$g" ] && printf '%s\t%s\n' "$(fm_value "$g" order)" "$g"; done | sort -n | cut -f2-)
   fi
 fi

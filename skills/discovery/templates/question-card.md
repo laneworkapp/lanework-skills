@@ -1,7 +1,8 @@
 ---
 schema: 1
 kind: card
-title: "Q{{n}}: {{title}}"
+title: "{{title}}"
+cite-as: {{cite}}
 order: {{order}}
 labels: [{text: "Round {{round}}", kind: {type: round, text: Round}}]
 waiting: {for: {{handle}}, since: {{since}}, comment: {{ask_id}}}
@@ -22,4 +23,4 @@ modified: {{stamp}}
 ## Depends on
 
 - [Q<n>](lanework://<board>/<card>): <what it settled>
-- [Fact: <title>](lanework://<board>/<card>)
+- [F<n>](lanework://<board>/<card>)

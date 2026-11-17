@@ -1,7 +1,8 @@
 ---
 schema: 1
 kind: card
-title: "Fact: <the fact, short>"
+title: "<the fact, short>"
+cite-as: F<n>
 order: <bottom of Facts>
 icon: {glyph: doc.text.magnifyingglass}
 ---

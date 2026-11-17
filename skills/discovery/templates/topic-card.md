@@ -1,7 +1,8 @@
 ---
 schema: 1
 kind: card
-title: "Topic: <what is being examined>"
+title: "<what is being examined>"
+cite-as: Topic
 order: 1024
 icon: {glyph: scope}
 ---
