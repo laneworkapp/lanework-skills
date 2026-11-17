@@ -1027,6 +1027,10 @@ ok "the lane -> actor table lives only in board-kinds.md, with a row per pipelin
   grep -q 'unclaimed' "$SK/watch/references/arming.md" && grep -q 'companions.md' "$SK/watch/references/responding.md" && ! grep -q 'Ideas, Proposed' "$SK/watch/references/responding.md"; } || { echo "watch still calls a move context only, says requested, lacks the arming pass or the move case"; exit 1; }
 ok "watch: no rule calls a move context only; arming acts on waiting cards; responding covers the move"
 
+EV="$SK/watch/references/events.md"
+{ grep -q 'moved:' <(sed -n '/^4\. /,/^5\. /p' "$EV") && grep -q 'moved\.by' <(sed -n '/^5\. /,/^6\. /p' "$EV") && grep -q 'to\.lane' <(sed -n '/^5\. /,/^6\. /p' "$EV") && ! grep -q 'bare move with no comment' "$EV"; } || { echo "events.md item 4 lacks moved: as a receipt, item 5 lacks moved.by or to.lane (which receipt counts), or it still says bare move with no comment"; exit 1; }
+ok "watch events: a move receipt is a record and moved.by names the mover"
+
 HD="$SK/heal/scripts/heal-descriptors.py"
 X="$T/Heal Me.lanework"
 "$SK/lanework/scripts/found-board.sh" "$X" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Heal --var verified='`make`' --model smoke >/dev/null
