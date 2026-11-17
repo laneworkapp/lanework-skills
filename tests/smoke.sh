@@ -1761,7 +1761,10 @@ LT3=$(cc "$("$PS/file-ticket.sh" "$CP" "Both" --type task --body "$T/ct.md" --de
 { grep -qxF -- "- [T1](lanework://$PBID/$LT1)" "$CP"/*/"$LT3"/index.md && grep -qxF -- "- [T2](lanework://$PBID/$LT2)" "$CP"/*/"$LT3"/index.md; } || { echo "Depends on lines are not citation links:"; cat "$CP"/*/"$LT3"/index.md; exit 1; }
 FO=$("$PS/frontier.sh" "$CP" 2>"$T/cdrift.txt")
 { grep -qxF "T1: Engine: placement  [${LT1:0:8}](lanework://$PBID/$LT1)" <<<"$FO" && grep -qxF "T3: Both  [${LT3:0:8}](lanework://$PBID/$LT3)" <<<"$FO" && grep -qxF '    waits on T1 (Frontier)' <<<"$FO" && [ ! -s "$T/cdrift.txt" ]; } || { echo "frontier.sh does not show the citation:"; echo "$FO"; cat "$T/cdrift.txt"; exit 1; }
-ok "cite links: Depends on lines and a record's first line are [T1](…) and [Q1](…); frontier.sh and read-board.sh print the citation before the title and frontier's messages name it"
+# a Blocked ticket moved to Frontier by hand while its dependencies are open: the drift warning names the citation
+mv "$(ls -d "$CP"/*/"$LT3")" "$(dirname "$(ls -d "$CP"/*/"$LT1")")/"; "$PS/frontier.sh" "$CP" >/dev/null 2>"$T/cdrift.txt"
+grep -qxF 'frontier.sh: drift: T3 is on the Frontier with a dependency open: T1 (Frontier) T2 (Frontier)' "$T/cdrift.txt" || { echo "frontier.sh warning does not name the citations:"; cat "$T/cdrift.txt"; exit 1; }
+ok "cite links: Depends on lines and a record's first line are [T1](…) and [Q1](…); frontier.sh and read-board.sh print the citation before the title, and its listing and drift warning name the citation"
 # cite-as: resolving a ticket with a bare title names the citation, not the title
 printf 'Where does the engine run?\n' > "$T/ct.md"; printf '**2026-11-17**: Done.\n' > "$T/cres.md"
 cc() { head -1 <<<"$1" | sed 's#.*/##'; }
@@ -1778,6 +1781,23 @@ grep -qx 'cite-as: T2' "$(ls "$CP"/*/"$ET2"/index.md)" && grep -qx 'title: "Wire
 RO=$("$PS/resolve-ticket.sh" "$CP" "$ET1" --resolution "$T/cres.md" --model smoke)
 { grep -qx 'unblocked T2' <<<"$RO" && grep -qx 'unblocked T3' <<<"$RO" && ! grep -q -e 'Wire' -e 'Third' <<<"$RO"; } || { echo "resolve-ticket.sh did not name the citations:"; echo "$RO"; exit 1; }
 validate "$CP" >/dev/null; ok "cite resolve unblocked: resolving T1 prints unblocked T2 and unblocked T3 for bare titles (one with a colon), never the title"
+# cite-as: a zero-padded number is decimal, and a prefix counts only its own cards
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"
+cc() { head -1 <<<"$1" | sed 's#.*/##'; }
+cardwith() {  # cardwith <board> <lane card path> <title> [cite-as]: a hand-written card
+  mkdir -p "$2"; { printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\n' "$3"; [ -z "${4:-}" ] || printf 'cite-as: %s\n' "$4"
+    printf 'order: 9000\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nx\n'; } > "$2/index.md"; }
+CZ="$T/CiteZ Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$CZ" --model smoke >/dev/null; mkguide "$CZ" 117
+ZL=$(dirname "$(ls -d "$CZ"/*/ | sed -n 3p | sed 's#/$##')")/$(basename "$(ls -d "$CZ"/*/ | sed -n 3p | sed 's#/$##')")
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "nine" ADR9; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "padded" ADR010
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Topic tail" Topic; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "frodo" FR12; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "pdr" PDR4
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "tail of Q" DQ50; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "tail of ADR" XADR40
+cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Q08" Q08; cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Q09: legacy"
+( . "$SK/lanework/scripts/lib.sh"
+  got="ADR=$(next_cite "$CZ" ADR) Q=$(next_cite "$CZ" Q) T=$(next_cite "$CZ" T) F=$(next_cite "$CZ" F) PDR=$(next_cite "$CZ" PDR)"
+  [ "$got" = "ADR=ADR11 Q=Q10 T=T1 F=F1 PDR=PDR5" ] || { echo "next_cite miscounted: $got"; exit 1; } )
+ZO=$("$SK/discovery/scripts/file-question.sh" "$CZ" "after padding" --round 1 --body "$T/cq.md" --model smoke 2>&1); grep -qx 'cite Q10' <<<"$ZO" || { echo "file-question.sh on a padded board:"; echo "$ZO"; exit 1; }
+validate "$CZ" >/dev/null; ok "cite padded and prefix: ADR9 beside ADR010 mints ADR11, Q08 and a Q09: title mint Q10, and a prefix ignores the numbers of Topic, FR12, DQ50, XADR40 and the other prefixes; file-question.sh files Q10 on that board"
 
 # plugin: the manifest agrees with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'

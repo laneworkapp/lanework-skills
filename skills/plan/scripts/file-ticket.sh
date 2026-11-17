@@ -77,8 +77,8 @@ CARD_ID=$(uuid); FOUND_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/plan-ticket.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 C="$STAGE/$CARD_ID"; mkdir -p "$C/comments/$FOUND_ID"
 
-if cite_enabled "$BOARD"; then   # scanned as late as possible: nothing narrower than this closes a race with another session
-  CITE=$(next_cite "$BOARD" T); CARD_TITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/ticket-card.md" > "$STAGE/fm.md"
+if cite_enabled "$BOARD"; then   # the citation is scanned later (stamp_cite), just before the card is written
+  CITE=CITEPENDING; CARD_TITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/ticket-card.md" > "$STAGE/fm.md"
 else
   CITE="T$((MAXT + 1))"; CARD_TITLE="$CITE: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/ticket-card.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
 fi
@@ -87,6 +87,7 @@ render "$STAGE/fm.md" cite "$CITE" title "$CARD_TITLE" order "$(next_order "$DES
 if grep -q '}}}' "$STAGE/fm.out"; then echo "file-ticket.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
 union_lane_defaults "$DEST" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
+if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" T); fi   # scanned here, after the slow steps
 {
   cat "$STAGE/fm.out"
   cat "$BODY_FILE"

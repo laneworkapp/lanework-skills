@@ -108,11 +108,15 @@ next_cite() {
   for f in "$1"/*/*/index.md "$1"/.trash/*/index.md "$1"/.trash/*/*/index.md; do
     [ -f "$f" ] || continue
     c=$(cite_of "$f"); t=$(strip_quotes "$(fm_value "$f" title)")
-    if [[ "$c" =~ $re_c ]] && [ "${BASH_REMATCH[1]}" -gt "$max" ]; then max="${BASH_REMATCH[1]}"; fi
-    if [[ "$t" =~ $re_t ]] && [ "${BASH_REMATCH[1]}" -gt "$max" ]; then max="${BASH_REMATCH[1]}"; fi
+    if [[ "$c" =~ $re_c ]] && [ "$((10#${BASH_REMATCH[1]}))" -gt "$max" ]; then max=$((10#${BASH_REMATCH[1]})); fi   # 10#: a zero-padded number is decimal
+    if [[ "$t" =~ $re_t ]] && [ "$((10#${BASH_REMATCH[1]}))" -gt "$max" ]; then max=$((10#${BASH_REMATCH[1]})); fi
   done
   printf '%s%s' "$2" $((max + 1))
 }
+
+# stamp_cite <staged frontmatter> <board> <prefix>: a gated filing script renders `cite-as: CITEPENDING`; this scans (next_cite) and fills it in,
+# so the scan runs after everything slow and just before the card is written. Prints the citation.
+stamp_cite() { local c; c=$(next_cite "$2" "$3"); perl -pi -e "s/^cite-as: CITEPENDING\$/cite-as: $c/" "$1"; printf '%s' "$c"; }
 
 # by_of <name> <model> [session]: the stamp's `by` mapping.
 by_of() {
