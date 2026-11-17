@@ -757,6 +757,58 @@ rc=0; "$LS" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: w
 [ -z "$("$LS" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
 ok "lint-stamps: --slack with no value and no arguments exit 2, and the error goes to stderr"
 
+# work: lint-waiting-clears (the discovery board with its cards removed, so only the cards built here count; read-only, so the tree is byte-identical after)
+WL="$SK/work/scripts/lint-waiting-clears.sh"; WB="$T/Clears.lanework"; cp -R "$D" "$WB"
+WLANE=$(dirname "$(ls "$WB"/*/index.md | sed -n 2p)"); rm -rf "$WB"/*/*/
+WC=c0000000-0000-4000-8000-00000000000; WA=a0000000-0000-4000-8000-00000000000; WH=b0000000-0000-4000-8000-00000000000   # card, agent comment, human comment ids, last digit appended
+# wl_card <n> [<waiting lines, \n-separated>] [<folder>]: card n, in the lane or the given folder
+wl_card() { local d="${3:-$WLANE}/$WC$1"; mkdir -p "$d/comments"
+  { printf -- '---\nschema: 1\nkind: card\ntitle: "Card %s"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n' "$1"
+    [ -z "${2:-}" ] || printf "$2"; printf -- '---\nBody.\n'; } > "$d/index.md"; }
+# wl_com <n> <id> <time hh:mm:ss> <agent|human> <in-reply-to or -> <body, printf format> [<folder>]: a comment on card n
+wl_com() { local d="${7:-$WLANE}/$WC$1/comments/$2"; mkdir -p "$d"; local by='{name: kim, kind: human}' irt=''
+  [ "$4" != agent ] || by='{name: claude, kind: agent, model: claude-sonnet-5-5}'; [ "$5" = - ] || irt="in-reply-to: $5"$'\n'
+  { printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T%sZ, by: %s}\n%s---\n' "$3" "$by" "$irt"; printf "$6"; } > "$d/index.md"; }
+WASK='@anyone Which route?\n\nOptions:\n- A: x\n- Recap: Explain this in plain terms first\n'
+WREC='**Owner ruled off the board.**\n\n> Yes, A.\n\n**Given**: chat, 2026-11-17\n'
+# wl_expect <rc> <output, printf format>: run the lint on the board; its exit code and stdout must match
+wl_expect() { local rc=0 out; out=$("$WL" "$WB" 2>&1) || rc=$?; [ "$rc" -eq "$1" ] && [ "$out" = "$(printf "$2")" ] || { echo "lint-waiting-clears: want exit $1 and [$(printf "$2")], got $rc and [$out]"; exit 1; }; }
+wl_reset() { rm -rf "$WLANE"/c0*; }
+wl_expect 0 ''
+ok "lint-waiting-clears is silent and exits 0 on a board with no cards"
+wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
+wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
+ok "lint-waiting-clears: an agent ask, no waiting and a quoting record (in-reply-to, > line, Given line) is one QUOTED line, exit 0"
+rm -rf "$WLANE/${WC}1/comments/${WA}2"; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\nYes, A.\n\n**Given**: chat, 2026-11-17\n'; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n> Yes, A.\n'; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+wl_com 1 ${WA}2 10:00:05 agent - "$WREC"; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: no record, a record with no > line, one with no Given line, and a quoting record not in reply to the ask are each NO-QUOTE, exit 1"
+wl_reset; wl_card 1 'waiting: {for: anyone, since: 2026-11-17T10:00:00Z, comment: '${WA}1'}\n'; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"
+wl_card 2 'waiting:\n  for: [rzen, bobsmith, carol, dave]\n  since: 2026-11-17T10:00:00Z\n  comment: '${WA}1'\n'; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"
+wl_expect 0 ''
+ok "lint-waiting-clears: an ask with waiting present is silent, in the flow and the block form"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WH}1 10:30:00 human - 'Looks fine.\n'
+wl_card 2; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"; wl_com 2 ${WH}1 09:00:00 human ${WA}1 'A: Yes.\n'
+wl_expect 0 ''
+ok "lint-waiting-clears: an ask followed by a human comment, or a human reply in-reply-to it, with waiting absent (the app's clear) is silent"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 11:00:00 agent - "$WASK"
+wl_expect 1 "NO-QUOTE ${WC}1 ${WA}2\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: two asks, the newer unanswered and unmarked with no record, names the newer ask's uuid only"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - '**A record, no ask.**\n\nEvidence: none.\n'; wl_com 1 ${WH}1 10:01:00 human - '@anyone not an ask, a human wrote it\n'
+wl_card 2 '' "$WB/.trash"; wl_com 2 ${WA}1 10:00:00 agent - "$WASK" "$WB/.trash"
+wl_expect 0 ''
+ok "lint-waiting-clears: a record with no handle, a human comment that starts with @, and a card in .trash are silent"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_card 2; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"; wl_com 2 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
+SW=$(sum "$WB"); rc=0; out=$("$WL" "$WB") || rc=$?
+[ "$rc" -eq 1 ] && [ "$(grep -c -E '^(QUOTED|NO-QUOTE) c0' <<<"$out")" -eq 2 ] && [ "$SW" = "$(sum "$WB")" ] || { echo "lint-waiting-clears: rc $rc, or it changed a file:"; echo "$out"; exit 1; }
+ok "lint-waiting-clears leaves every file of the board byte-identical, with a QUOTED and a NO-QUOTE card listed"
+rc=0; "$WL" "$T/no-such-board" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "missing path: want exit 2, got $rc"; exit 1; }
+rc=0; "$WL" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: want exit 2, got $rc"; exit 1; }
+rc=0; "$WL" "$WB" --bogus >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "a bad flag: want exit 2, got $rc"; exit 1; }
+[ -z "$("$WL" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
+ok "lint-waiting-clears exits 2 on a missing path, no arguments or a bad flag, the message on stderr"
+
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
 PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"
 PCARD=$(basename "$(dirname "$(ls "$PB"/*/*/index.md | head -1)")")
