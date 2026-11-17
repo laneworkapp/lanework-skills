@@ -2332,6 +2332,27 @@ kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
   || pl_fail "plan claim TERM during the stake: rc $RC, lane $(plb "$PC2b"), session '$(csess "$(pf "$PC2b")")', err: $(cat "$T/pl-err.txt")"
 ok "plan claim ended during its stake releases what the stake left: Frontier, no claimed, no timer, no memory, no Claimed comment"
 
+# P2c. a claim ended once the card is in Working has landed: it keeps the lease. A mkdir shim on PATH holds the claim between the
+# card's move and its Claimed comment (it marks a file, then waits on the comments folder), so the TERM lands there every time
+PSH="$T/plan-shim"; mkdir -p "$PSH"; printf '%s\n' '#!/bin/bash' 'case "${@: -1}" in */comments) [ -z "${PL_SHIM_MARK:-}" ] || : > "$PL_SHIM_MARK"; sleep 3 ;; esac' \
+  'exec /bin/mkdir "$@"' > "$PSH/mkdir"; chmod +x "$PSH/mkdir"
+PC2c=$(ptk "Landed"); rm -f "$T/pl-mark"
+env PATH="$PSH:$PATH" PL_SHIM_MARK="$T/pl-mark" CLAUDE_CODE_SESSION_ID=S-pkeep CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1000 "$PS/claim-ticket.sh" "$PB" "$PC2c" --model smoke >/dev/null 2>"$T/pl-err.txt" & CLP=$!
+waitfor '[ -f "$T/pl-mark" ]' || waitfor '[ -f "$T/pl-mark" ]' || pl_fail "plan claim landed: the shim never held the claim"
+kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
+[ "$RC" != 0 ] && [ "$(plb "$PC2c")" = Working ] && [ "$(csess "$(pf "$PC2c")")" = S-pkeep ] && [ -f "$(pmem S-pkeep "$PC2c")" ] && alive "$(pmpid S-pkeep "$PC2c")" \
+  && [ "$(pcount "$PC2c" "**Lease lost**")" = 0 ] || pl_fail "plan claim ended after landing: rc $RC, lane $(plb "$PC2c"), session '$(csess "$(pf "$PC2c")")', err: $(cat "$T/pl-err.txt")"
+PLS S-pkeep "$LS" release "$PB" "$PC2c" --model smoke; validate "$PB" >/dev/null
+ok "plan claim ended once the card is in Working keeps its lease: claimed, the timer and the memory stay"
+
+# P2d. a stake refused with exit 2 (a session id with a space) leaves nothing to release: no false "release by hand"
+PC2d=$(ptk "Bad session"); H=$(sum "$PB")
+RC=0; env CLAUDE_CODE_SESSION_ID='a b' CLAUDE_PID="$LPID" TMPDIR="$LT" "$PS/claim-ticket.sh" "$PB" "$PC2d" --model smoke >/dev/null 2>"$T/pl-err.txt" || RC=$?
+[ $RC = 1 ] && [ "$H" = "$(sum "$PB")" ] && grep -q 'stake exit 2' "$T/pl-err.txt" && ! grep -q 'by hand' "$T/pl-err.txt" \
+  || pl_fail "plan claim on a stake exit 2: rc $RC, err: $(cat "$T/pl-err.txt")"
+ok "plan claim refused by a stake exit 2 writes nothing and prints no release by hand"
+
 # P3. two claims at once from two sessions: one holder, one Claimed comment
 PC3=$(ptk "Raced")
 ( RC=0; PLS S-pra "$PS/claim-ticket.sh" "$PB" "$PC3" --model smoke >/dev/null 2>&1 || RC=$?; echo "$RC" > "$T/pr-a" ) & RPA=$!
