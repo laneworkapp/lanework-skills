@@ -1,10 +1,10 @@
 **November 2026**
 
-Version 0.9.0: the dispatch skill is retired. Use /lanework:watch instead, which now catches up when it starts.
+Version 0.9.0: the dispatch skill is retired; use /lanework:watch instead, which now catches up when it starts.
 
-/watch now answers comments you left while no watch was running, in every lane except Done, and reports work claims that look abandoned.
+/lanework:watch now answers comments you left while no watch was running, in every lane except Done, and reports work claims that look abandoned.
 
-/watch now re-reads your boards after its conversation is compacted, instead of trusting its summary.
+/lanework:watch now re-reads your boards after its conversation is compacted, instead of trusting its summary.
 
 If you installed the skills by hand, remove the old link with rm ~/.claude/skills/dispatch.
 

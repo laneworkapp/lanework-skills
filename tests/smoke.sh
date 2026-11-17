@@ -1312,8 +1312,9 @@ ok "check-sizes: a § Sizes row or table for a skill with no folder fails, namin
 # watch carries the arming sweep and the compaction rule that dispatch's retirement moved into it
 WA="$SK/watch/references/arming.md"
 { [ -x "$SK/watch/scripts/arm-pass.sh" ] && grep -q '^## Arming pass$' "$WA" && grep -q 'scripts/arm-pass.sh' "$WA" && grep -q 'scripts/arm-pass.sh' "$SK/watch/SKILL.md" \
-  && grep -qi 'compact' "$WA" && grep -q 'from `ls`, never from memory' "$WA"; } || { echo "watch arming lacks the arm-pass section, its script or the compaction rule"; exit 1; }
-ok "watch arming runs scripts/arm-pass.sh (its own section, a row in SKILL.md) and carries the compaction rule"
+  && grep -qi 'compact' "$WA" && grep -q 'from `ls`, never from memory' "$WA" \
+  && grep -q 'then carry on as `arm`' "$WA" && grep -q 'every agent lane title' "$WA" && grep -q 'arming message' "$WA"; } || { echo "watch arming lacks the arm-pass section, its script, the compaction rule, the answer-then-arm clause, the full lane-title list or the stale report place"; exit 1; }
+ok "watch arming runs scripts/arm-pass.sh (its own section, a row in SKILL.md) and carries the compaction rule, the answer-then-arm clause, the full lane-title list and where a stale report goes"
 
 # format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)
 H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top-level)|(root|top-level)[^.]*(priority|component)' "$SK" || true; } | grep -v -i 'reserved' || true)
