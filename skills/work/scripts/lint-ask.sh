@@ -1,8 +1,8 @@
 #!/bin/bash
 # Lint an ask comment before it lands.   Usage: lint-ask.sh <file> [<board dir>]
 #   <file>   a comment index.md (frontmatter + body) or a bare body file
-#   <board>  the .lanework folder; its CLAUDE.md names the human's handle. Without it, the
-#            first @token in the body is taken as the handle.
+#   <board>  the .lanework folder; its CLAUDE.md names the human's handle, and on a guide v117+ board
+#            `@anyone` is the human's handle too. Without it, the first @token in the body is taken as the handle.
 # A body that mentions nobody is a record and passes untouched. A body that mentions the
 # human is an ask and must fit references/writing.md § The ask: handle on the first
 # line (and every other @handle it names, outside code spans and URLs), under 80 words, one question, one clause per sentence (no em-dash, no semicolon),
@@ -17,6 +17,7 @@ f=${1:?usage: lint-ask.sh <file> [<board dir>]}; board=${2:-}
 body=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {fm=0; next} !fm' "$f")
 handle=""
 [ -n "$board" ] && handle=$(owner_handle "$board" || true)
+if [ -n "$board" ] && [ "$(ask_handle "$board" || true)" = anyone ] && printf '%s\n' "$body" | sed -E 's/`[^`]*`//g; s/\]\([^)]*\)/]/g; s#[[:alpha:]][[:alnum:]+.-]*://[^[:space:]>)]*##g' | grep -q -i -E '(^|[^[:alnum:]_])@anyone([^[:alnum:]_-]|$)'; then handle=anyone; fi
 [ -n "$handle" ] || handle=$(printf '%s\n' "$body" | grep -o -E '(^|[^[:alnum:]_])@[[:alnum:]_-]+' | head -1 | sed 's/.*@//')
 [ -n "$handle" ] || exit 0                                   # no mention anywhere: a record
 mention="(^|[^[:alnum:]_])@$handle([^[:alnum:]_-]|$)"

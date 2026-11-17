@@ -30,11 +30,11 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 356 | 4,314 |
-| `work` | 16 | 406 | 6,976 |
+| `lanework` | 10 | 356 | 4,362 |
+| `work` | 16 | 406 | 7,066 |
 | `watch` | 4 | 186 | 1,359 |
 | `dispatch` | 5 | 228 | 1,797 |
-| `discovery` | 14 | 502 | 2,902 |
+| `discovery` | 14 | 502 | 2,906 |
 | `plan` | 9 | 453 | 2,675 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
@@ -52,10 +52,10 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 142 |
-| `references/writes.md` | 1,119 |
+| `references/writes.md` | 1,167 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **4,314** |
+| **total** | **4,362** |
 
 #### `work`
 
@@ -67,17 +67,17 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 | `references/fixer.md` | 391 |
 | `references/lead.md` | 977 |
 | `references/reviewer.md` | 415 |
-| `references/sweep.md` | 730 |
+| `references/sweep.md` | 741 |
 | `references/team.md` | 528 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 377 |
-| `references/writing.md` | 1,246 |
-| `templates/ask.md` | 310 |
+| `references/writing.md` | 1,317 |
+| `templates/ask.md` | 318 |
 | `templates/farmed-prompt.md` | 167 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **6,976** |
+| **total** | **7,066** |
 
 #### `watch`
 
@@ -106,7 +106,7 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 |---|---|
 | `SKILL.md` | 502 |
 | `references/board.md` | 347 |
-| `references/conduct.md` | 153 |
+| `references/conduct.md` | 157 |
 | `references/corners.md` | 171 |
 | `references/records.md` | 568 |
 | `references/rounds.md` | 319 |
@@ -118,7 +118,7 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `dispatch` on 2026-10-25, `lane
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 66 |
 | `templates/topic-card.md` | 65 |
-| **total** | **2,902** |
+| **total** | **2,906** |
 
 #### `plan`
 

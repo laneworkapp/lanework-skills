@@ -1,5 +1,11 @@
 **November 2026**
 
+Questions the skills ask now go to anyone on a board by default, so every person on a shared board gets the answer buttons, and they name one person only when the question is theirs alone.
+
+Healing a board no longer lets an agent sign its work as "anyone", a name Lanework keeps for addressing every person.
+
+Skills now follow version 118 of Lanework's agent guide.
+
 Version 0.8.0: cards, tickets and decision records the skills file now pick up the default labels of the lane they land in.
 
 Existing plugin users: Lanework now installs from a central marketplace, so run `/plugin marketplace remove lanework` (it also uninstalls the plugin), then `/plugin marketplace add https://github.com/laneworkapp/lanework-marketplace.git`, then `/plugin install lanework@lanework`.
