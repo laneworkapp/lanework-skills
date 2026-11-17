@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "watch: the session stakes a lease before working or handing off a card"
-order: 2048
+order: 73728
 labels: [{text: watch, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T14:48:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T21:23:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-17T22:04:44Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Make `watch` honor the card lease: the session stakes a lease before it works a card or hands it to a subagent, keeps it while the subagent runs, releases it when the card reaches a gate or is done, and the arming report lists held cards and lapsed leases.
 
