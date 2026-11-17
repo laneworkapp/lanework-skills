@@ -14,11 +14,19 @@
 # A card is leased when it has a START (a session-less one too), or a lease-lost record, created at or after --since
 # (default: always). --first keeps the n leased cards with the earliest such comment, for the tally and the lost and
 # two-START findings; lapsed reads every card. Several boards are counted together. Skips .trash, .log, .schema,
-# attachments; flow and block front matter, CRLF files.
+# attachments; flow and block front matter, CRLF files. A board is read through its real folder (a symlink works) and
+# counted once however it is spelled; lines print the first spelling given.
 set -u
 . "$(dirname "$0")/../../lanework/scripts/lib.sh"
 USAGE="usage: lint-leases.sh <board dir>... [--since <ts>] [--first <n>] [--window <s>] [--grace <s>]"
 die() { echo "lint-leases.sh: $1" >&2; exit 2; }
+# real_time <YYYY-MM-DDTHH:MM:SSZ>: 0 when month, day (leap years too), hour, minute and second all exist
+real_time() {
+  local y=$((10#${1:0:4})) m=$((10#${1:5:2})) d=$((10#${1:8:2})) dim
+  [ "$m" -ge 1 ] && [ "$m" -le 12 ] || return 1
+  case $m in 1|3|5|7|8|10|12) dim=31 ;; 4|6|9|11) dim=30 ;; *) if [ $((y % 400)) -eq 0 ] || { [ $((y % 4)) -eq 0 ] && [ $((y % 100)) -ne 0 ]; }; then dim=29; else dim=28; fi ;; esac
+  [ "$d" -ge 1 ] && [ "$d" -le "$dim" ] && [ $((10#${1:11:2})) -le 23 ] && [ $((10#${1:14:2})) -le 59 ] && [ $((10#${1:17:2})) -le 59 ]
+}
 [ $# -ge 1 ] || { echo "$USAGE" >&2; exit 2; }
 since=""; first=0; window=1800; grace=900; nb=0
 while [ $# -gt 0 ]; do
@@ -26,7 +34,8 @@ while [ $# -gt 0 ]; do
     --since|--first|--window|--grace)
       [ $# -ge 2 ] || die "$1 needs a value"
       case "$1" in
-        --since) since=$2; case "$since" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z) ;; *) die "--since needs a UTC time like 2026-11-14T15:30:00Z" ;; esac ;;
+        --since) since=$2; case "$since" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z) ;; *) die "--since needs a UTC time like 2026-11-14T15:30:00Z" ;; esac
+          real_time "$since" || die "--since names no real time: $since" ;;
         --first) first=$2; case "$first" in ''|*[!0-9]*|0) die "--first needs a positive whole number" ;; esac ;;
         --window) window=$2; case "$window" in ''|*[!0-9]*) die "--window needs whole seconds" ;; esac ;;
         --grace) grace=$2; case "$grace" in ''|*[!0-9]*) die "--grace needs whole seconds" ;; esac ;;
@@ -37,7 +46,9 @@ while [ $# -gt 0 ]; do
       b=$1; while [ "${b%/}" != "$b" ] && [ "$b" != "/" ]; do b=${b%/}; done
       [ -e "$b" ] || die "no such path: $1"
       [ -f "$b/index.md" ] || die "not a board (no index.md): $1"
-      nb=$((nb + 1)); eval "board_$nb=\$b"; shift ;;
+      r=$(cd "$b" && pwd -P) || die "cannot enter: $1"
+      i=1; dup=""; while [ "$i" -le "$nb" ]; do eval "[ \"\$real_$i\" = \"\$r\" ]" && dup=1; i=$((i + 1)); done
+      if [ -z "$dup" ]; then nb=$((nb + 1)); eval "board_$nb=\$b; real_$nb=\$r"; fi; shift ;;
   esac
 done
 [ "$nb" -ge 1 ] || { echo "lint-leases.sh: no board given" >&2; echo "$USAGE" >&2; exit 2; }
@@ -47,7 +58,7 @@ done
 S1='
 function emit(   rel, n, p, card, t, s, a, u, k) {
   if (st < 2) return
-  rel = substr(cur, length(board) + 2); n = split(rel, p, "/"); card = board "/" p[1] "/" p[2]
+  rel = substr(cur, length(board) + 2); n = split(rel, p, "/"); card = show "/" p[1] "/" p[2]
   if (n == 3 && p[3] == "index.md" && kind == "card" && ltext != "") {
     u = ""
     if (match(ltext, /until:[ \t]*["\x27]?[^",}\x27 \t\n]*/)) { u = substr(ltext, RSTART, RLENGTH); sub(/^until:[ \t]*["\x27]?/, "", u) }
@@ -67,7 +78,7 @@ function emit(   rel, n, p, card, t, s, a, u, k) {
     printf "C\t%s\t%s\t%s\t%s\t%s\n", card, p[4], a, s, k
   }
 }
-BEGIN { board = ENVIRON["LL_BOARD"]; lost = ENVIRON["LL_LOST"] }
+BEGIN { board = ENVIRON["LL_BOARD"]; show = ENVIRON["LL_SHOW"]; lost = ENVIRON["LL_LOST"] }
 { sub(/\r$/, "") }
 FNR == 1 { if (cur != "") emit(); cur = FILENAME; st = ($0 == "---") ? 1 : 0; ctext = ""; ltext = ""; first = ""; kind = ""; key = ""; next }
 st == 1 {
@@ -147,9 +158,9 @@ nowe=$(date -u +%s)
 out=$(
   i=1
   while [ "$i" -le "$nb" ]; do
-    eval "b=\$board_$i"
-    find "$b" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print0 \
-      | LL_BOARD="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$S1"
+    eval "b=\$board_$i; r=\$real_$i"
+    find "$r" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print0 \
+      | LL_BOARD="$r" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$S1"
     i=$((i + 1))
   done | awk -v since="$since" -v first="$first" -v window="$window" -v grace="$grace" -v now="$nowe" "$S2" | sort
 )
