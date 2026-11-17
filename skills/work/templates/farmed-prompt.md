@@ -8,7 +8,9 @@ Board: <absolute path to the .lanework folder>
 Before acting: read <board>/CLAUDE.md, the board index.md body, the lane bodies, and the card's whole thread (cat, never head).
 Stamp every write with `by` (guide § Stamping your work): name <role>, kind agent, model <tier>; every timestamp from the clock when you write (`date -u +%FT%TZ`), never typed
 Board write rules: <skills>/lanework/references/writes.md
-Journal on the card's thread: plan when you start, decisions as you make them, verification evidence at the end.
+Lease: held by this session on the card until <until>, renewed by its timer | none (no card write)
+Never run the lease script to stake: your writes pass its check under the session's id. post-comment.sh or move-card.sh exiting 3 = the lease is lost: stop writing the card, report back.
+Journal on the card's thread: START when you start (work/references/writing.md § START), decisions as you make them, verification evidence at the end.
 <paste work/references/writing.md § Short form, verbatim>
 Task: <the work, with its done-when>
 ```
