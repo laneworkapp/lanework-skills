@@ -5,8 +5,8 @@ title: "Move the owner's install to lanework-marketplace"
 order: 3072
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-05T00:31:07Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "marketplace chat"}}
-modified: {at: 2026-11-18T11:24:16Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-18T11:24:16Z, comment: b72e8eb8-a6c7-460c-9331-8d4ba34d649b}
+modified: {at: 2026-11-18T11:25:13Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-18T11:25:13Z, comment: 9e3b2df0-b01a-4770-8347-7c0327a2d7c3}
 ---
 The owner's own Claude Code installs `lanework` from this repo's old catalog URL, and this card points it at `lanework-marketplace` instead.
 
