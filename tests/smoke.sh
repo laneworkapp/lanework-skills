@@ -1865,9 +1865,10 @@ ok "commit-board.sh --push lands on origin, trailers only from --trailer, each o
 # a kill while the push hangs (a pre-push hook that sleeps, then refuses): HEAD has the commit and the index already matches it,
 # so the owner's next plain commit cannot revert the board write; SIGKILL, then SIGTERM
 printf '#!/bin/bash\ntouch "%s/inpush"; sleep 3; touch "%s/pushdone"; exit 1\n' "$G" "$G" > "$G/work/.git/hooks/pre-push"; chmod +x "$G/work/.git/hooks/pre-push"
+mkdir -p "$G/tmp"   # the SIGKILL leg skips the trap: its stage folder stays here, inside the folder smoke removes
 for sig in KILL TERM; do
   rm -f "$G/inpush" "$G/pushdone"; echo "k$sig" > "$G/work/$CP"
-  (cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: killed $sig" "$CP") >/dev/null 2>&1 & KP=$!
+  (cd "$G/work" && TMPDIR="$G/tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: killed $sig" "$CP") >/dev/null 2>&1 & KP=$!
   perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/inpush' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the push never reached the hook"; exit 1; }
   kill -"$sig" "$KP"; wait "$KP" 2>/dev/null || true
   perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/pushdone' ]; do sleep 0.1; done"; sleep 0.5
@@ -1875,6 +1876,8 @@ for sig in KILL TERM; do
 done
 rm -f "$G/work/.git/hooks/pre-push"
 ok "commit-board.sh killed mid-push (SIGKILL, SIGTERM): HEAD holds the commit and the index already matches it on the named path"
+ls "$G/tmp" | grep -q '^work-commit\.' || { echo "the kill loop left no stage folder in \$G/tmp: TMPDIR is not reaching commit-board.sh"; exit 1; }
+ok "commit-board.sh smoke: the killed run's stage folder lands in the throwaway folder, not the real TMPDIR"
 # diverged: the other clone and a local commit both change the card file
 go pull -q; echo e > "$G/other/$CP"; go commit -q -am theirs; go push -q 2>/dev/null; echo f > "$G/work/$CP"; g commit -q -am ours; h1=$(g rev-parse HEAD)
 echo g > "$G/work/$CP"; rc=0; O=$(cb --push "B: diverged" "$CP" 2>&1) || rc=$?
@@ -1902,9 +1905,33 @@ O=$(cb "B: one gone" B.lanework/old/card/index.md "$CP" 2>&1) && grep -q 'B.lane
   || { echo "commit-board: a never-committed old path beside a real one: $O"; exit 1; }
 BR="B.lanework/lane [x]/i?.md"; mkdir -p "$G/work/B.lanework/lane [x]"; echo q > "$G/work/$BR"
 cb "B: brackets" "$BR" >/dev/null && [ "$(g show --name-only --format= HEAD)" = "$BR" ] || { echo "commit-board: a real path with [ and ? was not committed"; exit 1; }
-h4=$(g rev-parse HEAD); O=$(cb "B: glob" '*.md' 2>&1) && grep -q '^nothing to commit$' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h4" ] || { echo "commit-board: a glob matching no path: $O"; exit 1; }
-h3=$(g rev-parse HEAD); echo j2 > "$G/work/$CP"
+h4=$(g rev-parse HEAD); rc=0; O=$(cb "B: glob" '*.md' 2>&1) || rc=$?; [ "$rc" -eq 1 ] && grep -q 'none of the named paths is on disk or in HEAD' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h4" ] || { echo "commit-board: a glob matching no path: $O"; exit 1; }
 ok "commit-board.sh skips a named path neither on disk nor in HEAD (a card's old lane path, filed since; a glob, read literally) and commits the rest; a real path with [ and ? commits"
+# a failing pre-commit hook: nothing committed, the owner's staged version of the named path stays staged
+h5=$(g rev-parse HEAD); printf '#!/bin/bash\nexit 1\n' > "$G/work/.git/hooks/pre-commit"; chmod +x "$G/work/.git/hooks/pre-commit"
+echo v2 > "$G/work/$CP"; g add -- "$CP"; echo v3 > "$G/work/$CP"
+rc=0; O=$(cb "B: hooked" "$CP" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h5" ] && [ "$(g show ":$CP")" = v2 ] && [ "$(g status --porcelain -- "$CP")" = "MM $CP" ] && grep -q 'git commit failed' <<<"$O" \
+  || { echo "commit-board: a failing pre-commit hook (rc $rc): $O"; g status --short; exit 1; }
+rm -f "$G/work/.git/hooks/pre-commit"
+cb "B: unhooked" "$CP" >/dev/null && [ "$(g show "HEAD:$CP")" = v3 ] && g diff --cached --quiet -- "$CP" && g diff --quiet -- "$CP" || { echo "commit-board: after the hook was removed it did not commit and sync"; g status --short; exit 1; }
+ok "commit-board.sh: a failed pre-commit hook commits nothing and leaves the owner's staged version in the index"
+# every named path skipped: exit 1; a real path with no changes: nothing to commit, exit 0
+h6=$(g rev-parse HEAD); rc=0; O=$(cb "B: none" B.lanework/typo/index.md 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && grep -q 'none of the named paths is on disk or in HEAD; nothing committed' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h6" ] || { echo "commit-board: every path skipped: want exit 1, got $rc: $O"; exit 1; }
+rc=0; O=$(cb "B: same" "$CP" 2>&1) || rc=$?; [ "$rc" -eq 0 ] && [ "$O" = "nothing to commit" ] || { echo "commit-board: an unchanged real path: want exit 0, got $rc: $O"; exit 1; }
+ok "commit-board.sh: every named path skipped exits 1 naming it; an existing unchanged path still prints nothing to commit, exit 0"
+# a value-taking flag with no value, and post-comment.sh with no arguments: exit 2
+PCM="$SK/work/scripts/post-comment.sh"
+for c in "$FC b L t --body" "$MC b c L --model" "$PA b c --for" "$PCM b c --body" "$PCM"; do
+  rc=0; O=$($c 2>&1) || rc=$?; [ "$rc" -eq 2 ] || { echo "'$c' with no value: want exit 2, got $rc: $O"; exit 1; }
+done
+ok "file-card.sh, move-card.sh, post-ask.sh and post-comment.sh exit 2 on a flag with no value; post-comment.sh with no arguments exits 2"
+# a symlink in the tree is committed as the link, not its target
+echo t1 > "$G/work/target.md"; g add target.md; g commit -q -m target; ln -s target.md "$G/work/link.md"
+cb "B: link" link.md >/dev/null && [ "$(g ls-files -s link.md | cut -c1-6)" = 120000 ] && [ "$(g show --name-only --format= HEAD)" = link.md ] || { echo "commit-board: a symlink was not committed as a link"; g show --stat HEAD; exit 1; }
+ok "commit-board.sh commits a symlink as the link (mode 120000), not its target"
+h3=$(g rev-parse HEAD); echo j2 > "$G/work/$CP"
 # the lock: held by a live pid, the second invocation waits; held by a dead pid, it is reclaimed
 LK="$(cd "$G/work" && cd "$(gx rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.lock"
 sleep 30 & HP=$!; mkdir "$LK"; echo "$HP" > "$LK/pid"
