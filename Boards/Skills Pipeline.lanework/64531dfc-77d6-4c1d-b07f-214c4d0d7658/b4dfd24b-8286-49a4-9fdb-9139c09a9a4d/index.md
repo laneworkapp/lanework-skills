@@ -5,7 +5,7 @@ title: "Scripts refuse valid cards that contain a triple closing brace"
 order: 5120
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}, {text: plan, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T15:55:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T16:21:28Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T13:39:57Z}
 ---
 `move-card.sh` refuses to move a valid card when a label's kind carries an icon, or when the card's body contains three closing braces, and six more scripts carry the same guard.
 

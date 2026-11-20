@@ -5,7 +5,7 @@ title: "lint-ask.sh checks an ask only when it names the machine's own handle or
 order: 1024
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T12:10:27Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T12:10:27Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T13:39:57Z}
 ---
 An ask addressed to a person other than this machine's owner passes `lint-ask.sh` unchecked, and on a board with no handle line the lint still mistakes a quoted handle for an ask.
 
