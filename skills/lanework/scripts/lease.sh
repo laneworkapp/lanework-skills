@@ -76,8 +76,7 @@ write_card() {
     { print }' "$f" > "$stage/index.md"
   # the triple-brace guard reads only the lines written here (modified, the claimed block): every other line is copied as read,
   # and valid ones end in `}}}` (a label whose kind carries an icon), as may the body (a JSON example)
-  if [ "$(head -1 "$stage/index.md")" != "---" ] || awk 'NR == 1 { next } $0 == "---" { exit }
-      /^[^ \t]/ { w = ($0 ~ /^(modified|claimed):/) } w' "$stage/index.md" | grep -q '}}}'; then
+  if [ "$(head -1 "$stage/index.md")" != "---" ] || ! stamp_lines_ok "$stage/index.md" modified claimed; then
     rm -rf "$stage"; echo "lease.sh: $f: no frontmatter, or a broken stamp after the rewrite; nothing written" >&2; return 1
   fi
   compact_fm "$stage/index.md"

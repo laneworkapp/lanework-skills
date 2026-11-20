@@ -10,7 +10,7 @@ The guide has the full rules. These hold on every board and cost most when misse
 - **Labels and priority**: all `labels` entries; shape, kinds and the built-in `text` kind = the guide's § Frontmatter (`labels`) and `.schema/card.json`. A root `priority:` key is reserved: never written. A root `component:` is no reserved key, just an unknown one: left as written. Copy an entry's shape from the guide, never from another card (2026-10-02: three cards copied a custom kind's entry shape).
 - **Lists and mappings: compact form** (guide § Frontmatter): one flow line up to 120 chars, strings quoted; longer → `key:` over a block, each entry one line where it fits, recursively. Stamps always one line. Other layouts read, but the heal rewrites them.
 - **Validate before committing**: `python3 "$BOARD/.schema/bin/lanework-validate.py" <file or board>` → exit 0 **and** no `DEPRECATED` line. No `.schema/` yet: `founding.md` § Validate. Then `work/scripts/lint-stamps.sh <board>` → silent (no stamp over 60s ahead; restamp the named file from the clock).
-- **Stamp lines: rewrite whole, never regex-patch.** Nested braces corrupt. `grep '}}}'` every touched file after.
+- **Stamp lines: rewrite whole, never regex-patch.** Nested braces corrupt. check `}}}` on the stamp lines you wrote only, with `stamp_lines_ok` in `lanework/scripts/lib.sh`; valid copied lines end in `}}}`.
 - **Icons, colors**: the guide's § Colors and icons. `color` only when the tint says what the glyph can't.
 
 ## Paths

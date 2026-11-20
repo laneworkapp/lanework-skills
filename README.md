@@ -49,7 +49,7 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` an
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 150 |
-| `references/writes.md` | 1,969 |
+| `references/writes.md` | 1,982 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
 | **total** | **5,198** |
