@@ -5,8 +5,8 @@ title: "Waiting-clear trial: what counts toward its ending, and five lint edges"
 order: 4096
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T14:42:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T11:59:30Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-20T11:59:30Z, comment: 413e16f7-5d62-4cae-b61b-7f2fb5a6750e}
+modified: {at: 2026-11-20T12:03:28Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-20T12:03:28Z, comment: 5ae40ae5-e569-47b1-9b26-8645b36e4437}
 ---
 The trial that lets an agent clear `waiting` cannot reach its ending line as written, because the lint already reports three old clears and counts the discovery skill's own chat record as unquoted; both need the owner's call. Five smaller lint edges are listed below them.
 
