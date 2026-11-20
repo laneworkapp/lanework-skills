@@ -5,7 +5,7 @@ title: "Lease: a renewal can undo another write to the card, and a renamed board
 order: 6144
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T19:08:42Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T19:08:42Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T13:39:57Z}
 ---
 Three things found in the review of [the work scripts' lease check](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/eb4a1000-fc45-4fba-b13b-d46e698635fa), none fixed there. All are in `skills/lanework/scripts/lease.sh`, on main and not released.
 

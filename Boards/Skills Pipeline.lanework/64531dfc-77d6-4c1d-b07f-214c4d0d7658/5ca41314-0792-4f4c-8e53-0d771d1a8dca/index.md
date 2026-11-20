@@ -5,7 +5,7 @@ title: "commit-board.sh drops the owner's staged version of a path when a pre-co
 order: 2048
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T13:35:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T13:35:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T13:39:57Z}
 ---
 `commit-board.sh` resets the index for its named paths even when its commit never happened, and five smaller edges of the new work helpers were noted in review and left out of [the helpers card](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/7655176d-d184-4955-bf9f-5f338a62be0f).
 

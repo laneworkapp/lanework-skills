@@ -5,7 +5,7 @@ title: "Lints: a symlinked board or an unreadable folder reads as clean"
 order: 7168
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T23:21:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T23:21:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T13:39:57Z}
 ---
 Two cases where a lint in `skills/work/scripts` exits 0 and prints nothing without having read the board. Both are on main and not released. Found in the review of [the lease lint](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/36c5772c-557e-437d-8a9e-d1818ce0f80b).
 
