@@ -5,8 +5,8 @@ title: "Waiting-clear trial: what counts toward its ending, and five lint edges"
 order: 4096
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T14:42:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-17T14:42:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-17T14:42:38Z, comment: f83f1796-067f-4789-9c2f-fda0160551d5}
+modified: {at: 2026-11-20T11:59:30Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-20T11:59:30Z, comment: 413e16f7-5d62-4cae-b61b-7f2fb5a6750e}
 ---
 The trial that lets an agent clear `waiting` cannot reach its ending line as written, because the lint already reports three old clears and counts the discovery skill's own chat record as unquoted; both need the owner's call. Five smaller lint edges are listed below them.
 
@@ -22,8 +22,7 @@ From the review of [the waiting-clear card](lanework://04b8692e-adef-4b77-959d-c
 | [48fa3910](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/48fa3910-7ff0-4999-93a7-de5429e828c8) | `738d4bc6` | an ask from 2026-10-10 with no answer on the card |
 | [c5b171e1](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/c5b171e1-a2de-4d0e-bdcf-1c9c707c4e2a) | `e7c4a842` | a "Ruled in chat" record with no quote line |
 
-- A (recommended): count only clears made after 0.9.0 is released. The three stay listed; the trial reads the lint for new lines. No old thread is rewritten.
-- B: fix the three first. Two need the owner's words from a chat that is gone, so the quote would be a reconstruction; the third needs an answer.
+**Decided, 2026-11-20, by the owner on this card: A.** Count only clears made after 0.9.0 is released. The three stay listed; the trial reads the lint for new lines. No old thread is rewritten. Not taken: fixing the three first (two need the owner's words from a chat that is gone; the third needs an answer).
 
 **2. Discovery's chat record reads as `NO-QUOTE`.** `discovery/templates/ruling.md:19` writes `**Owner answered in chat.** "<words>"`: no `>` line, no `**Given**` line. Measured: `file-question.sh` then `settle-question.sh --record --reply` on a fresh board gives `NO-QUOTE`, exit 1. The trial card's body assumed discovery was "already this shape". The two discovery boards in this repo are silent today.
 
