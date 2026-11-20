@@ -1919,9 +1919,32 @@ echo v2 > "$G/work/$CP"; g add -- "$CP"; echo v3 > "$G/work/$CP"
 rc=0; O=$(cb "B: hooked" "$CP" 2>&1) || rc=$?
 [ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h5" ] && [ "$(g show ":$CP")" = v2 ] && [ "$(g status --porcelain -- "$CP")" = "MM $CP" ] && grep -q 'git commit failed' <<<"$O" \
   || { echo "commit-board: a failing pre-commit hook (rc $rc): $O"; g status --short; exit 1; }
+grep -q 'nothing committed, the index untouched' <<<"$O" || { echo "commit-board: a first-try hook failure should say the index is untouched: $O"; exit 1; }
 rm -f "$G/work/.git/hooks/pre-commit"
 cb "B: unhooked" "$CP" >/dev/null && [ "$(g show "HEAD:$CP")" = v3 ] && g diff --cached --quiet -- "$CP" && g diff --quiet -- "$CP" || { echo "commit-board: after the hook was removed it did not commit and sync"; g status --short; exit 1; }
 ok "commit-board.sh: a failed pre-commit hook commits nothing and leaves the owner's staged version in the index"
+# a rejected push, then nothing of the run left on HEAD: the index for the named folder is what the owner staged before
+# the run (CP staged v2 with v3 on disk, a staged new file); then a rejected push followed by a good one syncs it to HEAD
+CD="B.lanework/lane/card"; PP="$G/work/.git/hooks/pre-push"
+owner_state() { echo r2 > "$G/work/$CP"; g add -- "$CP"; echo r3 > "$G/work/$CP"; echo n > "$G/work/$CD/n.md"; g add -- "$CD/n.md"; }
+snap() { g rev-parse HEAD; g ls-files -s; g status --porcelain; }
+owner_state; s7=$(snap)
+printf '#!/bin/bash\nprintf "#!/bin/bash\\nexit 1\\n" > "%s/work/.git/hooks/pre-commit"; chmod +x "%s/work/.git/hooks/pre-commit"; rm -f "$0"; exit 1\n' "$G" "$G" > "$PP"; chmod +x "$PP"
+rc=0; O=$(cb --push "B: rejected, hooked" "$CD" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && [ "$(snap)" = "$s7" ] && grep -q 'push rejected (try 1 of 5)' <<<"$O" && grep -q 'nothing committed, the index restored to what was staged before the run' <<<"$O" && ! grep -q 'index untouched' <<<"$O" \
+  || { echo "commit-board: a rejected push then a failed hook (rc $rc): $O"; g status --short; exit 1; }
+rm -f "$G/work/.git/hooks/pre-commit" "$PP"
+ok "commit-board.sh: a rejected push, then a failed hook on the retry: HEAD, index and status as before the run, and it says restored, not untouched"
+printf '#!/bin/bash\nexit 1\n' > "$PP"; chmod +x "$PP"
+rc=0; O=$(cb --push "B: never pushed" "$CD" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && [ "$(snap)" = "$s7" ] && [ "$(grep -c 'push rejected' <<<"$O")" -eq 5 ] && grep -q 'push failed 5 times; nothing committed, files on disk, the index restored' <<<"$O" \
+  || { echo "commit-board: five failed pushes (rc $rc): $O"; g status --short; exit 1; }
+ok "commit-board.sh: five failed pushes: HEAD, index and status as before the run (the staged version and the staged new file kept)"
+printf '#!/bin/bash\nrm -f "$0"; exit 1\n' > "$PP"; chmod +x "$PP"
+O=$(cb --push "B: second push" "$CD" 2>&1) || { echo "commit-board: a rejected push then a good one: $O"; exit 1; }
+[ "$(g show "HEAD:$CP")" = r3 ] && [ "$(g show "HEAD:$CD/n.md")" = n ] && g diff --cached --quiet -- "$CD" && g diff --quiet -- "$CD" && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] \
+  || { echo "commit-board: a rejected push then a good one, the index does not match HEAD: $O"; g status --short; exit 1; }
+ok "commit-board.sh: a rejected push, then a good one: the disk versions committed and pushed, the index matches HEAD on the named folder"
 # every named path skipped: exit 1; a real path with no changes: nothing to commit, exit 0
 h6=$(g rev-parse HEAD); rc=0; O=$(cb "B: none" B.lanework/typo/index.md 2>&1) || rc=$?
 [ "$rc" -eq 1 ] && grep -q 'none of the named paths is on disk or in HEAD; nothing committed' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h6" ] || { echo "commit-board: every path skipped: want exit 1, got $rc: $O"; exit 1; }
