@@ -2304,6 +2304,39 @@ standin; P11=$SP; C11p=$(lcard "Eleven p"); LPID=$P11 L S-eleven stake "$LB" "$C
 alive "$TP" && kill "$P11" && waitfor '! alive "$TP"' || { echo "the timer outlived its CLAUDE_PID"; exit 1; }
 ok "lease: the timer renews by elapsed time, answers a notice within one poll, and exits when its CLAUDE_PID is gone or the lease is lost"
 
+# 11b. a renewal held between its read and its compare (LEASE_TEST_WRITE_PAUSE) while another write lands: it lands only on the card
+# as it read it, else reads again. LWP: renewing at every poll, under a TMPDIR of its own, so the stage the renewal waits in is the only one
+LPT=$(mktemp -d "$T/lease-pause.XXXXXX")
+LWP() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$LPT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1 LEASE_TEST_WRITE_PAUSE=1 "$@"; }
+inpause() { waitfor '[ -n "$(ls -d "$LPT"/lease-write.* 2>/dev/null)" ]'; }
+ppid_of() { sed -n 's/^pid=//p' "$LPT/lanework-lease/$1/$(printf '%s' "$(cd "$LB" && pwd -P)" | shasum | cut -c1-16)/$2"; }
+C11w=$(lcard "Eleven w"); F11w=$(lcf "$C11w")
+perl -pi -e 's/^(order: .*)$/order: 999\nwaiting: {for: owner, since: 2026-01-01T00:00:00Z, comment: 00000000-0000-4000-8000-000000000000}/' "$F11w"
+LWP S-pause "$LS" stake "$LB" "$C11w" --model smoke >/dev/null; inpause || { echo "11b: no renewal began"; exit 1; }
+U0=$(cuntil "$F11w"); LWP S-pause "$SK/work/scripts/move-card.sh" "$LB" "$C11w" Done --model smoke --clear-waiting --top >/dev/null \
+  || { echo "11b: the move failed"; exit 1; }
+waitfor '[ "$(cuntil "$(lcf "$C11w")")" != "$U0" ]' || { echo "11b: the held renewal never landed"; exit 1; }
+F11w=$(lcf "$C11w"); [ "$(grep -c . <<<"$F11w")" = 1 ] && grep -q '^title: "Done"$' "$(dirname "$(dirname "$F11w")")/index.md" \
+  && ! grep -q '^waiting:' "$F11w" && ! grep -q '^order: 999$' "$F11w" && [ "$(csess "$F11w")" = S-pause ] \
+  || { echo "11b: a renewal undid the move:"; cat "$F11w"; exit 1; }
+# the same pause, claimed changed to another session during it: the renewal writes nothing; the next poll posts one loss record
+C11x=$(lcard "Eleven x"); F11x=$(lcf "$C11x"); LWP S-pausex "$LS" stake "$LB" "$C11x" --model smoke >/dev/null; TP=$(ppid_of S-pausex "$C11x")
+inpause || { echo "11b: no renewal began on the second card"; exit 1; }
+setclaim "$F11x" S-other "$(iso $(( $(date -u +%s) + 1500 )))"; H11x=$(shasum < "$F11x")
+waitfor '! alive "$TP"' || { echo "11b: the timer outlived the changed claimed"; exit 1; }
+[ "$H11x" = "$(shasum < "$F11x")" ] && [ "$(csess "$F11x")" = S-other ] && [ "$(records "$C11x" "**Lease lost**")" = 1 ] \
+  || { echo "11b: a renewal over another session's claimed: records $(records "$C11x" "**Lease lost**")"; cat "$F11x"; exit 1; }
+LWP S-pause "$LS" release "$LB" "$C11w" --model smoke >/dev/null; validate "$LB" >/dev/null
+ok "lease: a renewal held through another write (move-card --clear-waiting --top) lands on the moved card, keeps the move's lane, order and no waiting; over another session's claimed it writes nothing and the next poll posts one Lease lost record"
+
+# 11c. a memory file holding pid= empty (the timer started, its id not saved yet): the timer waits for its id, alive two polls later
+C11e=$(lcard "Eleven e"); L S-epid stake "$LB" "$C11e" --model smoke >/dev/null; TP=$(mpid S-epid "$C11e")
+perl -pi -e 's/^pid=.*/pid=/' "$(mem S-epid "$C11e")"; sleep 0.5
+alive "$TP" || { echo "11c: the timer exited on an empty pid"; exit 1; }
+L S-epid release "$LB" "$C11e" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11c: the timer outlived the release"; exit 1; }
+ok "lease: a timer whose memory holds an empty pid keeps running, and still exits on release"
+
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
 C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
