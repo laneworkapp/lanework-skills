@@ -17,11 +17,14 @@
 # the owner had staged under them is unstaged, everything else they staged stays staged), so a kill during
 # the push leaves an index matching HEAD. Each un-commit restores instead: the named paths back to HEAD,
 # then the owner's staged entries under them put back (intent-to-add ones too). They are saved before the
-# first commit to <git dir>/lanework-commit-board.saved.<pid>, removed at exit; a run that ends with
-# nothing of its commit on HEAD leaves the index as the owner had it. A failed restore keeps that file and
-# prints how to put it back. The EXIT trap, only while the lock is ours: restores when our commit is no
-# longer an ancestor of HEAD (taken back); syncs when it is (HEAD at it or past it), or when HEAD moved off
-# where the commit started. A commit that fails (a hook) leaves the index alone.
+# first commit to <git dir>/lanework-commit-board.saved.XXXXXX (mktemp, one per run), removed at exit; a run
+# that ends with nothing of its commit on HEAD leaves the index as the owner had it. A failed restore keeps
+# that file and prints how to put it back, unless a later try pushes. The EXIT trap, only while the lock is
+# ours: restores when HEAD is where the commit started (taken back); syncs when our commit is HEAD or under
+# it, or when HEAD moved off where the commit started before the commit was recorded; any other HEAD (an
+# amend, a reset elsewhere): the index left alone, and it says so. With --push, a run that ends with its
+# commit landed but not pushed (a signal) says `interrupted: <sha> committed, not pushed`.
+# A commit that fails (a hook) leaves the index alone.
 # SIGTERM, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep; a hung
 # push holds them), then exit 143, 129 through the EXIT trap, so no git child outlives the cleanup. SIGINT the
 # same (130), except that bash drops one sent to the script alone while a command runs: the run goes on.
@@ -32,7 +35,7 @@
 # (`git reset -q -- <path>` makes it match HEAD); between `update-ref` and the end of the restore, the
 # owner's staged entries under the named paths are lost (measured: a staged edit ` M`, a staged deletion or
 # rename ` D`, a staged new file `??`); `git reset -q -- <paths>` then `git update-index -z --index-info <
-# <git dir>/lanework-commit-board.saved.<pid>` puts them back (intent-to-add ones need `git add -N` again).
+# <git dir>/lanework-commit-board.saved.XXXXXX` puts them back (intent-to-add ones need `git add -N` again).
 # Prints the new commit's one-line log, or "nothing to commit" (exit 0: the named paths exist, nothing changed).
 # Exit 2: a bad flag, no message, no paths. Exit 1, nothing committed: not in a work tree, detached HEAD,
 # a path outside the work tree or the root itself, a `.DS_Store` or an owner's `comments/.draft/`
@@ -80,20 +83,25 @@ LOCK="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-commit.XXXXXX")
 mvdir() { perl -e 'rename($ARGV[0], $ARGV[1]) or exit 1' "$1" "$2" 2>/dev/null; }   # rename(2): fails onto a non-empty dir
 own() { [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ]; }
-SAVED="$(git rev-parse --absolute-git-dir)/lanework-commit-board.saved.$$"   # per work tree, as the index is
-ADD=(); OWNER=(); ITA=(); PRE=""; LANDED=""; NEW=""; KEEP=""
+SAVED=""; ADD=(); OWNER=(); ITA=(); PRE=""; LANDED=""; NEW=""; KEEP=""
 release() {
   trap '' TERM INT HUP   # the cleanup runs to its end
-  # only while the lock is ours: our commit no longer under HEAD -> restore; on HEAD or under it (or HEAD moved off PRE mid-commit) -> sync
+  # only while the lock is ours: HEAD back at PRE (taken back) -> restore; our commit on HEAD or under it (or HEAD moved off
+  # PRE mid-commit) -> sync; any other HEAD -> left alone, said
   if [ "${#ADD[@]}" -gt 0 ] && own; then
-    local h; h=$(git rev-parse HEAD 2>/dev/null || true)
-    if [ -n "$LANDED" ] && [ -n "$NEW" ] && ! git merge-base --is-ancestor "$NEW" HEAD 2>/dev/null; then restore || true
-    elif [ -n "$LANDED" ] || { [ -n "$PRE" ] && [ "$h" != "$PRE" ]; }; then git reset -q -- "${ADD[@]}" || true; fi
+    local h c=""; h=$(git rev-parse HEAD 2>/dev/null || true)
+    if [ -n "$LANDED" ] && [ -n "$NEW" ]; then
+      if [ "$h" = "$PRE" ]; then restore || true
+      elif git merge-base --is-ancestor "$NEW" HEAD 2>/dev/null; then git reset -q -- "${ADD[@]}" || true; c=$NEW
+      else echo "commit-board.sh: HEAD moved to ${h:0:8} during the run, off ${NEW:0:8}; the index left as it is" >&2; fi
+    elif [ -n "$PRE" ] && [ "$h" != "$PRE" ]; then git reset -q -- "${ADD[@]}" || true; c=$h; fi
+    [ -z "$PUSH" ] || [ -n "$OK" ] || [ -z "$c" ] || echo "commit-board.sh: interrupted: ${c:0:8} committed, not pushed" >&2
   fi
-  if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"; [ -n "$KEEP" ] || rm -f "$SAVED"
+  if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"; [ -n "$KEEP" ] || [ -z "$SAVED" ] || rm -f "$SAVED"
 }
 trap release EXIT
 trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP   # bash runs these once the foreground git returns; an INT to the pid alone while a child runs is dropped by bash
+SAVED=$(mktemp "$(git rev-parse --absolute-git-dir)/lanework-commit-board.saved.XXXXXX")   # per work tree, as the index is; never another run's
 reclaim() {   # reclaim <dead pid>: move the lock aside, keep it gone only if it was that pid's; a live one goes back
   local aside="$LOCK.stale.$$"
   mvdir "$LOCK" "$aside" || return 0
@@ -204,7 +212,7 @@ for try in 1 2 3 4 5; do
   sync_index   # before the push: a kill from here on leaves an index that matches HEAD
   [ -n "$PUSH" ] || { OK=1; break; }
   mine
-  if git push -q origin "$BRANCH" 2>"$STAGE/push.err"; then OK=1; break; fi
+  if git push -q origin "$BRANCH" 2>"$STAGE/push.err"; then OK=1; KEEP=""; break; fi   # pushed: an earlier failed restore's entries are obsolete
   echo "commit-board.sh: push rejected (try $try of 5); un-committing ${NEW:0:8} (ref only, files stay) and retrying" >&2
   sed 's/^/  git: /' "$STAGE/push.err" >&2
   mine

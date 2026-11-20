@@ -1956,22 +1956,33 @@ O=$(cb --push "B: moved past" "$CD" 2>&1) || { echo "commit-board: a good push w
 [ "$(g log -1 --format=%s)" = "owner: past it" ] && [ "$(g log -1 --format=%s HEAD^)" = "B: moved past" ] && [ "$(g show "HEAD:$CP")" = s3 ] && g diff --cached --quiet HEAD -- "$CD" && [ -z "$(saved)" ] \
   || { echo "commit-board: HEAD moved past the pushed commit, and the owner's pre-run entries came back: $O"; g status --short; exit 1; }
 ok "commit-board.sh: a good push while HEAD moves past its commit (a hook commits): exit 0, the index on the named folder matches HEAD"
+# a good push while the owner amends our commit (pre-push): HEAD is neither ours nor where we started, the index is left as it is, and it says so
+owner_at a; printf '#!/bin/bash\nunset GIT_DIR GIT_INDEX_FILE; git -C "%s/work" commit -q --amend -m "owner: amended"; rm -f "$0"; exit 0\n' "$G" > "$PP"; chmod +x "$PP"
+O=$(cb --push "B: amended" "$CD" 2>&1) || { echo "commit-board: a good push while the owner amended: $O"; exit 1; }
+[ "$(g log -1 --format=%s)" = "owner: amended" ] && [ "$(g show "HEAD:$CP")" = a3 ] && [ "$(g show ":$CP")" = a3 ] && g diff --cached --quiet HEAD -- "$CD" && grep -q 'HEAD moved to .* the index left as it is' <<<"$O" && ! grep -q 'interrupted' <<<"$O" \
+  || { echo "commit-board: the owner amended the pushed commit, and the index changed: $O"; g status --short; exit 1; }
+g push -q -f origin main 2>/dev/null
+ok "commit-board.sh: a good push while the owner amends its commit: exit 0, the index left matching the amended HEAD, and it says HEAD moved"
 # SIGTERM while a git child runs: held until it returns, then the cleanup. (1) during the un-commit's reset (a git
-# wrapper pauses it until go exists): HEAD, index and status as before the run, exit 143
+# wrapper pauses it until go exists), and a second one during the cleanup's update-index (paused until go2):
+# HEAD, index and status as before the run, exit 143
 WB="$G/wbin"; mkdir -p "$WB"; RG=$(command -v git)
 cat > "$WB/git" <<WRAP
 #!/bin/bash
 if [ "\$1" = reset ] && [ -e "$G/p1" ] && [ ! -e "$G/inreset" ]; then touch "$G/inreset"; n=0; until [ -e "$G/go" ] || [ \$n -ge 100 ]; do sleep 0.1; n=\$((n+1)); done; fi
+if [ "\$1" = update-index ] && [ -e "$G/p1" ] && [ ! -e "$G/inupd" ]; then touch "$G/inupd"; n=0; until [ -e "$G/go2" ] || [ \$n -ge 100 ]; do sleep 0.1; n=\$((n+1)); done; fi
 "$RG" "\$@"; rc=\$?; [ "\$1" != reset ] || [ ! -e "$G/go" ] || touch "$G/resetdone"; exit \$rc
 WRAP
-chmod +x "$WB/git"; rm -f "$G/p1" "$G/inreset" "$G/go" "$G/resetdone"
+chmod +x "$WB/git"; rm -f "$G/p1" "$G/inreset" "$G/go" "$G/resetdone" "$G/inupd" "$G/go2"
 owner_at t; s8=$(snap); printf '#!/bin/bash\ntouch "%s/p1"; exit 1\n' "$G" > "$PP"; chmod +x "$PP"
 (cd "$G/work" && PATH="$WB:$PATH" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: termed in reset" "$CD") > "$G/term.out" 2>&1 & KP=$!
 perl -e 'alarm 20; exec @ARGV' bash -c "until [ -e '$G/inreset' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the un-commit never reached its reset"; cat "$G/term.out"; exit 1; }
-kill -TERM "$KP"; sleep 0.3; touch "$G/go"; rc=0; wait "$KP" || rc=$?
+kill -TERM "$KP"; sleep 0.3; touch "$G/go"
+perl -e 'alarm 20; exec @ARGV' bash -c "until [ -e '$G/inupd' ]; do sleep 0.1; done" || { echo "the cleanup never reached its update-index"; exit 1; }
+kill -TERM "$KP" 2>/dev/null || true; sleep 0.3; touch "$G/go2"; rc=0; wait "$KP" || rc=$?
 perl -e 'alarm 20; exec @ARGV' bash -c "until [ -e '$G/resetdone' ]; do sleep 0.1; done" || { echo "the paused reset never finished"; exit 1; }
 [ "$rc" -eq 143 ] && [ "$(snap)" = "$s8" ] && [ ! -e "$G/work/.git/lanework-commit-board.lock" ] && [ -z "$(saved)" ] || { echo "commit-board: SIGTERM during the un-commit's reset (rc $rc):"; cat "$G/term.out"; g status --short; exit 1; }
-ok "commit-board.sh: SIGTERM during the un-commit's git reset waits for it, then restores: exit 143, HEAD, index and status as before the run, the lock gone"
+ok "commit-board.sh: SIGTERM during the un-commit's git reset waits for it, then restores, and a second SIGTERM does not cut the restore short: exit 143, HEAD, index and status as before the run, the lock gone"
 # (2) during a commit-msg hook: the commit lands, then the cleanup syncs the index to it; nothing pushed
 rm -f "$PP" "$G/inmsg" "$G/go" "$G/landed"; owner_at u; o9=$(gx --git-dir="$G/origin.git" rev-parse main)
 printf '#!/bin/bash\ntouch "%s/inmsg"; n=0; until [ -e "%s/go" ] || [ $n -ge 100 ]; do sleep 0.1; n=$((n+1)); done\n' "$G" "$G" > "$G/work/.git/hooks/commit-msg"
@@ -1982,9 +1993,9 @@ kill -TERM "$KP"; sleep 0.3; touch "$G/go"; rc=0; wait "$KP" || rc=$?
 perl -e 'alarm 20; exec @ARGV' bash -c "until [ -e '$G/landed' ]; do sleep 0.1; done" || { echo "the commit never landed"; exit 1; }
 rm -f "$G/work/.git/hooks/commit-msg" "$G/work/.git/hooks/post-commit"
 [ "$rc" -eq 143 ] && [ "$(g log -1 --format=%s)" = "B: termed in hook" ] && [ "$(g show "HEAD:$CP")" = u3 ] && g diff --cached --quiet HEAD -- "$CD" \
-  && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$o9" ] && [ ! -e "$G/work/.git/lanework-commit-board.lock" ] || { echo "commit-board: SIGTERM during a commit-msg hook (rc $rc):"; cat "$G/term.out"; g status --short; exit 1; }
+  && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$o9" ] && [ ! -e "$G/work/.git/lanework-commit-board.lock" ] && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed, not pushed" "$G/term.out" || { echo "commit-board: SIGTERM during a commit-msg hook (rc $rc):"; cat "$G/term.out"; g status --short; exit 1; }
 g push -q origin main 2>/dev/null
-ok "commit-board.sh: SIGTERM during a commit-msg hook waits for the commit, then syncs the index to it: exit 143, nothing pushed, the lock gone"
+ok "commit-board.sh: SIGTERM during a commit-msg hook waits for the commit, then syncs the index to it and says it is not pushed: exit 143, the lock gone"
 # a failed restore: the saved file gone says NOT restored; an index.lock keeps the saved file and prints how to put it back
 owner_at v; s10=$(snap)
 printf '#!/bin/bash\nrm -f "%s/work/.git"/lanework-commit-board.saved.*; printf "#!/bin/bash\\nexit 1\\n" > "%s/work/.git/hooks/pre-commit"; chmod +x "%s/work/.git/hooks/pre-commit"; rm -f "$0"; exit 1\n' "$G" "$G" "$G" > "$PP"; chmod +x "$PP"
@@ -1998,6 +2009,14 @@ KS=$(saved); [ "$rc" -eq 1 ] && [ -n "$KS" ] && grep -q "saved entries are kept 
 grep -E '^  git (reset|update-index|add) ' <<<"$O" | (cd "$G/work" && bash -e) && [ "$(snap)" = "$s10" ] || { echo "commit-board: the printed recovery did not put the owner's entries back: $O"; g status --short; exit 1; }
 rm -f "$G/work/.git/$KS"; g reset -q -- "$CD"; g checkout -q -- "$CD"; rm -f "$G/work/$CD/v.md" "$G/work/$CD/v-i.md"   # the card folder as HEAD has it, for the cases below
 ok "commit-board.sh: a failed restore says NOT restored (saved file gone, index.lock); with index.lock the saved file is kept and the printed commands put the owner's entries back"
+# a failed restore on try 1 (a git wrapper fails the first update-index), then a good push: exit 0, the saved file removed (its entries obsolete)
+WB2="$G/wbin2"; mkdir -p "$WB2"; rm -f "$G/p1" "$G/updfail"
+printf '#!/bin/bash\nif [ "$1" = update-index ] && [ -e "%s/p1" ] && [ ! -e "%s/updfail" ]; then touch "%s/updfail"; exit 1; fi\nexec "%s" "$@"\n' "$G" "$G" "$G" "$RG" > "$WB2/git"; chmod +x "$WB2/git"
+printf '#!/bin/bash\n[ -e "%s/p1" ] && { rm -f "$0"; exit 0; }; touch "%s/p1"; exit 1\n' "$G" "$G" > "$PP"; chmod +x "$PP"; owner_at w
+rc=0; O=$(cd "$G/work" && PATH="$WB2:$PATH" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$CB" --push "B: restore failed, then pushed" "$CD" 2>&1) || rc=$?
+[ "$rc" -eq 0 ] && [ -e "$G/updfail" ] && grep -q 'could not restore' <<<"$O" && [ -z "$(saved)" ] && [ "$(g show "HEAD:$CP")" = w3 ] && g diff --cached --quiet HEAD -- "$CD" \
+  && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] || { echo "commit-board: a failed restore, then a good push (rc $rc): $O"; saved; exit 1; }
+ok "commit-board.sh: a restore that failed on try 1, then a good push: exit 0, pushed, the saved file removed"
 # every named path skipped: exit 1; a real path with no changes: nothing to commit, exit 0
 h6=$(g rev-parse HEAD); rc=0; O=$(cb "B: none" B.lanework/typo/index.md 2>&1) || rc=$?
 [ "$rc" -eq 1 ] && grep -q 'none of the named paths is on disk or in HEAD; nothing committed' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h6" ] || { echo "commit-board: every path skipped: want exit 1, got $rc: $O"; exit 1; }
