@@ -2,9 +2,9 @@
 schema: 1
 kind: card
 title: "commit-board.sh drops the owner's staged version of a path when a push is rejected"
-order: 10240
+order: 8192
 created:  {at: 2026-11-20T19:07:48Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T21:11:08Z}
+modified: {at: 2026-11-20T21:11:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 When a push is rejected and `commit-board.sh` takes its commit back, the owner's staged version of a named path is replaced by HEAD's, so a later failure leaves their staged work gone while the script says the index is untouched.
 
