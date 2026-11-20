@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "Asks no longer need a leading handle once the app draws buttons without one"
-order: 1024
+order: 3072
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-20T02:07:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-waiting: {for: anyone, since: 2026-11-20T02:08:01Z, comment: 9e1c31a5-f5f0-432d-92b6-9c5bf53e36c6}
-modified: {at: 2026-11-20T11:57:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T11:58:40Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The app is changing how it decides that a comment is a question, so an ask will no longer need a handle on its first line to get answer buttons. The skills should follow once that reaches a build, by making the leading handle optional.
 
@@ -33,17 +32,33 @@ Reported by the Lanework Watch session on 2026-11-19, at the owner's ask on the 
 - `post-ask.sh` accepts a body with no handle and still writes `waiting`.
 - Gated on the board's guide version, as `ask_handle` is: older builds draw no buttons without the handle.
 
-## Not covered by the app's rule
+## An ask with no options
 
-An ask with no options ("Run the trial, then reply here") has fewer than two option lines, so the new rule does not see it as a question. Without a handle it has no buttons to lose, but it also drops out of the questions chip and filter. Such an ask keeps `@anyone`, or relies on `waiting` alone. Shaping settles which.
+An ask with no options ("Run the trial, then reply here") has fewer than two option lines, so the app's new rule does not see it as a question. It keeps `@anyone`, which keeps it in the questions chip and filter.
+
+## Decided
+
+Ruled by the owner on this card, 2026-11-20: **A, optional.**
+
+- An ask with options: no handle by default.
+- An ask for a named person: their handle stays on line 1.
+- An ask with no options: keeps `@anyone`.
+- Not taken: B (`@anyone` stays the default, only the checks relax) and C (removed everywhere, named people included).
+
+## Risks
+
+- **Older builds**: an app without the change draws no buttons on a handle-free ask. Covered by the guide-version gate; below the gate the skills write the handle as today.
+- **The rule is second-hand**: read from a relay, not the app's source or a guide. The build checks it against the guide that states it before writing code.
+- **Lint reach**: telling an ask by the app's rule means a record that happens to hold two option-shaped lines and a question mark on line 1 gets linted as an ask. Accepted: such a record draws buttons in the app too, so it should read as an ask.
 
 ## Waits on
 
-A released app build that carries the change, and the board guide stating the rule. The skills follow the in-board guide; v118 still says the handle draws the buttons.
+A released app build that carries the change, and the board guide stating the rule. The skills follow the in-board guide; v118 still says the handle draws the buttons. Approving this card before then parks it: the build starts when the guide moves.
 
-## Open call
+## Done when
 
-**Open call: how far the handle goes.**
-- A (recommended): optional. Dropped by default on an ask with options; kept for a named person and on an ask with no options.
-- B: `@anyone` stays the default; the lint and `post-ask.sh` only stop requiring it.
-- C: removed everywhere, named people included.
+- `work/templates/ask.md` and `work/references/writing.md` § The ask give the three cases above.
+- `lint-ask.sh` lints a handle-free ask with options, and still passes a plain record.
+- `post-ask.sh` posts a handle-free ask and writes `waiting`; `--for <person>` still requires that handle on line 1.
+- On a board below the gating guide version, all three behave as today.
+- Smoke has a case for each, and passes.
