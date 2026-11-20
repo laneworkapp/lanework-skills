@@ -29,6 +29,11 @@ require_model() {
   [ -n "$MODEL" ] || { printf '%s: no model: pass --model <your model> or set CLAUDE_MODEL\nusage: %s\n' "$1" "$2" >&2; exit 2; }
 }
 
+# need_value "$@": call as the first line of a flag's case arm; no second argument, or an empty one -> "<script>: <flag> needs a value", the usage, exit 2.
+need_value() {
+  [ $# -ge 2 ] && [ -n "$2" ] || { printf '%s: %s needs a value\nusage: %s\n' "$(basename "$0")" "$1" "${USAGE:-}" >&2; exit 2; }
+}
+
 # fm_value <file> <key>: raw scalar of a top-level frontmatter key.
 fm_value() {
   awk -v key="$2" '

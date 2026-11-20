@@ -26,10 +26,10 @@ BOARD="$1"; PREFIX="$2"; LANE_TITLE="$3"; shift 3
 MODEL=""; NAME="claude"; SESSION=""; COMMENT=""; PLACE=""; CLEAR=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
-    --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
-    --comment) COMMENT="${2:?--comment needs a file}"; shift 2 ;;
+    --model)   need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)    need_value "$@"; NAME="$2"; shift 2 ;;
+    --session) need_value "$@"; SESSION="$2"; shift 2 ;;
+    --comment) need_value "$@"; COMMENT="$2"; shift 2 ;;
     --top|--bottom) [ -z "$PLACE" ] || [ "$PLACE" = "$1" ] || { echo "move-card.sh: --top or --bottom, not both" >&2; exit 2; }; PLACE="$1"; shift ;;
     --clear-waiting) CLEAR=1; shift ;;
     *) echo "move-card.sh: unknown argument: $1" >&2; exit 2 ;;
