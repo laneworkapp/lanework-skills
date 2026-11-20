@@ -1,6 +1,7 @@
 ---
 schema: 1
 kind: comment
+in-reply-to: d293ff73-b0f3-4a99-b1a3-070e2b79ae3b
 created:  {at: 2026-11-20T17:53:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 **Ruled by the owner, 2026-11-20: A. 0.9.0 is held until item 1 is built and merged. Proposal finished and moved to Proposed.**
