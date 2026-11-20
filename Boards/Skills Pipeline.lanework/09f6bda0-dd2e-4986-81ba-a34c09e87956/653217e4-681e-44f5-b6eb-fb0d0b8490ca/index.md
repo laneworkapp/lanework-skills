@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Lease: a renewal can undo another write to the card, and a renamed board forgets its leases"
-order: 13312
+order: 4096
 labels: [{text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T19:08:42Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T17:55:04Z}
+modified: {at: 2026-11-20T17:56:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The lease timer rewrites a card from a copy it read earlier, so a renewal that lands just after another script's write puts the old front matter back, and can wipe a ticket's Resolution. The fix is to make the lease's own write check that the card is unchanged before it lands, retry if it changed, and never renew a card that is no longer this session's. Two small timer and wording fixes ride along. The renamed-board limit stays as ruled.
 
