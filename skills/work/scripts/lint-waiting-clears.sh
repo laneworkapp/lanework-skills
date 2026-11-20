@@ -1,25 +1,39 @@
 #!/bin/bash
 # Lint a board for asks whose `waiting` an agent cleared (the owner's trial, work/references/writing.md § The ask).
-# Usage: lint-waiting-clears.sh <board dir>
+# Usage: lint-waiting-clears.sh <board dir> [--since <ts>]
 # Read-only. For each card: its newest ask is the newest comment by an agent whose body starts with `@` (any handle,
 # the anyone handle or a person's). The card is listed when that ask has no later human comment, no human comment
 # `in-reply-to` it, and the card has no `waiting` (flow or block form). One line per card on stdout:
 #   QUOTED <card> <ask uuid>      an agent comment `in-reply-to` the ask has a `>` line and a `**Given**` line
 #   NO-QUOTE <card> <ask uuid>    none does (also an ask that never got a mark: the two look alike)
+# `--since <ts>` (UTC, 2026-11-14T15:30:00Z, as lint-leases.sh) lists only cards cleared at or after it: a card's clear time is the
+# newest created.at among its ask and the agent comments in-reply-to it (an ask with no record: its own time). The tally counts the
+# listed cards only. A stamp with fractional seconds is read to the whole second; an offset stamp is read as unreadable (UTC `Z` is the rule).
 # then `QUOTED <n>, NO-QUOTE <m>`. Silent exit 0 when nothing is listed; exit 1 when any NO-QUOTE; exit 2
 # (message on stderr) on a missing path, a file, a bad flag or no argument. Skips .trash, .log, .schema and attachments.
 # An ask here is looser than lint-ask.sh's: that one needs the board's human handle (guide line, or the anyone handle)
 # on line 1 and checks the shape; this one takes any `@` that starts the first non-blank line and checks nothing else.
-# Agent = a `created.by` with `kind: agent`; human = no `by`, or any other kind.
+# Agent = a `created.by` with `kind: agent`; human = no `by`, or `kind: human`; any other kind (a shortcut) is neither an ask nor an answer.
+# A quote is a `>` line with text after it, a Given line starts `**Given**:`; both count outside a code fence only.
 set -u
 . "$(dirname "$0")/../../lanework/scripts/lib.sh"
-USAGE="usage: lint-waiting-clears.sh <board dir>"
+USAGE="usage: lint-waiting-clears.sh <board dir> [--since <ts>]"
 [ $# -ge 1 ] || { echo "$USAGE" >&2; exit 2; }
 board=$1; shift
-[ $# -eq 0 ] || { echo "lint-waiting-clears.sh: unknown argument: $1" >&2; exit 2; }
+since=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --since)
+      [ -z "$since" ] || { echo "lint-waiting-clears.sh: --since given twice" >&2; exit 2; }
+      [ $# -ge 2 ] || { echo "lint-waiting-clears.sh: --since needs a UTC time like 2026-11-14T15:30:00Z" >&2; exit 2; }
+      since=$2; shift 2
+      case "$since" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z) ;; *) echo "lint-waiting-clears.sh: --since needs a UTC time like 2026-11-14T15:30:00Z" >&2; exit 2 ;; esac ;;
+    *) echo "lint-waiting-clears.sh: unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
 [ -e "$board" ] || { echo "no such path: $board" >&2; exit 2; }
 [ -d "$board" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
-# comment_row <comment index.md>: created.at, agent|human, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
+# comment_row <comment index.md>: created.at, agent|human|other, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
 comment_row() {
   awk -v id="$(basename "$(dirname "$1")")" '
     { sub(/\r$/, "") }
@@ -28,12 +42,14 @@ comment_row() {
     fm && /^[A-Za-z-]+:/ { key = $0; sub(/:.*/, "", key); if (key == "created") cr = cr " " $0; if (key == "in-reply-to") { irt = $0; sub(/^[^:]*:[ \t]*["\x27]?/, "", irt); sub(/["\x27 \t]*$/, "", irt) } next }
     fm && key == "created" && /^[ \t]/ { cr = cr " " $0; next }
     body && !seen && $0 !~ /^[ \t]*$/ { seen = 1; ask = ($0 ~ /^@/) }
-    body && /^>/ { q = 1 }
-    body && /\*\*Given\*\*/ { g = 1 }
+    body && /^[ \t]*(```|~~~)/ { fence = !fence; next }
+    body && !fence && /^>[ \t]*[^ \t]/ { q = 1 }
+    body && !fence && /^\*\*Given\*\*:/ { g = 1 }
     END {
       at = ""
-      if (match(cr, /(^|[ {,])at:[ \t]*["\x27]?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z/)) { s = substr(cr, RSTART, RLENGTH); match(s, /[0-9]{4}-.*$/); at = substr(s, RSTART) }
-      kind = (cr ~ /(^|[ {,])by:/ && cr ~ /kind:[ \t]*["\x27]?agent/) ? "agent" : "human"
+      if (match(cr, /(^|[ {,])at:[ \t]*["\x27]?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z/)) { s = substr(cr, RSTART, RLENGTH); match(s, /[0-9]{4}-.*$/); at = substr(s, RSTART); sub(/\.[0-9]+Z$/, "Z", at) }
+      kind = "human"
+      if (cr ~ /(^|[ {,])by:/ && match(cr, /kind:[ \t]*["\x27]?[A-Za-z]+/)) { kind = substr(cr, RSTART, RLENGTH); sub(/^kind:[ \t]*["\x27]?/, "", kind); if (kind != "agent" && kind != "human") kind = "other" }
       printf "%s\t%s\t%s\t%d\t%d\t%s\n", at, kind, irt, ask + 0, (q && g) + 0, id
     }' "$1"
 }
@@ -56,10 +72,13 @@ for idx in "$board"/*/*/index.md; do   # globs skip the dot folders (.trash, .lo
       if (!b) exit
       for (i = 1; i <= n; i++) if (k[i] == "human" && (c[i] > c[b] || r[i] == u[b])) exit
       s = "NO-QUOTE"; for (i = 1; i <= n; i++) if (k[i] == "agent" && r[i] == u[b] && q[i] == 1) s = "QUOTED"
-      print s, u[b]
+      t = c[b]; for (i = 1; i <= n; i++) if (k[i] == "agent" && r[i] == u[b] && c[i] > t) t = c[i]
+      print s, u[b], t
     }')
   [ -n "$res" ] || continue
-  echo "${res%% *} $(basename "$card") ${res#* }"
+  read -r verdict ask clear <<<"$res"
+  [ -z "$since" ] || [ ! "$clear" \< "$since" ] || continue
+  echo "$verdict $(basename "$card") $ask"
   case "$res" in QUOTED*) quoted=$((quoted + 1)) ;; *) noquote=$((noquote + 1)) ;; esac
 done
 [ $((quoted + noquote)) -eq 0 ] || echo "QUOTED $quoted, NO-QUOTE $noquote"

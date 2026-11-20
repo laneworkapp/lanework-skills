@@ -909,12 +909,13 @@ wl_card() { local d="${3:-$WLANE}/$WC$1"; mkdir -p "$d/comments"
     [ -z "${2:-}" ] || printf "$2"; printf -- '---\nBody.\n'; } > "$d/index.md"; }
 # wl_com <n> <id> <time hh:mm:ss> <agent|human> <in-reply-to or -> <body, printf format> [<folder>]: a comment on card n
 wl_com() { local d="${7:-$WLANE}/$WC$1/comments/$2"; mkdir -p "$d"; local by='{name: kim, kind: human}' irt=''
-  [ "$4" != agent ] || by='{name: claude, kind: agent, model: claude-sonnet-5-5}'; [ "$5" = - ] || irt="in-reply-to: $5"$'\n'
+  case "$4" in agent) by='{name: claude, kind: agent, model: claude-sonnet-5-5}' ;; human) ;; *) by="{name: shortcuts, kind: $4}" ;; esac; [ "$5" = - ] || irt="in-reply-to: $5"$'\n'
   { printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T%sZ, by: %s}\n%s---\n' "$3" "$by" "$irt"; printf "$6"; } > "$d/index.md"; }
 WASK='@anyone Which route?\n\nOptions:\n- A: x\n- Recap: Explain this in plain terms first\n'
 WREC='**Owner ruled off the board.**\n\n> Yes, A.\n\n**Given**: chat, 2026-11-17\n'
 # wl_expect <rc> <output, printf format>: run the lint on the board; its exit code and stdout must match
-wl_expect() { local rc=0 out; out=$("$WL" "$WB" 2>&1) || rc=$?; [ "$rc" -eq "$1" ] && [ "$out" = "$(printf "$2")" ] || { echo "lint-waiting-clears: want exit $1 and [$(printf "$2")], got $rc and [$out]"; exit 1; }; }
+WLX=""   # extra arguments for the next wl_expect, word-split
+wl_expect() { local rc=0 out; out=$("$WL" "$WB" $WLX 2>&1) || rc=$?; [ "$rc" -eq "$1" ] && [ "$out" = "$(printf "$2")" ] || { echo "lint-waiting-clears: want exit $1 and [$(printf "$2")], got $rc and [$out]"; exit 1; }; }
 wl_reset() { rm -rf "$WLANE"/c0*; }
 wl_expect 0 ''
 ok "lint-waiting-clears is silent and exits 0 on a board with no cards"
@@ -950,6 +951,39 @@ rc=0; "$WL" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: w
 rc=0; "$WL" "$WB" --bogus >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "a bad flag: want exit 2, got $rc"; exit 1; }
 [ -z "$("$WL" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
 ok "lint-waiting-clears exits 2 on a missing path, no arguments or a bad flag, the message on stderr"
+# --since: a card is listed when its clear time (the newest of the ask and the agent records in-reply-to it) is at or after the value
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
+WLX="--since 2026-11-17T10:01:00Z"; wl_expect 0 ''
+WLX="--since 2026-11-17T10:00:05Z"; wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
+ok "lint-waiting-clears --since: an ask and record both before it are silent, exit 0; at it, one QUOTED line"
+WLX="--since 2026-11-17T10:00:03Z"; wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
+ok "lint-waiting-clears --since: an old ask whose record comes after it is listed"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 09:00:00 agent - "$WASK"; wl_card 2; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"; wl_com 2 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
+WLX="--since 2026-11-17T10:00:00Z"; wl_expect 0 "QUOTED ${WC}2 ${WA}1\nQUOTED 1, NO-QUOTE 0"
+WLX=""; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED ${WC}2 ${WA}1\nQUOTED 1, NO-QUOTE 1"
+ok "lint-waiting-clears --since: the tally counts the listed cards only; without it every card counts"
+for bad in "--since nonsense" "--since" "--since 2026-11-17T10:00:00Z --since 2026-11-17T11:00:00Z" "--since 2026-11-17T10:00:00"; do
+  rc=0; err=$("$WL" "$WB" $bad 2>&1 >/dev/null) || rc=$?; [ "$rc" -eq 2 ] && [ -n "$err" ] || { echo "lint-waiting-clears $bad: want exit 2 and a message on stderr, got $rc [$err]"; exit 1; }
+done
+ok "lint-waiting-clears --since: a bad value, a missing value and a repeated flag exit 2 with a message on stderr"
+# the five edges
+wl_reset; WLX=""; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\nYes, A.\n'; wl_com 1 ${WH}1 10:10:00 shortcut - 'Build finished.\n'
+wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a shortcut comment after an agent clear is not a human answer, the clear is still listed"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WH}1 10:02:00.123 human - 'Done.\n'
+wl_expect 0 ''
+ok "lint-waiting-clears: a human comment stamped with fractional seconds is read, so the card is not a clear"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n```\n> fake\n```\n\n**Given**: chat, 2026-11-17\n'
+wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a > line inside a code fence is not a quote"
+wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n> Yes, A.\n\n**Given** chat, 2026-11-17\n'; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a Given line with no colon does not count"
+wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n> **Given**: chat, 2026-11-17\n'; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: one quoted line carrying **Given**: is not both a quote and a Given line"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; printf 'waiting: {for: anyone, since: 2026-11-17T10:00:00Z, comment: x}\n' >> "$WLANE/${WC}1/index.md"
+wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a waiting: line in the card body is not the frontmatter key, the card is still listed"
+wl_reset
 
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
 PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"
