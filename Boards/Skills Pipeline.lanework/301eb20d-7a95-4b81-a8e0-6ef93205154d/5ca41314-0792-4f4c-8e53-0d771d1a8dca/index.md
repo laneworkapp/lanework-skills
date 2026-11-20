@@ -2,11 +2,10 @@
 schema: 1
 kind: card
 title: "commit-board.sh drops the owner's staged version of a path when a pre-commit hook fails"
-order: 2048
+order: 11264
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T13:35:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T13:54:16Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-20T13:54:16Z, comment: a47a909f-41cd-4619-9371-8f860246fe42}
+modified: {at: 2026-11-20T17:53:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 When a pre-commit hook fails, `commit-board.sh` commits nothing but still runs `git reset` on its named paths, so the owner's staged version of a named path is thrown away. The fix is to reset in the exit trap only once HEAD has actually moved and the lock is still ours. Five smaller edges of the same helpers, found in the same review of [the helpers card](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/7655176d-d184-4955-bf9f-5f338a62be0f), ride along as items 3 to 6.
 
@@ -71,12 +70,10 @@ Tests, all in `tests/smoke.sh` beside the existing commit-board cases:
 - `grep -n 'HEAD0\|\${2:?\|\${1:?' skills/work/scripts/*.sh` prints nothing.
 - `ls "$TMPDIR" | grep -c work-commit` is the same number before and after a smoke run.
 
-Bump: patch. If it lands before 0.9.0 is cut it rides that release, and the existing 0.9.0 entry about the helpers covers it.
+Bump: patch. It rides 0.9.0, and the existing 0.9.0 entry about the helpers covers it.
 
-## Open calls
+## Decided
 
-**Should this land before 0.9.0 is cut?**
+Ruled by the owner on this card, 2026-11-20: **0.9.0 is held until item 1 is built and merged.** It is the first release to ship `commit-board.sh`, and item 1 is the only bug here that loses the owner's work. Not taken: cutting 0.9.0 now and shipping this as 0.9.1.
 
-- A (recommended): yes, hold 0.9.0 for item 1 at least; 0.9.0 is the first release to ship `commit-board.sh`, and item 1 is the only bug here that loses the owner's work.
-- B: no, cut 0.9.0 now and ship this as 0.9.1.
-
+Items 2 to 6 ride the same build unless struck at review; only item 1 holds the release.
