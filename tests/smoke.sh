@@ -662,6 +662,7 @@ if "$SK/work/scripts/lint-ask.sh" "$T/opt-bare.md" >/dev/null; then echo "lint-a
 if "$SK/work/scripts/lint-ask.sh" "$T/opt-mid.md" >/dev/null; then echo "lint-ask passed a Recap line that is not last"; exit 1; fi
 "$SK/work/scripts/lint-ask.sh" "$T/opt-recap.md"; ok "lint-ask fails an ask with options but no Recap line, passes one with it"
 "$SK/work/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes an ask with no options and no Recap line"
+rc=0; "$SK/work/scripts/lint-ask.sh" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "lint-ask with no arguments: want exit 2, got $rc"; exit 1; }; ok "lint-ask with no arguments exits 2 (usage), not 1 (violations)"
 [ "$(grep -v -x -F -e "$RECAP" "$T/opt-79.md" | wc -w | tr -d ' ')" -eq 79 ] && [ "$(wc -w < "$T/opt-79.md" | tr -d ' ')" -gt 80 ] || { echo "fixture is not 79 own words plus the line"; exit 1; }
 "$SK/work/scripts/lint-ask.sh" "$T/opt-79.md"; ok "lint-ask leaves the Recap line out of the 80-word count"
 
