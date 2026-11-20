@@ -15,14 +15,16 @@
 # Never stashes (warns if the stash count changed), never `add -A` without paths, never rebases.
 # `git reset -q -- <paths>` right after the commit, and again after each un-commit, syncs the real index
 # for the named paths only (anything the owner had staged under them is unstaged, everything else they
-# staged stays staged), so a kill during the push leaves an index matching HEAD; once a commit starts,
-# the EXIT trap syncs it again, which covers SIGTERM and SIGINT anywhere. Window left: a SIGKILL between
-# `git commit` (or `update-ref`) returning and the next line; `git status` then shows the path as MM,
+# staged stays staged), so a kill during the push leaves an index matching HEAD; the EXIT trap syncs it
+# again, only once a commit landed (or HEAD moved off its pre-commit sha) and only while the lock is
+# ours, which covers SIGTERM and SIGINT anywhere. A commit that fails (a hook) leaves the index alone.
+# Window left: a SIGKILL between `git commit` (or `update-ref`) returning and the next line; `git status` then shows the path as MM,
 # and `git reset -q -- <path>` repairs it.
-# Prints the new commit's one-line log, or "nothing to commit".
+# Prints the new commit's one-line log, or "nothing to commit" (exit 0: the named paths exist, nothing changed).
 # Exit 2: a bad flag, no message, no paths. Exit 1, nothing committed: not in a work tree, detached HEAD,
 # a path outside the work tree or the root itself, a `.DS_Store` or an owner's `comments/.draft/`
-# among what would be staged, a path git cannot add, --push with no origin, the lock not taken in
+# among what would be staged, a path git cannot add, every named path skipped (none on disk or in HEAD), `git commit` failing (a
+# pre-commit or commit-msg hook; the index stays as it was), --push with no origin, the lock not taken in
 # time or lost, the fast-forward refused, the push failed 5 times.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
@@ -44,7 +46,7 @@ TOP=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "commit-board.sh: not
 TOP=$(cd "$TOP" && pwd -P)
 REL=()
 for p in "$@"; do   # resolved from the caller's directory, before the cd below
-  abs=$(python3 -I -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$p")
+  abs=$(python3 -I -c 'import os, sys; a = os.path.normpath(os.path.abspath(sys.argv[1])); print(os.path.join(os.path.realpath(os.path.dirname(a)), os.path.basename(a)))' "$p")
   case "$abs" in
     "$TOP") echo "commit-board.sh: $p is the whole work tree; name the board files" >&2; exit 1 ;;
     "$TOP"/*) ;;
@@ -65,9 +67,10 @@ LOCK="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-commit.XXXXXX")
 mvdir() { perl -e 'rename($ARGV[0], $ARGV[1]) or exit 1' "$1" "$2" 2>/dev/null; }   # rename(2): fails onto a non-empty dir
 own() { [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ]; }
-ADD=(); HEAD0=""
+ADD=(); PRE=""; LANDED=""
 release() {
-  if [ "${#ADD[@]}" -gt 0 ] && [ -n "$HEAD0" ]; then git reset -q -- "${ADD[@]}" || true; fi
+  # sync the real index only once a commit landed (or HEAD moved under a signal) and the lock is still ours
+  if [ "${#ADD[@]}" -gt 0 ] && own && { [ -n "$LANDED" ] || { [ -n "$PRE" ] && [ "$(git rev-parse HEAD 2>/dev/null || true)" != "$PRE" ]; }; }; then git reset -q -- "${ADD[@]}" || true; fi
   if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"
 }
 trap release EXIT
@@ -141,15 +144,16 @@ for try in 1 2 3 4 5; do
     if [ -e "$r" ] || [ -L "$r" ] || [ -n "$(GIT_INDEX_FILE="$IDX" git ls-files -- "$r")" ]; then ADD+=("$r")
     elif [ "$try" -eq 1 ]; then echo "commit-board.sh: note: $r is neither on disk nor in HEAD; skipped" >&2; fi
   done
-  [ "${#ADD[@]}" -gt 0 ] || { echo "nothing to commit"; exit 0; }
+  [ "${#ADD[@]}" -gt 0 ] || { echo "commit-board.sh: none of the named paths is on disk or in HEAD; nothing committed" >&2; exit 1; }
   GIT_INDEX_FILE="$IDX" git add -A -- "${ADD[@]}" 2>"$STAGE/add.err" || { sed 's/^/  /' "$STAGE/add.err" >&2; echo "commit-board.sh: git cannot add those paths; nothing committed" >&2; exit 1; }
   STAGED=$(GIT_INDEX_FILE="$IDX" git diff --cached --name-only HEAD)
   BAD=$(grep -E '(^|/)\.DS_Store$|(^|/)comments/\.draft(/|$)' <<<"$STAGED" || true)
   [ -z "$BAD" ] || { echo "commit-board.sh: refusing, these would be committed (.DS_Store, or an owner's unposted draft); name the files instead:" >&2; sed 's/^/  /' <<<"$BAD" >&2; exit 1; }
   if [ -z "$STAGED" ]; then echo "nothing to commit"; exit 0; fi
   mine
-  HEAD0=1   # from here the EXIT trap syncs the index to whatever HEAD is
-  GIT_INDEX_FILE="$IDX" git commit -q -F "$STAGE/msg"
+  LANDED=""; PRE=$(git rev-parse HEAD)   # the EXIT trap syncs the index once HEAD is no longer this (or LANDED)
+  GIT_INDEX_FILE="$IDX" git commit -q -F "$STAGE/msg" || { echo "commit-board.sh: git commit failed (a pre-commit or commit-msg hook?); nothing committed, the index untouched" >&2; exit 1; }
+  LANDED=1
   sync_index   # before the push: a kill from here on leaves an index that matches HEAD
   NEW=$(git rev-parse HEAD)
   [ -n "$PUSH" ] || { OK=1; break; }
