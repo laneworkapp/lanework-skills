@@ -22,9 +22,11 @@
 # prints how to put it back. The EXIT trap, only while the lock is ours: restores when our commit is no
 # longer an ancestor of HEAD (taken back); syncs when it is (HEAD at it or past it), or when HEAD moved off
 # where the commit started. A commit that fails (a hook) leaves the index alone.
-# SIGTERM, SIGINT, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep;
-# a hung push holds them), then exit 143, 130, 129 through the EXIT trap, so no git child outlives the cleanup.
-# Sent to the process group, the git child dies too and the cleanup runs at once.
+# SIGTERM, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep; a hung
+# push holds them), then exit 143, 129 through the EXIT trap, so no git child outlives the cleanup. SIGINT the
+# same (130), except that bash drops one sent to the script alone while a command runs: the run goes on.
+# Sent to the process group (Ctrl-C), the git child dies too, its step fails as any failed step does, and
+# the cleanup runs.
 # Window left, SIGKILL only (it also leaves the saved file and a dead pid's lock, reclaimed by the next run):
 # from `git commit` starting (hooks included) to the line after it, `git status` shows the path as MM
 # (`git reset -q -- <path>` makes it match HEAD); between `update-ref` and the end of the restore, the
@@ -91,7 +93,7 @@ release() {
   if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"; [ -n "$KEEP" ] || rm -f "$SAVED"
 }
 trap release EXIT
-trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP   # bash runs these once the foreground git returns
+trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP   # bash runs these once the foreground git returns; an INT to the pid alone while a child runs is dropped by bash
 reclaim() {   # reclaim <dead pid>: move the lock aside, keep it gone only if it was that pid's; a live one goes back
   local aside="$LOCK.stale.$$"
   mvdir "$LOCK" "$aside" || return 0
