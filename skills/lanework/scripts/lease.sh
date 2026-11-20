@@ -97,12 +97,21 @@ write_card() {
     [ "$try" != 1 ] || [ "$WRITE_PAUSE" = 0 ] || sleep "$WRITE_PAUSE"
     f2=$(find_card) || continue                                         # fresh, just before the rename
     if [ "$f2" = "$f" ]; then
-      # compare and rename in one process, no fork between them: 3 changed (read again), 1 rename failed (a stage on another
-      # volume than the board included: never a copy, nothing written)
-      local r=0; perl -e 'local $/; open(my $a, "<", $ARGV[0]) or exit 3; open(my $b, "<", $ARGV[2]) or exit 3;
-        exit 3 if <$a> ne <$b>; rename($ARGV[1], $ARGV[2]) or exit 1' "$stage/read" "$stage/index.md" "$f" || r=$?
+      # compare and rename in one process, no fork between them: 0 written, 3 changed (read again), 1 failed (nothing written).
+      # The stage on another volume than the board (EXDEV): the content is copied to <board>/.lease-write.<card>.<pid>, at the
+      # board root (no card folder: the app moves loose files there into attachments), compared again, then renamed over the
+      # card. That temp file is removed on every failure path and on TERM, INT or HUP; a kill of this script leaves perl to finish
+      local r=0; perl -e 'my ($rd, $nw, $f, $tmp) = @ARGV; local $/;
+        sub same { open(my $a, "<", $rd) or return 0; open(my $b, "<", $f) or return 0; return <$a> eq <$b> }
+        sub fail { unlink $tmp; exit $_[0] }
+        same() or exit 3; rename($nw, $f) and exit 0; $!{EXDEV} or exit 1;
+        $SIG{$_} = sub { fail(1) } for qw(TERM INT HUP);
+        open(my $i, "<", $nw) or exit 1; my $c = <$i>; close $i;
+        open(my $o, ">", $tmp) or fail(1); print $o $c or fail(1); close $o or fail(1);
+        same() or fail(3); rename($tmp, $f) or fail(1); exit 0' \
+        "$stage/read" "$stage/index.md" "$f" "$BOARD/.lease-write.$CID.$$" || r=$?
       if [ "$r" = 0 ]; then rm -rf "$stage"; WROTE_UNTIL="$until"; return 0; fi
-      [ "$r" = 3 ] || { rm -rf "$stage"; echo "lease.sh: $f: the rename failed (is ${TMPDIR:-/tmp} on another volume?); nothing written" >&2; return 1; }
+      [ "$r" = 3 ] || { rm -rf "$stage"; echo "lease.sh: $f: the write failed; nothing written" >&2; return 1; }
     fi
   done
   rm -rf "$stage"; echo "lease.sh: ${CID:0:8} changed under each of 5 tries; nothing written" >&2; return 1
