@@ -16,7 +16,8 @@
 # same card uuid on another copy of the board is never held there. A file in the older <session>/<card-uuid> layout is never
 # read. Limit: a board folder renamed or moved under a live lease is a new key, so the memory is forgotten and the old timer exits.
 # `claimed` still reads as held, and the next write renews it and starts a new timer. Lapsed and taken over meanwhile, the next write
-# lands with no loss record.
+# lands with no loss record. A lease write lands only on the card as read: that narrows the window against another writer, never
+# closes it, because no lock is shared with the app or the other scripts.
 # Each file: key=value lines: board,
 # timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
 # <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
@@ -64,9 +65,10 @@ status_of() {
 }
 
 # write_card <set|renew|clear>: rewrite claimed (set, renew: the 3-line block, until 30 min from now; clear: none) and modified whole.
-# Each try copies the card as read into the stage and rewrites from that copy; the result moves in only when the card is found at
-# the same path and `cmp` shows it unchanged, else the next try reads again. 5 tries, then nothing written: 1. renew writes only a
-# copy whose claimed is this session's: else nothing written, 5. Explicit checks, not set -e: callers run it under || too.
+# Each try copies the card as read into the stage and rewrites from that copy; the result moves in only when the card is found
+# at the same path and unchanged (compared byte for byte), else the next try reads again. 5 tries, then nothing written: 1.
+# renew writes only a copy whose claimed is this session's: else nothing written, 5. Explicit checks, not set -e: callers run
+# it under || too.
 write_card() {
   local f f2 stage now by until="" try
   stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX") || return 1
@@ -93,10 +95,14 @@ write_card() {
     fi
     compact_fm "$stage/index.md" || { rm -rf "$stage"; return 1; }
     [ "$try" != 1 ] || [ "$WRITE_PAUSE" = 0 ] || sleep "$WRITE_PAUSE"
-    f2=$(find_card) || continue                                         # fresh, just before the mv
-    if [ "$f2" = "$f" ] && cmp -s "$stage/read" "$f"; then
-      mv "$stage/index.md" "$f" || { rm -rf "$stage"; return 1; }
-      rm -rf "$stage"; WROTE_UNTIL="$until"; return 0
+    f2=$(find_card) || continue                                         # fresh, just before the rename
+    if [ "$f2" = "$f" ]; then
+      # compare and rename in one process, no fork between them: 3 changed (read again), 1 rename failed (a stage on another
+      # volume than the board included: never a copy, nothing written)
+      local r=0; perl -e 'local $/; open(my $a, "<", $ARGV[0]) or exit 3; open(my $b, "<", $ARGV[2]) or exit 3;
+        exit 3 if <$a> ne <$b>; rename($ARGV[1], $ARGV[2]) or exit 1' "$stage/read" "$stage/index.md" "$f" || r=$?
+      if [ "$r" = 0 ]; then rm -rf "$stage"; WROTE_UNTIL="$until"; return 0; fi
+      [ "$r" = 3 ] || { rm -rf "$stage"; echo "lease.sh: $f: the rename failed (is ${TMPDIR:-/tmp} on another volume?); nothing written" >&2; return 1; }
     fi
   done
   rm -rf "$stage"; echo "lease.sh: ${CID:0:8} changed under each of 5 tries; nothing written" >&2; return 1
