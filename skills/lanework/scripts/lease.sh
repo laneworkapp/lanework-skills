@@ -14,20 +14,23 @@
 # Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<board key>/<card-uuid>, the board key
 # the first 16 hex of the shasum of the board's resolved path (`pwd -P`: a symlink or a trailing slash is the same board), so the
 # same card uuid on another copy of the board is never held there. A file in the older <session>/<card-uuid> layout is never
-# read. Limit: a board folder renamed or moved under a live lease is a new key, never-held; lapsed and taken over, the next write lands, no loss record.
+# read. Limit: a board folder renamed or moved under a live lease is a new key, so the memory is forgotten and the old timer exits.
+# `claimed` still reads as held, and the next write renews it and starts a new timer. Lapsed and taken over meanwhile, the next write
+# lands with no loss record.
 # Each file: key=value lines: board,
 # timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
 # <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
 # Reads git (branch, `git --no-optional-locks status --porcelain`) for the loss record; never writes the repo, stages or commits.
 # Test-only knobs, read by tests/smoke.sh: LEASE_TEST_STAKE_WAIT (seconds, default 1), LEASE_TEST_NOTICE_WAIT (120),
-# LEASE_TEST_POLL (60), LEASE_TEST_RENEW_EVERY (polls between renewals, 15). Fractional seconds are fine.
+# LEASE_TEST_POLL (60), LEASE_TEST_RENEW_EVERY (polls between renewals, 15), LEASE_TEST_WRITE_PAUSE (0: a write's first try waits this
+# long between its read and its compare). Fractional seconds are fine.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; SELF="$HERE/lease.sh"
 . "$HERE/lib.sh"
 USAGE="lease.sh stake|renew|check|release <board> <card-uuid> --model m [--name n] [--force] | lease.sh list <board>"
 LEASE_SECS=1800; GUARD_SECS=2100
 STAKE_WAIT="${LEASE_TEST_STAKE_WAIT:-1}"; NOTICE_WAIT="${LEASE_TEST_NOTICE_WAIT:-120}"
-POLL="${LEASE_TEST_POLL:-60}"; RENEW_EVERY="${LEASE_TEST_RENEW_EVERY:-15}"
+POLL="${LEASE_TEST_POLL:-60}"; RENEW_EVERY="${LEASE_TEST_RENEW_EVERY:-15}"; WRITE_PAUSE="${LEASE_TEST_WRITE_PAUSE:-0}"
 UUID_RE='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 usage() { printf 'lease.sh: %s\nusage: %s\n' "$1" "$USAGE" >&2; exit 2; }
 # board_key <resolved board path>: the memory's directory level for that board
@@ -60,29 +63,43 @@ status_of() {
   elif [ "$UE" -gt "$NOWE" ]; then ST=live; else ST=lapsed; fi
 }
 
-# write_card set|clear: rewrite claimed (set: the 3-line block, until 30 min from now) and modified whole; staged, then mv
+# write_card set|renew|clear: rewrite claimed (set, renew: the 3-line block, until 30 min from now; clear: none) and modified whole.
+# Each try copies the card as read into the stage and rewrites from that copy; the result moves in only when the card is found at
+# the same path and `cmp` shows it unchanged, else the next try reads again. 5 tries, then nothing written: 1. renew writes only a
+# copy whose claimed is this session's: else nothing written, 5. Explicit checks, not set -e: callers run it under || too.
 write_card() {
-  local f stage now by until=""
-  f=$(find_card) || return 1
-  now=$(now_utc); by=$(by_of "$NAME" "$MODEL" "$SESSION"); [ "$1" != set ] || until=$(now_utc "$LEASE_SECS")
-  stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX")
-  awk -v m="modified: {at: $now, by: $by}" -v set="$1" -v b="  by: $by" -v u="  until: $until" '
-    NR == 1 && $0 == "---" { fm = 1; print; next }
-    fm && drop && /^[ \t]/ { next }
-    fm { drop = 0 }
-    fm && $0 == "---" { if (!sm) print m; if (set == "set") { print "claimed:"; print b; print u }; fm = 0; print; next }
-    fm && /^modified:/ { print m; sm = 1; drop = 1; next }
-    fm && /^claimed:/ { drop = 1; next }
-    { print }' "$f" > "$stage/index.md"
-  # the triple-brace guard reads only the lines written here (modified, the claimed block): every other line is copied as read,
-  # and valid ones end in `}}}` (a label whose kind carries an icon), as may the body (a JSON example)
-  if [ "$(head -1 "$stage/index.md")" != "---" ] || awk 'NR == 1 { next } $0 == "---" { exit }
-      /^[^ \t]/ { w = ($0 ~ /^(modified|claimed):/) } w' "$stage/index.md" | grep -q '}}}'; then
-    rm -rf "$stage"; echo "lease.sh: $f: no frontmatter, or a broken stamp after the rewrite; nothing written" >&2; return 1
-  fi
-  compact_fm "$stage/index.md"
-  f=$(find_card) || { rm -rf "$stage"; return 1; }   # fresh, just before the mv
-  mv "$stage/index.md" "$f"; rm -rf "$stage"; WROTE_UNTIL="$until"
+  local f f2 stage now by until="" try
+  stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX") || return 1
+  for try in 1 2 3 4 5; do
+    f=$(find_card) || { rm -rf "$stage"; return 1; }
+    cp "$f" "$stage/read" 2>/dev/null || continue                      # moved meanwhile: read again
+    if [ "$1" = renew ]; then
+      read_claim "$stage/read"; [ -n "$CL_TEXT" ] && [ "$CL_SESS" = "$SESSION" ] || { rm -rf "$stage"; return 5; }
+    fi
+    now=$(now_utc); by=$(by_of "$NAME" "$MODEL" "$SESSION"); until=""; [ "$1" = clear ] || until=$(now_utc "$LEASE_SECS")
+    awk -v m="modified: {at: $now, by: $by}" -v set="$1" -v b="  by: $by" -v u="  until: $until" '
+      NR == 1 && $0 == "---" { fm = 1; print; next }
+      fm && drop && /^[ \t]/ { next }
+      fm { drop = 0 }
+      fm && $0 == "---" { if (!sm) print m; if (set != "clear") { print "claimed:"; print b; print u }; fm = 0; print; next }
+      fm && /^modified:/ { print m; sm = 1; drop = 1; next }
+      fm && /^claimed:/ { drop = 1; next }
+      { print }' "$stage/read" > "$stage/index.md" || { rm -rf "$stage"; return 1; }
+    # the triple-brace guard reads only the lines written here (modified, the claimed block): every other line is copied as read,
+    # and valid ones end in `}}}` (a label whose kind carries an icon), as may the body (a JSON example)
+    if [ "$(head -1 "$stage/index.md")" != "---" ] || awk 'NR == 1 { next } $0 == "---" { exit }
+        /^[^ \t]/ { w = ($0 ~ /^(modified|claimed):/) } w' "$stage/index.md" | grep -q '}}}'; then
+      rm -rf "$stage"; echo "lease.sh: $f: no frontmatter, or a broken stamp after the rewrite; nothing written" >&2; return 1
+    fi
+    compact_fm "$stage/index.md" || { rm -rf "$stage"; return 1; }
+    [ "$try" != 1 ] || [ "$WRITE_PAUSE" = 0 ] || sleep "$WRITE_PAUSE"
+    f2=$(find_card) || continue                                         # fresh, just before the mv
+    if [ "$f2" = "$f" ] && cmp -s "$stage/read" "$f"; then
+      mv "$stage/index.md" "$f" || { rm -rf "$stage"; return 1; }
+      rm -rf "$stage"; WROTE_UNTIL="$until"; return 0
+    fi
+  done
+  rm -rf "$stage"; echo "lease.sh: ${CID:0:8} changed under each of 5 tries; nothing written" >&2; return 1
 }
 
 # thread <card dir>: "created.at<TAB>first body line" per comment
@@ -164,9 +181,14 @@ lose() {
   fi
   M_STATE=lost; mem_save
 }
-# own_held: the lease is this session's: renew it when lapsed or voided (or always, with "renew"), keep the memory and the timer
+# own_held: the lease is this session's: renew it when lapsed or voided (or always, with "renew"), keep the memory and the timer.
+# claimed no longer this session's by the write (5): read the card again and decide once more (decide)
 own_held() {
-  if [ "${1:-}" = renew ] || [ "$ST" != live ]; then write_card set; fi
+  local rc=0
+  if [ "${1:-}" = renew ] || [ "$ST" != live ]; then write_card renew || rc=$?; fi
+  if [ "$rc" = 5 ]; then REDO=$((REDO + 1)); [ "$REDO" -le 3 ] || { echo "lease.sh: ${CID:0:8} kept changing; nothing written" >&2; exit 1; }
+    F=$(card_file); read_claim "$F"; status_of; decide; exit 0; fi
+  [ "$rc" = 0 ] || exit 1
   mem_load; [ -f "$MEM" ] || mem_new
   ensure_timer
 }
@@ -177,16 +199,16 @@ timer() {
     sleep "$POLL"; n=$((n + 1))
     kill -0 "$TCPID" 2>/dev/null || exit 0
     [ -f "$MEM" ] && [ ! -d "$MEM.lost" ] || exit 0
-    mem_load; [ "$M_PID" = "$$" ] || exit 0          # released, or a newer timer took over
+    mem_load; [ -z "$M_PID" ] || [ "$M_PID" = "$$" ] || exit 0   # released, or a newer timer took over; empty: not saved yet
     NAME=${M_NAME:-claude}; MODEL=${M_MODEL:-unknown}
     f=$(find_card) || exit 0
     read_claim "$f"; [ -n "$CL_TEXT" ] || exit 0     # released
     if [ "$CL_SESS" != "$SESSION" ]; then lose "$CL_SESS" || true; exit 0; fi
     na=$(thread "$(dirname "$f")" | awk -F'\t' -v s="$SESSION" 'index($2, "**Takeover notice**:") == 1 && index($2, "from session " s " at ") {print $1}' | sort | tail -1)
     if [ -n "$na" ] && [[ "$na" > "$M_NOTICE" ]]; then
-      M_NOTICE=$na; mem_save; write_card set || true; n=0; continue
+      M_PID=$$; M_NOTICE=$na; mem_save; write_card renew || true; n=0; continue   # renew 5: the next poll finds the loss or release
     fi
-    if [ $((n % RENEW_EVERY)) -eq 0 ]; then write_card set || true; fi
+    if [ $((n % RENEW_EVERY)) -eq 0 ]; then write_card renew || true; fi
   done
 }
 
@@ -231,8 +253,8 @@ case "$SESSION" in */*|*\"*|*[[:space:]]*) usage "session id with a slash, quote
 [ -f "$BOARD/index.md" ] || usage "not a board: $BOARD"
 BOARD=$(cd "$BOARD" && pwd -P)
 R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION/$(board_key "$BOARD")"; MEM="$MEMD/$CID"
-F=$(card_file); read_claim "$F"; status_of
-
+# decide: the subcommand on the card as read (F, CL_*, ST); every branch exits. own_held calls it again on a changed claimed
+decide() {
 case "$SUB" in
 stake)
   if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8} and writes it no more" >&2; exit 3; fi
@@ -288,3 +310,5 @@ release)
   rm -f "$MEM" ;;
 esac
 exit 0
+}
+REDO=0; F=$(card_file); read_claim "$F"; status_of; decide
