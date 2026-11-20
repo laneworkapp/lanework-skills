@@ -1996,7 +1996,7 @@ printf '#!/bin/bash\ntouch "%s/work/.git/index.lock"; printf "#!/bin/bash\\nexit
 rc=0; O=$(cb --push "B: index locked" "$CD" 2>&1) || rc=$?; rm -f "$G/work/.git/index.lock" "$G/work/.git/hooks/pre-commit"
 KS=$(saved); [ "$rc" -eq 1 ] && [ -n "$KS" ] && grep -q "saved entries are kept in .*$KS" <<<"$O" && grep -q 'NOT restored' <<<"$O" || { echo "commit-board: a restore failing on index.lock (rc $rc): $O"; exit 1; }
 grep -E '^  git (reset|update-index|add) ' <<<"$O" | (cd "$G/work" && bash -e) && [ "$(snap)" = "$s10" ] || { echo "commit-board: the printed recovery did not put the owner's entries back: $O"; g status --short; exit 1; }
-rm -f "$G/work/.git/$KS"; g reset -q -- "$CD"
+rm -f "$G/work/.git/$KS"; g reset -q -- "$CD"; g checkout -q -- "$CD"; rm -f "$G/work/$CD/v.md" "$G/work/$CD/v-i.md"   # the card folder as HEAD has it, for the cases below
 ok "commit-board.sh: a failed restore says NOT restored (saved file gone, index.lock); with index.lock the saved file is kept and the printed commands put the owner's entries back"
 # every named path skipped: exit 1; a real path with no changes: nothing to commit, exit 0
 h6=$(g rev-parse HEAD); rc=0; O=$(cb "B: none" B.lanework/typo/index.md 2>&1) || rc=$?
