@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Scripts refuse valid cards that contain a triple closing brace"
-order: 6144
+order: 80896
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}, {text: plan, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T15:55:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T20:17:00Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T23:06:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Seven scripts abort when the staged card (or new card) contains `}}}` anywhere, so they refuse valid cards (a label whose kind carries an icon, or a JSON example in the body). The fix is one shared check in `lanework/scripts/lib.sh` that reads only the lines a script writes, used by every script, with `lease.sh` moving onto it.
 
