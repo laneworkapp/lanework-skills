@@ -387,14 +387,20 @@ O2=$("$SK/discovery/scripts/file-question.sh" "$D" "Engine: placement" --round 1
 grep -q 'lint-ask warning\|warning: no lint-ask.sh' <<<"$O1$O2" && { echo "$O1$O2"; exit 1; }
 C1=$(head -1 <<<"$O1" | sed 's#.*/##'); A1=$(sed -n 's/^ask comment //p' <<<"$O1"); C2=$(head -1 <<<"$O2" | sed 's#.*/##')
 grep -q '^title: "Q2: Engine: placement"$' "$D"/*/"$C2"/index.md; ok "Q1, Q2 filed, numbered, asks lint clean"
-printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner answered in chat.** "A."\n' > "$T/rec.md"
+printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner ruled off the board.**\n\n> A.\n\n**Given**: chat, 2026-09-27\n' > "$T/rec.md"
+# refusal: a record with no quote or no Given line writes nothing, exit 2
+printf '**Owner answered in chat.** "A."\n' > "$T/rec-old.md"; CF1b="$(ls "$D"/*/"$C1"/index.md)"; SUMB=$(cksum < "$CF1b"); NCB=$(ls "$(dirname "$CF1b")/comments" | wc -l)
+set +e; "$SK/discovery/scripts/settle-question.sh" "$D" "$C1" --ruling "$T/r1.md" --record "$T/rec-old.md" --model smoke >/dev/null 2>&1; RC=$?; set -e
+CF1b="$(ls "$D"/*/"$C1"/index.md)"; [ "$RC" = 2 ] && [ "$(cksum < "$CF1b")" = "$SUMB" ] && [ "$(ls "$(dirname "$CF1b")/comments" | wc -l)" = "$NCB" ] || { echo "settle-question accepted an unquoted record (rc $RC) or wrote something"; exit 1; }
+ok "settle-question refuses a record with no quote or Given line, writes nothing"
 # several people, past 120 characters: the compact form writes waiting as a block (lanework/scripts/lib.sh compact_fm, the heal's H17)
 CF1="$(ls "$D"/*/"$C1"/index.md)"; perl -0pi -e 's/^waiting: \{for: [^,]*, since: ([^,]*), comment: ([^}]*)\}\n/waiting:\n  for: [owner, bobsmith, carol, dave]\n  since: $1\n  comment: $2\n/m' "$CF1"; grep -q '^  for: \[owner, bobsmith, carol, dave\]$' "$CF1"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C1" --ruling "$T/r1.md" --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --model smoke >/dev/null
 CF1="$(ls "$D"/*/"$C1"/index.md)"; { ! grep -q -E '^(waiting:|  (for|since|comment):)' "$CF1" && fm_parses "$CF1" && grep -q "in-reply-to: $A1" "$D"/*/"$C1"/comments/*/index.md; } \
   || { echo "settle-question left waiting, or its block lines, or a frontmatter that does not parse:"; head -12 "$CF1"; exit 1; }
-ok "settled with chat record in reply to the ask, a block-form list waiting dropped whole; parked"
+LW=$("$SK/work/scripts/lint-waiting-clears.sh" "$D" 2>&1 || true); grep -q "^QUOTED $C1 $A1\$" <<<"$LW" || { echo "chat record not QUOTED: $LW"; exit 1; }
+ok "settled with chat record in reply to the ask, read QUOTED by the waiting-clear lint, a block-form list waiting dropped whole; parked"
 validate "$D" >/dev/null; ok "discovery board validates"
 
 # discovery: Decisions lane founded in order, record + status kinds declared, file-record.sh files ADR and PDR cards
