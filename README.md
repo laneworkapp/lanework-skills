@@ -29,7 +29,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
 | `lanework` | 10 | 382 | 5,198 |
-| `work` | 16 | 454 | 7,933 |
+| `work` | 16 | 454 | 7,936 |
 | `watch` | 4 | 182 | 2,083 |
 | `discovery` | 14 | 502 | 2,908 |
 | `plan` | 9 | 467 | 2,843 |
@@ -64,17 +64,17 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work`, `discovery` an
 | `references/fixer.md` | 424 |
 | `references/lead.md` | 1,075 |
 | `references/reviewer.md` | 415 |
-| `references/sweep.md` | 826 |
+| `references/sweep.md` | 830 |
 | `references/team.md` | 532 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
-| `references/writing.md` | 1,750 |
+| `references/writing.md` | 1,749 |
 | `templates/ask.md` | 306 |
 | `templates/farmed-prompt.md` | 228 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **7,933** |
+| **total** | **7,936** |
 
 #### `watch`
 
