@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Asks no longer need a leading handle once the app draws buttons without one"
-order: 3072
+order: 6144
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-20T02:07:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-20T11:59:06Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T17:55:04Z}
 ---
 The app is changing how it decides that a comment is a question, so an ask will no longer need a handle on its first line to get answer buttons. The skills should follow once that reaches a build, by making the leading handle optional.
 
