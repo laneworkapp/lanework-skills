@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "discovery records a chat answer in the work skill's quote format"
-order: 4096
+order: 7168
 labels: [{text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-20T12:04:40Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T12:04:40Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T17:55:04Z}
 ---
 Discovery writes its "owner answered in chat" record in a format the waiting-clear checker reads as unquoted, so the first chat answer on a discovery board after 0.9.0 would log a miss in the trial. Discovery should write the same record the `work` skill does.
 

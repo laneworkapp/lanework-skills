@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Smoke's guide-version check has no positive control and skips scripts"
-order: 2048
+order: 5120
 labels: [{text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-12T01:34:03Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
-modified: {at: 2026-11-17T11:51:43Z, by: {name: shaper, kind: agent, model: claude-sonnet-5-5, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T17:55:04Z}
 ---
 Smoke's guide-version check scans only Markdown and has never been shown to catch anything, so this makes it scan every file under `skills/` and adds cases that prove it flags and does not flag.
 
