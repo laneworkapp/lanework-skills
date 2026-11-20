@@ -31,6 +31,8 @@ Then post the round in chat, each title linking its card:
 
 A ruling that clears the bar: file its record first (`records.md` § Format). Then: ruling → body `## Ruling` (`templates/ruling.md`), card → bottom of Settled (`scripts/settle-question.sh`). Deferred or declined → Parked, reason = ruling.
 
+`waiting` set → `settle-question.sh` needs owner words: `--record` (in reply to `waiting.comment` unless `--reply`), or an owner comment after the ask already on the card. Else exit 1, nothing written; `work/scripts/lint-waiting-clears.sh` on the staged card decides. Deferred or declined in chat → Parked, still with `--record`.
+
 **Challenge**: answer conflicts with a settled card, the glossary, an ADR/PDR, or the code → don't record it. Next round asks: "Q3 settled X; this implies Y. Which holds?"
 
 ## Close
