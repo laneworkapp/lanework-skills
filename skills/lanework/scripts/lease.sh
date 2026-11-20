@@ -68,17 +68,22 @@ status_of() {
 # write_card <set|renew|clear>: rewrite claimed (set, renew: the 3-line block, until 30 min from now; clear: none) and modified whole.
 # Each try copies the card as read into the stage and rewrites from that copy; the result moves in only when the card is found
 # at the same path and unchanged (compared byte for byte), else the next try reads again. 5 tries, then nothing written: 1.
-# renew writes only a copy whose claimed is this session's: else nothing written, 5. Explicit checks, not set -e: callers run
-# it under || too.
+# Each writes only over the claimed its caller decided on: renew, a copy whose claimed is this session's (else 5); set, the
+# claimed text the caller read, SET_CL (else another stake landed: 1, backing off); clear, claimed still CLEAR_SESS's (another
+# session's: 1; none: nothing to clear, 0). Nothing written in each case. Explicit checks, not set -e: callers run it under || too.
 write_card() {
   local f f2 stage now by until="" try
   stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX") || return 1
   for try in 1 2 3 4 5; do
     f=$(find_card) || { rm -rf "$stage"; return 1; }
     cp "$f" "$stage/read" 2>/dev/null || continue                      # moved meanwhile: read again
-    if [ "$1" = renew ]; then
-      read_claim "$stage/read"; [ -n "$CL_TEXT" ] && [ "$CL_SESS" = "$SESSION" ] || { rm -rf "$stage"; return 5; }
-    fi
+    read_claim "$stage/read"
+    case "$1" in
+      renew) [ -n "$CL_TEXT" ] && [ "$CL_SESS" = "$SESSION" ] || { rm -rf "$stage"; return 5; } ;;
+      set) [ "$CL_TEXT" = "$SET_CL" ] || { rm -rf "$stage"; echo "lease.sh: ${CID:0:8} was staked by ${CL_SESS:-none} meanwhile; backing off" >&2; return 1; } ;;
+      clear) [ -n "$CL_TEXT" ] || { rm -rf "$stage"; return 0; }
+        [ "$CL_SESS" = "$CLEAR_SESS" ] || { rm -rf "$stage"; echo "lease.sh: ${CID:0:8} is held by ${CL_SESS:-none} meanwhile; nothing released" >&2; return 1; } ;;
+    esac
     now=$(now_utc); by=$(by_of "$NAME" "$MODEL" "$SESSION"); until=""; [ "$1" = clear ] || until=$(now_utc "$LEASE_SECS")
     awk -v m="modified: {at: $now, by: $by}" -v set="$1" -v b="  by: $by" -v u="  until: $until" '
       NR == 1 && $0 == "---" { fm = 1; print; next }
@@ -295,7 +300,7 @@ stake)
         echo "lease.sh: session ${CL_SESS:-none} answered the notice on ${CID:0:8}; backing off" >&2; exit 1
       fi ;;
   esac
-  write_card set
+  SET_CL="$CL_TEXT"; write_card set
   sleep "$STAKE_WAIT"
   F=$(card_file); read_claim "$F"
   if [ "$CL_SESS" != "$SESSION" ]; then echo "lease.sh: session ${CL_SESS:-none} staked ${CID:0:8} first; backing off" >&2; exit 1; fi
@@ -315,7 +320,7 @@ check)
   echo never-held; exit 4 ;;
 release)
   if [ -n "$FORCE" ] && [ "$ST" != none ] && [ "$CL_SESS" != "$SESSION" ]; then
-    write_card clear
+    CLEAR_SESS="$CL_SESS"; write_card clear
     post_record "**Lease released by force** on the owner's word: session $CL_SESS held it until $CL_UNTIL."
     exit 0
   fi
@@ -324,7 +329,7 @@ release)
     echo "lease.sh: ${CID:0:8} is held by session $CL_SESS; --force on the owner's word only" >&2; exit 1
   fi
   mem_load; stop_timer
-  [ "$ST" = none ] || write_card clear
+  CLEAR_SESS="$SESSION"; [ "$ST" = none ] || write_card clear
   rm -f "$MEM" ;;
 esac
 exit 0

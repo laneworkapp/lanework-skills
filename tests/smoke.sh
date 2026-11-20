@@ -2311,6 +2311,20 @@ RA=$(cat "$T/race-a"); RB=$(cat "$T/race-b"); WIN=$(csess "$F3")
 LOSER=S-race-a; [ "$WIN" = S-race-a ] && LOSER=S-race-b; [ ! -e "$(mem "$LOSER" "$C3")" ] || { echo "race: the loser kept a memory file"; exit 1; }
 ok "lease: two racing stakes leave one holder"
 
+# 3b. a stake held between its read and its write (LEASE_TEST_WRITE_PAUSE, a TMPDIR of its own) while another session's stake lands:
+# the held stake writes only over the claimed it read, so it backs off: exit 1, nothing written, no memory, no timer
+C3b=$(lcard "Three b"); F3b=$(lcf "$C3b"); LSA=$(mktemp -d "$T/lease-stake-a.XXXXXX")
+( RC=0; CLAUDE_CODE_SESSION_ID=S-held CLAUDE_PID="$LPID" TMPDIR="$LSA" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 \
+  LEASE_TEST_WRITE_PAUSE=1.5 "$LS" stake "$LB" "$C3b" --model smoke >/dev/null 2>"$T/s3b.err" || RC=$?; echo "$RC" > "$T/s3b.rc" ) & S3P=$!
+waitfor '[ -n "$(ls "$LSA"/lease-write.*/read 2>/dev/null)" ]' || { echo "3b: the held stake never read the card"; exit 1; }
+L S-first stake "$LB" "$C3b" --model smoke >/dev/null || { echo "3b: the stake landing during the pause failed"; exit 1; }
+H3b=$(shasum < "$F3b"); wait "$S3P"
+[ "$(cat "$T/s3b.rc")" = 1 ] && [ "$(csess "$F3b")" = S-first ] && [ "$H3b" = "$(shasum < "$F3b")" ] && grep -q 'staked by S-first meanwhile; backing off' "$T/s3b.err" \
+  && [ ! -e "$LSA/lanework-lease/S-held" ] && [ -z "$(pgrep -f "$LS _timer $(cd "$LB" && pwd -P) $C3b S-held " || true)" ] \
+  || { echo "3b: held stake rc $(cat "$T/s3b.rc"), holder $(csess "$F3b"), err: $(cat "$T/s3b.err")"; cat "$F3b"; exit 1; }
+L S-first release "$LB" "$C3b" --model smoke >/dev/null
+ok "lease: a stake held through another session's stake backs off (exit 1), writes nothing over it, and keeps no memory or timer"
+
 # 4. another session's live lease is refused
 HS1=$(shasum < "$F1"); RC=0; L S-four stake "$LB" "$C1" --model smoke >/dev/null 2>&1 || RC=$?
 [ $RC = 1 ] && [ "$HS1" = "$(shasum < "$F1")" ] || { echo "stake over a live lease: rc $RC"; exit 1; }
