@@ -72,7 +72,10 @@ next_order() {
 # owner_handle <board>: from the guide's "human answers to `@handle`" line; empty + exit 1 if none.
 owner_handle() {
   local h=""
-  [ -r "$1/CLAUDE.md" ] && h=$(grep -o 'human answers to `@[^`]*`' "$1/CLAUDE.md" | head -1 | sed 's/.*`@\([^`]*\)`/\1/')
+  local f; for f in "$1/CLAUDE.md" "$1/AGENTS.md"; do   # the app writes both, byte-identical
+    [ -r "$f" ] || continue
+    h=$(grep -o 'human answers to `@[^`]*`' "$f" | head -1 | sed 's/.*`@\([^`]*\)`/\1/'); [ -n "$h" ] && break
+  done
   printf '%s' "$h"; [ -n "$h" ]
 }
 
