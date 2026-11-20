@@ -268,14 +268,17 @@ with open(staged, "w", encoding="utf-8", newline="") as fh:
 EOF
 }
 
-# stamp_lines_ok <file> <key>...: the triple-brace guard for lines a script wrote. Reads the front matter only (first --- to the second),
-# keeps each top-level line whose key is listed plus its indented continuation lines; returns 1 if any kept line holds `}}}`.
-# Copied lines and the body legitimately end in `}}}` (a label whose kind carries an icon, a JSON example), so never grep a whole file.
+# stamp_lines_ok <file> <key>...: the guard for the stamp lines a script wrote. Reads the front matter only (line 2 to the closing ---, trailing
+# blanks allowed), keeps each top-level line whose key is listed plus its indented continuation lines, and returns 1 if the kept lines hold `}}}`
+# or unequal counts of `{` and `}` (a stamp value that carries a brace: `n}`). Copied lines and the body legitimately end in `}}}` (a label whose
+# kind carries an icon, a JSON example), so never test a whole file.
 stamp_lines_ok() {
   local f=$1 keys; shift
   keys=$(IFS='|'; echo "$*")
-  ! awk -v k="$keys" 'NR == 1 { next } $0 == "---" { exit }
-    /^[^ \t]/ { w = ($0 ~ ("^(" k "):")) } w' "$f" | grep -q '}}}'
+  awk -v k="$keys" 'NR == 1 { next } /^---[ \t]*$/ { exit }
+    /^[^ \t]/ { w = ($0 ~ ("^(" k "):")) }
+    w { if ($0 ~ /[}][}][}]/) bad = 1; o += gsub(/[{]/, "{"); c += gsub(/[}]/, "}") }
+    END { exit (bad || o != c) }' "$f"
 }
 
 # comment_file <path> <created-at> <by> [in-reply-to] < body: write a comment index.md.

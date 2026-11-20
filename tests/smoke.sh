@@ -704,18 +704,24 @@ BADM='x}}}'
 brefused() { local n=$1 b=$2; shift 2; local s rc=0; s=$(bsnap "$b"); "$@" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$s" = "$(bsnap "$b")" ] || { echo "$n: rc=$rc or the board changed"; exit 1; }; }
 BQ2=$(bq "Brace refused"); BQ3=$(bq "Brace refused two")
 brefused move-card "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$BQ2" Parked --model "$BADM"
-# post-ask.sh posts the ask first (a refused restamp leaves the ask and exits 1, "set waiting by hand"): its card is what stays untouched
-bs=$(cksum < "$(bcard "$BQ2")"); rc=0; "$SK/work/scripts/post-ask.sh" "$BQ" "$BQ2" --body "$T/bask.md" --for anyone --model "$BADM" >/dev/null 2>&1 || rc=$?
-[ "$rc" -eq 1 ] && [ "$bs" = "$(cksum < "$(bcard "$BQ2")")" ] || { echo "post-ask: rc=$rc or the card changed"; exit 1; }
+brefused post-ask "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$BQ2" --body "$T/bask.md" --for anyone --model "$BADM"
+brefused post-comment "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$BQ2" --body "$T/bask.md" --model "$BADM"
+brefused file-card "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "Refused" --body "$T/bask.md" --model "$BADM"
+brefused file-question "$BQ" "$SK/discovery/scripts/file-question.sh" "$BQ" "Refused" --round 1 --body "$T/bq.md" --model "$BADM"
 brefused settle-question "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$BQ2" --ruling "$T/bruling.md" --model "$BADM"
 brefused file-record "$BQ" "$SK/discovery/scripts/file-record.sh" "$BQ" "$BQ3" --record ADR --title x --body "$T/badr.md" --model "$BADM"
 brefused file-ticket "$BPL" "$PS/file-ticket.sh" "$BPL" "Refused" --type grilling --body "$T/bt.md" --model "$BADM"
 brefused claim-ticket "$BPL" env CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/claim-ticket.sh" "$BPL" "$BT2" --model "$BADM"
-ok "a --model with a triple brace lands on a stamp line each of the seven scripts writes: exit 1, nothing written (resolve-ticket.sh below)"
+ok "a --model with a triple brace lands on a stamp line each of these scripts writes: exit 1, nothing written (post-ask.sh, post-comment.sh, file-card.sh and file-question.sh too; resolve-ticket.sh below)"
 BT3=$(bfirst "$PS/file-ticket.sh" "$BPL" "Third" --type grilling --body "$T/bt.md" --model smoke); PE "$PS/claim-ticket.sh" "$BPL" "$BT3" --model smoke >/dev/null
 brefused resolve-ticket "$BPL" env CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/resolve-ticket.sh" "$BPL" "$BT3" --resolution "$T/bres.md" --model "$BADM"
 ok "resolve-ticket.sh with a triple-brace --model: exit 1, nothing written"
-! grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:' | grep . ; ok "no script greps a whole file for a triple brace"
+# a single brace in a stamp value (--name n}, --model x} with a session) is refused as well: the stamp line would not parse
+for bv in "--name n}" "--model x} --session s"; do brefused "move-card $bv" "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$BQ2" Parked --model smoke $bv; done
+brefused "post-comment --name n}" "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$BQ2" --body "$T/bask.md" --model smoke --name 'n}'
+ok "a single brace in --name, or in --model beside a --session, is refused (move-card.sh, post-comment.sh): exit 1, nothing written"
+if grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:' | grep -q .; then echo "a script still greps a whole file for a triple brace:"; grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:'; exit 1; fi
+ok "no script outside lib.sh greps a whole file for a triple brace"
 
 # work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"

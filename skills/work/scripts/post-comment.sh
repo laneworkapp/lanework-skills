@@ -60,6 +60,7 @@ fi
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-comment.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 COID=$(uuid); mkdir -p "$STAGE/$COID"
 comment_file "$STAGE/$COID/index.md" "$NOW" "$BY" "$REPLY" < "$BODY"
+stamp_lines_ok "$STAGE/$COID/index.md" created modified || { echo "post-comment.sh: a brace in the stamp (--model, --name or --session); nothing written" >&2; exit 1; }
 "$(dirname "${BASH_SOURCE[0]}")/lint-ask.sh" "$STAGE/$COID/index.md" "$BOARD" || { echo "post-comment.sh: the body fails lint-ask.sh; nothing written" >&2; exit 1; }
 
 LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"; HELD=""
