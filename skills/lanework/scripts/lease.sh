@@ -63,7 +63,7 @@ status_of() {
   elif [ "$UE" -gt "$NOWE" ]; then ST=live; else ST=lapsed; fi
 }
 
-# write_card set|renew|clear: rewrite claimed (set, renew: the 3-line block, until 30 min from now; clear: none) and modified whole.
+# write_card <set|renew|clear>: rewrite claimed (set, renew: the 3-line block, until 30 min from now; clear: none) and modified whole.
 # Each try copies the card as read into the stage and rewrites from that copy; the result moves in only when the card is found at
 # the same path and `cmp` shows it unchanged, else the next try reads again. 5 tries, then nothing written: 1. renew writes only a
 # copy whose claimed is this session's: else nothing written, 5. Explicit checks, not set -e: callers run it under || too.
