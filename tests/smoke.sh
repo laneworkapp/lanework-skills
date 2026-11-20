@@ -694,11 +694,26 @@ printf '@kim maybe ship it; worth a try?\n' > "$T/kim-bad.md"
 if "$SK/work/scripts/lint-ask.sh" "$T/kim-bad.md" "$G114" >/dev/null; then echo "lint-ask passed a bad @kim ask on a v114 board"; exit 1; fi
 ok "lint-ask on a v114 board ignores @anyone and still checks the board's own handle"
 printf '**Asks changed.**\n\nThey now start `@anyone` on v118 boards. See [the guide](https://example.com/@anyone) for the reserved handle.\n' > "$T/any-quoted.md"
-printf 'We said @anyone should answer, then went on to explain why in a long mid-sentence aside.\n\nSecond line.\n' > "$T/any-mid.md"
 "$SK/work/scripts/lint-ask.sh" "$T/any-quoted.md" "$G118" || { echo "lint-ask treated a record quoting @anyone in backticks or a URL as an ask"; exit 1; }
 printf 'Context first.\n\nWe said @anyone should answer.\n' > "$T/any-mid.md"
 if "$SK/work/scripts/lint-ask.sh" "$T/any-mid.md" "$G118" >/dev/null; then echo "lint-ask passed a bare mid-thread @anyone"; exit 1; fi
 ok "lint-ask on a v118 board passes a record quoting @anyone in a code span or a URL, and still fails a bare @anyone that is not on line 1"
+printf '@bob Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/bob-good.md"
+printf '@bob maybe ship it; worth a try? or not?\n' > "$T/bob-bad.md"
+printf 'Per @bob we shipped it.\n\nNothing is owed in reply.\n' > "$T/bob-mid.md"
+for B in "$G118" "$G114"; do
+  "$SK/work/scripts/lint-ask.sh" "$T/bob-good.md" "$B" || { echo "lint-ask failed a clean @bob ask on $B"; exit 1; }
+  "$SK/work/scripts/lint-ask.sh" "$T/bob-mid.md" "$B" || { echo "lint-ask treated a mid-sentence @bob as an ask on $B"; exit 1; }
+  OB=$("$SK/work/scripts/lint-ask.sh" "$T/bob-bad.md" "$B") && { echo "lint-ask passed a bad @bob ask on $B"; exit 1; }
+  [ -n "$OB" ] || { echo "lint-ask failed a bad @bob ask silently on $B"; exit 1; }
+done
+ok "lint-ask treats a handle starting line 1 as an ask for that person (clean passes, bad fails) on v118 and v114 boards, and passes a mid-sentence @bob record"
+GAQ="$T/GAgentsOnly.lanework"; mkdir -p "$GAQ"; printf '<!-- lanework-agent-guide v118 - app guide -->\n' > "$GAQ/AGENTS.md"
+"$SK/work/scripts/lint-ask.sh" "$T/any-quoted.md" "$GAQ" || { echo "lint-ask treated a quoted @anyone as an ask on a board with no handle line"; exit 1; }
+"$SK/work/scripts/lint-ask.sh" "$T/any-quoted.md" || { echo "lint-ask treated a quoted @anyone as an ask with no board"; exit 1; }
+GAH="$T/GAgentsHandle.lanework"; mkguide "$GAH" 118; mv "$GAH/CLAUDE.md" "$GAH/AGENTS.md"
+[ "$( . "$SK/lanework/scripts/lib.sh"; owner_handle "$GAH" )" = kim ] || { echo "owner_handle ignores AGENTS.md when CLAUDE.md is absent"; exit 1; }
+ok "lint-ask passes a record quoting @anyone in backticks on an AGENTS.md-only board and with no board; owner_handle reads AGENTS.md"
 printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/fq-any.md"
 for g in 118 114; do
   FQ="$T/FQ$g Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$FQ" --model smoke >/dev/null; mkguide "$FQ" "$g"
