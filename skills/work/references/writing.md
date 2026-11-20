@@ -6,7 +6,7 @@ Two readers: the owner, who decides, and the next agent, who resumes cold. Both 
 
 Pasted verbatim into every farmed prompt (`templates/farmed-prompt.md`):
 
-> A comment is a **record** or an **ask**, never both. A record carries context and evidence and never mentions the human. An ask is one request for the human: `@anyone` (or a person's handle) on the first line, under 80 words, the shape in `work/templates/ask.md`, linted with `work/scripts/lint-ask.sh <file> <board>` before the `mv`, posted one second after the record it depends on, with the card's `waiting` set in the same pass. A choice only the human can make is always an ask: never left in the body or a record alone. In a lead/fixer cycle, the question goes to the lead instead.
+> A comment is a **record** or an **ask**, never both. A record carries context and evidence and never mentions the human. An ask is one request for the human: `@anyone` (or a person's handle) on the first line, under 80 words, the shape in `work/templates/ask.md`, linted with `work/scripts/lint-ask.sh <file> <board>` before the `mv`, posted one second after the record it depends on, with the card's `waiting` set in the same pass. A choice or an action only the human can make is always an ask: never left in the body or a record alone. In a lead/fixer cycle, the question goes to the lead instead.
 
 ## Record vs ask
 
@@ -30,7 +30,8 @@ A call only the owner can make (between options, taste, scope, anything a done-w
 - **Approval rules nothing.** Approving a card moves it; its open calls stay open (`lanework/references/board-kinds.md`). No build until each one has a ruling comment.
 - **Owner in a live chat**: the ask still goes on the card, where the ruling is recorded. The chat only links to it ("asked on [<short id>](lanework://…)"). Never ask in chat instead. A chat ruling is recorded on the card and may clear `waiting`: § The ask. Before sending a reply, scan it for questions on a card's options, scope or next step: each is an ask on that card first. A question with no card yet → file the card, then ask on it.
 - **Filing a card with an open call** → its asks go out in the same pass as the founding record. An open-call list in a fresh body with no asks under it is the miss.
-- Open call found later (in Approved, Active, a review) → post the ask then, and stop work that depends on it.
+- Open call or owner action found later (in Approved, Active, a review) → post the ask then, and stop work that depends on it.
+- **Owner action**: something only the owner can do that the card's next step waits on (run a trial, cut a release, run commands on their machine). Not a choice: no options, no open-call line in the body, no ruling edit. One imperative ask: `@anyone` on line 1, the action, the card linked, "reply here when done" (only a human comment clears `waiting`), `If no answer: blocked`, `waiting` set in the same pass. A record alone ("stays with the owner") is the miss.
 
 ## The ask
 
