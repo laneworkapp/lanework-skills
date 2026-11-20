@@ -270,14 +270,15 @@ EOF
 
 # stamp_lines_ok <file> <key>...: the guard for the stamp lines a script wrote. Reads the front matter only (line 2 to the closing ---, trailing
 # blanks allowed), keeps each top-level line whose key is listed plus its indented continuation lines, and returns 1 if the kept lines hold `}}}`
-# or unequal counts of `{` and `}` (a stamp value that carries a brace: `n}`). Copied lines and the body legitimately end in `}}}` (a label whose
+# or unequal counts of `{` and `}` outside double-quoted strings (an unquoted stamp value that carries a brace: `n}`). Copied lines and the body legitimately end in `}}}` (a label whose
 # kind carries an icon, a JSON example), so never test a whole file.
 stamp_lines_ok() {
   local f=$1 keys; shift
   keys=$(IFS='|'; echo "$*")
   awk -v k="$keys" 'NR == 1 { next } /^---[ \t]*$/ { exit }
     /^[^ \t]/ { w = ($0 ~ ("^(" k "):")) }
-    w { if ($0 ~ /[}][}][}]/) bad = 1; o += gsub(/[{]/, "{"); c += gsub(/[}]/, "}") }
+    w { q = $0; gsub(/"([^"\\]|\\.)*"/, "", q)   # double-quoted values (by_of quotes `session`) may hold any brace
+        if (q ~ /[}][}][}]/) bad = 1; o += gsub(/[{]/, "{", q); c += gsub(/[}]/, "}", q) }
     END { exit (bad || o != c) }' "$f"
 }
 
