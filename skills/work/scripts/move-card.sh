@@ -111,7 +111,7 @@ awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" -v clear="$CLEAR" 
   fm && /^modified:/ { print m; sm = 1; drop = 1; next }
   fm && clear && /^waiting:/ { drop = 1; next }
   { print }' "$CARD/index.md" > "$STAGE/index.md"
-if grep -q '}}}' "$STAGE/index.md"; then echo "move-card.sh: triple brace after the restamp; nothing written" >&2; exit 1; fi
+if ! stamp_lines_ok "$STAGE/index.md" order modified; then echo "move-card.sh: triple brace after the restamp; nothing written" >&2; exit 1; fi
 [ "$(head -1 "$STAGE/index.md")" = "---" ] || { echo "move-card.sh: $CARD/index.md has no frontmatter; nothing written" >&2; exit 1; }
 
 mv "$STAGE/index.md" "$CARD/index.md"

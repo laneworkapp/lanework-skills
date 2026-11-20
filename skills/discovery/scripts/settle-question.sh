@@ -49,8 +49,8 @@ awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" '
   n==1 && /^order:/ { print o; next }
   n==1 && /^modified:/ { print m; next }
   { print }' "$CARD/index.md" > "$STAGE/index.md"
+if ! stamp_lines_ok "$STAGE/index.md" order modified; then echo "settle-question.sh: triple brace after restamp; aborting" >&2; exit 1; fi
 { printf '\n## Ruling\n\n'; cat "$RULING"; } >> "$STAGE/index.md"
-if grep -q '}}}' "$STAGE/index.md"; then echo "settle-question.sh: triple brace after restamp; aborting" >&2; exit 1; fi
 
 COID=""
 if [ -n "$RECORD" ]; then
