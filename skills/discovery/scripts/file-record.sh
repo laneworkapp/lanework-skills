@@ -59,7 +59,7 @@ else
   CITE=""; CTITLE="$KIND: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/record.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
 fi
 render "$STAGE/fm.md" kind "$KIND" cite "$CITE" rank "$RANK" title "$CTITLE" order "$(next_order "$DEC")" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
-if grep -q '}}}' "$STAGE/fm.out"; then echo "file-record.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
+if ! stamp_lines_ok "$STAGE/fm.out" created modified; then echo "file-record.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
 union_lane_defaults "$DEC" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
 if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" "$KIND"); fi   # scanned here, after the slow steps

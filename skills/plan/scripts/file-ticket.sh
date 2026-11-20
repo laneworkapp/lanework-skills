@@ -84,7 +84,7 @@ else
 fi
 render "$STAGE/fm.md" cite "$CITE" title "$CARD_TITLE" order "$(next_order "$DEST")" \
   type "$LABEL" rank "$RANK" glyph "$GLYPH" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
-if grep -q '}}}' "$STAGE/fm.out"; then echo "file-ticket.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
+if ! stamp_lines_ok "$STAGE/fm.out" created modified; then echo "file-ticket.sh: triple brace in the frontmatter; aborting" >&2; exit 1; fi
 union_lane_defaults "$DEST" "$BOARD" "$STAGE/fm.out"
 compact_fm "$STAGE/fm.out"
 if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" T); fi   # scanned here, after the slow steps

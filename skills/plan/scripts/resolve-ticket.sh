@@ -61,7 +61,7 @@ restamp() {  # restamp <src> <order> <dest> [claimed]: fresh order + modified, w
     n==1 && /^order:/ { print o; next }
     n==1 && /^modified:/ { print m; next }
     { print }' "$1" > "$3"
-  if grep -q '}}}' "$3"; then echo "resolve-ticket.sh: triple brace after restamp; aborting" >&2; exit 1; fi
+  if ! stamp_lines_ok "$3" order modified; then echo "resolve-ticket.sh: triple brace after restamp; aborting" >&2; exit 1; fi
 }
 
 CARD=$(card_of "$CID")

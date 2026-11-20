@@ -268,6 +268,16 @@ with open(staged, "w", encoding="utf-8", newline="") as fh:
 EOF
 }
 
+# stamp_lines_ok <file> <key>...: the triple-brace guard for lines a script wrote. Reads the front matter only (first --- to the second),
+# keeps each top-level line whose key is listed plus its indented continuation lines; returns 1 if any kept line holds `}}}`.
+# Copied lines and the body legitimately end in `}}}` (a label whose kind carries an icon, a JSON example), so never grep a whole file.
+stamp_lines_ok() {
+  local f=$1 keys; shift
+  keys=$(IFS='|'; echo "$*")
+  ! awk -v k="$keys" 'NR == 1 { next } $0 == "---" { exit }
+    /^[^ \t]/ { w = ($0 ~ ("^(" k "):")) } w' "$f" | grep -q '}}}'
+}
+
 # comment_file <path> <created-at> <by> [in-reply-to] < body: write a comment index.md.
 comment_file() {
   {

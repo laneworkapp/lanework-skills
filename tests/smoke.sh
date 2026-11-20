@@ -646,6 +646,77 @@ refused found-plan-board "$PS/found-plan-board.sh" "$T/NoModel Plan.lanework"
 [ "$S4" = "$(sum "$PL")" ] && [ ! -e "$T/NoModel Plan.lanework" ] || { echo "a refused plan call wrote something"; exit 1; }
 ok "file-ticket, claim-ticket, resolve-ticket and found-plan-board exit 2 with usage and write nothing when no model is given"
 
+# triple closing brace: the guard reads only the stamp lines a script wrote (lanework/scripts/lib.sh stamp_lines_ok), so a card whose
+# labels line (an iconed kind) or body (a JSON example) holds `}}}` is still written, and a `}}}` in a stamp the script writes is still refused
+BQ="$T/Brace Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$BQ" --model smoke >/dev/null
+cp -R "$VAL" "$BQ/.schema"; printf '<!-- lanework-agent-guide v118 -->\n\nThis machine'"'"'s human answers to `@owner`.\n' > "$BQ/CLAUDE.md"
+BLAB='{text: Low, rank: 3, icon: {glyph: arrow.down}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}'
+# bracecard <card index.md>: the iconed label kind in the labels (added to the list, or a new line), a JSON block at the end of the body
+bracecard() { python3 - "$1" "$BLAB" <<'PY'
+import sys, re
+p, lab = sys.argv[1:]; t = open(p).read(); head, fm, body = t.split("---\n", 2)
+lines = fm.split("\n")
+for i, l in enumerate(lines):
+    if l.startswith("labels: ["): lines[i] = l[:-1] + ", " + lab + "]"; break
+else: lines.insert(len(lines) - 1, "labels: [" + lab + "]")
+open(p, "w").write(head + "---\n" + "\n".join(lines) + "---\n" + body.rstrip("\n") + '\n\n```json\n{"a": {"b": {"c": 1}}}\n```\n')
+PY
+}
+bfirst() { local o; o=$("$@"); head -1 <<<"$o" | sed 's#.*/##'; }
+bodyof() { awk 'n >= 2 { print } /^---$/ { n++ }' "$1"; }
+bsnap() { (cd "$1" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do shasum "$f"; done) | shasum; }
+# bholds <before copy> <after file>: the labels line and the whole old body are as they were (a body only grew by an appended ruling)
+bholds() { [ "$(grep -m1 '^labels:' "$1")" = "$(grep -m1 '^labels:' "$2")" ] && [[ "$(bodyof "$2")" == "$(bodyof "$1")"* ]]; }
+printf 'Is brace safe?\n\n## Options\n\n- A: yes\n- B: no\n\n## Recommended\n\nA. Simple.\n' > "$T/bq.md"
+bq() { local o; o=$("$SK/discovery/scripts/file-question.sh" "$BQ" "$1" --round 1 --body "$T/bq.md" --model smoke 2>&1); head -1 <<<"$o" | sed 's#.*/##'; }
+BQM=$(bq "Brace move"); BQA=$(bq "Brace ask"); BQS=$(bq "Brace settle"); BQR=$(bq "Brace record")
+bcard() { ls "$BQ"/*/"$1"/index.md; }
+for c in "$BQM" "$BQA" "$BQS" "$BQR"; do bracecard "$(bcard "$c")"; done
+validate "$BQ" >/dev/null
+bsave() { cp "$(bcard "$1")" "$T/brace.before"; }
+bsave "$BQM"; "$SK/work/scripts/move-card.sh" "$BQ" "$BQM" Parked --model smoke >/dev/null; bholds "$T/brace.before" "$(bcard "$BQM")" && validate "$BQ" >/dev/null || { echo "move-card.sh refused or changed a card with }}} outside its stamps"; exit 1; }
+ok "move-card.sh moves a card whose labels line and body hold a triple brace: labels and body byte for byte, board validates"
+printf '@anyone Ship the brace today?\n\nOptions:\n- A: Ship it.\n- B: Hold it.\n- Recap: Explain this in plain terms first\n\nWhy now: it is ready.\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/bask.md"
+bsave "$BQA"; "$SK/work/scripts/post-ask.sh" "$BQ" "$BQA" --body "$T/bask.md" --for anyone --model smoke >/dev/null; bholds "$T/brace.before" "$(bcard "$BQA")" && grep -q '^waiting:' "$(bcard "$BQA")" && validate "$BQ" >/dev/null || { echo "post-ask.sh refused or changed a card with }}} outside its stamps"; exit 1; }
+ok "post-ask.sh sets waiting on a card whose labels line and body hold a triple brace: labels and body byte for byte, board validates"
+printf '**2026-11-20**: A. `{"a": {"b": {"c": 1}}}`\n' > "$T/bruling.md"
+bsave "$BQS"; "$SK/discovery/scripts/settle-question.sh" "$BQ" "$BQS" --ruling "$T/bruling.md" --model smoke >/dev/null; bholds "$T/brace.before" "$(bcard "$BQS")" && validate "$BQ" >/dev/null || { echo "settle-question.sh refused or changed a card with }}} outside its stamps"; exit 1; }
+ok "settle-question.sh settles a card whose labels line and body hold a triple brace, with a triple brace in the ruling: labels and old body byte for byte, board validates"
+printf 'The brace is fine.\n' > "$T/badr.md"
+BR=$(bfirst "$SK/discovery/scripts/file-record.sh" "$BQ" "$BQR" --record ADR --title 'Braces }}} are fine' --body "$T/badr.md" --model smoke)
+grep -q '^title: "Braces }}} are fine"$' "$(bcard "$BR")" && validate "$BQ" >/dev/null || { echo "file-record.sh refused a title with }}}"; exit 1; }
+ok "file-record.sh files a record whose title holds a triple brace; the board validates"
+BPL="$T/Brace Plan.lanework"; "$PS/found-plan-board.sh" "$BPL" --model smoke >/dev/null; cp -R "$VAL" "$BPL/.schema"
+printf 'A brace ticket.\n' > "$T/bt.md"
+BTK=$(bfirst "$PS/file-ticket.sh" "$BPL" "Brace }}} ticket" --type grilling --body "$T/bt.md" --model smoke)
+grep -q '^title: ".*Brace }}} ticket"$' "$BPL"/*/"$BTK"/index.md && validate "$BPL" >/dev/null || { echo "file-ticket.sh refused a title with }}}"; exit 1; }
+BT2=$(bfirst "$PS/file-ticket.sh" "$BPL" "Second" --type grilling --body "$T/bt.md" --model smoke)
+ok "file-ticket.sh files a ticket whose title holds a triple brace; the board validates"
+bpcard() { ls "$BPL"/*/"$1"/index.md; }
+bracecard "$(bpcard "$BTK")"; cp "$(bpcard "$BTK")" "$T/brace.before"
+PE "$PS/claim-ticket.sh" "$BPL" "$BTK" --model smoke >/dev/null; bholds "$T/brace.before" "$(bpcard "$BTK")" && validate "$BPL" >/dev/null || { echo "claim-ticket.sh refused or changed a card with }}} outside its stamps"; exit 1; }
+ok "claim-ticket.sh claims a ticket whose labels line and body hold a triple brace: labels and body byte for byte, board validates"
+cp "$(bpcard "$BTK")" "$T/brace.before"; printf 'Done, `{"a": {"b": {"c": 1}}}`.\n' > "$T/bres.md"
+PE "$PS/resolve-ticket.sh" "$BPL" "$BTK" --resolution "$T/bres.md" --model smoke >/dev/null; bholds "$T/brace.before" "$(bpcard "$BTK")" && validate "$BPL" >/dev/null || { echo "resolve-ticket.sh refused or changed a card with }}} outside its stamps"; exit 1; }
+ok "resolve-ticket.sh resolves a ticket whose labels line and body hold a triple brace: labels and old body byte for byte, board validates"
+# a --model value with a triple brace lands on the modified line the script writes: refused, exit 1, nothing written
+BADM='x}}}'
+brefused() { local n=$1 b=$2; shift 2; local s rc=0; s=$(bsnap "$b"); "$@" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$s" = "$(bsnap "$b")" ] || { echo "$n: rc=$rc or the board changed"; exit 1; }; }
+BQ2=$(bq "Brace refused"); BQ3=$(bq "Brace refused two")
+brefused move-card "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$BQ2" Parked --model "$BADM"
+# post-ask.sh posts the ask first (a refused restamp leaves the ask and exits 1, "set waiting by hand"): its card is what stays untouched
+bs=$(cksum < "$(bcard "$BQ2")"); rc=0; "$SK/work/scripts/post-ask.sh" "$BQ" "$BQ2" --body "$T/bask.md" --for anyone --model "$BADM" >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 1 ] && [ "$bs" = "$(cksum < "$(bcard "$BQ2")")" ] || { echo "post-ask: rc=$rc or the card changed"; exit 1; }
+brefused settle-question "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$BQ2" --ruling "$T/bruling.md" --model "$BADM"
+brefused file-record "$BQ" "$SK/discovery/scripts/file-record.sh" "$BQ" "$BQ3" --record ADR --title x --body "$T/badr.md" --model "$BADM"
+brefused file-ticket "$BPL" "$PS/file-ticket.sh" "$BPL" "Refused" --type grilling --body "$T/bt.md" --model "$BADM"
+brefused claim-ticket "$BPL" env CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/claim-ticket.sh" "$BPL" "$BT2" --model "$BADM"
+ok "a --model with a triple brace lands on a stamp line each of the seven scripts writes: exit 1, nothing written (resolve-ticket.sh below)"
+BT3=$(bfirst "$PS/file-ticket.sh" "$BPL" "Third" --type grilling --body "$T/bt.md" --model smoke); PE "$PS/claim-ticket.sh" "$BPL" "$BT3" --model smoke >/dev/null
+brefused resolve-ticket "$BPL" env CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/resolve-ticket.sh" "$BPL" "$BT3" --resolution "$T/bres.md" --model "$BADM"
+ok "resolve-ticket.sh with a triple-brace --model: exit 1, nothing written"
+! grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:' | grep . ; ok "no script greps a whole file for a triple brace"
+
 # work: lint-ask
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"
 printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/bad.md"
