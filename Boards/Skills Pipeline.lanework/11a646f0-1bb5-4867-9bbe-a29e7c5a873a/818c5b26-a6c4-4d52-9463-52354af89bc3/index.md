@@ -5,14 +5,13 @@ title: "Waiting-clear trial: what counts toward its ending, and five lint edges"
 order: 4096
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T14:42:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T12:03:28Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-20T12:03:28Z, comment: 5ae40ae5-e569-47b1-9b26-8645b36e4437}
+modified: {at: 2026-11-20T12:04:40Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The trial that lets an agent clear `waiting` cannot reach its ending line as written, because the lint already reports three old clears and counts the discovery skill's own chat record as unquoted; both need the owner's call. Five smaller lint edges are listed below them.
 
 From the review of [the waiting-clear card](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/714177b9-948b-4e11-a895-41b60250ecc3), merged to main as `42b5a98`. Not released yet.
 
-## Open calls
+## Calls, both ruled
 
 **1. The three clears that predate the rule.** `lint-waiting-clears.sh` on this board prints `QUOTED 0, NO-QUOTE 3`, exit 1, before any agent has used the rule. The trial's ending line is "ten `QUOTED`, none `NO-QUOTE`".
 
@@ -26,9 +25,7 @@ From the review of [the waiting-clear card](lanework://04b8692e-adef-4b77-959d-c
 
 **2. Discovery's chat record reads as `NO-QUOTE`.** `discovery/templates/ruling.md:19` writes `**Owner answered in chat.** "<words>"`: no `>` line, no `**Given**` line. Measured: `file-question.sh` then `settle-question.sh --record --reply` on a fresh board gives `NO-QUOTE`, exit 1. The trial card's body assumed discovery was "already this shape". The two discovery boards in this repo are silent today.
 
-- A: discovery adopts the new record shape (template and `settle-question.sh`). One shape everywhere; a build card.
-- B: the lint also accepts discovery's shape.
-- C: discovery boards stay out of the trial's count.
+**Decided, 2026-11-20, by the owner on this card: A.** Discovery adopts the new record shape; the build is [its own card](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/738e8765-36c7-44c5-8f8d-34b8452801be). Not taken: the lint accepting discovery's shape; discovery boards left out of the count.
 
 ## Lint edges (none blocked the merge)
 
