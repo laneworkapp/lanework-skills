@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "commit-board.sh drops the owner's staged version of a path when a pre-commit hook fails"
-order: 3072
+order: 76800
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T13:35:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T17:56:15Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T20:08:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 When a pre-commit hook fails, `commit-board.sh` commits nothing but still runs `git reset` on its named paths, so the owner's staged version of a named path is thrown away. The fix is to reset in the exit trap only once HEAD has actually moved and the lock is still ours. Five smaller edges of the same helpers, found in the same review of [the helpers card](lanework://04b8692e-adef-4b77-959d-ca3e08eb7776/7655176d-d184-4955-bf9f-5f338a62be0f), ride along as items 3 to 6.
 
