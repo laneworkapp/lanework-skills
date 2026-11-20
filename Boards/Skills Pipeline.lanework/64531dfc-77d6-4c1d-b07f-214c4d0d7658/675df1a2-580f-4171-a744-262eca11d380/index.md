@@ -6,7 +6,7 @@ order: 1024
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-20T02:07:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
 waiting: {for: anyone, since: 2026-11-20T02:08:01Z, comment: 9e1c31a5-f5f0-432d-92b6-9c5bf53e36c6}
-modified: {at: 2026-11-20T02:08:02Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-20T11:57:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The app is changing how it decides that a comment is a question, so an ask will no longer need a handle on its first line to get answer buttons. The skills should follow once that reaches a build, by making the leading handle optional.
 
