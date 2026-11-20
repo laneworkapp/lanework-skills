@@ -17,7 +17,8 @@
 # read. Limit: a board folder renamed or moved under a live lease is a new key, so the memory is forgotten and the old timer exits.
 # `claimed` still reads as held, and the next write renews it and starts a new timer. Lapsed and taken over meanwhile, the next write
 # lands with no loss record. A lease write lands only on the card as read: that narrows the window against another writer, never
-# closes it, because no lock is shared with the app or the other scripts.
+# closes it, because no lock is shared with the app or the other scripts. A write across volumes stages a .lanework-tmp file at the
+# board root, which the app's board .gitignore ignores; a board the app has never opened has no .gitignore, so it is not ignored there.
 # Each file: key=value lines: board,
 # timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
 # <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
@@ -89,8 +90,7 @@ write_card() {
       { print }' "$stage/read" > "$stage/index.md" || { rm -rf "$stage"; return 1; }
     # the triple-brace guard reads only the lines written here (modified, the claimed block): every other line is copied as read,
     # and valid ones end in `}}}` (a label whose kind carries an icon), as may the body (a JSON example)
-    if [ "$(head -1 "$stage/index.md")" != "---" ] || awk 'NR == 1 { next } $0 == "---" { exit }
-        /^[^ \t]/ { w = ($0 ~ /^(modified|claimed):/) } w' "$stage/index.md" | grep -q '}}}'; then
+    if [ "$(head -1 "$stage/index.md")" != "---" ] || ! stamp_lines_ok "$stage/index.md" modified claimed; then
       rm -rf "$stage"; echo "lease.sh: $f: no frontmatter, or a broken stamp after the rewrite; nothing written" >&2; return 1
     fi
     compact_fm "$stage/index.md" || { rm -rf "$stage"; return 1; }
@@ -98,18 +98,21 @@ write_card() {
     f2=$(find_card) || continue                                         # fresh, just before the rename
     if [ "$f2" = "$f" ]; then
       # compare and rename in one process, no fork between them: 0 written, 3 changed (read again), 1 failed (nothing written).
-      # The stage on another volume than the board (EXDEV): the content is copied to <board>/.lease-write.<card>.<pid>, at the
-      # board root (no card folder: the app moves loose files there into attachments), compared again, then renamed over the
-      # card. That temp file is removed on every failure path and on TERM, INT or HUP; a kill of this script leaves perl to finish
-      local r=0; perl -e 'my ($rd, $nw, $f, $tmp) = @ARGV; local $/;
+      # The stage on another volume than the board (EXDEV): the content is copied to <board>/.lease-write.<card>.<pid>.lanework-tmp,
+      # at the board root (no card folder: the app moves loose files there into attachments), compared again, then renamed over
+      # the card. That temp file is removed on every failure path and on TERM, INT or HUP; a kill of this script leaves perl to
+      # finish. The test pause, first try only, also holds the temp file before its compare.
+      local r=0 p=0; [ "$try" != 1 ] || p=$WRITE_PAUSE
+      perl -e 'my ($rd, $nw, $f, $tmp, $p) = @ARGV; local $/;
         sub same { open(my $a, "<", $rd) or return 0; open(my $b, "<", $f) or return 0; return <$a> eq <$b> }
         sub fail { unlink $tmp; exit $_[0] }
         same() or exit 3; rename($nw, $f) and exit 0; $!{EXDEV} or exit 1;
         $SIG{$_} = sub { fail(1) } for qw(TERM INT HUP);
         open(my $i, "<", $nw) or exit 1; my $c = <$i>; close $i;
         open(my $o, ">", $tmp) or fail(1); print $o $c or fail(1); close $o or fail(1);
+        select(undef, undef, undef, $p) if $p > 0;
         same() or fail(3); rename($tmp, $f) or fail(1); exit 0' \
-        "$stage/read" "$stage/index.md" "$f" "$BOARD/.lease-write.$CID.$$" || r=$?
+        "$stage/read" "$stage/index.md" "$f" "$BOARD/.lease-write.$CID.$$.lanework-tmp" "$p" || r=$?
       if [ "$r" = 0 ]; then rm -rf "$stage"; WROTE_UNTIL="$until"; return 0; fi
       [ "$r" = 3 ] || { rm -rf "$stage"; echo "lease.sh: $f: the write failed; nothing written" >&2; return 1; }
     fi

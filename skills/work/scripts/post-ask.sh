@@ -90,7 +90,7 @@ awk -v w="waiting: {for: $FOR, since: $SINCE, comment: $COID}" -v m="modified: {
   fm && /^waiting:/ { drop = 1; next }
   fm && /^modified:/ { print w; print m; sm = 1; drop = 1; next }
   { print }' "$CARD/index.md" > "$STAGE/index.md"
-if [ -z "$SINCE" ] || grep -q '}}}' "$STAGE/index.md" || [ "$(head -1 "$STAGE/index.md")" != "---" ]; then
+if [ -z "$SINCE" ] || ! stamp_lines_ok "$STAGE/index.md" waiting modified || [ "$(head -1 "$STAGE/index.md")" != "---" ]; then
   echo "post-ask.sh: ask $COID landed, but the card could not be restamped; set waiting by hand" >&2; exit 1
 fi
 mv "$STAGE/index.md" "$(card)/index.md"

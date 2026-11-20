@@ -28,7 +28,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,236 |
+| `lanework` | 10 | 382 | 5,253 |
 | `work` | 16 | 454 | 7,969 |
 | `watch` | 4 | 182 | 2,083 |
 | `discovery` | 14 | 502 | 2,934 |
@@ -49,10 +49,10 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `work`, `discovery` and `plan` on 
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 150 |
-| `references/writes.md` | 2,007 |
+| `references/writes.md` | 2,024 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,236** |
+| **total** | **5,253** |
 
 #### `work`
 
