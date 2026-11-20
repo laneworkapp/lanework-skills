@@ -2338,6 +2338,30 @@ alive "$TP" || { echo "11c: the timer exited on an empty pid"; exit 1; }
 L S-epid release "$LB" "$C11e" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11c: the timer outlived the release"; exit 1; }
 ok "lease: a timer whose memory holds an empty pid keeps running, and still exits on release"
 
+# 11d. TMPDIR on another volume than the board (a RAM disk mounted on a mktemp folder; skipped with a note when one cannot be made):
+# the stage cannot be renamed over the card (EXDEV), so the write goes through a temp file at the board root, and none is left behind
+RAMD=""; RAMM=$(mktemp -d "$T/lease-ram.XXXXXX")
+ram_off() { [ -z "$RAMD" ] || { umount "$RAMM" 2>/dev/null || umount -f "$RAMM" 2>/dev/null; hdiutil detach "$RAMD" -quiet -force 2>/dev/null; RAMD=""; } || true; }
+trap 'ram_off; lease_cleanup' EXIT
+RAMD=$(hdiutil attach -nomount ram://8192 2>/dev/null | awk 'NR==1 {print $1}') || RAMD=""
+if [ -n "$RAMD" ] && newfs_hfs -v leasesmoke "$RAMD" >/dev/null 2>&1 && mount -t hfs "$RAMD" "$RAMM" 2>/dev/null \
+  && [ "$(stat -f %d "$RAMM")" != "$(stat -f %d "$LB")" ]; then
+  LX() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$RAMM" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
+    LEASE_TEST_RENEW_EVERY=1 "$LS" "$@"; }
+  C11v=$(lcard "Eleven v"); F11v=$(lcf "$C11v"); RC=0; LX S-vol stake "$LB" "$C11v" --model smoke >/dev/null 2>"$T/lx.err" || RC=$?
+  [ $RC = 0 ] && [ "$(csess "$F11v")" = S-vol ] || { echo "11d: stake across volumes: rc $RC, $(cat "$T/lx.err")"; ram_off; exit 1; }
+  U0=$(cuntil "$F11v"); sleep 1.1
+  waitfor '[ "$(cuntil "$F11v")" != "$U0" ]' || { echo "11d: the timer never renewed across volumes"; ram_off; exit 1; }
+  RC=0; LX S-vol release "$LB" "$C11v" --model smoke >/dev/null 2>"$T/lx.err" || RC=$?
+  [ $RC = 0 ] && ! grep -q '^claimed:' "$F11v" || { echo "11d: release across volumes: rc $RC, $(cat "$T/lx.err")"; ram_off; exit 1; }
+  sleep 0.5; [ -z "$(find "$LB" -name '.lease-write.*' 2>/dev/null)" ] || { echo "11d: a temp file was left:"; find "$LB" -name '.lease-write.*'; ram_off; exit 1; }
+  validate "$LB" >/dev/null
+  ok "lease: with TMPDIR on another volume than the board, stake, the timer's renewal and release all write, and leave no temp file"
+else
+  echo "# skip 11d: no RAM disk volume could be made; the cross-volume lease write is untested in this run"
+fi
+ram_off
+
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
 C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
