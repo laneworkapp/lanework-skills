@@ -40,6 +40,7 @@ C="$STAGE/$CARD_ID"; mkdir -p "$C"
 printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: %s\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n' \
   "$(title_str "$TITLE")" "$(next_order "$LANE")" "$NOW" "$BY" "$NOW" "$BY" > "$STAGE/fm.out"
 union_lane_defaults "$LANE" "$BOARD" "$STAGE/fm.out"
+stamp_lines_ok "$STAGE/fm.out" created modified || { echo "file-card.sh: a brace in the stamp (--model, --name or --session); nothing written" >&2; exit 1; }
 compact_fm "$STAGE/fm.out"
 { cat "$STAGE/fm.out"; cat "$BODY"; } > "$C/index.md"
 

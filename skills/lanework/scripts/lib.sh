@@ -72,7 +72,10 @@ next_order() {
 # owner_handle <board>: from the guide's "human answers to `@handle`" line; empty + exit 1 if none.
 owner_handle() {
   local h=""
-  [ -r "$1/CLAUDE.md" ] && h=$(grep -o 'human answers to `@[^`]*`' "$1/CLAUDE.md" | head -1 | sed 's/.*`@\([^`]*\)`/\1/')
+  local f; for f in "$1/CLAUDE.md" "$1/AGENTS.md"; do   # the app writes both, byte-identical
+    [ -r "$f" ] || continue
+    h=$(grep -o 'human answers to `@[^`]*`' "$f" | head -1 | sed 's/.*`@\([^`]*\)`/\1/'); [ -n "$h" ] && break
+  done
   printf '%s' "$h"; [ -n "$h" ]
 }
 
@@ -266,6 +269,20 @@ doc.set("labels", hb.emit_key("labels", own + added))
 with open(staged, "w", encoding="utf-8", newline="") as fh:
     fh.write(doc.text())
 EOF
+}
+
+# stamp_lines_ok <file> <key>...: the guard for the stamp lines a script wrote. Reads the front matter only (line 2 to the closing ---, trailing
+# blanks allowed), keeps each top-level line whose key is listed plus its indented continuation lines, and returns 1 if the kept lines hold `}}}`
+# or unequal counts of `{` and `}` outside double-quoted strings (an unquoted stamp value that carries a brace: `n}`). Copied lines and the body legitimately end in `}}}` (a label whose
+# kind carries an icon, a JSON example), so never test a whole file.
+stamp_lines_ok() {
+  local f=$1 keys; shift
+  keys=$(IFS='|'; echo "$*")
+  awk -v k="$keys" 'NR == 1 { next } /^---[ \t]*$/ { exit }
+    /^[^ \t]/ { w = ($0 ~ ("^(" k "):")) }
+    w { q = $0; gsub(/"([^"\\]|\\.)*"/, "", q)   # double-quoted values (by_of quotes `session`) may hold any brace
+        if (q ~ /[}][}][}]/) bad = 1; o += gsub(/[{]/, "{", q); c += gsub(/[}]/, "}", q) }
+    END { exit (bad || o != c) }' "$f"
 }
 
 # comment_file <path> <created-at> <by> [in-reply-to] < body: write a comment index.md.

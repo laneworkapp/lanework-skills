@@ -83,7 +83,7 @@ awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" '
   n==1 && /^order:/ { print o; next }
   n==1 && /^modified:/ { print m; next }
   { print }' "$FRONTIER/$CID/index.md" > "$STAGE/index.md"
-if grep -q '}}}' "$STAGE/index.md"; then echo "claim-ticket.sh: triple brace after restamp; aborting" >&2; exit 1; fi
+if ! stamp_lines_ok "$STAGE/index.md" order modified; then echo "claim-ticket.sh: triple brace after restamp; aborting" >&2; exit 1; fi
 COID=$(uuid); mkdir -p "$STAGE/comment"
 printf '**Claimed** by %s%s.\n' "$NAME" "${SESSION:+, session $SESSION}" | comment_file "$STAGE/comment/index.md" "$NOW" "$BY"
 
