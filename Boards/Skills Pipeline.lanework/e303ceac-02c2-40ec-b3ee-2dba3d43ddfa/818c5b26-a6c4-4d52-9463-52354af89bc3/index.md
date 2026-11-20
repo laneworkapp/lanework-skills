@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Waiting-clear trial: what counts toward its ending, and five lint edges"
-order: 7168
+order: 78848
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T14:42:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T20:17:02Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T21:51:33Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The waiting-clear trial can only be counted after 0.9.0 if the lint can leave out clears made before it, so `lint-waiting-clears.sh` gets a `--since <timestamp>` option, and its five small edges are fixed or accepted one by one. Both owner calls are ruled and recorded below.
 
