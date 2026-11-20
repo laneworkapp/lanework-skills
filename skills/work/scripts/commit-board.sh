@@ -16,12 +16,21 @@
 # `git reset -q -- <paths>` right after the commit syncs the real index for the named paths only (anything
 # the owner had staged under them is unstaged, everything else they staged stays staged), so a kill during
 # the push leaves an index matching HEAD. Each un-commit restores instead: the named paths back to HEAD,
-# then the owner's staged entries under them (saved before the first commit) put back, so a run that ends
-# with nothing of its commit on HEAD leaves the index as the owner had it. The EXIT trap does the same,
-# only while the lock is ours (SIGTERM and SIGINT anywhere): syncs once our commit is on HEAD, restores
-# once it was taken back. A commit that fails (a hook) leaves the index alone.
-# Window left: a SIGKILL from `git commit` starting (hooks included) to the line after it, or between `update-ref` and the restore;
-# `git status` then shows the path as MM, or the owner's staged change lost; `git reset -q -- <path>` makes it match HEAD.
+# then the owner's staged entries under them put back (intent-to-add ones too). They are saved before the
+# first commit to <git dir>/lanework-commit-board.saved.<pid>, removed at exit; a run that ends with
+# nothing of its commit on HEAD leaves the index as the owner had it. A failed restore keeps that file and
+# prints how to put it back. The EXIT trap, only while the lock is ours: restores when our commit is no
+# longer an ancestor of HEAD (taken back); syncs when it is (HEAD at it or past it), or when HEAD moved off
+# where the commit started. A commit that fails (a hook) leaves the index alone.
+# SIGTERM, SIGINT, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep;
+# a hung push holds them), then exit 143, 130, 129 through the EXIT trap, so no git child outlives the cleanup.
+# Sent to the process group, the git child dies too and the cleanup runs at once.
+# Window left, SIGKILL only (it also leaves the saved file and a dead pid's lock, reclaimed by the next run):
+# from `git commit` starting (hooks included) to the line after it, `git status` shows the path as MM
+# (`git reset -q -- <path>` makes it match HEAD); between `update-ref` and the end of the restore, the
+# owner's staged entries under the named paths are lost (measured: a staged edit ` M`, a staged deletion or
+# rename ` D`, a staged new file `??`); `git reset -q -- <paths>` then `git update-index -z --index-info <
+# <git dir>/lanework-commit-board.saved.<pid>` puts them back (intent-to-add ones need `git add -N` again).
 # Prints the new commit's one-line log, or "nothing to commit" (exit 0: the named paths exist, nothing changed).
 # Exit 2: a bad flag, no message, no paths. Exit 1, nothing committed: not in a work tree, detached HEAD,
 # a path outside the work tree or the root itself, a `.DS_Store` or an owner's `comments/.draft/`
@@ -69,17 +78,20 @@ LOCK="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-commit.XXXXXX")
 mvdir() { perl -e 'rename($ARGV[0], $ARGV[1]) or exit 1' "$1" "$2" 2>/dev/null; }   # rename(2): fails onto a non-empty dir
 own() { [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ]; }
-ADD=(); OWNER=(); PRE=""; LANDED=""; NEW=""
+SAVED="$(git rev-parse --absolute-git-dir)/lanework-commit-board.saved.$$"   # per work tree, as the index is
+ADD=(); OWNER=(); ITA=(); PRE=""; LANDED=""; NEW=""; KEEP=""
 release() {
-  # only while the lock is ours: our commit on HEAD (or HEAD moved off PRE mid-commit) -> sync; taken back -> restore
+  trap '' TERM INT HUP   # the cleanup runs to its end
+  # only while the lock is ours: our commit no longer under HEAD -> restore; on HEAD or under it (or HEAD moved off PRE mid-commit) -> sync
   if [ "${#ADD[@]}" -gt 0 ] && own; then
     local h; h=$(git rev-parse HEAD 2>/dev/null || true)
-    if [ -n "$LANDED" ] && [ -n "$NEW" ] && [ "$h" != "$NEW" ]; then restore_index || true
+    if [ -n "$LANDED" ] && [ -n "$NEW" ] && ! git merge-base --is-ancestor "$NEW" HEAD 2>/dev/null; then restore || true
     elif [ -n "$LANDED" ] || { [ -n "$PRE" ] && [ "$h" != "$PRE" ]; }; then git reset -q -- "${ADD[@]}" || true; fi
   fi
-  if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"
+  if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"; [ -n "$KEEP" ] || rm -f "$SAVED"
 }
 trap release EXIT
+trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP   # bash runs these once the foreground git returns
 reclaim() {   # reclaim <dead pid>: move the lock aside, keep it gone only if it was that pid's; a live one goes back
   local aside="$LOCK.stale.$$"
   mvdir "$LOCK" "$aside" || return 0
@@ -138,17 +150,31 @@ sync() {
 
 # sync_index: the real index for the named paths = HEAD's, so a later plain `git commit` cannot revert the board write
 sync_index() { git reset -q -- "${ADD[@]}" || echo "commit-board.sh: warning: could not sync the real index for the named paths (git reset)" >&2; }
-# save_owner: the owner's staged entries under the named paths, the ones differing from PRE (a deletion has no entry), before the first commit
+# save_owner, before the first commit: the owner's staged entries under the named paths that differ from PRE, as
+# --index-info lines in $SAVED (each name first removed, mode 0, then its entries; a deletion has none), and the
+# intent-to-add names (`add -N`, invisible to a plain diff, no blob to save) in ITA
 save_owner() {
-  OWNER=(); local f; while IFS= read -r -d '' f; do OWNER+=("$f"); done < <(git diff --cached --name-only --no-renames -z "$PRE" -- "${ADD[@]}")
-  : > "$STAGE/owner"; [ "${#OWNER[@]}" -eq 0 ] || git ls-files -s -z -- "${OWNER[@]}" > "$STAGE/owner"
+  OWNER=(); ITA=(); local f z=${PRE//?/0}
+  while IFS= read -r -d '' f; do OWNER+=("$f"); done < <(git diff --cached --name-only --no-renames -z "$PRE" -- "${ADD[@]}")
+  while IFS= read -r -d '' f; do [ "${#OWNER[@]}" -gt 0 ] && printf '%s\n' "${OWNER[@]}" | grep -qxF -- "$f" || ITA+=("$f")
+  done < <(git diff --cached --ita-visible-in-index --name-only --no-renames --diff-filter=A -z "$PRE" -- "${ADD[@]}")
+  { [ "${#OWNER[@]}" -eq 0 ] || { for f in "${OWNER[@]}"; do printf '0 %s\t%s\0' "$z" "$f"; done; git ls-files -s -z -- "${OWNER[@]}"; }; } > "$SAVED"
 }
-# restore_index: the named paths back to HEAD, then the owner's saved entries put back (removed where the owner had none)
+# restore_index: the named paths back to HEAD, then the saved entries and the intent-to-add names put back; a missing
+# $SAVED fails (empty: nothing to put back)
 restore_index() {
   git reset -q -- "${ADD[@]}" || return 1
-  [ "${#OWNER[@]}" -eq 0 ] && return 0
-  git rm -q -r -f --cached --ignore-unmatch -- "${OWNER[@]}" >/dev/null || return 1
-  [ ! -s "$STAGE/owner" ] || git update-index -z --index-info < "$STAGE/owner"
+  [ -e "$SAVED" ] || { echo "commit-board.sh: the saved entries ($SAVED) are gone" >&2; return 1; }
+  [ ! -s "$SAVED" ] || git update-index -z --index-info < "$SAVED" || return 1
+  local f; [ "${#ITA[@]}" -eq 0 ] || for f in "${ITA[@]}"; do { [ ! -e "$f" ] && [ ! -L "$f" ]; } || git add -N -f -- "$f" || return 1; done
+}
+# restore: restore_index, or say so, keep $SAVED and print how to put it back
+restore() {
+  restore_index && { KEEP=""; return 0; }
+  KEEP=1; echo "commit-board.sh: warning: could not restore the index for the named paths" >&2
+  [ ! -e "$SAVED" ] || { printf 'commit-board.sh: the saved entries are kept in %s; to put them back:\n  git reset -q --' "$SAVED"; printf ' %q' "${ADD[@]}"
+    printf '\n  git update-index -z --index-info < %q\n' "$SAVED"; [ "${#ITA[@]}" -eq 0 ] || { printf '  git add -N --'; printf ' %q' "${ITA[@]}"; printf '\n'; }; } >&2
+  return 1
 }
 STASH0=$(git stash list | wc -l | tr -d ' ')
 { printf '%s\n' "$MSG"; [ "${#TRAILERS[@]}" -eq 0 ] || { printf '\n'; printf '%s\n' "${TRAILERS[@]}"; }; } > "$STAGE/msg"
@@ -181,8 +207,8 @@ for try in 1 2 3 4 5; do
   sed 's/^/  git: /' "$STAGE/push.err" >&2
   mine
   git update-ref "refs/heads/$BRANCH" "$NEW^" "$NEW"
-  if restore_index; then KEPT="the index restored to what was staged before the run"
-  else KEPT="the index for the named paths NOT restored to what was staged before the run (check git status)"; echo "commit-board.sh: warning: could not restore the index for the named paths" >&2; fi
+  if restore; then KEPT="the index restored to what was staged before the run"
+  else KEPT="the index for the named paths NOT restored to what was staged before the run (check git status)"; fi
   LANDED=""; PRE=""   # nothing of ours on HEAD; the index is the owner's again
   sleep 1
 done
