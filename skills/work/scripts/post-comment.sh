@@ -19,15 +19,16 @@
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE="post-comment.sh <board> <card-uuid> --body F --model m [--name n] [--session s] [--in-reply-to u] [--ahead 0-30] [--release]"
-BOARD="${1:?usage: $USAGE}"; CID="${2:?usage: $USAGE}"; shift 2
+[ $# -ge 2 ] || { echo "usage: $USAGE" >&2; exit 2; }
+BOARD="$1"; CID="$2"; shift 2
 MODEL=""; NAME="claude"; SESSION=""; BODY=""; REPLY=""; AHEAD=0; RELEASE=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --body)        BODY="${2:?--body needs a value}"; shift 2 ;;
-    --model)       MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)        NAME="${2:?--name needs a value}"; shift 2 ;;
-    --session)     SESSION="${2:?--session needs a value}"; shift 2 ;;
-    --in-reply-to) REPLY="${2:?--in-reply-to needs a value}"; shift 2 ;;
+    --body)        need_value "$@"; BODY="$2"; shift 2 ;;
+    --model)       need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)        need_value "$@"; NAME="$2"; shift 2 ;;
+    --session)     need_value "$@"; SESSION="$2"; shift 2 ;;
+    --in-reply-to) need_value "$@"; REPLY="$2"; shift 2 ;;
     --release)     RELEASE=1; shift ;;
     --ahead)       [ $# -ge 2 ] || { echo "post-comment.sh: --ahead needs a value" >&2; exit 2; }; AHEAD="$2"; shift 2 ;;
     *) echo "post-comment.sh: unknown argument: $1" >&2; exit 2 ;;

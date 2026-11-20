@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "lint-ask.sh checks an ask only when it names the machine's own handle or anyone"
-order: 12288
+order: 5120
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: lanework, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T12:10:27Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T17:55:04Z}
+modified: {at: 2026-11-20T20:16:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 `lint-ask.sh` skips an ask whose first line starts with a person's handle when that person is not this machine's owner, and on a board with no handle line it mistakes a record that quotes the any-human handle in backticks for an ask. The fix is to treat a handle that starts line 1 as an ask for that person, and to strip code spans and URLs before the no-board fallback picks a handle.
 

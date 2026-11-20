@@ -387,14 +387,20 @@ O2=$("$SK/discovery/scripts/file-question.sh" "$D" "Engine: placement" --round 1
 grep -q 'lint-ask warning\|warning: no lint-ask.sh' <<<"$O1$O2" && { echo "$O1$O2"; exit 1; }
 C1=$(head -1 <<<"$O1" | sed 's#.*/##'); A1=$(sed -n 's/^ask comment //p' <<<"$O1"); C2=$(head -1 <<<"$O2" | sed 's#.*/##')
 grep -q '^title: "Q2: Engine: placement"$' "$D"/*/"$C2"/index.md; ok "Q1, Q2 filed, numbered, asks lint clean"
-printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner answered in chat.** "A."\n' > "$T/rec.md"
+printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner ruled off the board.**\n\n> A.\n\n**Given**: chat, 2026-09-27\n' > "$T/rec.md"
+# refusal: a record with no quote or no Given line writes nothing, exit 2
+printf '**Owner answered in chat.** "A."\n' > "$T/rec-old.md"; CF1b="$(ls "$D"/*/"$C1"/index.md)"; SUMB=$(cksum < "$CF1b"); NCB=$(ls "$(dirname "$CF1b")/comments" | wc -l)
+set +e; "$SK/discovery/scripts/settle-question.sh" "$D" "$C1" --ruling "$T/r1.md" --record "$T/rec-old.md" --model smoke >/dev/null 2>&1; RC=$?; set -e
+CF1b="$(ls "$D"/*/"$C1"/index.md)"; [ "$RC" = 2 ] && [ "$(cksum < "$CF1b")" = "$SUMB" ] && [ "$(ls "$(dirname "$CF1b")/comments" | wc -l)" = "$NCB" ] || { echo "settle-question accepted an unquoted record (rc $RC) or wrote something"; exit 1; }
+ok "settle-question refuses a record with no quote or Given line, writes nothing"
 # several people, past 120 characters: the compact form writes waiting as a block (lanework/scripts/lib.sh compact_fm, the heal's H17)
 CF1="$(ls "$D"/*/"$C1"/index.md)"; perl -0pi -e 's/^waiting: \{for: [^,]*, since: ([^,]*), comment: ([^}]*)\}\n/waiting:\n  for: [owner, bobsmith, carol, dave]\n  since: $1\n  comment: $2\n/m' "$CF1"; grep -q '^  for: \[owner, bobsmith, carol, dave\]$' "$CF1"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C1" --ruling "$T/r1.md" --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --model smoke >/dev/null
 CF1="$(ls "$D"/*/"$C1"/index.md)"; { ! grep -q -E '^(waiting:|  (for|since|comment):)' "$CF1" && fm_parses "$CF1" && grep -q "in-reply-to: $A1" "$D"/*/"$C1"/comments/*/index.md; } \
   || { echo "settle-question left waiting, or its block lines, or a frontmatter that does not parse:"; head -12 "$CF1"; exit 1; }
-ok "settled with chat record in reply to the ask, a block-form list waiting dropped whole; parked"
+LW=$("$SK/work/scripts/lint-waiting-clears.sh" "$D" 2>&1 || true); grep -q "^QUOTED $C1 $A1\$" <<<"$LW" || { echo "chat record not QUOTED: $LW"; exit 1; }
+ok "settled with chat record in reply to the ask, read QUOTED by the waiting-clear lint, a block-form list waiting dropped whole; parked"
 validate "$D" >/dev/null; ok "discovery board validates"
 
 # discovery: Decisions lane founded in order, record + status kinds declared, file-record.sh files ADR and PDR cards
@@ -903,12 +909,13 @@ wl_card() { local d="${3:-$WLANE}/$WC$1"; mkdir -p "$d/comments"
     [ -z "${2:-}" ] || printf "$2"; printf -- '---\nBody.\n'; } > "$d/index.md"; }
 # wl_com <n> <id> <time hh:mm:ss> <agent|human> <in-reply-to or -> <body, printf format> [<folder>]: a comment on card n
 wl_com() { local d="${7:-$WLANE}/$WC$1/comments/$2"; mkdir -p "$d"; local by='{name: kim, kind: human}' irt=''
-  [ "$4" != agent ] || by='{name: claude, kind: agent, model: claude-sonnet-5-5}'; [ "$5" = - ] || irt="in-reply-to: $5"$'\n'
+  case "$4" in agent) by='{name: claude, kind: agent, model: claude-sonnet-5-5}' ;; human) ;; *) by="{name: shortcuts, kind: $4}" ;; esac; [ "$5" = - ] || irt="in-reply-to: $5"$'\n'
   { printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T%sZ, by: %s}\n%s---\n' "$3" "$by" "$irt"; printf "$6"; } > "$d/index.md"; }
 WASK='@anyone Which route?\n\nOptions:\n- A: x\n- Recap: Explain this in plain terms first\n'
 WREC='**Owner ruled off the board.**\n\n> Yes, A.\n\n**Given**: chat, 2026-11-17\n'
 # wl_expect <rc> <output, printf format>: run the lint on the board; its exit code and stdout must match
-wl_expect() { local rc=0 out; out=$("$WL" "$WB" 2>&1) || rc=$?; [ "$rc" -eq "$1" ] && [ "$out" = "$(printf "$2")" ] || { echo "lint-waiting-clears: want exit $1 and [$(printf "$2")], got $rc and [$out]"; exit 1; }; }
+WLX=""   # extra arguments for the next wl_expect, word-split
+wl_expect() { local rc=0 out; out=$("$WL" "$WB" $WLX 2>&1) || rc=$?; [ "$rc" -eq "$1" ] && [ "$out" = "$(printf "$2")" ] || { echo "lint-waiting-clears: want exit $1 and [$(printf "$2")], got $rc and [$out]"; exit 1; }; }
 wl_reset() { rm -rf "$WLANE"/c0*; }
 wl_expect 0 ''
 ok "lint-waiting-clears is silent and exits 0 on a board with no cards"
@@ -944,6 +951,39 @@ rc=0; "$WL" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: w
 rc=0; "$WL" "$WB" --bogus >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "a bad flag: want exit 2, got $rc"; exit 1; }
 [ -z "$("$WL" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
 ok "lint-waiting-clears exits 2 on a missing path, no arguments or a bad flag, the message on stderr"
+# --since: a card is listed when its clear time (the newest of the ask and the agent records in-reply-to it) is at or after the value
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
+WLX="--since 2026-11-17T10:01:00Z"; wl_expect 0 ''
+WLX="--since 2026-11-17T10:00:05Z"; wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
+ok "lint-waiting-clears --since: an ask and record both before it are silent, exit 0; at it, one QUOTED line"
+WLX="--since 2026-11-17T10:00:03Z"; wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
+ok "lint-waiting-clears --since: an old ask whose record comes after it is listed"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 09:00:00 agent - "$WASK"; wl_card 2; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"; wl_com 2 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
+WLX="--since 2026-11-17T10:00:00Z"; wl_expect 0 "QUOTED ${WC}2 ${WA}1\nQUOTED 1, NO-QUOTE 0"
+WLX=""; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED ${WC}2 ${WA}1\nQUOTED 1, NO-QUOTE 1"
+ok "lint-waiting-clears --since: the tally counts the listed cards only; without it every card counts"
+for bad in "--since nonsense" "--since" "--since 2026-11-17T10:00:00Z --since 2026-11-17T11:00:00Z" "--since 2026-11-17T10:00:00"; do
+  rc=0; err=$("$WL" "$WB" $bad 2>&1 >/dev/null) || rc=$?; [ "$rc" -eq 2 ] && [ -n "$err" ] || { echo "lint-waiting-clears $bad: want exit 2 and a message on stderr, got $rc [$err]"; exit 1; }
+done
+ok "lint-waiting-clears --since: a bad value, a missing value and a repeated flag exit 2 with a message on stderr"
+# the five edges
+wl_reset; WLX=""; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\nYes, A.\n'; wl_com 1 ${WH}1 10:10:00 shortcut - 'Build finished.\n'
+wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a shortcut comment after an agent clear is not a human answer, the clear is still listed"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WH}1 10:02:00.123 human - 'Done.\n'
+wl_expect 0 ''
+ok "lint-waiting-clears: a human comment stamped with fractional seconds is read, so the card is not a clear"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n```\n> fake\n```\n\n**Given**: chat, 2026-11-17\n'
+wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a > line inside a code fence is not a quote"
+wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n> Yes, A.\n\n**Given** chat, 2026-11-17\n'; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a Given line with no colon does not count"
+wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n> **Given**: chat, 2026-11-17\n'; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: one quoted line carrying **Given**: is not both a quote and a Given line"
+wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; printf 'waiting: {for: anyone, since: 2026-11-17T10:00:00Z, comment: x}\n' >> "$WLANE/${WC}1/index.md"
+wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
+ok "lint-waiting-clears: a waiting: line in the card body is not the frontmatter key, the card is still listed"
+wl_reset
 
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
 PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"
@@ -1865,9 +1905,10 @@ ok "commit-board.sh --push lands on origin, trailers only from --trailer, each o
 # a kill while the push hangs (a pre-push hook that sleeps, then refuses): HEAD has the commit and the index already matches it,
 # so the owner's next plain commit cannot revert the board write; SIGKILL, then SIGTERM
 printf '#!/bin/bash\ntouch "%s/inpush"; sleep 3; touch "%s/pushdone"; exit 1\n' "$G" "$G" > "$G/work/.git/hooks/pre-push"; chmod +x "$G/work/.git/hooks/pre-push"
+mkdir -p "$G/tmp"   # the SIGKILL leg skips the trap: its stage folder stays here, inside the folder smoke removes
 for sig in KILL TERM; do
   rm -f "$G/inpush" "$G/pushdone"; echo "k$sig" > "$G/work/$CP"
-  (cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: killed $sig" "$CP") >/dev/null 2>&1 & KP=$!
+  (cd "$G/work" && TMPDIR="$G/tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: killed $sig" "$CP") >/dev/null 2>&1 & KP=$!
   perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/inpush' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the push never reached the hook"; exit 1; }
   kill -"$sig" "$KP"; wait "$KP" 2>/dev/null || true
   perl -e 'alarm 10; exec @ARGV' bash -c "until [ -e '$G/pushdone' ]; do sleep 0.1; done"; sleep 0.5
@@ -1875,6 +1916,8 @@ for sig in KILL TERM; do
 done
 rm -f "$G/work/.git/hooks/pre-push"
 ok "commit-board.sh killed mid-push (SIGKILL, SIGTERM): HEAD holds the commit and the index already matches it on the named path"
+ls "$G/tmp" | grep -q '^work-commit\.' || { echo "the kill loop left no stage folder in \$G/tmp: TMPDIR is not reaching commit-board.sh"; exit 1; }
+ok "commit-board.sh smoke: the killed run's stage folder lands in the throwaway folder, not the real TMPDIR"
 # diverged: the other clone and a local commit both change the card file
 go pull -q; echo e > "$G/other/$CP"; go commit -q -am theirs; go push -q 2>/dev/null; echo f > "$G/work/$CP"; g commit -q -am ours; h1=$(g rev-parse HEAD)
 echo g > "$G/work/$CP"; rc=0; O=$(cb --push "B: diverged" "$CP" 2>&1) || rc=$?
@@ -1902,9 +1945,33 @@ O=$(cb "B: one gone" B.lanework/old/card/index.md "$CP" 2>&1) && grep -q 'B.lane
   || { echo "commit-board: a never-committed old path beside a real one: $O"; exit 1; }
 BR="B.lanework/lane [x]/i?.md"; mkdir -p "$G/work/B.lanework/lane [x]"; echo q > "$G/work/$BR"
 cb "B: brackets" "$BR" >/dev/null && [ "$(g show --name-only --format= HEAD)" = "$BR" ] || { echo "commit-board: a real path with [ and ? was not committed"; exit 1; }
-h4=$(g rev-parse HEAD); O=$(cb "B: glob" '*.md' 2>&1) && grep -q '^nothing to commit$' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h4" ] || { echo "commit-board: a glob matching no path: $O"; exit 1; }
-h3=$(g rev-parse HEAD); echo j2 > "$G/work/$CP"
+h4=$(g rev-parse HEAD); rc=0; O=$(cb "B: glob" '*.md' 2>&1) || rc=$?; [ "$rc" -eq 1 ] && grep -q 'none of the named paths is on disk or in HEAD' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h4" ] || { echo "commit-board: a glob matching no path: $O"; exit 1; }
 ok "commit-board.sh skips a named path neither on disk nor in HEAD (a card's old lane path, filed since; a glob, read literally) and commits the rest; a real path with [ and ? commits"
+# a failing pre-commit hook: nothing committed, the owner's staged version of the named path stays staged
+h5=$(g rev-parse HEAD); printf '#!/bin/bash\nexit 1\n' > "$G/work/.git/hooks/pre-commit"; chmod +x "$G/work/.git/hooks/pre-commit"
+echo v2 > "$G/work/$CP"; g add -- "$CP"; echo v3 > "$G/work/$CP"
+rc=0; O=$(cb "B: hooked" "$CP" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h5" ] && [ "$(g show ":$CP")" = v2 ] && [ "$(g status --porcelain -- "$CP")" = "MM $CP" ] && grep -q 'git commit failed' <<<"$O" \
+  || { echo "commit-board: a failing pre-commit hook (rc $rc): $O"; g status --short; exit 1; }
+rm -f "$G/work/.git/hooks/pre-commit"
+cb "B: unhooked" "$CP" >/dev/null && [ "$(g show "HEAD:$CP")" = v3 ] && g diff --cached --quiet -- "$CP" && g diff --quiet -- "$CP" || { echo "commit-board: after the hook was removed it did not commit and sync"; g status --short; exit 1; }
+ok "commit-board.sh: a failed pre-commit hook commits nothing and leaves the owner's staged version in the index"
+# every named path skipped: exit 1; a real path with no changes: nothing to commit, exit 0
+h6=$(g rev-parse HEAD); rc=0; O=$(cb "B: none" B.lanework/typo/index.md 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && grep -q 'none of the named paths is on disk or in HEAD; nothing committed' <<<"$O" && [ "$(g rev-parse HEAD)" = "$h6" ] || { echo "commit-board: every path skipped: want exit 1, got $rc: $O"; exit 1; }
+rc=0; O=$(cb "B: same" "$CP" 2>&1) || rc=$?; [ "$rc" -eq 0 ] && [ "$O" = "nothing to commit" ] || { echo "commit-board: an unchanged real path: want exit 0, got $rc: $O"; exit 1; }
+ok "commit-board.sh: every named path skipped exits 1 naming it; an existing unchanged path still prints nothing to commit, exit 0"
+# a value-taking flag with no value, and post-comment.sh with no arguments: exit 2
+PCM="$SK/work/scripts/post-comment.sh"
+for c in "$FC b L t --body" "$MC b c L --model" "$PA b c --for" "$PCM b c --body" "$PCM"; do
+  rc=0; O=$($c 2>&1) || rc=$?; [ "$rc" -eq 2 ] || { echo "'$c' with no value: want exit 2, got $rc: $O"; exit 1; }
+done
+ok "file-card.sh, move-card.sh, post-ask.sh and post-comment.sh exit 2 on a flag with no value; post-comment.sh with no arguments exits 2"
+# a symlink in the tree is committed as the link, not its target
+echo t1 > "$G/work/target.md"; g add target.md; g commit -q -m target; ln -s target.md "$G/work/link.md"
+cb "B: link" link.md >/dev/null && [ "$(g ls-files -s link.md | cut -c1-6)" = 120000 ] && [ "$(g show --name-only --format= HEAD)" = link.md ] || { echo "commit-board: a symlink was not committed as a link"; g show --stat HEAD; exit 1; }
+ok "commit-board.sh commits a symlink as the link (mode 120000), not its target"
+h3=$(g rev-parse HEAD); echo j2 > "$G/work/$CP"
 # the lock: held by a live pid, the second invocation waits; held by a dead pid, it is reclaimed
 LK="$(cd "$G/work" && cd "$(gx rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.lock"
 sleep 30 & HP=$!; mkdir "$LK"; echo "$HP" > "$LK/pid"

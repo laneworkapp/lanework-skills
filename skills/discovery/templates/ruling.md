@@ -15,6 +15,12 @@ Record lines only when written. Parked: `**<YYYY-MM-DD>**: Parked. "<owner's rea
 
 ## Chat record comment, in reply to the ask
 
+Shape and rule: `work/references/writing.md` § The owner's exception. `settle-question.sh --record` refuses a file with no `>` line or no `**Given**` line.
+
 ```markdown
-**Owner answered in chat.** "<owner's words, verbatim>"
+**Owner ruled off the board.**
+
+> <owner's words, verbatim>
+
+**Given**: chat, <YYYY-MM-DD>
 ```
