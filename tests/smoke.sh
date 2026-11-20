@@ -720,6 +720,22 @@ ok "resolve-ticket.sh with a triple-brace --model: exit 1, nothing written"
 for bv in "--name n}" "--model x} --session s"; do brefused "move-card $bv" "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$BQ2" Parked --model smoke $bv; done
 brefused "post-comment --name n}" "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$BQ2" --body "$T/bask.md" --model smoke --name 'n}'
 ok "a single brace in --name, or in --model beside a --session, is refused (move-card.sh, post-comment.sh): exit 1, nothing written"
+# by_of quotes `session` and nothing else: a brace, even a triple one, inside the quoted session is a valid stamp
+for sv in 'a{b' 'x}' 'x}}}'; do
+  BQS2=$(bq "Brace session $sv"); "$SK/work/scripts/move-card.sh" "$BQ" "$BQS2" Parked --model smoke --session "$sv" >/dev/null || { echo "move-card.sh refused --session $sv"; exit 1; }
+  grep -qF "session: \"$sv\"" "$(bcard "$BQS2")" && validate "$BQ" >/dev/null || { echo "move-card.sh --session $sv: stamp or board wrong"; exit 1; }
+done
+BQS3=$(bq "Brace session comment"); "$SK/work/scripts/post-comment.sh" "$BQ" "$BQS3" --body "$T/bruling.md" --model smoke --session 'a{b}}}' --ahead 5 >/dev/null && validate "$BQ" >/dev/null || { echo "post-comment.sh refused a braced --session"; exit 1; }
+ok "a --session holding a brace, or a triple brace, is a valid quoted stamp: move-card.sh and post-comment.sh write it and the board validates"
+# a card whose front matter closes with trailing spaces after the --- : the guard stops there, so a body line that starts like a stamp key is not read
+BQT=$(bq "Brace trailing fence"); BQTF=$(bcard "$BQT"); python3 - "$BQTF" <<'PY'
+import sys
+p = sys.argv[1]; h, fm, b = open(p).read().split("---\n", 2)
+open(p, "w").write(h + "---\n" + fm + "---  \n" + b.rstrip("\n") + '\n\nmodified: {"a": {"b": {"c": 1}}}\n')
+PY
+"$SK/discovery/scripts/settle-question.sh" "$BQ" "$BQT" --ruling "$T/bruling.md" --model smoke >/dev/null || { echo "settle-question.sh refused a card whose front matter closes with trailing spaces"; exit 1; }
+grep -qxF 'modified: {"a": {"b": {"c": 1}}}' "$(bcard "$BQT")" || { echo "settle-question.sh changed the body line that looks like a stamp"; exit 1; }
+ok "a card whose closing --- has trailing spaces: the guard stops at it, so a body line starting like a stamp key is not read (settle-question.sh exits 0, line unchanged)"
 if grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:' | grep -q .; then echo "a script still greps a whole file for a triple brace:"; grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:'; exit 1; fi
 ok "no script outside lib.sh greps a whole file for a triple brace"
 
