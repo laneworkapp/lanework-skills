@@ -3,7 +3,7 @@
 # usage: settle-question.sh <board> <card-uuid> --ruling F [--to settled|parked] \
 #          [--record F [--reply <ask-uuid>]] --model m [--name n] [--session s]
 # Appends `## Ruling` + the --ruling text (templates/ruling.md), drops `waiting`, restamps,
-# posts --record as a comment (in reply to --reply), moves the card to the bottom of Settled
+# posts --record (a `>` quote line and a `**Given**` line, else exit 2) as a comment (in reply to --reply), moves the card to the bottom of Settled
 # or Parked. Staged outside the board; the card path is re-resolved just before landing.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
@@ -28,6 +28,9 @@ done
 require_model settle-question.sh "settle-question.sh <board> <card-uuid> --ruling F --model m [...]"
 [ -r "${RULING:-}" ] || { echo "settle-question.sh: --ruling must name a readable file" >&2; exit 2; }
 [ -z "$RECORD" ] || [ -r "$RECORD" ] || { echo "settle-question.sh: --record must name a readable file" >&2; exit 2; }
+if [ -n "$RECORD" ]; then
+  grep -q '^>' "$RECORD" && grep -q '\*\*Given\*\*' "$RECORD" || { echo "settle-question.sh: --record needs a '>' quote line and a '**Given**: <where>, <date>' line (templates/ruling.md)" >&2; exit 2; }
+fi
 case "$TO" in settled) LANE_TITLE=Settled ;; parked) LANE_TITLE=Parked ;; *) echo "settle-question.sh: --to is settled or parked" >&2; exit 2 ;; esac
 DEST=$(lane_by_title "$BOARD" "$LANE_TITLE") || { echo "settle-question.sh: no lane titled $LANE_TITLE" >&2; exit 1; }
 
