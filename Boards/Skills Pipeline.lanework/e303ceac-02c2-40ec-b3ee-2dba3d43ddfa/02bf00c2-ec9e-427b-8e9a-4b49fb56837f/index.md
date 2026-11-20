@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "A card parked on an owner action carries no waiting mark"
-order: 6144
+order: 75776
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T03:59:52Z, by: {name: claude, kind: agent, model: claude-opus-5-5, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T17:56:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-20T18:39:32Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 When a card's next step waits on something only the owner can do, such as running a trial, cutting a release or running commands on their machine, the `work` skill should require an ask with `waiting`, so the card shows as waiting on the owner instead of sitting unmarked with a record that says so.
 
