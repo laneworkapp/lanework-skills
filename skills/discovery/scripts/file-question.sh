@@ -82,6 +82,7 @@ printf '%s\n' "$WHY" | comment_file "$C/comments/$FOUND_ID/index.md" "$(now_utc 
 { if [ -n "$ASK_FILE" ]; then cat "$ASK_FILE"; else build_ask; fi; } |
   comment_file "$C/comments/$ASK_ID/index.md" "$(now_utc 2)" "$BY"
 
+stamp_lines_ok "$C/comments/$ASK_ID/index.md" created modified || { echo "file-question.sh: a brace in the stamp (--model, --name or --session); nothing written" >&2; exit 1; }
 if [ -x "$LINT_SCRIPT" ]; then
   LINT_OUT=$("$LINT_SCRIPT" "$C/comments/$ASK_ID/index.md" "$BOARD" 2>&1) || true
   [ -z "$LINT_OUT" ] || printf 'file-question.sh: lint-ask warning:\n%s\n' "$LINT_OUT" >&2
