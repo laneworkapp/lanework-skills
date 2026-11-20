@@ -25,12 +25,12 @@ BOARD="$1"; CID="$2"; shift 2
 MODEL=""; NAME="claude"; SESSION=""; BODY=""; REPLY=""; FOR=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --body)        BODY="${2:?--body needs a value}"; shift 2 ;;
-    --model)       MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --for)         FOR="${2:?--for needs a handle}"; shift 2 ;;
-    --name)        NAME="${2:?--name needs a value}"; shift 2 ;;
-    --session)     SESSION="${2:?--session needs a value}"; shift 2 ;;
-    --in-reply-to) REPLY="${2:?--in-reply-to needs a value}"; shift 2 ;;
+    --body)        need_value "$@"; BODY="$2"; shift 2 ;;
+    --model)       need_value "$@"; MODEL="$2"; shift 2 ;;
+    --for)         need_value "$@"; FOR="$2"; shift 2 ;;
+    --name)        need_value "$@"; NAME="$2"; shift 2 ;;
+    --session)     need_value "$@"; SESSION="$2"; shift 2 ;;
+    --in-reply-to) need_value "$@"; REPLY="$2"; shift 2 ;;
     *) echo "post-ask.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
