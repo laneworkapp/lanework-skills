@@ -1758,13 +1758,37 @@ H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top
 ok "no skill prescribes priority: or component: as a card key"
 
 # versions: no skill names a guide version; the one stamp lives in the repo's CLAUDE.md
-H=$({ grep -r -l -i -E 'lanework-(agent-guide|schema) +v[0-9]+' "$SK"; find "$SK" -name '*.md' -exec grep -l -i -E 'guide[^.]*[^[:alnum:]_-]v[0-9]+|(^|[^[:alnum:]_-])v[0-9]{2,}([^[:alnum:].]|$)' {} +; } 2>/dev/null || true)   # a stamp, or a guide version as a floor ("guide ... v105+")
+# names_guide_version <dir>: every file under <dir>, of any type, that names a guide version: the stamp, or a floor ("guide ... v105+", a bare v plus 2+ digits; $v10 is a shell variable)
+names_guide_version() { grep -r -l -i -E 'lanework-(agent-guide|schema) +v[0-9]+|guide[^.]*[^[:alnum:]_$-]v[0-9]+|(^|[^[:alnum:]_$-])v[0-9]{2,}([^[:alnum:].]|$)' "$1" 2>/dev/null | sort -u || true; }
+H=$(names_guide_version "$SK")
 [ -z "$H" ] || { echo "a skill names a guide version (the stamp lives only in CLAUDE.md): $H"; exit 1; }
 S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$ROOT/CLAUDE.md" || true; })
 [ "$(printf '%s\n' "$S" | grep -c .)" -eq 1 ] || { echo "CLAUDE.md must carry exactly one guide stamp, found: ${S:-none}"; exit 1; }
 SV=$({ grep -o -E 'lanework-schema v[0-9]+' "$ROOT/CLAUDE.md" || true; })
 [ "$(printf '%s\n' "$SV" | grep -c .)" -eq 1 ] || { echo "CLAUDE.md must carry exactly one schema stamp, found: ${SV:-none}"; exit 1; }
 ok "no skill names a guide version; one stamp ($S, $SV), in CLAUDE.md"
+# controls: the check flags what it names, in every file type, and only that
+mkdir -p "$T/gv-pos" "$T/gv-neg" "$T/gv-lib"
+printf 'Needs guide v105+ on the board.\n' > "$T/gv-pos/a.md"
+printf '# on a guide v117+ board, ask anyone\n' > "$T/gv-pos/b.sh"
+printf '# needs guide v105 or later\n' > "$T/gv-pos/c.py"
+printf '{"note": "lanework-agent-guide v114"}\n' > "$T/gv-pos/d.json"
+printf '# floor: v117 or later\n' > "$T/gv-pos/e.sh"
+got=$(names_guide_version "$T/gv-pos" | sed "s#^$T/gv-pos/##" | tr '\n' ' ')
+[ "$got" = "a.md b.sh c.py d.json e.sh " ] || { echo "guide-version positive control: flagged '$got', want 'a.md b.sh c.py d.json e.sh '"; exit 1; }
+ok "the guide-version check flags a stamp or a version floor in .md, .sh, .py and .json files"
+printf 'schema v1, v0.8.0, v10.2.1, v2→v5\n' > "$T/gv-neg/a.md"
+printf 'echo $v10 and x=$v12\n' > "$T/gv-neg/b.sh"
+printf '  if [ -n "$v" ] && [ "$v" -ge 117 ]; then printf anyone; else owner_handle "$1"; fi\n' > "$T/gv-neg/c.sh"
+printf "grep -o -E 'lanework-agent-guide v[0-9]+'\n" > "$T/gv-neg/d.sh"
+got=$(names_guide_version "$T/gv-neg")
+[ -z "$got" ] || { echo "guide-version negative control: flagged: $got"; exit 1; }
+ok "the guide-version check does not flag schema v1, semvers, a one-digit range, a shell variable, or a numeric comparison such as -ge 117"
+sed -E 's/^[[:space:]]*#.*$//' "$SK/lanework/scripts/lib.sh" > "$T/gv-lib/lib.sh"
+[ -s "$T/gv-lib/lib.sh" ] || { echo "guide-version lib.sh control: empty copy"; exit 1; }
+got=$(names_guide_version "$T/gv-lib")
+[ -z "$got" ] || { echo "guide-version lib.sh control: flagged: $got"; exit 1; }
+ok "the guide-version check does not flag the code of lib.sh, comments aside"
 
 # compact form: what the skill scripts write is no repair for the board's own heal (H17), on boards founded
 # with catalog kinds and filed by the plan and discovery scripts; the layout seed is the positive control
