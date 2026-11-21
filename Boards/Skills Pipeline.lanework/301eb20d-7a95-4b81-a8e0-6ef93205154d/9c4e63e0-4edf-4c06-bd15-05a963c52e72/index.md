@@ -3,7 +3,7 @@ schema: 1
 kind: card
 title: "Lint leftovers: symlinked lanes, odd names, message spelling, smoke gaps"
 order: 3072
-labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}]
+labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T01:59:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 modified: {at: 2026-11-21T13:18:39Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
