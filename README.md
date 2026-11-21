@@ -28,15 +28,15 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,253 |
+| `lanework` | 10 | 382 | 5,270 |
 | `work` | 16 | 454 | 7,969 |
 | `watch` | 4 | 182 | 2,083 |
-| `discovery` | 14 | 502 | 2,934 |
+| `discovery` | 14 | 510 | 2,988 |
 | `plan` | 9 | 467 | 2,843 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10 (`watch`, `work`, `discovery` and `plan` on 2026-11-17, `lanework` on 2026-11-20, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`watch`, `work` and `plan` on 2026-11-17, `lanework` and `discovery` on 2026-11-20, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -49,10 +49,10 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `work`, `discovery` and `plan` on 
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 150 |
-| `references/writes.md` | 2,024 |
+| `references/writes.md` | 2,041 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,253** |
+| **total** | **5,270** |
 
 #### `work`
 
@@ -90,12 +90,12 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `work`, `discovery` and `plan` on 
 
 | file | words |
 |---|---|
-| `SKILL.md` | 502 |
+| `SKILL.md` | 510 |
 | `references/board.md` | 350 |
 | `references/conduct.md` | 157 |
 | `references/corners.md` | 171 |
 | `references/records.md` | 573 |
-| `references/rounds.md` | 317 |
+| `references/rounds.md` | 363 |
 | `templates/fact-card.md` | 49 |
 | `templates/glossary.md` | 46 |
 | `templates/lanes.md` | 368 |
@@ -104,7 +104,7 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `work`, `discovery` and `plan` on 
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 84 |
 | `templates/topic-card.md` | 66 |
-| **total** | **2,934** |
+| **total** | **2,988** |
 
 #### `plan`
 

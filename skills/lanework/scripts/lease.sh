@@ -70,7 +70,7 @@ status_of() {
 # at the same path and unchanged (compared byte for byte), else the next try reads again. 5 tries, then nothing written: 1.
 # Each writes only over the claimed its caller decided on: renew, a copy whose claimed is this session's (else 5); set, the
 # claimed text the caller read, SET_CL (else another stake landed: 1, backing off); clear, claimed still CLEAR_SESS's (another
-# session's: 1; none: nothing to clear, 0). Nothing written in each case. Explicit checks, not set -e: callers run it under || too.
+# session's: 1; none: already released, 6). Nothing written in each case. Explicit checks, not set -e: callers run it under || too.
 write_card() {
   local f f2 stage now by until="" try
   stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX") || return 1
@@ -81,7 +81,7 @@ write_card() {
     case "$1" in
       renew) [ -n "$CL_TEXT" ] && [ "$CL_SESS" = "$SESSION" ] || { rm -rf "$stage"; return 5; } ;;
       set) [ "$CL_TEXT" = "$SET_CL" ] || { rm -rf "$stage"; echo "lease.sh: ${CID:0:8} was staked by ${CL_SESS:-none} meanwhile; backing off" >&2; return 1; } ;;
-      clear) [ -n "$CL_TEXT" ] || { rm -rf "$stage"; return 0; }
+      clear) [ -n "$CL_TEXT" ] || { rm -rf "$stage"; return 6; }
         [ "$CL_SESS" = "$CLEAR_SESS" ] || { rm -rf "$stage"; echo "lease.sh: ${CID:0:8} is held by ${CL_SESS:-none} meanwhile; nothing released" >&2; return 1; } ;;
     esac
     now=$(now_utc); by=$(by_of "$NAME" "$MODEL" "$SESSION"); until=""; [ "$1" = clear ] || until=$(now_utc "$LEASE_SECS")
@@ -320,8 +320,12 @@ check)
   echo never-held; exit 4 ;;
 release)
   if [ -n "$FORCE" ] && [ "$ST" != none ] && [ "$CL_SESS" != "$SESSION" ]; then
-    CLEAR_SESS="$CL_SESS"; write_card clear
-    post_record "**Lease released by force** on the owner's word: session $CL_SESS held it until $CL_UNTIL."
+    RC=0; FS="$CL_SESS"; FU="$CL_UNTIL"; CLEAR_SESS="$CL_SESS"; write_card clear || RC=$?
+    case "$RC" in
+      0) post_record "**Lease released by force** on the owner's word: session $FS held it until $FU." ;;
+      6) echo "lease.sh: ${CID:0:8} was already released; nothing released by force" ;;
+      *) exit 1 ;;
+    esac
     exit 0
   fi
   if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8} and writes it no more" >&2; exit 3; fi
@@ -329,7 +333,8 @@ release)
     echo "lease.sh: ${CID:0:8} is held by session $CL_SESS; --force on the owner's word only" >&2; exit 1
   fi
   mem_load; stop_timer
-  CLEAR_SESS="$SESSION"; [ "$ST" = none ] || write_card clear
+  RC=0; CLEAR_SESS="$SESSION"; [ "$ST" = none ] || write_card clear || RC=$?
+  [ "$RC" = 0 ] || [ "$RC" = 6 ] || exit 1          # another session's claim: nothing released, the memory kept for the loss
   rm -f "$MEM" ;;
 esac
 exit 0

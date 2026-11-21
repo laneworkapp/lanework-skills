@@ -375,6 +375,9 @@ diff <(cd "$HY" && find . -type f | sort | xargs sed -E 's/^(created|modified): 
 ok "heal's compact-collection matches the board's own heal (H17) byte for byte, stamp spacing aside"
 
 # discovery: found, file, settle, park
+# owner_comment <card dir> <text>: an owner (kind human) comment five seconds ahead, so it is newer than the card's ask
+owner_comment() { local d="$1/comments/$(uuidgen | tr A-Z a-z)" at; at=$(date -u -v+5S +%FT%TZ); mkdir -p "$d"
+  printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: owner, kind: human}}\nmodified: {at: %s, by: {name: owner, kind: human}}\n---\n%s\n' "$at" "$at" "$2" > "$d/index.md"; }
 D="$T/Sync: v2 Discovery.lanework"
 "$SK/discovery/scripts/found-discovery-board.sh" "$D" --model smoke >/dev/null
 grep -q '^title: "Sync: v2 Discovery"$' "$D/index.md" && grep -q '^Discovery on Sync: v2:' <(sed -n '/^# /,$p' "$D/index.md" | sed -n 3p)
@@ -385,7 +388,7 @@ printf 'Where does it run?\n\n## Options\n\n- A: app\n- B: service\n\n## Recomme
 O1=$("$SK/discovery/scripts/file-question.sh" "$D" "Pricing" --round 1 --body "$T/q1.md" --model smoke 2>&1)
 O2=$("$SK/discovery/scripts/file-question.sh" "$D" "Engine: placement" --round 1 --body "$T/q2.md" --depends "[Q1](lanework://x/y)" --model smoke 2>&1)
 grep -q 'lint-ask warning\|warning: no lint-ask.sh' <<<"$O1$O2" && { echo "$O1$O2"; exit 1; }
-C1=$(head -1 <<<"$O1" | sed 's#.*/##'); A1=$(sed -n 's/^ask comment //p' <<<"$O1"); C2=$(head -1 <<<"$O2" | sed 's#.*/##')
+C1=$(head -1 <<<"$O1" | sed 's#.*/##'); A1=$(sed -n 's/^ask comment //p' <<<"$O1"); C2=$(head -1 <<<"$O2" | sed 's#.*/##'); A2=$(sed -n 's/^ask comment //p' <<<"$O2")
 grep -q '^title: "Q2: Engine: placement"$' "$D"/*/"$C2"/index.md; ok "Q1, Q2 filed, numbered, asks lint clean"
 printf '**2026-09-27**: A, as recommended.\n' > "$T/r1.md"; printf '**Owner ruled off the board.**\n\n> A.\n\n**Given**: chat, 2026-09-27\n' > "$T/rec.md"
 # refusal: a record with no quote or no Given line writes nothing, exit 2
@@ -396,11 +399,29 @@ ok "settle-question refuses a record with no quote or Given line, writes nothing
 # several people, past 120 characters: the compact form writes waiting as a block (lanework/scripts/lib.sh compact_fm, the heal's H17)
 CF1="$(ls "$D"/*/"$C1"/index.md)"; perl -0pi -e 's/^waiting: \{for: [^,]*, since: ([^,]*), comment: ([^}]*)\}\n/waiting:\n  for: [owner, bobsmith, carol, dave]\n  since: $1\n  comment: $2\n/m' "$CF1"; grep -q '^  for: \[owner, bobsmith, carol, dave\]$' "$CF1"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C1" --ruling "$T/r1.md" --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null
-"$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --model smoke >/dev/null
 CF1="$(ls "$D"/*/"$C1"/index.md)"; { ! grep -q -E '^(waiting:|  (for|since|comment):)' "$CF1" && fm_parses "$CF1" && grep -q "in-reply-to: $A1" "$D"/*/"$C1"/comments/*/index.md; } \
   || { echo "settle-question left waiting, or its block lines, or a frontmatter that does not parse:"; head -12 "$CF1"; exit 1; }
 LW=$("$SK/work/scripts/lint-waiting-clears.sh" "$D" 2>&1 || true); grep -q "^QUOTED $C1 $A1\$" <<<"$LW" || { echo "chat record not QUOTED: $LW"; exit 1; }
-ok "settled with chat record in reply to the ask, read QUOTED by the waiting-clear lint, a block-form list waiting dropped whole; parked"
+ok "settled with chat record in reply to the ask, read QUOTED by the waiting-clear lint, a block-form list waiting dropped whole"
+# waiting set, no --record, no owner comment after the ask: settle and park both refused, exit 1, nothing written, the message names --record
+CF2="$(ls "$D"/*/"$C2"/index.md)"; S2B=$(sum "$D")
+for to in settled parked; do
+  RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to "$to" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+  [ "$RC" = 1 ] && grep -q -- '--record' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "settle --to $to with waiting and no record: rc $RC, or no --record in the message, or the board changed"; cat "$T/err.txt"; exit 1; }
+done
+ok "settle-question refuses to clear waiting with no record and no owner answer (settled and parked): exit 1, message names --record, nothing written"
+# --record with a --reply that is not the newest ask: the lint would read NO-QUOTE, so refused, nothing written
+RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null 2>&1 || RC=$?
+[ "$RC" = 1 ] && [ "$(sum "$D")" = "$S2B" ] || { echo "settle with a record in reply to another ask: rc $RC, or the board changed"; exit 1; }
+ok "settle-question refuses a record in reply to an ask other than the card's newest: exit 1, nothing written"
+# --record with no --reply, CRLF line ends: in reply to waiting.comment, written LF, read QUOTED
+printf '**Owner ruled off the board.**\r\n\r\n> Later.\r\n\r\n**Given**: chat, 2026-09-27\r\n' > "$T/rec-crlf.md"; printf '**2026-09-27**: Parked. "Later."\r\n' > "$T/r-crlf.md"
+"$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r-crlf.md" --to parked --record "$T/rec-crlf.md" --model smoke >/dev/null
+CF2="$(ls "$D"/*/"$C2"/index.md)"; RF2=$(grep -l '^> Later.' "$D"/*/"$C2"/comments/*/index.md)
+{ [ "$(grep -l '^title: "Parked"$' "$(dirname "$(dirname "$CF2")")/index.md")" ] && grep -qx "in-reply-to: $A2" "$RF2" && ! grep -q $'\r' "$RF2" && ! grep -q $'\r' "$CF2"; } \
+  || { echo "record with no --reply not in reply to waiting.comment, or CRLF left in the record or ruling:"; cat -v "$RF2"; exit 1; }
+LW=$("$SK/work/scripts/lint-waiting-clears.sh" "$D" 2>&1 || true); grep -q "^QUOTED $C2 $A2\$" <<<"$LW" || { echo "record with no --reply not QUOTED: $LW"; exit 1; }
+ok "parked with a CRLF record and no --reply: in reply to waiting.comment, record and ruling written LF, read QUOTED by the waiting-clear lint"
 validate "$D" >/dev/null; ok "discovery board validates"
 
 # discovery: Decisions lane founded in order, record + status kinds declared, file-record.sh files ADR and PDR cards
@@ -435,11 +456,12 @@ grep -qx 'Sync is free for every user, because a paid tier would split the suppo
 ! grep -q '^waiting:' "$n1" || { echo "record card carries waiting"; exit 1; }
 ok "file-record.sh filed one ADR and one PDR card in Decisions: title escaped, labels flattened, line 1 links the question, body lands, bottom order"
 printf '**2026-09-27**: A.\nADR: [ADR: Sync engine](%s)\nPDR: [PDR: Sync is free](%s)\n' "$(head -1 <<<"$R1")" "$(head -1 <<<"$R2")" > "$T/r3.md"
-"$SK/discovery/scripts/settle-question.sh" "$D" "$C3" --ruling "$T/r3.md" --model smoke >/dev/null
+owner_comment "$(dirname "$(ls "$D"/*/"$C3"/index.md)")" 'A.'
+"$SK/discovery/scripts/settle-question.sh" "$D" "$C3" --ruling "$T/r3.md" --model smoke >/dev/null || { echo "settle-question refused a clear the owner answered on the board"; exit 1; }
 SETTLED=$(grep -l '^title: "Settled"$' "$D"/*/index.md | sed 's#/index.md$##')
-[ -f "$SETTLED/$C3/index.md" ] &&
+[ -f "$SETTLED/$C3/index.md" ] && ! grep -q '^waiting:' "$SETTLED/$C3/index.md" &&
   grep -q "^ADR: \[ADR: Sync engine\]($(head -1 <<<"$R1"))\$" "$D"/*/"$C3"/index.md || { echo "settled ruling does not carry the record link"; exit 1; }
-ok "record filed before settling; the Settled question's ruling links both cards"
+ok "record filed before settling; settled with no --record after an owner comment on the board, waiting dropped; the ruling links both cards"
 validate "$D" >/dev/null; ok "discovery board validates with the record cards"
 for bad in "$C3" .. "$K1" 0000; do
   if "$SK/discovery/scripts/file-record.sh" "$D" "$bad" --record ADR --title x --body "$T/adr.md" --model smoke 2>/dev/null; then echo "accepted question id: $bad"; exit 1; fi
@@ -455,6 +477,12 @@ O5=$("$SK/discovery/scripts/file-question.sh" "$D" 'C:\path "x"
 tail' --round 2 --body "$T/q5.md" --model smoke 2>&1); C5=$(head -1 <<<"$O5" | sed 's#.*/##')
 grep -qxF 'title: "Q5: C:\\path \"x\" tail"' "$D"/*/"$C5"/index.md || { echo "question title not escaped:"; grep -m1 '^title:' "$D"/*/"$C5"/index.md; exit 1; }
 validate "$D" >/dev/null; ok "file-question.sh: a title with a backslash, a quote and a newline round-trips and the board validates"
+# a question with no waiting settles with no record, as before
+O6=$("$SK/discovery/scripts/file-question.sh" "$D" "No waiting" --round 1 --body "$T/q1.md" --model smoke 2>&1); C6=$(head -1 <<<"$O6" | sed 's#.*/##')
+CF6="$(ls "$D"/*/"$C6"/index.md)"; perl -ni -e 'print unless /^waiting:/' "$CF6"; ! grep -q '^waiting:' "$CF6"
+"$SK/discovery/scripts/settle-question.sh" "$D" "$C6" --ruling "$T/r1.md" --model smoke >/dev/null || { echo "settle-question refused a question with no waiting"; exit 1; }
+[ "$(grep -m1 '^title:' "$(dirname "$(dirname "$(ls "$D"/*/"$C6"/index.md)")")/index.md")" = 'title: "Settled"' ] || { echo "question with no waiting not in Settled"; exit 1; }
+ok "a question with no waiting settles with no record"
 
 # discovery: file-record.sh --supersedes states a supersedes relation on the new card, never touches the old one
 FR="$SK/discovery/scripts/file-record.sh"
@@ -680,7 +708,7 @@ printf '@anyone Ship the brace today?\n\nOptions:\n- A: Ship it.\n- B: Hold it.\
 bsave "$BQA"; "$SK/work/scripts/post-ask.sh" "$BQ" "$BQA" --body "$T/bask.md" --for anyone --model smoke >/dev/null; bholds "$T/brace.before" "$(bcard "$BQA")" && grep -q '^waiting:' "$(bcard "$BQA")" && validate "$BQ" >/dev/null || { echo "post-ask.sh refused or changed a card with }}} outside its stamps"; exit 1; }
 ok "post-ask.sh sets waiting on a card whose labels line and body hold a triple brace: labels and body byte for byte, board validates"
 printf '**2026-11-20**: A. `{"a": {"b": {"c": 1}}}`\n' > "$T/bruling.md"
-bsave "$BQS"; "$SK/discovery/scripts/settle-question.sh" "$BQ" "$BQS" --ruling "$T/bruling.md" --model smoke >/dev/null; bholds "$T/brace.before" "$(bcard "$BQS")" && validate "$BQ" >/dev/null || { echo "settle-question.sh refused or changed a card with }}} outside its stamps"; exit 1; }
+owner_comment "$(dirname "$(bcard "$BQS")")" 'A.'; bsave "$BQS"; "$SK/discovery/scripts/settle-question.sh" "$BQ" "$BQS" --ruling "$T/bruling.md" --model smoke >/dev/null; bholds "$T/brace.before" "$(bcard "$BQS")" && validate "$BQ" >/dev/null || { echo "settle-question.sh refused or changed a card with }}} outside its stamps"; exit 1; }
 ok "settle-question.sh settles a card whose labels line and body hold a triple brace, with a triple brace in the ruling: labels and old body byte for byte, board validates"
 printf 'The brace is fine.\n' > "$T/badr.md"
 BR=$(bfirst "$SK/discovery/scripts/file-record.sh" "$BQ" "$BQR" --record ADR --title 'Braces }}} are fine' --body "$T/badr.md" --model smoke)
@@ -702,7 +730,7 @@ ok "resolve-ticket.sh resolves a ticket whose labels line and body hold a triple
 # a --model value with a triple brace lands on the modified line the script writes: refused, exit 1, nothing written
 BADM='x}}}'
 brefused() { local n=$1 b=$2; shift 2; local s rc=0; s=$(bsnap "$b"); "$@" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$s" = "$(bsnap "$b")" ] || { echo "$n: rc=$rc or the board changed"; exit 1; }; }
-BQ2=$(bq "Brace refused"); BQ3=$(bq "Brace refused two")
+BQ2=$(bq "Brace refused"); BQ3=$(bq "Brace refused two"); owner_comment "$(dirname "$(bcard "$BQ2")")" 'A.'   # the settle below is refused for the brace, not for waiting
 brefused move-card "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$BQ2" Parked --model "$BADM"
 brefused post-ask "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$BQ2" --body "$T/bask.md" --for anyone --model "$BADM"
 brefused post-comment "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$BQ2" --body "$T/bask.md" --model "$BADM"
@@ -728,7 +756,7 @@ done
 BQS3=$(bq "Brace session comment"); "$SK/work/scripts/post-comment.sh" "$BQ" "$BQS3" --body "$T/bruling.md" --model smoke --session 'a{b}}}' --ahead 5 >/dev/null && validate "$BQ" >/dev/null || { echo "post-comment.sh refused a braced --session"; exit 1; }
 ok "a --session holding a brace, or a triple brace, is a valid quoted stamp: move-card.sh and post-comment.sh write it and the board validates"
 # a card whose front matter closes with trailing spaces after the --- : the guard stops there, so a body line that starts like a stamp key is not read
-BQT=$(bq "Brace trailing fence"); BQTF=$(bcard "$BQT"); python3 - "$BQTF" <<'PY'
+BQT=$(bq "Brace trailing fence"); BQTF=$(bcard "$BQT"); owner_comment "$(dirname "$BQTF")" 'A.'; python3 - "$BQTF" <<'PY'
 import sys
 p = sys.argv[1]; h, fm, b = open(p).read().split("---\n", 2)
 open(p, "w").write(h + "---\n" + fm + "---  \n" + b.rstrip("\n") + '\n\nmodified: {"a": {"b": {"c": 1}}}\n')
@@ -2324,6 +2352,35 @@ H3b=$(shasum < "$F3b"); wait "$S3P"
   || { echo "3b: held stake rc $(cat "$T/s3b.rc"), holder $(csess "$F3b"), err: $(cat "$T/s3b.err")"; cat "$F3b"; exit 1; }
 L S-first release "$LB" "$C3b" --model smoke >/dev/null
 ok "lease: a stake held through another session's stake backs off (exit 1), writes nothing over it, and keeps no memory or timer"
+
+# 3c. a release held between its read and its write while claimed changes: it clears only its holder's claim.
+# LRP <tmpdir> <session> <args...>: lease.sh in the background under the pause, rc to $T/lrp.rc, stdout and stderr to lrp.out/lrp.err
+LRP() { local d="$1" s="$2"; shift 2; ( RC=0; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$d" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1000 LEASE_TEST_WRITE_PAUSE=1.5 "$LS" "$@" --model smoke >"$T/lrp.out" 2>"$T/lrp.err" || RC=$?; echo "$RC" > "$T/lrp.rc" ) & LRPP=$!
+  PD="$d"; waitfor '[ -n "$(ls "$PD"/lease-write.*/read 2>/dev/null)" ]'; }
+# own release, another session's claim set during the pause: exit 1, nothing released, the memory kept; check then finds the loss once
+LRA=$(mktemp -d "$T/lease-rel-a.XXXXXX"); C3c=$(lcard "Three c"); F3c=$(lcf "$C3c")
+CLAUDE_CODE_SESSION_ID=S-rel CLAUDE_PID="$LPID" TMPDIR="$LRA" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$LS" stake "$LB" "$C3c" --model smoke >/dev/null
+LRP "$LRA" S-rel release "$LB" "$C3c" || { echo "3c: the release never read the card"; exit 1; }
+setclaim "$F3c" S-other "$(iso $(( $(date -u +%s) + 1500 )))"; wait "$LRPP"
+[ "$(cat "$T/lrp.rc")" = 1 ] && grep -q 'held by S-other meanwhile; nothing released' "$T/lrp.err" && [ "$(csess "$F3c")" = S-other ] \
+  && [ -n "$(ls "$LRA"/lanework-lease/S-rel/*/"$C3c" 2>/dev/null)" ] || { echo "3c: own release rc $(cat "$T/lrp.rc"), holder $(csess "$F3c"), err: $(cat "$T/lrp.err")"; cat "$F3c"; exit 1; }
+RC=0; CO=$(CLAUDE_CODE_SESSION_ID=S-rel CLAUDE_PID="$LPID" TMPDIR="$LRA" "$LS" check "$LB" "$C3c" --model smoke 2>/dev/null) || RC=$?
+[ "$CO$RC" = lost3 ] && [ "$(records "$C3c" "**Lease lost**")" = 1 ] || { echo "3c: check after the refused release: '$CO' $RC, records $(records "$C3c" "**Lease lost**")"; exit 1; }
+# --force, the holder changed during the pause: exit 1, the new holder kept, no force record
+C3f=$(lcard "Three f"); F3f=$(lcf "$C3f"); L S-hold stake "$LB" "$C3f" --model smoke >/dev/null; LRF=$(mktemp -d "$T/lease-rel-f.XXXXXX")
+LRP "$LRF" S-owner release "$LB" "$C3f" --force || { echo "3c: the forced release never read the card"; exit 1; }
+setclaim "$F3f" S-third "$(iso $(( $(date -u +%s) + 1500 )))"; wait "$LRPP"
+[ "$(cat "$T/lrp.rc")" = 1 ] && [ "$(csess "$F3f")" = S-third ] && [ "$(records "$C3f" "**Lease released by force**")" = 0 ] \
+  || { echo "3c: forced release over a new holder: rc $(cat "$T/lrp.rc"), holder $(csess "$F3f"), force records $(records "$C3f" "**Lease released by force**")"; exit 1; }
+# --force, the holder released during the pause: exit 0, already released, no force record
+C3r=$(lcard "Three r"); F3r=$(lcf "$C3r"); L S-hold stake "$LB" "$C3r" --model smoke >/dev/null; LRG=$(mktemp -d "$T/lease-rel-g.XXXXXX")
+LRP "$LRG" S-owner release "$LB" "$C3r" --force || { echo "3c: the forced release never read the second card"; exit 1; }
+perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m' "$F3r"; wait "$LRPP"
+[ "$(cat "$T/lrp.rc")" = 0 ] && grep -q 'was already released; nothing released by force' "$T/lrp.out" && ! grep -q '^claimed:' "$F3r" \
+  && [ "$(records "$C3r" "**Lease released by force**")" = 0 ] || { echo "3c: forced release of a released card: rc $(cat "$T/lrp.rc"), out: $(cat "$T/lrp.out"), force records $(records "$C3r" "**Lease released by force**")"; exit 1; }
+validate "$LB" >/dev/null
+ok "lease: a release held while claimed changes clears only its holder's claim: own release over another session exits 1 and the next check records the loss once; --force over a new holder exits 1 with no record; --force on a card released meanwhile exits 0 with no record"
 
 # 4. another session's live lease is refused
 HS1=$(shasum < "$F1"); RC=0; L S-four stake "$LB" "$C1" --model smoke >/dev/null 2>&1 || RC=$?
