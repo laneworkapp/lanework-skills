@@ -445,6 +445,25 @@ RC=0; "$SKL/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md"
 ok "settle-question says 'not executable' for a present lint without the x bit and 'missing' for an absent one, nothing written"
 grep 'owner answer' "$SK/discovery/references/rounds.md" | grep -q 'Recap' || { echo "rounds.md lost the Recap rule beside 'owner answer'"; exit 1; }
 ok "rounds.md says a Recap: click is not an owner answer"
+# a Recap: click is not an owner answer: refused with no --record, an answer before or after it still counts (own board, own questions)
+R="$T/Recap Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$R" --model smoke >/dev/null
+rq() { "$SK/discovery/scripts/file-question.sh" "$R" "$1" --round 1 --body "$T/q1.md" --model smoke 2>&1 | head -1 | sed 's#.*/##'; }
+rcard() { ls -d "$R"/*/"$1"; }
+RA=$(rq "Click only"); RB=$(rq "Click then answer"); RC_=$(rq "Click then record"); RD=$(rq "Recapitulate")
+owner_comment "$(rcard "$RA")" "Recap: Explain this in plain terms first"
+owner_comment "$(rcard "$RB")" "Recap: Explain this in plain terms first"; owner_comment "$(rcard "$RB")" "A."
+owner_comment "$(rcard "$RC_")" "Recap: Explain this in plain terms first"
+owner_comment "$(rcard "$RD")" "Recapitulate: A."
+SR=$(sum "$R")
+RC=0; "$SK/discovery/scripts/settle-question.sh" "$R" "$RA" --ruling "$T/r1.md" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q -- '--record' "$T/err.txt" && [ "$(sum "$R")" = "$SR" ] || { echo "settle on a Recap: click alone: want exit 1, --record in the message, nothing written; got rc $RC"; cat "$T/err.txt"; exit 1; }
+ok "settle-question refuses a waiting card whose only owner comment is a Recap: click: exit 1, message names --record, nothing written"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RB" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question settles when a real owner answer follows the Recap: click"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RC_" --ruling "$T/r1.md" --record "$T/rec.md" --model smoke >/dev/null
+ok "settle-question settles a card with only a Recap: click when --record quotes the owner"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RD" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question counts Recapitulate: A. (not the Recap: prefix) as an answer"
 # --record with no --reply, CRLF line ends: in reply to waiting.comment, written LF, read QUOTED
 printf '**Owner ruled off the board.**\r\n\r\n> Later.\r\n\r\n**Given**: chat, 2026-09-27\r\n' > "$T/rec-crlf.md"; printf '**2026-09-27**: Parked. "Later."\r\n' > "$T/r-crlf.md"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r-crlf.md" --to parked --record "$T/rec-crlf.md" --model smoke >/dev/null
