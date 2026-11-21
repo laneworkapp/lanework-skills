@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Lint leftovers: symlinked lanes, odd names, message spelling, smoke gaps"
-order: 9216
+order: 4096
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T01:59:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T13:20:11Z}
+modified: {at: 2026-11-21T13:22:04Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The three board lints (`lint-leases.sh`, `lint-waiting-clears.sh`, `lint-stamps.sh`) stop silently skipping symlinked lanes and cards with a newline in the name, print paths the way the caller spelled them, and the smoke cases that expect silence are made to prove the lint actually read the cards.
 
