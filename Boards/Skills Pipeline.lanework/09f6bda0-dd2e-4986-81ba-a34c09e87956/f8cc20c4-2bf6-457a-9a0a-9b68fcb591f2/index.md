@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Lint leftovers 2: tab in a name, unsplittable lines, a lane read twice"
-order: 8192
+order: 9216
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T15:44:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T17:13:46Z}
+modified: {at: 2026-11-21T21:09:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The three lints print one finding per line that can be read back, and a lane that is a symlink to a sibling lane no longer makes every finding print twice.
 
