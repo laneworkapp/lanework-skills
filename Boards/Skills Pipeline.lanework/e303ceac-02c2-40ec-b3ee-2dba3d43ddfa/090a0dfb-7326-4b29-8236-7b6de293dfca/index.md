@@ -1,10 +1,10 @@
 ---
 schema: 1
 title: "Credit Matt Pocock for the ideas the skills draw on"
-order: 12288
+order: 89088
 labels: [{text: "repo", kind: {type: "skill", text: "Skill"}}]
 created: {at: 2026-11-21T13:16:55Z}
-modified: {at: 2026-11-21T13:20:11Z}
+modified: {at: 2026-11-21T13:21:38Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 kind: card
 ---
 This card rewrites the README's credit to Matt Pocock as a general thank-you for inspiration, with a link to his skills, in place of the present list of specific skills.
