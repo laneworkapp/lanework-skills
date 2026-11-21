@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "lease.sh leftovers: odd session ids, release wording, stray temp file"
-order: 5120
+order: 11264
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T01:36:03Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T13:19:03Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T13:20:11Z}
 ---
 `lease.sh` stops accepting session ids it cannot store faithfully, tells a refused release how to check whether the holder's lease lapsed, and sweeps the temp file a killed cross-volume write leaves behind.
 
