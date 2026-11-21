@@ -418,6 +418,10 @@ for to in settled parked; do
   [ "$RC" = 1 ] && grep -q -- '--record' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "settle --to $to with waiting and no record: rc $RC, or no --record in the message, or the board changed"; cat "$T/err.txt"; exit 1; }
 done
 ok "settle-question refuses to clear waiting with no record and no owner answer (settled and parked): exit 1, message names --record, nothing written"
+# the NO-QUOTE line the lint prints is read by settle-question.sh at field 3: a record that answers another ask is refused naming this card's ask
+S2B=$(sum "$D"); RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q "newest ask is $A2" "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "settle-question on a record for another ask: want rc 1 naming ask $A2, nothing written (rc $RC)"; cat "$T/err.txt"; exit 1; }
+ok "settle-question.sh reads the ask id as field 3 of the lint's NO-QUOTE line (a record answering another ask is refused naming the right ask)"
 # --record with a --reply that is not the newest ask: the lint would read NO-QUOTE, so refused, nothing written
 RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null 2>&1 || RC=$?
 [ "$RC" = 1 ] && [ "$(sum "$D")" = "$S2B" ] || { echo "settle with a record in reply to another ask: rc $RC, or the board changed"; exit 1; }
@@ -1283,9 +1287,29 @@ tab_check "with a lane symlinked to a sibling lane"
 rm -rf "$NL/$TN"; sent_card "$NL" f7000000-0000-4000-8000-000000000007
 for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" f7000000-0000-4000-8000-000000000007; done
 rm -rf "$NL/f7000000-0000-4000-8000-000000000007"
-SQ=$(printf '%s\n' "NO-QUOTE $(esc "$TN") $SENT_ASK" | awk '$1 == "NO-QUOTE" { print $3 }'); [ "$SQ" = "$SENT_ASK" ] || { echo "settle-question reads field 3 of a NO-QUOTE line: want the ask id for an escaped card name, got $SQ"; exit 1; }
 rm "$NB/zz-sibling"
-ok "a lane that is a symlink to a sibling lane lists each card once in all three lints (leased cards: 1); the ask id stays field 3 of a NO-QUOTE line"
+ok "a lane that is a symlink to a sibling lane lists each card once in all three lints (leased cards: 1)"
+# CDPATH set and a relative board path: no cd in the dedupe prints a folder or breaks it; each card is still listed once
+ln -s "$(basename "$NL")" "$NB/zz-sibling"; sent_card "$NL" f7000000-0000-4000-8000-000000000007
+for U in "$LS" "$LL" "$WL"; do UR=0; UO=$(cd "$T" && CDPATH=.: "$U" NewCases.lanework 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err")
+  case "$(basename "$U")" in lint-leases.sh) [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] && [ -z "$UO" ] ;; *) [ "$(grep -c '' <<<"$UO")" -le 2 ] && [ "$(grep -c 'f7000000' <<<"$UO")" = 1 ] ;; esac || unr_fail "$(basename "$U") with CDPATH set and a relative board path: want the card once"; done
+rm -rf "$NL/f7000000-0000-4000-8000-000000000007" "$NB/zz-sibling"
+# a newline in a name shifts realpath's lines: the dedupe falls back to one folder at a time and still lists the card once
+ln -s "$(basename "$NL")" "$NB/zz-sibling"; sent_card "$NL" "$NLN" "$NLC"
+for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$NLN" "$NLC"; done
+rm -rf "$NL/$NLN" "$NB/zz-sibling"
+# a real \001 byte in a name prints as \001 in all three lints, one finding per line
+SOH=f8000000-0000-4000-8000-000000000008$'\001'y; sent_card "$NL" "$SOH" $'\001'z
+for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$SOH" $'\001'z; done
+rm -rf "$NL/$SOH"
+# an ask id holding a backslash, answered by an agent record in-reply-to it: still QUOTED (ids match as written, only the print is escaped)
+BA='f9100000-0000-4000-8000-000000000009\x'; sent_card "$NL" f9100000-0000-4000-8000-0000000000aa; rm -rf "$NL"/f9100000-0000-4000-8000-0000000000aa/comments/*
+mkdir -p "$NL/f9100000-0000-4000-8000-0000000000aa/comments/$BA" "$NL/f9100000-0000-4000-8000-0000000000aa/comments/rep1"
+printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T10:00:00Z, by: {name: claude, kind: agent, model: smoke}}\n---\n@anyone Which route?\n' > "$NL/f9100000-0000-4000-8000-0000000000aa/comments/$BA/index.md"
+printf -- '---\nschema: 1\nkind: comment\nin-reply-to: %s\ncreated: {at: 2026-11-17T10:00:05Z, by: {name: claude, kind: agent, model: smoke}}\n---\n**Owner ruled.**\n\n> A.\n\n**Given**: chat, 2026-11-17\n' "$BA" > "$NL/f9100000-0000-4000-8000-0000000000aa/comments/rep1/index.md"
+unr_run "$WL" "$NB"; [ "$UO" = "QUOTED f9100000-0000-4000-8000-0000000000aa f9100000-0000-4000-8000-000000000009\\\\x"$'\n'"QUOTED 1, NO-QUOTE 0" ] && [ "$UR" = 0 ] || unr_fail "lint-waiting-clears: an ask id with a backslash, quoted in reply, want QUOTED with the id printed escaped"
+rm -rf "$NL/f9100000-0000-4000-8000-0000000000aa"
+ok "a CDPATH and a relative board path list each card once; a newline-named card in a sibling-symlinked lane is listed once; a \\001 byte in a name prints escaped in all three lints; an ask id with a backslash still reads QUOTED"
 if [ "$(id -u)" != 0 ]; then
   N4=f4000000-0000-4000-8000-000000000004; sent_card "$NL" "$N4"; N4I="$NL/$N4/comments/$SENT_START/index.md"
   chmod 000 "$N4I"; unr_run "$WL" "$NB"; chmod 644 "$N4I"

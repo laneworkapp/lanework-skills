@@ -359,17 +359,17 @@ unreadable_files() {
   return "$rc"
 }
 
-# show_name <text>: prints a path, card name or comment id for a one-line finding: tab -> \t, newline -> \n, carriage return -> \r,
+# show_name <text>: prints a path, card name or comment id for a one-line finding: tab -> \t, newline -> \n, carriage return -> \r, byte \001 -> \001,
 # backslash -> \\ (so a name holding the two characters \t is not read as a tab). Any other name prints as it is. The lints use it on
 # everything they print; SHOW_NAME_AWK is the same rule as an awk function (show_name(s)) to splice in front of an awk program.
 show_name() {
   local s=$1 b='\'
-  s=${s//"$b"/"$b$b"}; s=${s//$'\t'/"${b}t"}; s=${s//$'\n'/"${b}n"}; s=${s//$'\r'/"${b}r"}
+  s=${s//"$b"/"$b$b"}; s=${s//$'\t'/"${b}t"}; s=${s//$'\n'/"${b}n"}; s=${s//$'\r'/"${b}r"}; s=${s//$'\001'/"${b}001"}
   printf '%s' "$s"
 }
 SHOW_NAME_AWK='function show_name(s,   o, i, c) {
   o = ""
-  for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); o = o (c == "\\" ? "\\\\" : c == "\t" ? "\\t" : c == "\n" ? "\\n" : c == "\r" ? "\\r" : c) }
+  for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); o = o (c == "\\" ? "\\\\" : c == "\t" ? "\\t" : c == "\n" ? "\\n" : c == "\r" ? "\\r" : c == "\001" ? "\\001" : c) }
   return o
 }
 '
@@ -398,13 +398,21 @@ board_index_files() {
   done < "$err"
   rm -f "$err"
   if [ -s "$o" ] && [ -n "$(find -H "$d" -mindepth 1 -type l -print -quit 2>/dev/null)" ]; then   # a symlink somewhere: keep one spelling per physical folder
-    local seen=$'\n' q ph tmp="$o.dedupe"; : > "$tmp"
-    while IFS= read -r -d '' q; do
-      ph=$(cd -- "${pre}${q%/*}" 2>/dev/null && pwd -P; echo x); ph=$(show_name "${ph%x}")
-      case "$seen" in *$'\n'"$ph"$'\n'*) continue ;; esac
-      seen="$seen$ph"$'\n'; printf '%s\0' "$q" >> "$tmp"
-    done < <(sort -z "$o")
-    mv "$tmp" "$o"
+    local q f n1 n2 tmp="$o.dedupe"
+    sort -z "$o" > "$tmp.s"
+    while IFS= read -r -d '' q; do printf '%s\0' "${pre}${q%/*}"; done < "$tmp.s" | xargs -0 realpath 2>/dev/null | awk '{ print (seen[$0]++) ? 0 : 1 }' > "$tmp.f"   # one pass; 1 = first of its real folder
+    n1=$(tr -cd '\0' < "$tmp.s" | wc -c); n2=$(wc -l < "$tmp.f")
+    if [ "$n1" -eq "$n2" ]; then
+      while IFS= read -r -d '' q <&3 && IFS= read -r f <&4; do [ "$f" = 1 ] && printf '%s\0' "$q"; done 3< "$tmp.s" 4< "$tmp.f" > "$tmp"
+    else   # a newline in a name shifts realpath's lines (or a path vanished): one folder at a time
+      local seen=$'\n' ph
+      while IFS= read -r -d '' q; do
+        ph=$(cd -- "${pre}${q%/*}" >/dev/null 2>&1 && pwd -P; echo x); ph=$(show_name "${ph%x}")
+        case "$seen" in *$'\n'"$ph"$'\n'*) continue ;; esac
+        seen="$seen$ph"$'\n'; printf '%s\0' "$q"
+      done < "$tmp.s" > "$tmp"
+    fi
+    mv "$tmp" "$o"; rm -f "$tmp.s" "$tmp.f"
   fi
   return "$rc"
 }

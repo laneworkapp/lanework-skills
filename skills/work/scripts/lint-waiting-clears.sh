@@ -50,7 +50,7 @@ comment_row() {
     body && !fence && /^>[ \t]*[^ \t]/ { q = 1 }
     body && !fence && /^\*\*Given\*\*:/ { g = 1 }
     END {
-      id = show_name(id)   # escaped (lib.sh show_name): a tab or newline would split the row
+      id = show_name(id); irt = show_name(irt)   # escaped (lib.sh show_name), both alike so ids still match: a tab or newline would split the row
       at = ""
       if (match(cr, /(^|[ {,])at:[ \t]*["\x27]?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z/)) { s = substr(cr, RSTART, RLENGTH); match(s, /[0-9]{4}-.*$/); at = substr(s, RSTART); sub(/\.[0-9]+Z$/, "Z", at) }
       kind = "human"

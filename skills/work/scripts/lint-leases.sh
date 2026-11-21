@@ -59,9 +59,9 @@ done
 S1='
 function emit(   rel, n, p, card, t, s, a, u, k) {
   if (st < 2) return
-  rel = substr(cur, length(board) + 2); gsub(/\n/, "\001", rel)   # split() on "/" also splits at a newline: park it, put it back in each part
-  n = split(rel, p, "/"); for (k = 1; k <= n; k++) gsub(/\001/, "\n", p[k])
-  card = show_name(show "/" p[1] "/" p[2])   # printed escaped (lib.sh show_name): a tab or newline would split the records
+  rel = show_name(substr(cur, length(board) + 2))   # escaped before the split: no name part can then hold a newline, which split() on "/" also splits at
+  n = split(rel, p, "/")
+  card = show_name(show) "/" p[1] "/" p[2]   # printed escaped (lib.sh show_name): a tab or newline would split the records
   if (n == 3 && p[3] == "index.md" && kind == "card" && ltext != "") {
     u = ""
     if (match(ltext, /until:[ \t]*["\x27]?[^",}\x27 \t\n]*/)) { u = substr(ltext, RSTART, RLENGTH); sub(/^until:[ \t]*["\x27]?/, "", u) }
@@ -78,7 +78,7 @@ function emit(   rel, n, p, card, t, s, a, u, k) {
     k = "OTHER"
     if (first ~ /^(\*\*)?START/) k = "START"
     if (lost != "" && index(first, lost) == 1) k = "LOST"
-    printf "C\t%s\t%s\t%s\t%s\t%s\n", card, show_name(p[4]), a, s, k
+    printf "C\t%s\t%s\t%s\t%s\t%s\n", card, p[4], a, s, k
   }
 }
 BEGIN { board = ENVIRON["LL_BOARD"]; show = ENVIRON["LL_SHOW"]; lost = ENVIRON["LL_LOST"] }
