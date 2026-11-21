@@ -15,8 +15,8 @@
 # A card is leased when it has a START (a session-less one too), or a lease-lost record, created at or after --since
 # (default: always). --first keeps the n leased cards with the earliest such comment, for the tally and the lost and
 # two-START findings; lapsed reads every card. Several boards are counted together. Skips .trash, .log, .schema,
-# attachments; flow and block front matter, CRLF files. A board is read through its real folder (a symlink works) and
-# counted once however it is spelled; lines print the first spelling given.
+# attachments; flow and block front matter, CRLF files. Symlinked boards, lanes and cards are followed. A board is counted
+# once however it is spelled (by its real folder); paths print as the caller spelled the first one.
 set -u
 . "$(dirname "$0")/../../lanework/scripts/lib.sh"
 USAGE="usage: lint-leases.sh <board dir>... [--since <ts>] [--first <n>] [--window <s>] [--grace <s>]"

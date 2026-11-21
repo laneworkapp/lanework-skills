@@ -1205,6 +1205,9 @@ ok "lint-stamps, lint-leases and lint-waiting-clears read a lane that is a symli
 NLN=f3000000-0000-4000-8000-000000000003$'\n'x; NLC=$'\n'y; sent_card "$NL" "$NLN" "$NLC"   # a card folder and its comment folders with a newline in the name
 for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$NLN" "$NLC"; done
 rm -rf "$NL/$NLN"
+NLT=f5000000-0000-4000-8000-000000000005$'\n'; sent_card "$NL" "$NLT"   # a card folder whose name ends in a newline
+for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$NLT"; done
+rm -rf "$NL/$NLT"
 ok "lint-stamps, lint-leases and lint-waiting-clears read a card and a comment folder with a newline in the name"
 if [ "$(id -u)" != 0 ]; then
   N4=f4000000-0000-4000-8000-000000000004; sent_card "$NL" "$N4"; N4I="$NL/$N4/comments/$SENT_START/index.md"
@@ -1224,8 +1227,8 @@ UO=$(cd "$T" && "$LS" -dashnew.lanework 2>&1) || true
 : > "$T/-f"; UO=$(cd "$T" && "$WL" -f 2>&1) && UR=0 || UR=$?
 [ "$UR" = 2 ] && [ "$UO" = "lint-waiting-clears.sh: not a board folder: -f" ] || unr_fail "lint-waiting-clears -f (a file): want not a board folder: -f"
 ok "lint-stamps prints a - board's paths as given, and lint-waiting-clears names a - file as given"
-UO=$(bash -c 'set -euo pipefail; UO=""; PN=$(grep -c . <<<"$UO" || true); echo reached' 2>&1) || true
-[ "$UO" = reached ] && grep -q 'PN=$(grep -c . <<<"$UO" || true)' "$0" || unr_fail "the dash case's PN line must survive a silent plain run (|| true)"
+P1='PR=$UR; PN=$(grep -c . <<<"$UO" '; P2='|| true)'   # split, so this line does not match itself
+grep -qF "$P1$P2" "$0" || unr_fail "the dash case's PN line must keep || true: a silent plain run must reach its message"
 ok "a grep -c that counts nothing does not stop smoke before its message"
 
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)

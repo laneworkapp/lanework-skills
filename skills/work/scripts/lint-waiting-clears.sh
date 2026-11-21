@@ -37,7 +37,7 @@ d=$board; case "$d" in -*) d=./$d ;; esac   # a leading - is no option for test
 [ -d "$d" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
 # comment_row <comment index.md>: created.at, agent|human|other, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
 comment_row() {
-  LW_ID="$(basename -- "$(dirname -- "$1")")" awk '   # the id rides in the environment: awk -v rejects a newline in it
+  LW_ID="${1%/index.md}"; LW_ID="${LW_ID##*/}" awk '   # the id rides in the environment: awk -v rejects a newline in it
     BEGIN { id = ENVIRON["LW_ID"] }
     { sub(/\r$/, "") }
     NR == 1 { if ($0 == "---") fm = 1; next }
@@ -67,7 +67,8 @@ while IFS= read -r -d '' idx; do   # a card is <board>/<lane>/<card>/index.md; t
   [ -n "$idx" ] || continue
   rel=${idx#"$board"}; rel=${rel#/}; rel=${rel#/}; rel=${rel%/index.md}
   case "$rel" in */*/*) continue ;; */*) ;; *) continue ;; esac
-  card=$(dirname -- "$idx"); has_waiting "$idx" && continue
+  card=${idx%/index.md};   # no $(dirname): it would strip a trailing newline from the name
+  has_waiting "$idx" && continue
   rows=""
   for c in "$card"/comments/*/index.md; do
     [ -f "$c" ] && [ -r "$c" ] || continue   # an unreadable one: the helper already printed its could-not-read line
@@ -87,7 +88,7 @@ while IFS= read -r -d '' idx; do   # a card is <board>/<lane>/<card>/index.md; t
   [ -n "$res" ] || continue
   IFS=$'\t' read -r verdict ask clear <<<"$res"   # tab-separated: an id may hold a space
   [ -z "$since" ] || [ ! "$clear" \< "$since" ] || continue
-  echo "$verdict $(basename -- "$card") $ask"
+  echo "$verdict ${card##*/} $ask"
   case "$res" in QUOTED*) quoted=$((quoted + 1)) ;; *) noquote=$((noquote + 1)) ;; esac
 done < <(sort -z "$LIST")
 [ $((quoted + noquote)) -eq 0 ] || echo "QUOTED $quoted, NO-QUOTE $noquote"
