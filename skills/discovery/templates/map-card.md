@@ -1,7 +1,7 @@
 ---
 schema: 1
 kind: card
-title: "Discovery map"
+title: "Every decision, by corner"
 cite-as: Map
 order: 2048
 icon: {glyph: point.3.connected.trianglepath.dotted}

@@ -2187,13 +2187,15 @@ mv "$(ls -d "$CB"/*/"$BQ3")" "$CB/.trash/$BL/"
 BO4=$(cq "$CB" four); [ "$(cite_of_card "$CB" "$(cc "$BO4")")" = Q4 ] || { echo "a card in a trashed lane was reissued:"; echo "$BO4"; exit 1; }
 BL2=$(uuidgen | tr A-Z a-z); ASKED=$(dirname "$(ls -d "$CB"/*/"$BQ1")"); mkdir -p "$ASKED/$BL2"
 printf -- '---\nschema: 1\nkind: card\ntitle: "Q7: old"\norder: 9000\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nlegacy\n' > "$ASKED/$BL2/index.md"
+BL3=$(uuidgen | tr A-Z a-z); mkdir -p "$ASKED/$BL3"   # a title with no cite-as whose Q40: does not open it: must not count
+printf -- '---\nschema: 1\nkind: card\ntitle: "See Q40: not a prefix"\norder: 9100\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nnot a legacy prefix\n' > "$ASKED/$BL3/index.md"
 BO8=$(cq "$CB" eight); [ "$(cite_of_card "$CB" "$(cc "$BO8")")" = Q8 ] || { echo "a legacy Q7: title did not count:"; echo "$BO8"; exit 1; }
 ( . "$SK/lanework/scripts/lib.sh"
   [ "$(next_cite "$CB" Q)" = Q9 ] && [ "$(next_cite "$CB" ADR)" = ADR1 ] && [ "$(next_cite "$CB" T)" = T1 ] || { echo "next_cite: Q=$(next_cite "$CB" Q) ADR=$(next_cite "$CB" ADR) T=$(next_cite "$CB" T)"; exit 1; }
   [ "$(cite_of "$ASKED/$BL2/index.md")" = "" ] && [ "$(card_ref "$ASKED/$BL2/index.md")" = "Q7: old" ] && [ "$(cite_of "$(ls "$CB"/*/"$BQ1"/index.md)")" = Q1 ] && [ "$(card_ref "$(ls "$CB"/*/"$BQ1"/index.md)")" = Q1 ] \
     || { echo "cite_of/card_ref wrong"; exit 1; }
   printf -- '---\nschema: 1\nkind: card\ntitle: "A [x] \\\\ b"\n---\n' > "$T/ref.md"; [ "$(card_ref "$T/ref.md")" = 'A \[x\] \\ b' ] || { echo "card_ref did not escape: $(card_ref "$T/ref.md")"; exit 1; } )
-validate "$CB" >/dev/null; ok "cite trash and legacy scan: a flat-trashed Q2 and a Q3 in a trashed lane are not reissued, a legacy Q7: title makes the next Q8; next_cite counts per prefix, cite_of and card_ref read the key, else the escaped title"
+validate "$CB" >/dev/null; ok "cite trash and legacy scan: a flat-trashed Q2 and a Q3 in a trashed lane are not reissued, a legacy Q7: title makes the next Q8 while "See Q40: ..." is not counted; next_cite counts per prefix, cite_of and card_ref read the key, else the escaped title"
 # cite-as: a board on an older guide, or with no readable stamp, is filed as before
 printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Sync is free.\n' > "$T/cr.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
 cc() { head -1 <<<"$1" | sed 's#.*/##'; }
@@ -2261,6 +2263,42 @@ cardwith "$CZ" "$ZL/$(uuidgen | tr A-Z a-z)" "Q08" Q08; cardwith "$CZ" "$ZL/$(uu
   [ "$got" = "ADR=ADR11 Q=Q10 T=T1 F=F1 PDR=PDR5" ] || { echo "next_cite miscounted: $got"; exit 1; } )
 ZO=$("$SK/discovery/scripts/file-question.sh" "$CZ" "after padding" --round 1 --body "$T/cq.md" --model smoke 2>&1); grep -qx 'cite Q10' <<<"$ZO" || { echo "file-question.sh on a padded board:"; echo "$ZO"; exit 1; }
 validate "$CZ" >/dev/null; ok "cite padded and prefix: ADR9 beside ADR010 mints ADR11, Q08 and a Q09: title mint Q10, and a prefix ignores the numbers of Topic, FR12, DQ50, XADR40 and the other prefixes; file-question.sh files Q10 on that board"
+
+# cite-as leftovers: stamp_cite checks it stamped; the older-board path reads a padded number as decimal; next_cite ignores case and a trailing comment
+( . "$SK/lanework/scripts/lib.sh"
+  printf -- 'cite-as: CITEPENDING\ntitle: "x"\n' > "$T/sc-ok.md"; printf -- 'title: "x"\n' > "$T/sc-none.md"
+  rc=0; out=$(stamp_cite "$T/sc-ok.md" "$CZ" Q 2>/dev/null) || rc=$?
+  [ "$rc" -eq 0 ] && [ "$out" = Q11 ] && grep -qx "cite-as: Q11" "$T/sc-ok.md" || { echo "stamp_cite on a staged file: rc=$rc out=$out"; exit 1; }
+  rc=0; out=$(stamp_cite "$T/sc-none.md" "$CZ" Q 2>/dev/null) || rc=$?
+  [ "$rc" -ne 0 ] && [ -z "$out" ] || { echo "stamp_cite on a file without the placeholder: rc=$rc out=$out"; exit 1; }
+  printf -- 'cite-as: CITEPENDING\ntitle: "x"\n' > "$T/sc-ok2.md"
+  rc=0; out=$(stamp_cite "$T/sc-ok2.md" "$CZ" "" 2>/dev/null) || rc=$?
+  [ "$rc" -ne 0 ] && [ -z "$out" ] || { echo "stamp_cite with an empty prefix: rc=$rc out=$out"; exit 1; } )
+ok "stamp_cite fails with no output on a file without the placeholder and on an empty prefix, and stamps a file that has it"
+cardw() {  # cardw <lane card path> <title> [cite-as]: a hand-written card
+  mkdir -p "$1"; { printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\n' "$2"; [ -z "${3:-}" ] || printf 'cite-as: %s\n' "$3"
+    printf 'order: 9000\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nx\n'; } > "$1/index.md"; }
+firstlane() { ls -d "$1"/*/ | sed -n 1p | sed 's#/$##'; }
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
+for pair in "9|Q9: nine|Q010: padded|Q11" "8|Q08: padded||Q9"; do
+  IFS='|' read -r tag t1 t2 want <<<"$pair"
+  PQ="$T/Pad$tag Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$PQ" --model smoke >/dev/null; mkguide "$PQ" 114
+  PT="$T/Pad$tag Plan.lanework"; "$PS/found-plan-board.sh" "$PT" --model smoke >/dev/null; mkguide "$PT" 114
+  for b in "$PQ" "$PT"; do cardw "$(firstlane "$b")/$(uuidgen | tr A-Z a-z)" "$t1"; [ -z "$t2" ] || cardw "$(firstlane "$b")/$(uuidgen | tr A-Z a-z)" "$t2"; done
+  # tickets are T-numbered
+  for f in "$PT"/*/*/index.md; do sed -i '' 's/^title: "Q/title: "T/' "$f"; done
+  QO=$("$SK/discovery/scripts/file-question.sh" "$PQ" "next" --round 1 --body "$T/cq.md" --model smoke 2>&1) || { echo "file-question.sh failed on an older board holding $t1 $t2: $QO"; exit 1; }
+  TO=$("$PS/file-ticket.sh" "$PT" "next" --type grilling --body "$T/ct.md" --model smoke 2>&1) || { echo "file-ticket.sh failed on an older board holding $t1 $t2: $TO"; exit 1; }
+  grep -qx "title: \"Q${want#Q}: next\"" "$PQ"/*/"$(cc "$QO")"/index.md && grep -qx "title: \"T${want#Q}: next\"" "$PT"/*/"$(cc "$TO")"/index.md \
+    || { echo "older board holding $t1 $t2 did not file number ${want#Q}:"; echo "$QO"; echo "$TO"; exit 1; }
+done
+ok "cite older-board padding: Q9 and Q010 on a v114 board file Q11 (not a second Q9), a Q08 files Q9, and tickets the same with T"
+NQ="$T/Case Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$NQ" --model smoke >/dev/null; mkguide "$NQ" 117
+NC="$T/Comment Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$NC" --model smoke >/dev/null; mkguide "$NC" 117
+cardw "$(firstlane "$NQ")/$(uuidgen | tr A-Z a-z)" "lower" q7; cardw "$(firstlane "$NC")/$(uuidgen | tr A-Z a-z)" "commented" "Q15 # x"
+( . "$SK/lanework/scripts/lib.sh"
+  [ "$(next_cite "$NQ" Q)" = Q8 ] && [ "$(next_cite "$NC" Q)" = Q16 ] || { echo "next_cite: lower-case q7 gives $(next_cite "$NQ" Q), 'Q15 # x' gives $(next_cite "$NC" Q)"; exit 1; } )
+ok "next_cite counts a hand-typed cite-as: q7 and a cite-as: Q15 # x with its trailing comment"
 
 # lanework: lease.sh. A copy of the pipeline board with the borrowed .schema; fake session ids; stand-in CLAUDE_PIDs (sleeps this
 # smoke starts and kills); per-session memory under a TMPDIR of its own, never the real one; the test knobs keep it to seconds.

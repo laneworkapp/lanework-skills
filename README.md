@@ -31,8 +31,8 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `lanework` | 10 | 382 | 5,215 |
 | `work` | 16 | 454 | 7,969 |
 | `watch` | 4 | 182 | 2,083 |
-| `discovery` | 14 | 510 | 2,988 |
-| `plan` | 9 | 467 | 2,843 |
+| `discovery` | 14 | 510 | 3,004 |
+| `plan` | 9 | 467 | 2,855 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
 
@@ -91,20 +91,20 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work` and `plan` on 2
 | file | words |
 |---|---|
 | `SKILL.md` | 510 |
-| `references/board.md` | 350 |
+| `references/board.md` | 353 |
 | `references/conduct.md` | 157 |
 | `references/corners.md` | 171 |
 | `references/records.md` | 573 |
 | `references/rounds.md` | 363 |
 | `templates/fact-card.md` | 49 |
 | `templates/glossary.md` | 46 |
-| `templates/lanes.md` | 368 |
-| `templates/map-card.md` | 94 |
+| `templates/lanes.md` | 379 |
+| `templates/map-card.md` | 96 |
 | `templates/question-card.md` | 66 |
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 84 |
 | `templates/topic-card.md` | 66 |
-| **total** | **2,988** |
+| **total** | **3,004** |
 
 #### `plan`
 
@@ -115,11 +115,11 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work` and `plan` on 2
 | `references/map.md` | 316 |
 | `references/sessions.md` | 427 |
 | `references/tickets.md` | 593 |
-| `templates/lanes.md` | 402 |
+| `templates/lanes.md` | 414 |
 | `templates/map-card.md` | 101 |
 | `templates/resolution.md` | 144 |
 | `templates/ticket-card.md` | 49 |
-| **total** | **2,843** |
+| **total** | **2,855** |
 
 #### `merge`
 

@@ -76,7 +76,7 @@ C="$STAGE/$CARD_ID"; mkdir -p "$C/comments/$FOUND_ID" "$C/comments/$ASK_ID"
 if cite_enabled "$BOARD"; then   # the citation is scanned later (stamp_cite), just before the card is written
   CITE=CITEPENDING; CARD_TITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/question-card.md" > "$STAGE/fm.md"
 else
-  CITE="Q$((MAXQ + 1))"; CARD_TITLE="$CITE: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/question-card.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
+  CITE="Q$((10#$MAXQ + 1))"; CARD_TITLE="$CITE: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/question-card.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
 fi
 printf '%s\n' "$WHY" | comment_file "$C/comments/$FOUND_ID/index.md" "$(now_utc 1)" "$BY"
 { if [ -n "$ASK_FILE" ]; then cat "$ASK_FILE"; else build_ask; fi; } |
