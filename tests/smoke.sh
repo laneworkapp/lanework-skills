@@ -3006,6 +3006,21 @@ else
 fi
 ram_off
 
+# 11e. lease leftovers: odd session ids refused, the release pointer, the sweep of a dead write's temp file
+C11e=$(lcard "Eleven e"); F11e=$(lcf "$C11e")
+for sid in 'S,x' 'S}x' 'S\x'; do
+  RC=0; L "$sid" stake "$LB" "$C11e" --model smoke >/dev/null 2>"$T/l11e.err" || RC=$?
+  [ $RC = 2 ] && grep -qF "$sid" "$T/l11e.err" && ! grep -q '^claimed:' "$F11e" || { echo "11e: stake as '$sid': rc $RC, $(cat "$T/l11e.err")"; exit 1; }
+done
+L S-own stake "$LB" "$C11e" --model smoke >/dev/null; RC=0; L S-other release "$LB" "$C11e" --model smoke >/dev/null 2>"$T/l11e.err" || RC=$?
+[ $RC = 1 ] && grep -qF 'lease.sh list' "$T/l11e.err" || { echo "11e: another session's release: rc $RC, $(cat "$T/l11e.err")"; exit 1; }
+( : ) & DP=$!; wait "$DP"; sleep 600 </dev/null >/dev/null 2>&1 & LV=$!; LSP+=("$LV")
+DW="$LB/.lease-write.$C11e.$DP.lanework-tmp"; LW="$LB/.lease-write.$C11e.$LV.lanework-tmp"; : > "$DW"; : > "$LW"
+L S-own renew "$LB" "$C11e" --model smoke >/dev/null
+[ ! -e "$DW" ] && [ -e "$LW" ] || { echo "11e: sweep: dead file present=$([ -e "$DW" ] && echo y || echo n), live file present=$([ -e "$LW" ] && echo y || echo n)"; exit 1; }
+rm -f "$LW"; L S-own release "$LB" "$C11e" --model smoke >/dev/null; kill "$LV" 2>/dev/null || true
+ok "lease: a session id with a comma, closing brace or backslash is refused (exit 2) with no claim written; another session's release names lease.sh list; a write sweeps the temp file of a dead pid and leaves a live one"
+
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
 C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
