@@ -2541,13 +2541,14 @@ rm -f "$G/work/.git/hooks/pre-commit"; chmod -R u+w "$G/tmp4"
 [ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h7" ] && ! grep -q interrupted <<<"$O" && grep -q 'git push output unavailable' <<<"$O" && [ ! -e "$LK" ] \
   || { echo "commit-board: an unwritable push.err (rc $rc): $O"; g log --oneline -2; exit 1; }
 ok "commit-board.sh: push.err unwritable: a failed push (git push output unavailable), the commit taken back, HEAD as before, no interrupted line, the lock gone"
-# the saved-file sweep: a dead pid's saved file two days old goes, one an hour old stays
+# the saved-file sweep: a dead pid's saved file from 2020 goes; one an hour old, and a live pid's from 2020, stay
 sh -c 'exit 0' & DPID=$!; wait "$DPID"; SO="$G/work/.git/lanework-commit-board.saved.$DPID.oldold"; SN="$G/work/.git/lanework-commit-board.saved.$DPID.newnew"
-: > "$SO"; : > "$SN"; touch -t "$(date -v-2d +%Y%m%d%H%M.%S)" "$SO"; touch -t "$(date -v-1H +%Y%m%d%H%M.%S)" "$SN"
-echo r8 > "$G/work/$CP"; cb "B: swept" "$CP" >/dev/null || { echo "commit-board: the sweep run failed"; exit 1; }
-[ ! -e "$SO" ] && [ -e "$SN" ] || { echo "commit-board: the saved-file sweep: want only the old one gone"; ls "$G/work/.git"; exit 1; }
-rm -f "$SN"
-ok "commit-board.sh sweeps a dead pid's saved file over a day old and keeps one an hour old"
+sleep 60 & LPID=$!; SL="$G/work/.git/lanework-commit-board.saved.$LPID.livold"
+: > "$SO"; : > "$SN"; : > "$SL"; touch -t 202001010000 "$SO" "$SL"; touch -t "$(date -v-1H +%Y%m%d%H%M.%S)" "$SN"
+echo r8 > "$G/work/$CP"; rc=0; cb "B: swept" "$CP" >/dev/null || rc=$?; kill "$LPID"; wait "$LPID" 2>/dev/null || true
+[ "$rc" -eq 0 ] && [ ! -e "$SO" ] && [ -e "$SN" ] && [ -e "$SL" ] || { echo "commit-board: the saved-file sweep (rc $rc): want only the dead pid's old one gone"; ls "$G/work/.git"; exit 1; }
+rm -f "$SN" "$SL"
+ok "commit-board.sh sweeps a dead pid's saved file over a day old and keeps one an hour old and a live pid's old one"
 # the closing line after an owner's reset during a good push names the run's commit, not the owner's
 echo r9 > "$G/work/$CP"; g push -q origin main 2>/dev/null
 printf '#!/bin/bash\nunset GIT_DIR GIT_INDEX_FILE; git -C "%s/work" update-ref refs/heads/main HEAD^; rm -f "$0"; exit 0\n' "$G" > "$PP"; chmod +x "$PP"
@@ -2565,6 +2566,68 @@ kill -TERM "$KP"; sleep 0.3; touch "$G/go7"; rc=0; wait "$KP" || rc=$?; g config
 [ "$rc" -eq 143 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse other)" = "$(g rev-parse HEAD)" ] && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed, not confirmed pushed (origin/main does not hold it)" "$G/term.out" \
   && ! grep -q 'not pushed' "$G/term.out" || { echo "commit-board: SIGTERM during a push mapped to another branch (rc $rc):"; cat "$G/term.out"; exit 1; }
 ok "commit-board.sh: SIGTERM during a push mapped to another branch: exit 143, it says not confirmed pushed, never not pushed"
+# the owner's staged entries across a push-only first try: HEAD ahead of origin, the card staged at pown with HEAD's p1 on
+# disk; the pre-push hook rejects every push and writes p2 to disk on its first call, so try 2 commits; after 5 the index is pown
+g push -q origin main 2>/dev/null; rm -f "$PP" "$G/rw1"; echo p1 > "$G/work/$CP"; g commit -q -am "B: ahead"; hp=$(g rev-parse HEAD)
+echo pown > "$G/work/$CP"; g add -- "$CP"; echo p1 > "$G/work/$CP"; sv0=$(saved)   # an earlier SIGKILL leg's saved file stays
+printf '#!/bin/bash\n[ -e "%s/rw1" ] || { touch "%s/rw1"; echo p2 > "%s/work/%s"; }; exit 1\n' "$G" "$G" "$G" "$CP" > "$PP"; chmod +x "$PP"
+rc=0; O=$(cb --push "B: push-only first" "$CP" 2>&1) || rc=$?; rm -f "$PP"
+[ "$rc" -eq 1 ] && grep -q "push of ${hp:0:8} rejected (try 1 of 5)" <<<"$O" && grep -q 'push rejected (try 2 of 5)' <<<"$O" && grep -q 'the index restored to what was staged before the run' <<<"$O" \
+  && [ "$(g show ":$CP")" = pown ] && ! g diff --quiet -- "$CP" && [ "$(cat "$G/work/$CP")" = p2 ] && [ "$(g rev-parse HEAD)" = "$hp" ] && [ "$(saved)" = "$sv0" ] \
+  || { echo "commit-board: staged entries across a push-only first try (rc $rc, index $(g show ":$CP")): $O"; g status --short; exit 1; }
+g reset -q -- "$CP"; g checkout -q -- "$CP"; g push -q origin main 2>/dev/null
+ok "commit-board.sh: a push-only first try, then commits on the retries: the owner's staged entry is saved and put back, the message true"
+# the bound's ceiling: above 86400 (alarm sets nothing from 1000000000 up) exits 2, no commit, no lock, the hook never run; 86400 pushes
+printf '#!/bin/bash\ntouch "%s/ranhook"; exit 0\n' "$G" > "$PP"; chmod +x "$PP"; rm -f "$G/ranhook"; echo c1 > "$G/work/$CP"; hc=$(g rev-parse HEAD)
+for v in 86401 100000000 99999999999; do
+  rc=0; O=$(cd "$G/work" && LANEWORK_PUSH_TIMEOUT=$v GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 perl -e 'alarm 30; exec @ARGV' "$CB" --push "B: ceiling $v" "$CP" 2>&1) || rc=$?
+  [ "$rc" -eq 2 ] && grep -q 'a whole number of seconds from 1 to 86400' <<<"$O" && [ "$(g rev-parse HEAD)" = "$hc" ] && [ ! -e "$G/ranhook" ] && [ ! -e "$LK" ] \
+    || { echo "commit-board: LANEWORK_PUSH_TIMEOUT=$v: want exit 2, nothing run (rc $rc): $O"; exit 1; }
+done
+rc=0; O=$(cd "$G/work" && LANEWORK_PUSH_TIMEOUT=86400 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 perl -e 'alarm 30; exec @ARGV' "$CB" --push "B: ceiling 86400" "$CP" 2>&1) || rc=$?; rm -f "$PP"
+[ "$rc" -eq 0 ] && [ -e "$G/ranhook" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] || { echo "commit-board: LANEWORK_PUSH_TIMEOUT=86400 (rc $rc): $O"; exit 1; }
+ok "commit-board.sh: LANEWORK_PUSH_TIMEOUT above 86400 (86401, 100000000, 99999999999) exits 2, nothing committed or run, no lock; 86400 pushes"
+# signals to the push wrapper (the hook's grandparent, found by pid; never a group): TERM, HUP, INT each end the push and the
+# hook's foreground sleep at once, and the retry pushes. Launched with INT at its default (a background job ignores it)
+for sig in TERM HUP INT; do
+  rm -f "$G/fw1" "$G/hookppid" "$G/sleeppid"; echo "f$sig" > "$G/work/$CP"
+  printf '#!/bin/bash\n[ -e "%s/fw1" ] && exit 0; touch "%s/fw1"; echo $PPID > "%s/hookppid"; bash -c '\''echo $$ > "$1"; exec sleep 30'\'' _ "%s/sleeppid"\n' "$G" "$G" "$G" "$G" > "$PP"; chmod +x "$PP"
+  (cd "$G/work" && LANEWORK_PUSH_TIMEOUT=60 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$CB" --push "B: forwarded $sig" "$CP") > "$G/fw.out" 2>&1 & KP=$!
+  perl -e 'alarm 20; exec @ARGV' bash -c "until [ -s '$G/sleeppid' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the forwarded push never reached its sleep"; cat "$G/fw.out"; exit 1; }
+  SP=$(cat "$G/sleeppid"); WP=$(ps -o ppid= -p "$(cat "$G/hookppid")" | tr -d ' ')
+  case "$(ps -o comm= -p "$WP")" in *perl*) ;; *) kill -KILL "$KP" "$SP"; echo "the hook's grandparent $WP is not the perl wrapper"; exit 1 ;; esac
+  t0=$(date +%s); kill -"$sig" "$WP"
+  perl -e 'alarm 30; exec @ARGV' bash -c "while kill -0 $KP 2>/dev/null; do sleep 0.1; done" || true; t1=$(date +%s)
+  if kill -0 "$KP" 2>/dev/null; then kill -KILL "$KP" "$SP" 2>/dev/null; echo "commit-board: $sig to the push wrapper did not end the run"; cat "$G/fw.out"; exit 1; fi
+  rc=0; wait "$KP" || rc=$?
+  if kill -0 "$SP" 2>/dev/null; then kill -KILL "$SP"; echo "commit-board: $sig to the push wrapper left the hook's sleep running"; exit 1; fi
+  [ "$rc" -eq 0 ] && [ $((t1 - t0)) -lt 15 ] && ! grep -q 'timed out' "$G/fw.out" && grep -q 'push rejected (try 1 of 5)' "$G/fw.out" && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] \
+    || { echo "commit-board: $sig to the push wrapper (rc $rc, $((t1 - t0)) s):"; cat "$G/fw.out"; exit 1; }
+done
+rm -f "$PP"
+ok "commit-board.sh: TERM, HUP and INT to the push wrapper end the push and the hook's sleep at once (no timeout), and the retry pushes"
+# a git that itself exits 124 on its first push reads as a rejected push, never a timeout
+WB3="$G/wbin3"; mkdir -p "$WB3"; rm -f "$G/g124"; echo g124 > "$G/work/$CP"
+printf '#!/bin/bash\nif [ "$1" = push ] && [ ! -e "%s/g124" ]; then touch "%s/g124"; exit 124; fi\nexec "%s" "$@"\n' "$G" "$G" "$RG" > "$WB3/git"; chmod +x "$WB3/git"
+rc=0; O=$(cd "$G/work" && PATH="$WB3:$PATH" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$CB" --push "B: git 124" "$CP" 2>&1) || rc=$?
+[ "$rc" -eq 0 ] && [ -e "$G/g124" ] && grep -q 'push rejected (try 1 of 5)' <<<"$O" && ! grep -q 'timed out' <<<"$O" && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] \
+  || { echo "commit-board: a git push exiting 124 (rc $rc): $O"; exit 1; }
+ok "commit-board.sh: a git push that itself exits 124 is a rejected push (retried, pushed), not a timeout"
+# the cleanup's rm is not fatal: a pre-push hook makes the git dir read-only, so the lock and saved file cannot go; exit 0, pushed
+echo ro > "$G/work/$CP"; printf '#!/bin/bash\nchmod a-w "%s/work/.git"\n' "$G" > "$PP"; chmod +x "$PP"
+rc=0; O=$(cb --push "B: read-only git dir" "$CP" 2>&1) || rc=$?
+chmod u+w "$G/work/.git"; rm -f "$PP"; ro=$([ -e "$LK" ] && echo lock; saved); rm -rf "$LK"; rm -f "$G/work/.git"/lanework-commit-board.saved.*
+[ "$rc" -eq 0 ] && [ -n "$ro" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s)" = "B: read-only git dir" ] \
+  || { echo "commit-board: a cleanup rm that fails (rc $rc, left: $ro): $O"; exit 1; }
+ok "commit-board.sh: a cleanup whose rm fails (the git dir read-only) still exits 0 with the commit on origin"
+# no terminal for the push: under a pty (script), a pre-push hook cannot open /dev/tty, and the push lands
+rm -f "$G/ttyres" "$G/ttyrc"; echo tty > "$G/work/$CP"
+printf '#!/bin/bash\nif ( exec 3<>/dev/tty ) 2>/dev/null; then echo tty-open; else echo tty-closed; fi > "%s/ttyres"\n' "$G" > "$PP"; chmod +x "$PP"
+(cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 perl -e 'alarm 60; exec @ARGV' script -q /dev/null bash -c '"$1" --push "B: no tty" "$2"; echo $? > "$3"' _ "$CB" "$CP" "$G/ttyrc") < /dev/null > "$G/tty.out" 2>&1 || true
+rm -f "$PP"
+[ "$(cat "$G/ttyres" 2>/dev/null)" = tty-closed ] && [ "$(cat "$G/ttyrc" 2>/dev/null)" = 0 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s)" = "B: no tty" ] \
+  || { echo "commit-board: the push under a pty (hook: $(cat "$G/ttyres" 2>/dev/null), rc $(cat "$G/ttyrc" 2>/dev/null)):"; cat "$G/tty.out"; exit 1; }
+ok "commit-board.sh: under a pty the push has no terminal (a pre-push hook cannot open /dev/tty), and it lands"
 
 # release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
