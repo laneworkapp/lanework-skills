@@ -1996,6 +1996,15 @@ rm -f "$G/work/.git/hooks/commit-msg" "$G/work/.git/hooks/post-commit"
   && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$o9" ] && [ ! -e "$G/work/.git/lanework-commit-board.lock" ] && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed, not pushed" "$G/term.out" || { echo "commit-board: SIGTERM during a commit-msg hook (rc $rc):"; cat "$G/term.out"; g status --short; exit 1; }
 g push -q origin main 2>/dev/null
 ok "commit-board.sh: SIGTERM during a commit-msg hook waits for the commit, then syncs the index to it and says it is not pushed: exit 143, the lock gone"
+# (3) during a push that succeeds (pre-push paused until go3): the commit is on origin, and the line says pushed, not "not pushed"
+rm -f "$G/inpush3" "$G/go3"; owner_at x
+printf '#!/bin/bash\ntouch "%s/inpush3"; n=0; until [ -e "%s/go3" ] || [ $n -ge 100 ]; do sleep 0.1; n=$((n+1)); done; rm -f "$0"; exit 0\n' "$G" "$G" > "$PP"; chmod +x "$PP"
+(cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: termed in a good push" "$CD") > "$G/term.out" 2>&1 & KP=$!
+perl -e 'alarm 20; exec @ARGV' bash -c "until [ -e '$G/inpush3' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the push never reached its hook"; cat "$G/term.out"; exit 1; }
+kill -TERM "$KP"; sleep 0.3; touch "$G/go3"; rc=0; wait "$KP" || rc=$?
+[ "$rc" -eq 143 ] && [ "$(g log -1 --format=%s)" = "B: termed in a good push" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && g diff --cached --quiet HEAD -- "$CD" \
+  && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed and pushed" "$G/term.out" && ! grep -q 'not pushed' "$G/term.out" || { echo "commit-board: SIGTERM during a good push (rc $rc):"; cat "$G/term.out"; exit 1; }
+ok "commit-board.sh: SIGTERM during a push that succeeds: exit 143, the commit on origin, the index synced, and it says committed and pushed"
 # a failed restore: the saved file gone says NOT restored; an index.lock keeps the saved file and prints how to put it back
 owner_at v; s10=$(snap)
 printf '#!/bin/bash\nrm -f "%s/work/.git"/lanework-commit-board.saved.*; printf "#!/bin/bash\\nexit 1\\n" > "%s/work/.git/hooks/pre-commit"; chmod +x "%s/work/.git/hooks/pre-commit"; rm -f "$0"; exit 1\n' "$G" "$G" "$G" > "$PP"; chmod +x "$PP"

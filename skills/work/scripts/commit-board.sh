@@ -20,10 +20,11 @@
 # first commit to <git dir>/lanework-commit-board.saved.XXXXXX (mktemp, one per run), removed at exit; a run
 # that ends with nothing of its commit on HEAD leaves the index as the owner had it. A failed restore keeps
 # that file and prints how to put it back, unless a later try pushes. The EXIT trap, only while the lock is
-# ours: restores when HEAD is where the commit started (taken back); syncs when our commit is HEAD or under
+# ours: restores when HEAD is where the commit started (taken back; reset there by the owner after a good push, said); syncs when our commit is HEAD or under
 # it, or when HEAD moved off where the commit started before the commit was recorded; any other HEAD (an
 # amend, a reset elsewhere): the index left alone, and it says so. With --push, a run that ends with its
-# commit landed but not pushed (a signal) says `interrupted: <sha> committed, not pushed`.
+# commit landed but the run not finished (a signal) says `interrupted: <sha> committed, not pushed`, or
+# `committed and pushed` when origin/<branch> (the tracking ref, which a push updates) already holds it.
 # A commit that fails (a hook) leaves the index alone.
 # SIGTERM, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep; a hung
 # push holds them), then exit 143, 129 through the EXIT trap, so no git child outlives the cleanup. SIGINT the
@@ -91,17 +92,22 @@ release() {
   if [ "${#ADD[@]}" -gt 0 ] && own; then
     local h c=""; h=$(git rev-parse HEAD 2>/dev/null || true)
     if [ -n "$LANDED" ] && [ -n "$NEW" ]; then
-      if [ "$h" = "$PRE" ]; then restore || true
+      if [ "$h" = "$PRE" ]; then
+        if restore && [ -n "$OK" ]; then echo "commit-board.sh: HEAD reset to ${PRE:0:8} during the run, after ${NEW:0:8} was pushed; the index restored to what was staged before the run" >&2; fi
       elif git merge-base --is-ancestor "$NEW" HEAD 2>/dev/null; then git reset -q -- "${ADD[@]}" || true; c=$NEW
       else echo "commit-board.sh: HEAD moved to ${h:0:8} during the run, off ${NEW:0:8}; the index left as it is" >&2; fi
     elif [ -n "$PRE" ] && [ "$h" != "$PRE" ]; then git reset -q -- "${ADD[@]}" || true; c=$h; fi
-    [ -z "$PUSH" ] || [ -n "$OK" ] || [ -z "$c" ] || echo "commit-board.sh: interrupted: ${c:0:8} committed, not pushed" >&2
+    if [ -n "$PUSH" ] && [ -z "$OK" ] && [ -n "$c" ]; then   # UP is set before the trap; a missing ref reads as not pushed
+      if git merge-base --is-ancestor "$c" "$UP" 2>/dev/null; then echo "commit-board.sh: interrupted: ${c:0:8} committed and pushed" >&2
+      else echo "commit-board.sh: interrupted: ${c:0:8} committed, not pushed" >&2; fi
+    fi
   fi
   if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"; [ -n "$KEEP" ] || [ -z "$SAVED" ] || rm -f "$SAVED"
 }
 trap release EXIT
 trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP   # bash runs these once the foreground git returns; an INT to the pid alone while a child runs is dropped by bash
-SAVED=$(mktemp "$(git rev-parse --absolute-git-dir)/lanework-commit-board.saved.XXXXXX")   # per work tree, as the index is; never another run's
+GD=$(git rev-parse --absolute-git-dir)
+SAVED=$(mktemp "$GD/lanework-commit-board.saved.XXXXXX" 2>/dev/null) || { SAVED=""; echo "commit-board.sh: cannot create a save file in $GD; nothing committed" >&2; exit 1; }   # per work tree, as the index is; never another run's
 reclaim() {   # reclaim <dead pid>: move the lock aside, keep it gone only if it was that pid's; a live one goes back
   local aside="$LOCK.stale.$$"
   mvdir "$LOCK" "$aside" || return 0
