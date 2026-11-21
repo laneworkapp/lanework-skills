@@ -4,7 +4,7 @@ kind: card
 title: "commit-board.sh: a --push retry that does not push, a push that can hang, and five smaller leftovers"
 order: 4096
 created:  {at: 2026-11-21T01:04:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T01:04:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T13:15:44Z}
 ---
 ## Problem
 

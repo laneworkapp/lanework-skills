@@ -4,7 +4,7 @@ kind: card
 title: "settle-question.sh: misleading refusal text and four small leftovers"
 order: 3072
 created:  {at: 2026-11-21T00:23:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T00:23:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T13:15:44Z}
 ---
 ## Problem
 

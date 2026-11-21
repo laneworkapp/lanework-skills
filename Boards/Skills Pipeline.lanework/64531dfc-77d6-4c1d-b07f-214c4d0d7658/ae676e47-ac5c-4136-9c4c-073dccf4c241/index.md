@@ -4,7 +4,7 @@ kind: card
 title: "lease.sh leftovers: odd session ids, release wording, stray temp file"
 order: 5120
 created:  {at: 2026-11-21T01:36:03Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T01:36:03Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T13:15:44Z}
 ---
 ## Problem
 
