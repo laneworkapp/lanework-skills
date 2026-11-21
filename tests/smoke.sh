@@ -455,7 +455,7 @@ grep 'owner answer' "$SK/discovery/references/rounds.md" | grep -q 'Recap' || { 
 ok "rounds.md says a Recap: click is not an owner answer"
 # a Recap: click is not an owner answer: refused with no --record, an answer before or after it still counts (own board, own questions)
 R="$T/Recap Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$R" --model smoke >/dev/null
-rq() { "$SK/discovery/scripts/file-question.sh" "$R" "$1" --round 1 --body "$T/q1.md" --model smoke 2>&1 | head -1 | sed 's#.*/##'; }
+rq() { local o; o=$("$SK/discovery/scripts/file-question.sh" "$R" "$1" --round 1 --body "$T/q1.md" --model smoke 2>&1) || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
 rcard() { ls -d "$R"/*/"$1"; }
 RA=$(rq "Click only"); RB=$(rq "Click then answer"); RC_=$(rq "Click then record"); RD=$(rq "Recapitulate")
 owner_comment "$(rcard "$RA")" "Recap: Explain this in plain terms first"
