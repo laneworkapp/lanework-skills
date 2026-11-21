@@ -24,7 +24,7 @@ MODEL=""; NAME="claude"; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)    NAME="${2-}"; shift 2 ;;
     --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
     *) echo "claim-ticket.sh: unknown argument: $1" >&2; exit 2 ;;
   esac

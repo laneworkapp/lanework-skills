@@ -26,7 +26,7 @@ while [ $# -gt 0 ]; do
     --depends) DEPENDS+=("${2:?--depends needs a link}"); shift 2 ;;
     --why)     WHY="${2:?--why needs text}"; shift 2 ;;
     --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)    NAME="${2-}"; shift 2 ;;
     --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
     *) echo "file-ticket.sh: unknown argument: $1" >&2; exit 1 ;;
   esac

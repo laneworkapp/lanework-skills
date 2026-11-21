@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do
     --from)    FROM="${2:?--from needs a lane title}"; shift 2 ;;
     --supersedes) SUPERSEDES+=("${2:?--supersedes needs a record card uuid}"); shift 2 ;;
     --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)    NAME="${2-}"; shift 2 ;;
     --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
     *) echo "file-record.sh: unknown argument: $1" >&2; exit 1 ;;
   esac

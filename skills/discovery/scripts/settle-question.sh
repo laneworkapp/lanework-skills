@@ -24,7 +24,7 @@ while [ $# -gt 0 ]; do
     --ruling)  RULING="${2:?}"; shift 2 ;;
     --record)  RECORD="${2:?}"; shift 2 ;;
     --model)   MODEL="${2:?}"; shift 2 ;;
-    --name)    NAME="${2:?}"; shift 2 ;;
+    --name)    NAME="${2-}"; shift 2 ;;
     --session) SESSION="${2:?}"; shift 2 ;;
     *) echo "settle-question.sh: unknown argument: $1" >&2; exit 2 ;;
   esac

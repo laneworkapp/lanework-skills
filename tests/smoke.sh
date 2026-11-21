@@ -827,8 +827,8 @@ for fl in --name --model; do
   [ $rc -eq 2 ] && [ ! -e "$T/sv-found.lanework" ] || { echo "found-board $fl newline: exit $rc or a folder exists"; exit 1; }; done
 ok "a newline in --name or --model, a tab in --session: exit 2 and nothing written from every stamping script; an empty --name is refused too"
 # existing bare stamps are unchanged: no quotes, no churn
-SVQ2=$(bq "SV bare"); "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ2" --body "$SVBODY" --model claude-fable-5-2 --name claude --session s-1_2 >/dev/null
-grep -q '^modified: {at: [^,]*, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "s-1_2"}}$' "$(ls -t "$(dirname "$(bcard "$SVQ2")")"/comments/*/index.md | head -1)" || { echo "a bare stamp changed"; exit 1; }
+SVQ2=$(bq "SV bare"); "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ2" --body "$SVBODY" --model claude-fable-5-2 --name claude --session s-1_2 --ahead 5 >/dev/null
+grep -q '^modified: {at: [^,]*, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "s-1_2"}}$' "$(dirname "$(bcard "$SVQ2")")"/comments/*/index.md || { echo "a bare stamp changed"; exit 1; }
 ok "a plain --name and --model stay bare in the stamp, byte for byte as before"
 # the merge driver's signer quotes model by the same rule, and drops a control character with a note
 python3 - "$SK/merge/scripts/lanework-merge.py" <<'PY' || { echo "lanework-merge.py signer: model not quoted"; exit 1; }

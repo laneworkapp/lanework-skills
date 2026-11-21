@@ -26,7 +26,7 @@ while [ $# -gt 0 ]; do
     --var)   v="${2:?--var needs key=value}"; VARS+=("${v%%=*}" "${v#*=}"); shift 2 ;;
     --labels) LABELS="$(merge_kinds "$LABELS" "$HAVE_LABELS" "${2?--labels needs a kind list}")"; HAVE_LABELS=1; shift 2 ;;
     --model) MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)  NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)  NAME="${2-}"; shift 2 ;;
     *) echo "found-board.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
