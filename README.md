@@ -191,9 +191,7 @@ The skills are named for what they do. `lanework` is the base, `work` files, swe
 
 ## Credits
 
-The interview protocol in `discovery` (a decision tree, a frontier, and rounds with a recommended answer per question) and its glossary and ADR discipline are adapted from Matt Pocock's `grilling` and `domain-modeling` skills (MIT), reworked to run on a Lanework board.
-
-`plan` is adapted from Matt Pocock's `wayfinder` skill (MIT), narrowed to planning: a destination, decision tickets on a board, and one ticket resolved per session.
+Several of these skills were inspired by [Matt Pocock's skills](https://github.com/mattpocock/skills). The ideas were reworked to run on a Lanework board.
 
 ## License
 
