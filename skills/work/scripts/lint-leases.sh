@@ -59,7 +59,8 @@ done
 S1='
 function emit(   rel, n, p, card, t, s, a, u, k) {
   if (st < 2) return
-  rel = substr(cur, length(board) + 2); n = split(rel, p, "/"); card = show "/" p[1] "/" p[2]
+  rel = substr(cur, length(board) + 2); gsub(/[\t\n]/, " ", rel)   # a newline or tab in a folder name would split split() and the records: it reads as a space
+  n = split(rel, p, "/"); card = show "/" p[1] "/" p[2]
   if (n == 3 && p[3] == "index.md" && kind == "card" && ltext != "") {
     u = ""
     if (match(ltext, /until:[ \t]*["\x27]?[^",}\x27 \t\n]*/)) { u = substr(ltext, RSTART, RLENGTH); sub(/^until:[ \t]*["\x27]?/, "", u) }
@@ -156,13 +157,13 @@ END {
 }'
 
 nowe=$(date -u +%s); unread=0
-i=1; while [ "$i" -le "$nb" ]; do eval "r=\$real_$i"; l=$(board_index_files "$r") || unread=1; eval "files_$i=\$l"; i=$((i + 1)); done
+FD=$(mktemp -d "${TMPDIR:-/tmp}/lw-ll.XXXXXX") || exit 2; trap 'rm -rf "$FD"' EXIT
+i=1; while [ "$i" -le "$nb" ]; do eval "b=\$board_$i"; board_index_files "$b" "$FD/$i" || unread=1; i=$((i + 1)); done
 out=$(
   i=1
   while [ "$i" -le "$nb" ]; do
-    eval "b=\$board_$i; r=\$real_$i; l=\$files_$i"
-    [ -z "$l" ] || printf '%s\n' "$l" | tr '\n' '\0' \
-      | LL_BOARD="$r" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$S1"
+    eval "b=\$board_$i"
+    [ ! -s "$FD/$i" ] || LL_BOARD="$b" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$S1" < "$FD/$i"
     i=$((i + 1))
   done | awk -v since="$since" -v first="$first" -v window="$window" -v grace="$grace" -v now="$nowe" "$S2" | sort
 )

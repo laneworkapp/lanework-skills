@@ -5,7 +5,7 @@
 # so the ask's deliberate one-second offset stays legal) is one line on stdout and exit 1:
 #   <path>: <field> <value> is <n>s ahead
 # Silent exit 0 when clean; exit 2 (message on stderr) on a missing path, a bad flag, no argument or a path it could not read
-# (`lint-stamps.sh: could not read <path>` on stderr, before the findings; what was read still prints). A symlinked board is followed. Only
+# (`lint-stamps.sh: could not read <path>` on stderr, before the findings; what was read still prints). A symlinked board, lane or card is followed, and a name with a newline is read. Only
 # `...Z` stamps are compared, quoted or not, flow or block form, CRLF files included; an offset stamp is
 # skipped. Skips .trash, .log, .schema and attachments. Fix = restamp from the clock.
 set -u
@@ -24,19 +24,21 @@ case "$slack" in ''|*[!0-9]*) echo "lint-stamps.sh: --slack needs whole seconds"
 [ -e "$target" ] || { echo "no such path: $target" >&2; exit 2; }
 limit=$(now_utc "$slack"); nowe=$(date -u +%s); v=0
 unread=0
+LIST=$(mktemp "${TMPDIR:-/tmp}/lw-st.XXXXXX") || exit 2; trap 'rm -f "$LIST"' EXIT
 if [ -d "$target" ]; then
-  list=$(board_index_files "$target") || unread=1
+  board_index_files "$target" "$LIST" || unread=1
 else
-  list=$(printf '%s\n' "$target" | unreadable_files) || unread=1
+  one=$(printf '%s\n' "$target" | unreadable_files) || unread=1   # a named file: one path, taken as a line
+  [ -z "$one" ] || printf '%s\0' "$one" > "$LIST"
 fi
-files() { [ -z "$list" ] || printf '%s\n' "$list"; }
 epoch() { date -j -u -f %Y-%m-%dT%H:%M:%SZ "$1" +%s 2>/dev/null; }
-while IFS=$'\t' read -r f field val; do
+while IFS=$'\t' read -r -d $'\001' f field val; do
   [ -n "$f" ] || continue
   e=$(epoch "$val") || e=$nowe
   echo "$f: $field $val is $((e - nowe))s ahead"; v=1
-done < <(files | while IFS= read -r f; do
-  awk -v f="$f" -v limit="$limit" '
+done < <(while IFS= read -r -d '' f; do
+  rf=$f; [ "${f#-}" = "$f" ] || rf=./$f   # a path that starts with - is no awk option
+  LW_F="$f" awk -v limit="$limit" '   # the path rides in the environment: awk -v rejects a newline in it
     # top(line, name): the text after `name:` when it is a key of the outermost flow mapping (after the
     # opening brace or a comma at depth 1, outside quotes), else "". Quoted contents are never a key.
     function top(l, name,   i, c, d, qt, ks, n, k) {
@@ -52,6 +54,7 @@ done < <(files | while IFS= read -r f; do
       }
       return ""
     }
+    BEGIN { f = ENVIRON["LW_F"] }
     { sub(/\r$/, "") }
     NR == 1 && $0 != "---" { exit }
     NR > 1 && $0 == "---" { exit }
@@ -62,9 +65,9 @@ done < <(files | while IFS= read -r f; do
       else if ($0 ~ ("^[ \t]+" name ":")) { v = $0; sub(/^[ \t]+[a-z]+:/, "", v) }
       if (v != "") {
         sub(/^[ \t]*["\x27]?/, "", v)
-        if (match(v, "^" st)) { t = substr(v, 1, RLENGTH); if (t > limit) printf "%s\t%s\t%s\n", f, (key == "waiting" ? "waiting.since" : key ".at"), t }
+        if (match(v, "^" st)) { t = substr(v, 1, RLENGTH); if (t > limit) printf "%s\t%s\t%s\001", f, (key == "waiting" ? "waiting.since" : key ".at"), t }
       }
-    }' "$f"
-done)
+    }' "$rf"
+done < "$LIST")
 [ "$unread" -eq 0 ] || exit 2
 exit $v
