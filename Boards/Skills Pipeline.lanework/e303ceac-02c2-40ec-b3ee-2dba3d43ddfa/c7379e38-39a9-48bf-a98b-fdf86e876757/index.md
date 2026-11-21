@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "settle-question.sh: misleading refusal text and four small leftovers"
-order: 6144
+order: 90112
 labels: [{text: "discovery", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T00:23:55Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T13:22:21Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T15:43:37Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 `settle-question.sh` refuses with a message that names the real cause and the ask it checked, and drops four small leftovers around it (a vague rule in `rounds.md`, a smoke line that cannot fail, a needless attachment copy, a wrong word).
 

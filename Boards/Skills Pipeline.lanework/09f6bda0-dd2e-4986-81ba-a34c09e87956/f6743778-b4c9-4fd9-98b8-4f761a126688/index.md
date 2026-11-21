@@ -2,7 +2,7 @@
 schema: 1
 kind: card
 title: "A brace, quote or backslash in a stamp value can still write invalid front matter"
-order: 7168
+order: 8192
 labels:
   - {text: "lanework", kind: {type: "skill", text: "Skill"}}
   - {text: "work", kind: {type: "skill", text: "Skill"}}
@@ -10,7 +10,7 @@ labels:
   - {text: "plan", kind: {type: "skill", text: "Skill"}}
   - {text: "merge", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-20T23:06:30Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T13:27:40Z}
+modified: {at: 2026-11-21T15:44:35Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Every script that stamps a name, model or session writes the same valid stamp for the same arguments, or refuses before writing anything, so no value an agent passes can leave a board with invalid front matter.
 
