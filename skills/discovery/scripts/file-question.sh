@@ -32,6 +32,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model file-question.sh "file-question.sh <board> <title> --round N --body F --model m [...]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -n "$ROUND" ] || { echo "file-question.sh: --round is required" >&2; exit 1; }
 [ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-question.sh: --body must name a readable file" >&2; exit 1; }
 [ -z "$ASK_FILE" ] || [ -r "$ASK_FILE" ] || { echo "file-question.sh: --ask must name a readable file" >&2; exit 1; }

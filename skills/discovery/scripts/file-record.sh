@@ -33,6 +33,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model file-record.sh "file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F --model m [...]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 case "$KIND" in ADR) RANK=1 ;; PDR) RANK=2 ;; *) echo "file-record.sh: --record is ADR or PDR" >&2; exit 1 ;; esac
 [ -n "$TITLE" ] || { echo "file-record.sh: --title is required" >&2; exit 1; }
 [ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-record.sh: --body must name a readable file" >&2; exit 1; }

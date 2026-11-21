@@ -643,9 +643,15 @@ def merge_bytes(repo, c, b, o, t):
 # ---------------------------------------------------------------- merge comments
 
 def signer(model):
+    """The merge comment's `by`. `model` is quoted by the rule of lib.sh yaml_scalar and heal-descriptors.py scalar().
+    A control character cannot be carried by any quoting: the model is dropped with a note (the driver never aborts a merge)."""
     model = model or os.environ.get('LANEWORK_MERGE_MODEL')
+    if model and re.search(r'[\x00-\x1f\x7f]', model):
+        sys.stderr.write('lanework-merge: control character in the model; signing without one\n')
+        model = None
     if model:
-        return '{name: claude, kind: agent, model: %s, session: "merge"}' % model
+        q = model if re.fullmatch(r'[A-Za-z0-9._-]+', model) else '"' + model.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        return '{name: claude, kind: agent, model: %s, session: "merge"}' % q
     return '{name: merge, kind: agent, session: "merge"}'
 
 

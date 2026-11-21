@@ -32,6 +32,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model file-ticket.sh "file-ticket.sh <board> <title> --type grilling|research|prototype|task --body F --model m [...]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 case "$TYPE" in
   grilling)  LABEL=Grilling;  RANK=1; GLYPH=bubble.left.and.bubble.right ;;
   research)  LABEL=Research;  RANK=2; GLYPH=magnifyingglass ;;

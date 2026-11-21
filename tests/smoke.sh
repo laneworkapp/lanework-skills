@@ -758,28 +758,91 @@ ok "claim-ticket.sh claims a ticket whose labels line and body hold a triple bra
 cp "$(bpcard "$BTK")" "$T/brace.before"; printf 'Done, `{"a": {"b": {"c": 1}}}`.\n' > "$T/bres.md"
 PE "$PS/resolve-ticket.sh" "$BPL" "$BTK" --resolution "$T/bres.md" --model smoke >/dev/null; bholds "$T/brace.before" "$(bpcard "$BTK")" && validate "$BPL" >/dev/null || { echo "resolve-ticket.sh refused or changed a card with }}} outside its stamps"; exit 1; }
 ok "resolve-ticket.sh resolves a ticket whose labels line and body hold a triple brace: labels and old body byte for byte, board validates"
-# a --model value with a triple brace lands on the modified line the script writes: refused, exit 1, nothing written
-BADM='x}}}'
-brefused() { local n=$1 b=$2; shift 2; local s rc=0; s=$(bsnap "$b"); "$@" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] && [ "$s" = "$(bsnap "$b")" ] || { echo "$n: rc=$rc or the board changed"; exit 1; }; }
-BQ2=$(bq "Brace refused"); BQ3=$(bq "Brace refused two"); owner_comment "$(dirname "$(bcard "$BQ2")")" 'A.'   # the settle below is refused for the brace, not for waiting
-brefused move-card "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$BQ2" Parked --model "$BADM"
-brefused post-ask "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$BQ2" --body "$T/bask.md" --for anyone --model "$BADM"
-brefused post-comment "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$BQ2" --body "$T/bask.md" --model "$BADM"
-brefused file-card "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "Refused" --body "$T/bask.md" --model "$BADM"
-brefused file-question "$BQ" "$SK/discovery/scripts/file-question.sh" "$BQ" "Refused" --round 1 --body "$T/bq.md" --model "$BADM"
-brefused settle-question "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$BQ2" --ruling "$T/bruling.md" --model "$BADM"
-brefused file-record "$BQ" "$SK/discovery/scripts/file-record.sh" "$BQ" "$BQ3" --record ADR --title x --body "$T/badr.md" --model "$BADM"
-brefused file-ticket "$BPL" "$PS/file-ticket.sh" "$BPL" "Refused" --type grilling --body "$T/bt.md" --model "$BADM"
-brefused claim-ticket "$BPL" env CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/claim-ticket.sh" "$BPL" "$BT2" --model "$BADM"
-ok "a --model with a triple brace lands on a stamp line each of these scripts writes: exit 1, nothing written (post-ask.sh, post-comment.sh, file-card.sh and file-question.sh too; resolve-ticket.sh below)"
-BT3=$(bfirst "$PS/file-ticket.sh" "$BPL" "Third" --type grilling --body "$T/bt.md" --model smoke); PE "$PS/claim-ticket.sh" "$BPL" "$BT3" --model smoke >/dev/null
-brefused resolve-ticket "$BPL" env CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/resolve-ticket.sh" "$BPL" "$BT3" --resolution "$T/bres.md" --model "$BADM"
-ok "resolve-ticket.sh with a triple-brace --model: exit 1, nothing written"
-# a single brace in a stamp value (--name n}, --model x} with a session) is refused as well: the stamp line would not parse
-for bv in "--name n}" "--model x} --session s"; do brefused "move-card $bv" "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$BQ2" Parked --model smoke $bv; done
-brefused "post-comment --name n}" "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$BQ2" --body "$T/bask.md" --model smoke --name 'n}'
-ok "a single brace in --name, or in --model beside a --session, is refused (move-card.sh, post-comment.sh): exit 1, nothing written"
-# by_of quotes `session` and nothing else: a brace, even a triple one, inside the quoted session is a valid stamp
+# stamp values: one quoting rule (lanework/scripts/lib.sh by_of). Every script that stamps a name, model or session either exits 0 and the
+# board validates, or exits non-zero and the board is unchanged. brace, quote, backslash, colon-space and hash values all come through quoted
+SV=('{n}' 'a"b' 'a\' 'a\"}}}' 'x: y' '#x')
+svcheck() { local n=$1 b=$2; shift 2; local s rc=0; s=$(bsnap "$b"); "$@" >/dev/null 2>&1 || rc=$?
+  if [ "$rc" -eq 0 ]; then validate "$b" >/dev/null || { echo "$n: exit 0 but the board is invalid"; exit 1; }
+  else [ "$s" = "$(bsnap "$b")" ] || { echo "$n: exit $rc and the board changed"; exit 1; }; fi; }
+svrefused() { local n=$1 want=$2 b=$3; shift 3; local s rc=0; s=$(bsnap "$b"); "$@" >/dev/null 2>&1 || rc=$?
+  { [ "$rc" = "$want" ] || { [ "$want" = any ] && [ "$rc" -ne 0 ]; }; } && [ "$s" = "$(bsnap "$b")" ] || { echo "$n: exit $rc (want $want) or the board changed"; exit 1; }; }
+byof() { grep -m1 '^modified:' "$1" | sed 's/.*by: //'; }
+SBQ="$BQ"; BQ="$T/sv-bq.lanework"; cp -R "$SBQ" "$BQ"   # the boards under test are copies; BQ and BPL point at them until the block ends
+SBPL="$BPL"; BPL="$T/sv-bpl.lanework"; cp -R "$SBPL" "$BPL"
+SVBODY="$T/bask.md"
+for sv in "${SV[@]}"; do for k in name model session; do
+  F=(--model smoke); case $k in model) F=(--model "$sv") ;; name) F+=(--name "$sv") ;; session) F+=(--session "$sv") ;; esac
+  svcheck "file-card $k=$sv" "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "SV card" --body "$SVBODY" "${F[@]}"
+  svcheck "file-question $k=$sv" "$BQ" "$SK/discovery/scripts/file-question.sh" "$BQ" "SV q" --round 1 --body "$T/bq.md" "${F[@]}"
+  SQ=$(bq "SV id $k $sv"); SQF=$(bcard "$SQ")
+  svcheck "post-ask $k=$sv" "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$SQ" --body "$SVBODY" --for anyone "${F[@]}"
+  SQ2=$(bq "SV id2 $k $sv"); owner_comment "$(dirname "$(bcard "$SQ2")")" 'A.'
+  svcheck "settle-question $k=$sv" "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$SQ2" --ruling "$T/bruling.md" "${F[@]}"
+  SQ3=$(bq "SV id3 $k $sv"); owner_comment "$(dirname "$(bcard "$SQ3")")" 'A.'; "$SK/discovery/scripts/settle-question.sh" "$BQ" "$SQ3" --ruling "$T/bruling.md" --model smoke >/dev/null
+  svcheck "file-record $k=$sv" "$BQ" "$SK/discovery/scripts/file-record.sh" "$BQ" "$SQ3" --record ADR --title "SV rec" --body "$T/badr.md" "${F[@]}"
+  svcheck "file-ticket $k=$sv" "$BPL" "$PS/file-ticket.sh" "$BPL" "SV t" --type grilling --body "$T/bt.md" "${F[@]}"
+  ST1=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV claim" --type grilling --body "$T/bt.md" --model smoke)
+  svcheck "claim-ticket $k=$sv" "$BPL" PE "$PS/claim-ticket.sh" "$BPL" "$ST1" "${F[@]}"
+  ST2=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV resolve" --type grilling --body "$T/bt.md" --model smoke); PE "$PS/claim-ticket.sh" "$BPL" "$ST2" --model smoke >/dev/null
+  svcheck "resolve-ticket $k=$sv" "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$ST2" --resolution "$T/bres.md" "${F[@]}"
+  # byte identity: the stamp's by is the same from a comment and from a card restamp
+  SQ4=$(bq "SV same $k $sv"); SQD=$(dirname "$(bcard "$SQ4")"); ls "$SQD"/comments/*/index.md >/dev/null 2>&1 && C0=$(ls "$SQD"/comments/*/index.md) || C0=""
+  rc1=0; "$SK/work/scripts/post-comment.sh" "$BQ" "$SQ4" --body "$SVBODY" "${F[@]}" >/dev/null 2>&1 || rc1=$?
+  CN=$(comm -13 <(printf '%s\n' "$C0" | sort) <({ ls "$SQD"/comments/*/index.md 2>/dev/null || true; } | sort) | head -1); CB=$([ -n "$CN" ] && byof "$CN" || true)   # read before the move: it takes the card folder to another lane
+  rc2=0; "$SK/work/scripts/move-card.sh" "$BQ" "$SQ4" Parked "${F[@]}" >/dev/null 2>&1 || rc2=$?
+  if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
+    [ -n "$CB" ] && [ "$CB" = "$(byof "$(bcard "$SQ4")")" ] || { echo "by differs between post-comment and move-card for $k=$sv: '$CB' vs '$(byof "$(bcard "$SQ4")")'"; exit 1; }
+    validate "$BQ" >/dev/null || { echo "post-comment/move-card $k=$sv: board invalid"; exit 1; }
+  else svcheck "post-comment $k=$sv" "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$SQ4" --body "$SVBODY" "${F[@]}"; fi
+done; done
+ok "file-card, file-question, post-ask, settle-question, file-record, file-ticket, claim-ticket, resolve-ticket, post-comment and move-card, given {n}, a\"b, a\\, a\\\"}}}, 'x: y' and #x as --name, --model and --session: exit 0 and the board validates, or nothing written; the stamp's by is the same from a comment and a card"
+for sv in "${SV[@]}"; do for k in name model; do
+  FBN="$T/sv-found.lanework"; rm -rf "$FBN"; F=(--model smoke); case $k in model) F=(--model "$sv") ;; name) F+=(--name "$sv") ;; esac
+  rc=0; "$FB" "$FBN" "${FA[@]}" "${F[@]}" >/dev/null 2>&1 || rc=$?
+  if [ $rc -eq 0 ]; then cp -R "$VAL" "$FBN/.schema"; validate "$FBN" >/dev/null || { echo "found-board $k=$sv: founded an invalid board"; exit 1; }
+  else [ ! -e "$FBN" ] || { echo "found-board $k=$sv: exit $rc but a folder exists"; exit 1; }; fi
+done; done
+ok "found-board.sh given {n}, a\"b, a\\, a\\\"}}}, 'x: y' and #x as --name or --model: the board validates, or no folder is created"
+# a control character in a stamp value is refused by every script with exit 2 and nothing written (stamp_args_ok); an empty --name too
+NLV=$'a\nb'; TBV=$'a\tb'
+SVQ=$(bq "SV refuse"); owner_comment "$(dirname "$(bcard "$SVQ")")" 'A.'
+SVT=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV refuse t" --type grilling --body "$T/bt.md" --model smoke); SVT2=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV refuse t2" --type grilling --body "$T/bt.md" --model smoke)
+PE "$PS/claim-ticket.sh" "$BPL" "$SVT" --model smoke >/dev/null
+FLS=(--name "$NLV" --model "$NLV" --session "$TBV" --name "")
+for ((i = 0; i < ${#FLS[@]}; i += 2)); do
+  FF=(--model smoke "${FLS[i]}" "${FLS[i+1]}"); [ "${FLS[i]}" = --model ] && FF=(--model "$NLV"); w=2; [ -z "${FLS[i+1]}" ] && w=any; fl="${FLS[i]}#$i"
+  svrefused "file-card $fl" $w "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "R" --body "$SVBODY" "${FF[@]}"
+  svrefused "post-comment $fl" $w "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ" --body "$SVBODY" "${FF[@]}"
+  svrefused "post-ask $fl" $w "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$SVQ" --body "$SVBODY" --for anyone "${FF[@]}"
+  svrefused "move-card $fl" $w "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$SVQ" Parked "${FF[@]}"
+  svrefused "file-question $fl" $w "$BQ" "$SK/discovery/scripts/file-question.sh" "$BQ" "R" --round 1 --body "$T/bq.md" "${FF[@]}"
+  svrefused "settle-question $fl" $w "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$SVQ" --ruling "$T/bruling.md" "${FF[@]}"
+  svrefused "file-record $fl" $w "$BQ" "$SK/discovery/scripts/file-record.sh" "$BQ" "$SQ3" --record ADR --title x --body "$T/badr.md" "${FF[@]}"
+  svrefused "file-ticket $fl" $w "$BPL" "$PS/file-ticket.sh" "$BPL" "R" --type grilling --body "$T/bt.md" "${FF[@]}"
+  svrefused "claim-ticket $fl" $w "$BPL" PE "$PS/claim-ticket.sh" "$BPL" "$SVT2" "${FF[@]}"
+  svrefused "resolve-ticket $fl" $w "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$SVT" --resolution "$T/bres.md" "${FF[@]}"
+done
+for fl in --name --model; do
+  rm -rf "$T/sv-found.lanework"; rc=0; "$FB" "$T/sv-found.lanework" "${FA[@]}" --model smoke "$fl" "$NLV" >/dev/null 2>&1 || rc=$?
+  [ $rc -eq 2 ] && [ ! -e "$T/sv-found.lanework" ] || { echo "found-board $fl newline: exit $rc or a folder exists"; exit 1; }; done
+ok "a newline in --name or --model, a tab in --session: exit 2 and nothing written from every stamping script; an empty --name is refused too"
+# existing bare stamps are unchanged: no quotes, no churn
+SVQ2=$(bq "SV bare"); "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ2" --body "$SVBODY" --model claude-fable-5-2 --name claude --session s-1_2 >/dev/null
+grep -q '^modified: {at: [^,]*, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "s-1_2"}}$' "$(ls -t "$(dirname "$(bcard "$SVQ2")")"/comments/*/index.md | head -1)" || { echo "a bare stamp changed"; exit 1; }
+ok "a plain --name and --model stay bare in the stamp, byte for byte as before"
+# the merge driver's signer quotes model by the same rule, and drops a control character with a note
+python3 - "$SK/merge/scripts/lanework-merge.py" <<'PY' || { echo "lanework-merge.py signer: model not quoted"; exit 1; }
+import importlib.util, sys, yaml; sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("lm", sys.argv[1]); lm = importlib.util.module_from_spec(spec); spec.loader.exec_module(lm)
+for m in ['a: b', '{n}', 'a"b', 'a\\', 'a\\"}}}', '#x', 'plain-1.2']:
+    by = yaml.safe_load("by: " + lm.signer(m))["by"]
+    assert by["model"] == m and by["session"] == "merge" and by["name"] == "claude", (m, by)
+assert lm.signer("plain-1.2") == '{name: claude, kind: agent, model: plain-1.2, session: "merge"}'
+by = yaml.safe_load("by: " + lm.signer("a\nb"))["by"]; assert "model" not in by, by
+PY
+ok "lanework-merge.py signer: model 'a: b', '{n}', a quote, a backslash and '#x' parse back unchanged, a plain model stays bare, a control character is dropped"
+BQ="$SBQ"; BPL="$SBPL"
+# by_of quotes `session` always: a brace, even a triple one, inside the quoted session is a valid stamp
 for sv in 'a{b' 'x}' 'x}}}'; do
   BQS2=$(bq "Brace session $sv"); "$SK/work/scripts/move-card.sh" "$BQ" "$BQS2" Parked --model smoke --session "$sv" >/dev/null || { echo "move-card.sh refused --session $sv"; exit 1; }
   grep -qF "session: \"$sv\"" "$(bcard "$BQS2")" && validate "$BQ" >/dev/null || { echo "move-card.sh --session $sv: stamp or board wrong"; exit 1; }
@@ -2795,6 +2858,16 @@ setclaim "$F5b" S-brace "$(iso $(( $(date -u +%s) - 60 )))"; RC=0; CO=$(L S-brac
 RC=0; L S-brace release "$LB" "$C5b" --model smoke >/dev/null 2>&1 || RC=$?
 [ $RC = 0 ] && ! grep -q '^claimed:' "$F5b" && [ "$B0" = "$(bodyof "$F5b" | shasum)" ] || { echo "}}} in the body: release rc $RC"; cat "$F5b"; exit 1; }
 validate "$LB" >/dev/null; ok "lease: a card with }}} in its body is staked, renewed, checked and released, the body byte for byte"
+# 5b2. stamp values: lease.sh quotes --name and --model by lib.sh by_of; a value it cannot carry is refused with nothing written. A session id with a quote, brace or backslash is refused (the id is also a directory name)
+for sv in '{n}' 'a"b' 'a\' 'a\"}}}' 'x: y' '#x'; do for k in name model session; do
+  C5s=$(lcard "Five s"); F5s=$(lcf "$C5s"); cp "$F5s" "$T/5s.before"; SS=S-sv; F5a=(--model smoke); AA=()
+  case $k in model) F5a=(--model "$sv") ;; name) F5a+=(--name "$sv") ;; session) SS="$sv" ;; esac
+  RC=0; L "$SS" stake "$LB" "$C5s" "${F5a[@]}" >/dev/null 2>&1 || RC=$?
+  if [ $RC -eq 0 ]; then validate "$LB" >/dev/null && [ "$(csess "$F5s")" = "$SS" ] || { echo "lease stake $k=$sv: exit 0, board or claimed wrong"; cat "$F5s"; exit 1; }; L "$SS" release "$LB" "$C5s" "${F5a[@]}" >/dev/null 2>&1 || true
+  else cmp -s "$F5s" "$T/5s.before" || { echo "lease stake $k=$sv: exit $RC and the card changed"; exit 1; }; fi
+done; done
+RC=0; L S-sv stake "$LB" "$(lcard "Five n")" --model smoke --name "$(printf 'a\nb')" >/dev/null 2>&1 || RC=$?; [ $RC = 2 ] || { echo "lease stake with a newline name: exit $RC, want 2"; exit 1; }
+ok "lease: {n}, a\"b, a\, a\\\"}}}, 'x: y' and #x as --name or --model stake a valid card or are refused untouched; as a session id they are refused untouched; a newline name exits 2"
 
 # 5c. a label whose kind carries an icon ends its line in }}}: valid front matter, copied as read. The guard reads only the lines lease.sh writes
 grep -q -F '{type: priority, text: Priority, icon: {glyph: flag}' "$SK/lanework/templates/label-kinds.md" && grep -q -F '{text: Medium, rank: 2}' "$SK/lanework/templates/label-kinds.md" || { echo "label-kinds.md: the iconed priority kind moved"; exit 1; }

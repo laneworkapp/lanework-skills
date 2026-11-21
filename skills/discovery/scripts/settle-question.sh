@@ -30,6 +30,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model settle-question.sh "settle-question.sh <board> <card-uuid> --ruling F --model m [...]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -r "${RULING:-}" ] || { echo "settle-question.sh: --ruling must name a readable file" >&2; exit 2; }
 [ -z "$RECORD" ] || [ -r "$RECORD" ] || { echo "settle-question.sh: --record must name a readable file" >&2; exit 2; }
 if [ -n "$RECORD" ]; then
@@ -59,7 +60,8 @@ if [ "$WAITING" = 1 ] && [ ! -x "$LINT_CLEARS" ]; then echo "settle-question.sh:
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); ORDER=$(next_order "$DEST")
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-settle.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 
-awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" '
+LW_O="order: $ORDER" LW_M="modified: {at: $NOW, by: $BY}" awk '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
+  BEGIN { o = ENVIRON["LW_O"]; m = ENVIRON["LW_M"] }
   /^---[ \t]*$/ { n++ }
   n==1 && drop && /^[ \t]/ { next }          # its block lines, where the compact form opened it out
   { drop = 0 }
