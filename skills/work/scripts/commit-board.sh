@@ -11,38 +11,49 @@
 # the --trailer values (repeatable, in order, one per line) as its last paragraph only when given.
 # --push pushes <branch> to origin; a rejected push un-commits (the branch ref only, files stay on
 # disk) and retries from the fetch, up to 5 tries: safe only because the lock serialises commits. --push pushes the branch, so earlier unpushed commits
-# on it go too. Without --push nothing leaves the machine.
+# on it go too. Without --push nothing leaves the machine. With --push and nothing to commit, but HEAD ahead of
+# origin/<branch> (an earlier run killed or timed out mid-push): pushes HEAD, a rejected push retried the same way
+# (nothing to un-commit), and after 5 tries exit 1 naming the unpushed commit.
+# Push bound: each `git push` runs in its own process group (a perl wrapper), the group killed after
+# LANEWORK_PUSH_TIMEOUT seconds (default 120; with --push, not a whole number above 0: exit 2). A timeout is never retried
+# and never un-commits, as the push may have landed: the commit stays on HEAD, the cleanup runs, exit 1 with
+# `push timed out after N s; <sha> committed, not confirmed pushed; run --push again`.
 # Never stashes (warns if the stash count changed), never `add -A` without paths, never rebases.
 # `git reset -q -- <paths>` right after the commit syncs the real index for the named paths only (anything
 # the owner had staged under them is unstaged, everything else they staged stays staged), so a kill during
 # the push leaves an index matching HEAD. Each un-commit restores instead: the named paths back to HEAD,
 # then the owner's staged entries under them put back (intent-to-add ones too). They are saved before the
-# first commit to <git dir>/lanework-commit-board.saved.XXXXXX (mktemp, one per run), removed at exit; a run
+# first commit to <git dir>/lanework-commit-board.saved.<pid>.XXXXXX (mktemp, one per run), removed at exit (under
+# the lock, each run also removes those of a dead pid over a day old: a kill's file stays a day for the recovery
+# below); a run
 # that ends with nothing of its commit on HEAD leaves the index as the owner had it. A failed restore keeps
 # that file and prints how to put it back, unless a later try pushes. The EXIT trap, only while the lock is
 # ours: restores when HEAD is where the commit started (taken back; reset there by the owner after a good push, said); syncs when our commit is HEAD or under
 # it, or when HEAD moved off where the commit started before the commit was recorded; any other HEAD (an
 # amend, a reset elsewhere): the index left alone, and it says so. With --push, a run that ends with its
-# commit landed but the run not finished (a signal) says `interrupted: <sha> committed, not pushed`, or
+# commit landed but the run not finished (a signal) says `interrupted: <sha> committed, not confirmed pushed
+# (origin/<branch> does not hold it)` (no fetch refspec, a push mapped to another branch, or not pushed), or
 # `committed and pushed` when origin/<branch> (the tracking ref, which a push updates) already holds it.
 # A commit that fails (a hook) leaves the index alone.
-# SIGTERM, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep; a hung
-# push holds them), then exit 143, 129 through the EXIT trap, so no git child outlives the cleanup. SIGINT the
+# SIGTERM, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep; a push
+# up to the bound), then exit 143, 129 through the EXIT trap, so no git child outlives the cleanup. SIGINT the
 # same (130), except that bash drops one sent to the script alone while a command runs: the run goes on.
-# Sent to the process group (Ctrl-C), the git child dies too, its step fails as any failed step does, and
+# Sent to the process group (Ctrl-C), the git child dies too (the push wrapper passes it on to the push's group), its step fails as any failed step does, and
 # the cleanup runs.
-# Window left, SIGKILL only (it also leaves the saved file and a dead pid's lock, reclaimed by the next run):
+# Window left, SIGKILL only (it also leaves the saved file, swept after a day, and a dead pid's lock, reclaimed by
+# the next run; the push group keeps running until it ends or the bound):
 # from `git commit` starting (hooks included) to the line after it, `git status` shows the path as MM
 # (`git reset -q -- <path>` makes it match HEAD); between `update-ref` and the end of the restore, the
 # owner's staged entries under the named paths are lost (measured: a staged edit ` M`, a staged deletion or
 # rename ` D`, a staged new file `??`); `git reset -q -- <paths>` then `git update-index -z --index-info <
-# <git dir>/lanework-commit-board.saved.XXXXXX` puts them back (intent-to-add ones need `git add -N` again).
-# Prints the new commit's one-line log, or "nothing to commit" (exit 0: the named paths exist, nothing changed).
-# Exit 2: a bad flag, no message, no paths. Exit 1, nothing committed: not in a work tree, detached HEAD,
+# <git dir>/lanework-commit-board.saved.<pid>.XXXXXX` puts them back (intent-to-add ones need `git add -N` again).
+# Prints the one-line log of the commit it made or pushed (not HEAD, which an owner may have reset meanwhile), or
+# "nothing to commit" (exit 0: the named paths exist, nothing changed, and with --push nothing unpushed).
+# Exit 2: a bad flag, no message, no paths, a bad LANEWORK_PUSH_TIMEOUT. Exit 1, nothing committed: not in a work tree, detached HEAD,
 # a path outside the work tree or the root itself, a `.DS_Store` or an owner's `comments/.draft/`
 # among what would be staged, a path git cannot add, every named path skipped (none on disk or in HEAD), `git commit` failing (a
 # pre-commit or commit-msg hook; the index stays as it was), --push with no origin, the lock not taken in
-# time or lost, the fast-forward refused, the push failed 5 times.
+# time or lost, the fast-forward refused, the push failed 5 times. Exit 1, committed, not confirmed pushed: the push timed out.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE='commit-board.sh [--push] [--trailer T] "<msg>" <paths...>'
@@ -58,6 +69,8 @@ while [ $# -gt 0 ]; do
 done
 [ $# -ge 2 ] && [ -n "$1" ] || { echo "commit-board.sh: a message and at least one path" >&2; echo "usage: $USAGE" >&2; exit 2; }
 MSG="$1"; shift
+LIM=${LANEWORK_PUSH_TIMEOUT:-120}
+[ -z "$PUSH" ] || case "$LIM" in ''|*[!0-9]*|0*) echo "commit-board.sh: LANEWORK_PUSH_TIMEOUT must be a whole number of seconds above 0: $LIM" >&2; exit 2 ;; esac
 
 TOP=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "commit-board.sh: not inside a git work tree: $(pwd)" >&2; exit 1; }
 TOP=$(cd "$TOP" && pwd -P)
@@ -84,7 +97,7 @@ LOCK="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-commit.XXXXXX")
 mvdir() { perl -e 'rename($ARGV[0], $ARGV[1]) or exit 1' "$1" "$2" 2>/dev/null; }   # rename(2): fails onto a non-empty dir
 own() { [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ]; }
-SAVED=""; ADD=(); OWNER=(); ITA=(); PRE=""; LANDED=""; NEW=""; KEEP=""
+SAVED=""; ADD=(); OWNER=(); ITA=(); PRE=""; LANDED=""; NEW=""; KEEP=""; AHEAD=""; TIMED=""
 release() {
   trap '' TERM INT HUP   # the cleanup runs to its end
   # only while the lock is ours: HEAD back at PRE (taken back) -> restore; our commit on HEAD or under it (or HEAD moved off
@@ -97,17 +110,17 @@ release() {
       elif git merge-base --is-ancestor "$NEW" HEAD 2>/dev/null; then git reset -q -- "${ADD[@]}" || true; c=$NEW
       else echo "commit-board.sh: HEAD moved to ${h:0:8} during the run, off ${NEW:0:8}; the index left as it is" >&2; fi
     elif [ -n "$PRE" ] && [ "$h" != "$PRE" ]; then git reset -q -- "${ADD[@]}" || true; c=$h; fi
-    if [ -n "$PUSH" ] && [ -z "$OK" ] && [ -n "$c" ]; then   # UP is set before the trap; a missing ref reads as not pushed
+    if [ -n "$PUSH" ] && [ -z "$OK" ] && [ -z "$TIMED" ] && [ -n "$c" ]; then   # UP is set before the trap; a missing ref reads as not confirmed
       if git merge-base --is-ancestor "$c" "$UP" 2>/dev/null; then echo "commit-board.sh: interrupted: ${c:0:8} committed and pushed" >&2
-      else echo "commit-board.sh: interrupted: ${c:0:8} committed, not pushed" >&2; fi
+      else echo "commit-board.sh: interrupted: ${c:0:8} committed, not confirmed pushed (origin/$BRANCH does not hold it)" >&2; fi
     fi
   fi
-  if own; then rm -rf "$LOCK"; fi; rm -rf "$STAGE" "$LOCK.$$"; [ -n "$KEEP" ] || [ -z "$SAVED" ] || rm -f "$SAVED"
+  if own; then rm -rf "$LOCK" || true; fi; rm -rf "$STAGE" "$LOCK.$$" 2>/dev/null || true; [ -n "$KEEP" ] || [ -z "$SAVED" ] || rm -f "$SAVED" || true
 }
 trap release EXIT
 trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP   # bash runs these once the foreground git returns; an INT to the pid alone while a child runs is dropped by bash
 GD=$(git rev-parse --absolute-git-dir)
-SAVED=$(mktemp "$GD/lanework-commit-board.saved.XXXXXX" 2>/dev/null) || { SAVED=""; echo "commit-board.sh: cannot create a save file in $GD; nothing committed" >&2; exit 1; }   # per work tree, as the index is; never another run's
+SAVED=$(mktemp "$GD/lanework-commit-board.saved.$$.XXXXXX" 2>/dev/null) || { SAVED=""; echo "commit-board.sh: cannot create a save file in $GD; nothing committed" >&2; exit 1; }   # per work tree, as the index is; never another run's
 reclaim() {   # reclaim <dead pid>: move the lock aside, keep it gone only if it was that pid's; a live one goes back
   local aside="$LOCK.stale.$$"
   mvdir "$LOCK" "$aside" || return 0
@@ -130,6 +143,25 @@ take_lock() {
   done
 }
 take_lock
+# sweep, under the lock: saved files of a dead pid, over a day old (a fresh one is a kill's recovery source)
+for f in "$GD"/lanework-commit-board.saved.*.*; do
+  p=${f#"$GD/lanework-commit-board.saved."}; p=${p%%.*}
+  case "$p" in ''|*[!0-9]*) continue ;; esac
+  [ "$f" != "$SAVED" ] && [ -f "$f" ] && ! kill -0 "$p" 2>/dev/null && [ -n "$(find "$f" -mtime +1 2>/dev/null)" ] && rm -f "$f" || true
+done
+# push_bounded: git push in its own process group under perl (no timeout(1) on macOS); the group is killed after LIM s
+# and it returns 124, only then (a git 124 reads 1); INT, TERM, HUP to perl are passed on to the group. Its stderr goes to
+# push.err by a redirect on perl itself, never on the function: a trap run inside a redirected function keeps the redirect
+push_bounded() {
+  perl -e 'my $t = shift; my $pid = fork; defined $pid or exit 125;
+    if (!$pid) { setpgrp(0, 0); exec @ARGV; exit 127 }
+    setpgrp($pid, $pid);
+    $SIG{$_} = sub { kill $_[0], -$pid } for qw(INT TERM HUP);
+    $SIG{ALRM} = sub { kill "KILL", -$pid; waitpid $pid, 0; exit 124 };
+    alarm $t; my $r; do { $r = waitpid $pid, 0 } until $r == $pid || $r == -1 && !$!{EINTR}; alarm 0;
+    exit 1 if $r != $pid; my $s = $?; exit 128 + ($s & 127) if $s & 127; $s >>= 8; exit($s == 124 ? 1 : $s)' \
+    "$LIM" git push -q origin "$BRANCH" 2>"$STAGE/push.err"
+}
 mine() { own || { echo "commit-board.sh: lost the lock ($LOCK); stopping, nothing more written" >&2; exit 1; }; }
 
 # both <list a> <list b>: the lines in both (newline lists)
@@ -139,7 +171,7 @@ dirty() { git diff --name-only HEAD; git ls-files --others --exclude-standard; }
 sync() {
   [ -n "$HAS_ORIGIN" ] || return 0
   if ! git fetch -q origin 2>"$STAGE/fetch.err"; then
-    sed 's/^/  /' "$STAGE/fetch.err" >&2
+    sed 's/^/  /' "$STAGE/fetch.err" >&2 2>/dev/null || true
     [ -z "$PUSH" ] || { echo "commit-board.sh: fetch from origin failed; nothing committed" >&2; exit 1; }
     echo "commit-board.sh: fetch from origin failed; committing locally" >&2; return 0
   fi
@@ -209,18 +241,32 @@ for try in 1 2 3 4 5; do
   STAGED=$(GIT_INDEX_FILE="$IDX" git diff --cached --name-only HEAD)
   BAD=$(grep -E '(^|/)\.DS_Store$|(^|/)comments/\.draft(/|$)' <<<"$STAGED" || true)
   [ -z "$BAD" ] || { echo "commit-board.sh: refusing, these would be committed (.DS_Store, or an owner's unposted draft); name the files instead:" >&2; sed 's/^/  /' <<<"$BAD" >&2; exit 1; }
-  if [ -z "$STAGED" ]; then echo "nothing to commit"; exit 0; fi
+  if [ -z "$STAGED" ]; then
+    # nothing new, but an earlier run's commit not on origin (a kill, a timed-out push): with --push, push it
+    { [ -n "$PUSH" ] && git rev-parse -q --verify "$UP" >/dev/null && [ "$(git rev-list --count "$UP..HEAD")" -gt 0 ]; } || { echo "nothing to commit"; exit 0; }
+    AHEAD=$(git rev-parse HEAD); LANDED=""; NEW=""; PRE=""   # nothing of this run's on HEAD: nothing to un-commit
+  else
+    mine
+    AHEAD=""; LANDED=""; NEW=""; PRE=$(git rev-parse HEAD)   # the EXIT trap syncs the index once HEAD is no longer this (or LANDED)
+    [ "$try" -gt 1 ] || save_owner   # once: later tries start from the restored index, and an upstream change to a staged path stops the fast-forward
+    GIT_INDEX_FILE="$IDX" git commit -q -F "$STAGE/msg" || { echo "commit-board.sh: git commit failed (a pre-commit or commit-msg hook?); nothing committed, $KEPT" >&2; exit 1; }
+    LANDED=1; NEW=$(git rev-parse HEAD)
+    sync_index   # before the push: a kill from here on leaves an index that matches HEAD
+    [ -n "$PUSH" ] || { OK=1; break; }
+  fi
   mine
-  LANDED=""; NEW=""; PRE=$(git rev-parse HEAD)   # the EXIT trap syncs the index once HEAD is no longer this (or LANDED)
-  [ "$try" -gt 1 ] || save_owner   # once: later tries start from the restored index, and an upstream change to a staged path stops the fast-forward
-  GIT_INDEX_FILE="$IDX" git commit -q -F "$STAGE/msg" || { echo "commit-board.sh: git commit failed (a pre-commit or commit-msg hook?); nothing committed, $KEPT" >&2; exit 1; }
-  LANDED=1; NEW=$(git rev-parse HEAD)
-  sync_index   # before the push: a kill from here on leaves an index that matches HEAD
-  [ -n "$PUSH" ] || { OK=1; break; }
-  mine
-  if git push -q origin "$BRANCH" 2>"$STAGE/push.err"; then OK=1; KEEP=""; break; fi   # pushed: an earlier failed restore's entries are obsolete
+  rc=0; push_bounded || rc=$?   # a failed redirect is a failed push too (rc 1, no output file)
+  if [ "$rc" -eq 0 ]; then OK=1; KEEP=""; break; fi   # pushed: an earlier failed restore's entries are obsolete
+  if [ "$rc" -eq 124 ]; then   # it may have landed: keep the commit, let the cleanup run, never retry
+    TIMED=1; c=${NEW:-$AHEAD}; echo "commit-board.sh: push timed out after $LIM s; ${c:0:8} committed, not confirmed pushed; run --push again" >&2; exit 1
+  fi
+  if [ -n "$AHEAD" ]; then
+    echo "commit-board.sh: push of ${AHEAD:0:8} rejected (try $try of 5); retrying" >&2
+    sed 's/^/  git: /' "$STAGE/push.err" >&2 2>/dev/null || echo "  git: git push output unavailable" >&2
+    sleep 1; continue
+  fi
   echo "commit-board.sh: push rejected (try $try of 5); un-committing ${NEW:0:8} (ref only, files stay) and retrying" >&2
-  sed 's/^/  git: /' "$STAGE/push.err" >&2
+  sed 's/^/  git: /' "$STAGE/push.err" >&2 2>/dev/null || echo "  git: git push output unavailable" >&2
   mine
   git update-ref "refs/heads/$BRANCH" "$NEW^" "$NEW"
   if restore; then KEPT="the index restored to what was staged before the run"
@@ -229,5 +275,6 @@ for try in 1 2 3 4 5; do
   sleep 1
 done
 [ "$(git stash list | wc -l | tr -d ' ')" = "$STASH0" ] || echo "commit-board.sh: WARNING: the stash count changed while committing; tell the coordinator" >&2
+[ -n "$OK" ] || [ -z "$AHEAD" ] || { echo "commit-board.sh: push failed 5 times; ${AHEAD:0:8} (an earlier commit) committed, not pushed" >&2; exit 1; }
 [ -n "$OK" ] || { echo "commit-board.sh: push failed 5 times; nothing committed, files on disk, $KEPT" >&2; exit 1; }
-git log --oneline -1 | cat
+git log --oneline -1 "${NEW:-${AHEAD:-HEAD}}" | cat   # the run's commit, whatever HEAD is now (an owner's reset during the push)

@@ -28,10 +28,10 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,289 |
+| `lanework` | 10 | 382 | 5,375 |
 | `work` | 16 | 463 | 7,962 |
 | `watch` | 4 | 182 | 2,083 |
-| `discovery` | 14 | 510 | 3,004 |
+| `discovery` | 14 | 510 | 3,010 |
 | `plan` | 9 | 467 | 2,855 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
@@ -49,10 +49,10 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discover
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 150 |
-| `references/writes.md` | 2,060 |
+| `references/writes.md` | 2,146 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,289** |
+| **total** | **5,375** |
 
 #### `work`
 
@@ -95,7 +95,7 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discover
 | `references/conduct.md` | 157 |
 | `references/corners.md` | 171 |
 | `references/records.md` | 573 |
-| `references/rounds.md` | 363 |
+| `references/rounds.md` | 369 |
 | `templates/fact-card.md` | 49 |
 | `templates/glossary.md` | 46 |
 | `templates/lanes.md` | 379 |
@@ -104,7 +104,7 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discover
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 84 |
 | `templates/topic-card.md` | 66 |
-| **total** | **3,004** |
+| **total** | **3,010** |
 
 #### `plan`
 

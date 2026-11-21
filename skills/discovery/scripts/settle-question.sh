@@ -53,7 +53,8 @@ waiting_comment() {
 }
 WAITING=0; WCOMMENT=$(waiting_comment "$CARD/index.md") && WAITING=1 || true
 [ -n "$REPLY" ] || REPLY="$WCOMMENT"
-if [ "$WAITING" = 1 ] && [ ! -x "$LINT_CLEARS" ]; then echo "settle-question.sh: waiting is set and $LINT_CLEARS is missing (install work beside discovery); nothing written" >&2; exit 1; fi
+if [ "$WAITING" = 1 ] && [ ! -e "$LINT_CLEARS" ]; then echo "settle-question.sh: waiting is set and $LINT_CLEARS is missing (install work beside discovery); nothing written" >&2; exit 1; fi
+if [ "$WAITING" = 1 ] && [ ! -x "$LINT_CLEARS" ]; then echo "settle-question.sh: waiting is set and $LINT_CLEARS is not executable; nothing written" >&2; exit 1; fi
 
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); ORDER=$(next_order "$DEST")
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/discovery-settle.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
@@ -76,12 +77,17 @@ if [ -n "$RECORD" ]; then
 fi
 if [ "$WAITING" = 1 ]; then   # the waiting-clear lint on the card as it will land: one lane, one card
   LC="$STAGE/lint/lane/$CID"; mkdir -p "$LC/comments"; cp "$STAGE/index.md" "$LC/index.md"
-  [ ! -d "$CARD/comments" ] || cp -R "$CARD/comments/." "$LC/comments/"
+  for ci in "$CARD"/comments/*/index.md; do   # the lint reads only each comment's index.md: attachments stay out
+    [ -f "$ci" ] || continue; cd_=$(basename "$(dirname "$ci")"); mkdir -p "$LC/comments/$cd_"; cp "$ci" "$LC/comments/$cd_/index.md"
+  done
   [ -z "$COID" ] || cp -R "$STAGE/comment" "$LC/comments/$COID"
   LRC=0; LO=$("$LINT_CLEARS" "$STAGE/lint" 2>&1) || LRC=$?
   [ "$LRC" -lt 2 ] || { echo "settle-question.sh: lint-waiting-clears.sh failed (exit $LRC): $LO" >&2; exit 1; }
   case "$LO" in
-    NO-QUOTE*) if [ -n "$RECORD" ]; then echo "settle-question.sh: the record does not answer the card's newest ask (--reply ${REPLY:-none}); nothing written" >&2
+    NO-QUOTE*) if [ -n "$RECORD" ]; then
+                 NASK=$(printf '%s\n' "$LO" | awk '$1 == "NO-QUOTE" { print $3; exit }')
+                 if [ -n "$NASK" ]; then echo "settle-question.sh: newest ask is $NASK and the record has no answer to it: the quote may be a bare > or sit inside a code fence, or --reply may name another ask; nothing written" >&2
+                 else echo "settle-question.sh: the record does not answer the card's newest ask (--reply ${REPLY:-none}); nothing written" >&2; fi
                else echo "settle-question.sh: waiting is set and no owner comment answers the ask: pass --record with the owner's words (templates/ruling.md); nothing written" >&2; fi
                exit 1 ;;
     ""|QUOTED*) ;;
