@@ -8,7 +8,7 @@
 # .schema validator (skipped with a note when the board has none), then one `mv` in. The card must be unchanged
 # since it was read (compared just before the rename: a window of a few instructions remains between that compare and the
 # `mv`, and no lock is shared with the app or other writers; LABEL_CARD_TEST_HOLD=<dir> holds the script there until <dir>/release exists, for tests).
-# A card with CRLF line endings is refused (exit 1). A label the card already has (text and kind, case aside) is a no-op: exit 0, nothing written.
+# A card with CRLF line endings, or an index.md under an attachments/ or dot folder, is refused (exit 1). A label the card already has (text and kind, case aside) is a no-op: exit 0, nothing written.
 # Lease (lanework/references/writes.md § Lease): with CLAUDE_CODE_SESSION_ID set, `lease.sh check` first.
 # Exit 1, nothing written: not a board or card, CRLF line endings, an undefined kind, a value a closed kind does not list, a different
 # value of a `single` kind the card holds, the card changed meanwhile, the validator failed on the staged card.
@@ -36,7 +36,12 @@ BOARD_ABS=$(cd "$BOARD" && pwd -P)
 # a card is the depth: <board>/<lane>/<card>/index.md (guide § Layout); `kind` is optional on a short-form card
 [ -f "$F" ] && [ "$(basename "$F")" = index.md ] && [ "$(cd "$(dirname "$F")/../.." 2>/dev/null && pwd -P)" = "$BOARD_ABS" ] \
   || { echo "label-card.sh: not a card of $BOARD (want <board>/<lane>/<card>/index.md): $CARDARG" >&2; exit 1; }
-head -n 1 "$F" | grep -q $'\r' && { echo "label-card.sh: $F has CRLF line endings, which this script does not rewrite; nothing written" >&2; exit 1; }
+# not under an attachments/ or dot folder (what board_index_files prunes: an index.md there is an attachment's or the app's, not a card)
+CDIR=$(cd "$(dirname "$F")" && pwd -P); LDIR=$(dirname "$CDIR")
+for seg in "$(basename "$CDIR")" "$(basename "$LDIR")"; do
+  case "$seg" in attachments|.*) echo "label-card.sh: not a card (under $seg): $CARDARG" >&2; exit 1 ;; esac
+done
+grep -q $'\r' "$F" && { echo "label-card.sh: $F has CRLF line endings, which this script does not rewrite; nothing written" >&2; exit 1; }
 CID=$(basename "$(dirname "$F")")
 
 LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
