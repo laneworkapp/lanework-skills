@@ -7,6 +7,7 @@
 # `waiting.comment`), moves the card to the bottom of Settled or Parked. --ruling and --record are written with LF line ends.
 # `waiting` set: the staged card and its comments are run through work/scripts/lint-waiting-clears.sh first; a NO-QUOTE
 # (no owner comment answers the ask, and no record in reply to it) = exit 1, nothing written.
+# A `Recap:` click (a human comment whose first body line starts `Recap:`) is not an owner answer: it stays out of the lint's copy.
 # Staged outside the board; the card path is re-resolved just before landing.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
@@ -37,6 +38,17 @@ if [ -n "$RECORD" ]; then
 fi
 case "$TO" in settled) LANE_TITLE=Settled ;; parked) LANE_TITLE=Parked ;; *) echo "settle-question.sh: --to is settled or parked" >&2; exit 2 ;; esac
 DEST=$(lane_by_title "$BOARD" "$LANE_TITLE") || { echo "settle-question.sh: no lane titled $LANE_TITLE" >&2; exit 1; }
+
+# is_recap_click <comment index.md>: exit 0 when the first non-blank body line starts `Recap:` and `created.by` is not kind: agent (no `by` = human)
+is_recap_click() {
+  tr -d '\r' < "$1" | awk '
+    NR == 1 && /^---[ \t]*$/ { fm = 1; next }
+    fm && /^---[ \t]*$/ { fm = 0; body = 1; next }
+    fm && /^[^ \t]/ { inc = ($0 ~ /^created:/) }
+    fm && inc && /kind:[ \t]*["\x27]?agent/ { agent = 1 }
+    body && /[^ \t]/ { click = ($0 ~ /^[ \t]*Recap:/); done = 1; exit }
+    END { exit (done && click && !agent) ? 0 : 1 }'
+}
 
 find_card() { ls -d "$BOARD"/*/"$CID" 2>/dev/null | head -1 || true; }
 CARD=$(find_card)
@@ -78,7 +90,7 @@ fi
 if [ "$WAITING" = 1 ]; then   # the waiting-clear lint on the card as it will land: one lane, one card
   LC="$STAGE/lint/lane/$CID"; mkdir -p "$LC/comments"; cp "$STAGE/index.md" "$LC/index.md"
   for ci in "$CARD"/comments/*/index.md; do   # the lint reads only each comment's index.md: attachments stay out
-    [ -f "$ci" ] || continue; cd_=$(basename "$(dirname "$ci")"); mkdir -p "$LC/comments/$cd_"; cp "$ci" "$LC/comments/$cd_/index.md"
+    [ -f "$ci" ] || continue; ! is_recap_click "$ci" || continue; cd_=$(basename "$(dirname "$ci")"); mkdir -p "$LC/comments/$cd_"; cp "$ci" "$LC/comments/$cd_/index.md"
   done
   [ -z "$COID" ] || cp -R "$STAGE/comment" "$LC/comments/$COID"
   LRC=0; LO=$("$LINT_CLEARS" "$STAGE/lint" 2>&1) || LRC=$?
