@@ -2022,19 +2022,25 @@ ok "file-card.sh: a missing lane and a malformed card-defaults exit 1, no --body
 
 # label-card: a hand-written label would land as a block list the heal flags (H17); the script writes the compact form
 LC="$SK/work/scripts/label-card.sh"
+# fmlines <file> <key>: how many physical frontmatter lines the key takes (1 = compact one-liner)
+fmlines() { awk -v k="$2" 'NR > 1 && /^---$/ {exit} $0 ~ ("^" k ":") {f=1; n=1; next} f && /^[^ \t]/ {f=0} f {n++} END {print n+0}' "$1"; }
 L1=$("$FC" "$DP" Frontier "Unlabelled" --body "$T/fc.md" --model smoke); L1ID=$(basename "$L1")
 S10=$(others "$DP" "$(basename "$(dirname "$L1")")/$L1ID"); t0=$(date -u +%FT%TZ)
 rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "Needs review" --model smoke --name fixer --session smoke >/dev/null || rc=$?
 t1=$(date -u +%FT%TZ)
-[ "$rc" -eq 0 ] && [ "$(labels_of "$DP" "$L1ID")" = "labels: [{text: Needs review, $TXT}]" ] && [ "$(grep -c '^labels:' "$L1/index.md")" -eq 1 ] \
+[ "$rc" -eq 0 ] && [ "$(labels_of "$DP" "$L1ID")" = "labels: [{text: Needs review, $TXT}]" ] && [ "$(fmlines "$L1/index.md" labels)" = 1 ] \
   && grep -qxF "modified: {at: $(atof "$L1/index.md" modified), by: $BYF}" "$L1/index.md" && [[ ! "$(atof "$L1/index.md" modified)" < "$t0" && ! "$(atof "$L1/index.md" modified)" > "$t1" ]] \
   && [ "$S10" = "$(others "$DP" "$(basename "$(dirname "$L1")")/$L1ID")" ] && nothing_to_heal "$DP" || { echo "label-card: rc $rc:"; cat "$L1/index.md"; exit 1; }
 ok "label-card.sh: a card with no labels gets one stamped label on one compact line, modified from the clock with the caller's by, no other file changed, validates, heal finds nothing"
-FIRST=$(labels_of "$DP" "$L1ID" | sed 's/^labels: \[//; s/\]$//')
-env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1/index.md" "second" "Urgent:priority" --model smoke >/dev/null
-[ "$(labels_of "$DP" "$L1ID")" = "labels: [$FIRST, {text: second, $TXT}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]" ] \
-  && nothing_to_heal "$DP" || { echo "label-card, existing label:"; labels_of "$DP" "$L1ID"; exit 1; }
-ok "label-card.sh: a second and a kinded label append after the first entry, byte for byte, on one line (block only past 120 characters); heal finds nothing"
+RAW1=$(sed -n 's/^labels: \[\(.*\)\]$/\1/p' "$L1/index.md"); [ -n "$RAW1" ] || { echo "fixture: the first label is not one compact line"; exit 1; }
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1/index.md" "second" --model smoke >/dev/null
+# two entries pass 120 characters: the block form, key line then one line per entry, the first entry byte for byte
+[ "$(fmlines "$L1/index.md" labels)" = 3 ] && [ "$(grep -A1 '^labels:$' "$L1/index.md" | tail -1)" = "  - $RAW1" ] && nothing_to_heal "$DP" \
+  || { echo "label-card, existing label: $(fmlines "$L1/index.md" labels) lines:"; sed -n 1,12p "$L1/index.md"; exit 1; }
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1/index.md" "Urgent:priority" --model smoke >/dev/null
+[ "$(labels_of "$DP" "$L1ID")" = "labels: [{text: Needs review, $TXT}, {text: second, $TXT}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]" ] \
+  && nothing_to_heal "$DP" || { echo "label-card, kinded label:"; sed -n 1,16p "$L1/index.md"; exit 1; }
+ok "label-card.sh: a second label makes the block form (past 120 characters, measured: key line and one line per entry) with the first entry byte for byte; a kinded label is stamped from the board; heal finds nothing"
 S11=$(sum "$DP")
 rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "High:priority" --model smoke >/dev/null 2>&1 || rc=$?
 [ "$rc" -eq 1 ] && [ "$S11" = "$(sum "$DP")" ] || { echo "label-card, a different value of a single kind: want exit 1, nothing written, got $rc"; exit 1; }
@@ -2042,11 +2048,17 @@ rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "urgent:Priority" "NEEDS R
 [ "$rc" -eq 0 ] && [ "$S11" = "$(sum "$DP")" ] || { echo "label-card, labels the card has: want exit 0, nothing written, got $rc"; exit 1; }
 ok "label-card.sh: a different value of a single kind the card holds exits 1; the same labels, case aside, are a no-op (exit 0); nothing written either way"
 rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "x:nokind" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, undefined kind: want exit 1, got $rc"; exit 1; }
-rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "Nope:priority" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, unlisted priority value: want exit 1, got $rc"; exit 1; }
+L2=$("$FC" "$DP" Frontier "No priority yet" --body "$T/fc.md" --model smoke); S12=$(sum "$DP"); S11=$S12   # no priority on it: only the closed-kind rule can refuse
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L2" "Nope:priority" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "not a value of the closed kind priority" "$T/err.txt" && [ "$S12" = "$(sum "$DP")" ] || { echo "label-card, unlisted priority value on a card with none: want exit 1, got $rc:"; cat "$T/err.txt"; exit 1; }
 rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$(dirname "$L1")" "x" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, a lane: want exit 1, got $rc"; exit 1; }
 rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "label-card, no label: want exit 2, got $rc"; exit 1; }
 refused label-card "$LC" "$DP" "$L1" x
 [ "$S11" = "$(sum "$DP")" ] || { echo "a refused label-card wrote something"; exit 1; }
+cp "$L2/index.md" "$T/lf.md"; sed 's/$/\r/' "$T/lf.md" > "$L2/index.md"; S12=$(sum "$DP")
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L2" "x" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "CRLF line endings" "$T/err.txt" && [ "$S12" = "$(sum "$DP")" ] || { echo "label-card, a CRLF card: want exit 1 naming CRLF, got $rc:"; cat "$T/err.txt"; exit 1; }
+cp "$T/lf.md" "$L2/index.md"
 ok "label-card.sh: an undefined kind, a value a closed kind does not list and a path that is not a card exit 1, no label and no model exit 2; nothing written"
 setdef "$DP" Frontier '{labels: [extra]}'
 F4=$("$FC" "$DP" Frontier "Both" --body "$T/fc.md" --model smoke --label "High:priority" --label "hand: written:text"); F4ID=$(basename "$F4")
@@ -2056,6 +2068,35 @@ rc=0; "$FC" "$DP" Frontier "Clash" --body "$T/fc.md" --model smoke --label "High
 [ "$rc" -eq 1 ] || { echo "file-card, two values of a single kind: want exit 1, got $rc"; exit 1; }
 setdef "$DP" Frontier -
 ok "file-card.sh --label: the labels, then the lane's default, on one compact line; heal finds nothing; two values of one single kind exit 1"
+
+# compact_fm earns its place: a block `icon:` that fits one line is rewritten by the same write, so the card leaves no H17 behind
+L3=$("$FC" "$DP" Frontier "Block icon" --body "$T/fc.md" --model smoke); perl -pi -e 's/^(order: .*)$/$1\nicon:\n  glyph: hammer.fill\n  color: fern/' "$L3/index.md"
+[ "$(fmlines "$L3/index.md" icon)" = 3 ] || { echo "fixture: block icon"; exit 1; }
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L3" "tidy" --model smoke >/dev/null
+[ "$(fmlines "$L3/index.md" icon)" = 1 ] && [ "$(fmlines "$L3/index.md" labels)" = 1 ] && nothing_to_heal "$DP" || { echo "label-card, compact_fm:"; sed -n 1,12p "$L3/index.md"; exit 1; }
+ok "label-card.sh runs compact_fm over the card: a block icon that fits one line comes out on one, and heal finds nothing"
+
+# the validator step, on a board that ships one (VB: a copy of WB with the borrowed .schema in place; WB's own .schema is nested one level too deep)
+VB="$T/Validated.lanework"; cp -R "$WB" "$VB"; rm -rf "$VB/.schema"; cp -R "$VAL" "$VB/.schema"; [ -f "$VB/.schema/bin/lanework-validate.py" ] || { echo "fixture: VB has no validator"; exit 1; }
+V1=$("$FC" "$VB" Approved "Valid" --body "$T/fc.md" --model smoke 2>/dev/null)
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$VB" "$V1" "checked" --model smoke >/dev/null 2>"$T/err.txt" && grep -q '^labels: \[{text: "checked"' "$V1/index.md" && ! grep -q 'not validated' "$T/err.txt" && validate "$VB" >/dev/null \
+  || { echo "label-card on a board with a validator:"; cat "$T/err.txt" "$V1/index.md"; exit 1; }
+V2=$("$FC" "$VB" Approved "Invalid" --body "$T/fc.md" --model smoke 2>/dev/null); perl -pi -e 's/^title: .*$/title: [a, b]/' "$V2/index.md"
+if python3 "$VAL/bin/lanework-validate.py" --schema "$VAL" "$V2/index.md" >/dev/null 2>&1; then echo "fixture: the validator accepts a list for title"; exit 1; fi
+S13=$(sum "$VB"); rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$VB" "$V2" "x" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "fails the board's validator" "$T/err.txt" && [ "$S13" = "$(sum "$VB")" ] || { echo "label-card, validator: want exit 1, nothing written, got $rc:"; cat "$T/err.txt"; exit 1; }
+perl -pi -e 's/^title: .*$/title: "Invalid"/' "$V2/index.md"
+ok "label-card.sh validates the staged card with the board's validator: a valid result lands (no 'not validated' note), an invalid one exits 1 and writes nothing"
+
+# a card changed between the read and the rename is not overwritten (LABEL_CARD_TEST_HOLD holds the script just before the compare)
+V3=$("$FC" "$VB" Approved "Raced" --body "$T/fc.md" --model smoke 2>/dev/null); HD="$T/hold"; rm -rf "$HD"; mkdir "$HD"
+env -u CLAUDE_CODE_SESSION_ID LABEL_CARD_TEST_HOLD="$HD" "$LC" "$VB" "$V3" "late" --model smoke >/dev/null 2>"$T/err.txt" & LCPID=$!
+n=0; while [ ! -e "$HD/held" ] && [ $n -lt 400 ]; do sleep 0.05; n=$((n+1)); done; [ -e "$HD/held" ] || { kill "$LCPID"; echo "label-card never reached the hold"; exit 1; }
+printf 'A late edit by someone else.\n' >> "$V3/index.md"; S14=$(sum "$VB"); : > "$HD/release"
+rc=0; wait "$LCPID" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "changed while it was staged" "$T/err.txt" && [ "$S14" = "$(sum "$VB")" ] && grep -q "A late edit" "$V3/index.md" && ! grep -q '^labels:' "$V3/index.md" \
+  || { echo "label-card, a card changed meanwhile: rc $rc:"; cat "$T/err.txt"; exit 1; }
+ok "label-card.sh: a card changed between the read and the rename is not overwritten: exit 1, the other writer's edit kept, no label added"
 
 # move-card: owner-filed cards (no by on any stamp) seeded by hand, two sharing a prefix, one waiting
 IDEAS=$(lanedir "$WB" Ideas); OW1=abcd0000-0000-4000-8000-000000000001; OW2=abcd0000-0000-4000-8000-000000000002; AQ=abcd0000-0000-4000-8000-0000000000aa
@@ -3036,6 +3077,20 @@ RC=0; O=$(LW SW-a "$PAS" "$LB" "$A2" --body "$T/ask1.md" --for anyone --model sm
 [ $RC = 0 ] && landed "$A2" "$O" && grep -q "^waiting: {for: anyone, since: [^,]*, comment: $O}\$" "$FA2" && [ "$(csess "$FA2")" = SW-a ] || lw_fail "post-ask on a held lease: rc $RC"
 validate "$LB" >/dev/null
 ok "post-ask.sh on a lost lease writes neither the ask nor waiting (exit 3, the Lease lost record only); on a held one both land"
+
+# label-card: the lease check first. Lost: exit 3, nothing written to the card; held: labels land and the claim stays; no session id: as today
+LCS="$SK/work/scripts/label-card.sh"
+Y1=$(lostcard SW-l "LC lost"); FY1=$(lcf "$Y1"); H=$(shasum < "$FY1")
+RC=0; LW SW-l "$LCS" "$LB" "$FY1" "tagged" --model smoke >/dev/null 2>"$T/lw-err.txt" || RC=$?
+[ $RC = 3 ] && grep -q 'lost' "$T/lw-err.txt" && [ "$H" = "$(shasum < "$FY1")" ] && ! grep -q 'tagged' "$FY1" && [ "$(records "$Y1" "**Lease lost**")" = 1 ] \
+  || lw_fail "label-card on a lost lease: rc $RC, err: $(cat "$T/lw-err.txt")"
+Y2=$(lcard "LC held"); FY2=$(lcf "$Y2"); L SW-l2 stake "$LB" "$Y2" --model smoke >/dev/null
+RC=0; LW SW-l2 "$LCS" "$LB" "$FY2" "tagged" --model smoke >/dev/null || RC=$?
+[ $RC = 0 ] && grep -q '^labels: \[{text: "tagged"' "$FY2" && [ "$(csess "$FY2")" = SW-l2 ] || lw_fail "label-card on a held card: rc $RC"
+RC=0; LN "$LCS" "$LB" "$FY1" "tagged" --model smoke >/dev/null || RC=$?
+[ $RC = 0 ] && grep -q '^labels: \[{text: "tagged"' "$FY1" || lw_fail "label-card with no session id: rc $RC"
+validate "$LB" >/dev/null
+ok "label-card.sh checks the lease before it writes: lost exits 3 and the card is untouched; held labels it and keeps the claim; no session id writes as today"
 
 # 10. another copy of the board: a card this session holds on LB, the same uuid on a copy made before the stake, is never held
 # there; the write to the copy passes and posts no loss, and the lease on LB stays held (also through a symlink and a trailing slash)

@@ -2,12 +2,15 @@
 # label-card.sh: add labels to a card, in the compact form.
 # usage: label-card.sh <board> <card-index-or-dir> <label>... --model m [--name n] [--session s]
 # A label is `Text` (a free label) or `Text:kind` (stamped from the board's config.labels: `High:priority`).
+# `a: b` splits at the LAST colon, so a free label whose text holds one is `a: b:text`.
 # Runs union_labels --strict then compact_fm on a staged copy outside the board, restamps `modified` whole
 # (guide § Stamping: every write to a card; `at` from the clock, the caller's `by`), validates with the board's
 # .schema validator (skipped with a note when the board has none), then one `mv` in. The card must be unchanged
-# since it was read. A label the card already has (text and kind, case aside) is a no-op: exit 0, nothing written.
+# since it was read (compared just before the rename: a window of a few instructions remains between that compare and the
+# `mv`, and no lock is shared with the app or other writers; LABEL_CARD_TEST_HOLD=<dir> holds the script there until <dir>/release exists, for tests).
+# A card with CRLF line endings is refused (exit 1). A label the card already has (text and kind, case aside) is a no-op: exit 0, nothing written.
 # Lease (lanework/references/writes.md § Lease): with CLAUDE_CODE_SESSION_ID set, `lease.sh check` first.
-# Exit 1, nothing written: not a board or card, an undefined kind, a value a closed kind does not list, a different
+# Exit 1, nothing written: not a board or card, CRLF line endings, an undefined kind, a value a closed kind does not list, a different
 # value of a `single` kind the card holds, the card changed meanwhile, the validator failed on the staged card.
 # Exit 2, nothing written: no model, no label, a bad flag. Exit 3: the lease is lost.
 set -euo pipefail
@@ -30,8 +33,10 @@ require_model label-card.sh "$USAGE"
 [ -f "$BOARD/index.md" ] || { echo "label-card.sh: not a board: $BOARD" >&2; exit 1; }
 F="${CARDARG%/}"; [ -d "$F" ] && F="$F/index.md"
 BOARD_ABS=$(cd "$BOARD" && pwd -P)
+# a card is the depth: <board>/<lane>/<card>/index.md (guide § Layout); `kind` is optional on a short-form card
 [ -f "$F" ] && [ "$(basename "$F")" = index.md ] && [ "$(cd "$(dirname "$F")/../.." 2>/dev/null && pwd -P)" = "$BOARD_ABS" ] \
-  && [ "$(fm_value "$F" kind)" = card ] || { echo "label-card.sh: not a card of $BOARD: $CARDARG" >&2; exit 1; }
+  || { echo "label-card.sh: not a card of $BOARD (want <board>/<lane>/<card>/index.md): $CARDARG" >&2; exit 1; }
+head -n 1 "$F" | grep -q $'\r' && { echo "label-card.sh: $F has CRLF line endings, which this script does not rewrite; nothing written" >&2; exit 1; }
 CID=$(basename "$(dirname "$F")")
 
 LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
@@ -68,7 +73,10 @@ else
   echo "label-card.sh: note: no .schema/bin/lanework-validate.py on the board; card not validated" >&2
 fi
 
-# one process: compare against the card as read, then rename into place
+if [ -n "${LABEL_CARD_TEST_HOLD:-}" ]; then   # tests only: say "held", wait for "release"
+  : > "$LABEL_CARD_TEST_HOLD/held"; n=0; while [ ! -e "$LABEL_CARD_TEST_HOLD/release" ] && [ $n -lt 400 ]; do sleep 0.05; n=$((n+1)); done
+fi
+# compare against the card as read, then rename into place
 cmp -s "$F" "$STAGE/read" || { echo "label-card.sh: the card changed while it was staged; nothing written, run again" >&2; exit 1; }
 mv "$STAGE/index.md" "$F"
 printf '%s\n' "$(dirname "$F")"
