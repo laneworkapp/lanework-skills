@@ -884,6 +884,21 @@ for s in "$SK/lanework/scripts/heal-board.py" "$SK/heal/scripts/heal-descriptors
 done
 ok "heal-board and heal-descriptors refuse --name anyone, writing nothing"
 
+# sentinel card for the lints: sent_card <lane dir> <card folder> [comment folder suffix] writes a card every lint finds something in, so a silent run
+# on a board that holds it proves the lint read the cards: a modified.at 10 minutes ahead (lint-stamps), an agent ask with no waiting (lint-waiting-clears
+# NO-QUOTE), a START with a session (lint-leases: one leased card). sent_check <script> <board as given> <lane dir as given> <card folder> [suffix]: the
+# lint's run on <board> (rc UR, stdout UO, stderr UE, from unr_run) must be exactly that card's findings, nothing else.
+SENT_TS=$(date -u -v+600S +%FT%TZ); SENT_ASK=f0000000-0000-4000-8000-00000000000a; SENT_START=f0000000-0000-4000-8000-00000000000b
+sent_card() { local d="$1/$2" x="${3:-}"; mkdir -p "$d/comments/$SENT_ASK$x" "$d/comments/$SENT_START$x"
+  printf -- '---\nschema: 1\nkind: card\ntitle: "Sentinel"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: %s, by: {name: kim, kind: human}}\n---\nBody.\n' "$SENT_TS" > "$d/index.md"
+  printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T10:00:00Z, by: {name: claude, kind: agent, model: smoke}}\n---\n@anyone Which route?\n' > "$d/comments/$SENT_ASK$x/index.md"
+  printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T10:00:05Z, by: {name: claude, kind: agent, model: smoke, session: "S-sent"}}\n---\nSTART: sentinel\n' > "$d/comments/$SENT_START$x/index.md"; }
+sent_check() { local want x="${5:-}"
+  case "$(basename "$1")" in
+    lint-stamps.sh) want="$3/$4/index.md: modified.at $SENT_TS is Ns ahead"; [ "$UR" = 1 ] && [ "$(sed -E 's/is [0-9]+s ahead/is Ns ahead/' <<<"$UO")" = "$want" ] ;;
+    lint-waiting-clears.sh) want="NO-QUOTE $4 ${SENT_ASK}${x//$'\n'/ }"$'\n'"QUOTED 0, NO-QUOTE 1"; [ "$UR" = 1 ] && [ "$UO" = "$want" ] ;;
+    lint-leases.sh) want="leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0"; [ "$UR" = 0 ] && [ -z "$UO" ] && [ "$UE" = "$want" ] ;;
+  esac || unr_fail "$(basename "$1") on $2: want exactly the sentinel card's finding (${want:-})"; }
 # work: lint-stamps (a copy of the discovery board, so the board under test is never edited in place)
 LS="$SK/work/scripts/lint-stamps.sh"; SB="$T/Stamps.lanework"; cp -R "$D" "$SB"
 SC=$(ls "$SB"/*/*/index.md | head -1)
@@ -891,8 +906,11 @@ SC=$(ls "$SB"/*/*/index.md | head -1)
 setstamp() { local ts; ts=$(date -u -v+${3}S +%FT%TZ)
   if [ "$2" = modified ]; then sed -i '' -E "s/^modified: \{at: [^,}]*/modified: {at: $ts/" "$1"
   else awk -v w="waiting: {for: rzen, since: $ts, comment: 11111111-1111-4111-8111-111111111111}" '/^waiting:/ {next} {print} /^modified:/ && !d {print w; d=1}' "$1" > "$1.new" && mv "$1.new" "$1"; fi; }
+SBL=$(dirname "$(dirname "$SC")"); SBS="$SBL/f1000000-0000-4000-8000-000000000001"; sent_card "$SBL" "$(basename "$SBS")"
+rc=0; out=$("$LS" "$SB" 2>&1) || rc=$?; [ "$rc" -eq 1 ] && [ "$(sed -E 's/is [0-9]+s ahead/is Ns ahead/' <<<"$out")" = "$SBS/index.md: modified.at $SENT_TS is Ns ahead" ] || { echo "lint-stamps on a board with only a sentinel finding: want exactly that line, exit 1, got $rc:"; echo "$out"; exit 1; }
+rm -rf "$SBS"
 rc=0; out=$("$LS" "$SB" 2>&1) || rc=$?; [ "$rc" -eq 0 ] && [ -z "$out" ] || { echo "lint-stamps on a clean board: want silent exit 0, got $rc:"; echo "$out"; exit 1; }
-ok "lint-stamps is silent and exits 0 on a clean board"
+ok "lint-stamps finds exactly the sentinel card's stamp on a board of clean cards, and is silent and exits 0 once it is removed"
 setstamp "$SC" modified 120
 rc=0; out=$("$LS" "$SB") || rc=$?
 [ "$rc" -eq 1 ] && grep -q "$(basename "$(dirname "$SC")").*modified" <<<"$out" && grep -q 'ahead' <<<"$out" || { echo "want exit 1 naming the card and modified, got $rc:"; echo "$out"; exit 1; }
@@ -1085,8 +1103,10 @@ WREC='**Owner ruled off the board.**\n\n> Yes, A.\n\n**Given**: chat, 2026-11-17
 WLX=""   # extra arguments for the next wl_expect, word-split
 wl_expect() { local rc=0 out; out=$("$WL" "$WB" $WLX 2>&1) || rc=$?; [ "$rc" -eq "$1" ] && [ "$out" = "$(printf "$2")" ] || { echo "lint-waiting-clears: want exit $1 and [$(printf "$2")], got $rc and [$out]"; exit 1; }; }
 wl_reset() { rm -rf "$WLANE"/c0*; }
-wl_expect 0 ''
-ok "lint-waiting-clears is silent and exits 0 on a board with no cards"
+# wl_silent: the board must list nothing but a sentinel NO-QUOTE card built here, so silence proves the lint read the cards (a lint that skipped every card would pass a bare silent case)
+wl_silent() { wl_card 9; wl_com 9 ${WA}9 12:00:00 agent - "$WASK"; wl_expect 1 "NO-QUOTE ${WC}9 ${WA}9\nQUOTED 0, NO-QUOTE 1"; rm -rf "$WLANE/${WC}9"; }
+wl_silent
+ok "lint-waiting-clears lists only the sentinel card on a board with no other cards"
 wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
 wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
 ok "lint-waiting-clears: an agent ask, no waiting and a quoting record (in-reply-to, > line, Given line) is one QUOTED line, exit 0"
@@ -1097,18 +1117,18 @@ wl_com 1 ${WA}2 10:00:05 agent - "$WREC"; wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQ
 ok "lint-waiting-clears: no record, a record with no > line, one with no Given line, and a quoting record not in reply to the ask are each NO-QUOTE, exit 1"
 wl_reset; wl_card 1 'waiting: {for: anyone, since: 2026-11-17T10:00:00Z, comment: '${WA}1'}\n'; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"
 wl_card 2 'waiting:\n  for: [rzen, bobsmith, carol, dave]\n  since: 2026-11-17T10:00:00Z\n  comment: '${WA}1'\n'; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"
-wl_expect 0 ''
+wl_silent
 ok "lint-waiting-clears: an ask with waiting present is silent, in the flow and the block form"
 wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WH}1 10:30:00 human - 'Looks fine.\n'
 wl_card 2; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"; wl_com 2 ${WH}1 09:00:00 human ${WA}1 'A: Yes.\n'
-wl_expect 0 ''
+wl_silent
 ok "lint-waiting-clears: an ask followed by a human comment, or a human reply in-reply-to it, with waiting absent (the app's clear) is silent"
 wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 11:00:00 agent - "$WASK"
 wl_expect 1 "NO-QUOTE ${WC}1 ${WA}2\nQUOTED 0, NO-QUOTE 1"
 ok "lint-waiting-clears: two asks, the newer unanswered and unmarked with no record, names the newer ask's uuid only"
 wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - '**A record, no ask.**\n\nEvidence: none.\n'; wl_com 1 ${WH}1 10:01:00 human - '@anyone not an ask, a human wrote it\n'
 wl_card 2 '' "$WB/.trash"; wl_com 2 ${WA}1 10:00:00 agent - "$WASK" "$WB/.trash"
-wl_expect 0 ''
+wl_silent
 ok "lint-waiting-clears: a record with no handle, a human comment that starts with @, and a card in .trash are silent"
 wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_card 2; wl_com 2 ${WA}1 10:00:00 agent - "$WASK"; wl_com 2 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
 SW=$(sum "$WB"); rc=0; out=$("$WL" "$WB") || rc=$?
@@ -1121,7 +1141,7 @@ rc=0; "$WL" "$WB" --bogus >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "a
 ok "lint-waiting-clears exits 2 on a missing path, no arguments or a bad flag, the message on stderr"
 # --since: a card is listed when its clear time (the newest of the ask and the agent records in-reply-to it) is at or after the value
 wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 "$WREC"
-WLX="--since 2026-11-17T10:01:00Z"; wl_expect 0 ''
+WLX="--since 2026-11-17T10:01:00Z"; wl_silent
 WLX="--since 2026-11-17T10:00:05Z"; wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
 ok "lint-waiting-clears --since: an ask and record both before it are silent, exit 0; at it, one QUOTED line"
 WLX="--since 2026-11-17T10:00:03Z"; wl_expect 0 "QUOTED ${WC}1 ${WA}1\nQUOTED 1, NO-QUOTE 0"
@@ -1139,7 +1159,7 @@ wl_reset; WLX=""; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 
 wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
 ok "lint-waiting-clears: a shortcut comment after an agent clear is not a human answer, the clear is still listed"
 wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WH}1 10:02:00.123 human - 'Done.\n'
-wl_expect 0 ''
+wl_silent
 ok "lint-waiting-clears: a human comment stamped with fractional seconds is read, so the card is not a clear"
 wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; wl_com 1 ${WA}2 10:00:05 agent ${WA}1 '**Owner ruled off the board.**\n\n```\n> fake\n```\n\n**Given**: chat, 2026-11-17\n'
 wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
@@ -1158,6 +1178,7 @@ UB="$T/Unread.lanework"; cp -R "$D" "$UB"; UL=$(dirname "$(ls "$UB"/*/index.md |
 UC="$UL/e0000000-0000-4000-8000-000000000001"; UI="$UC/index.md"; mkdir -p "$UC/comments/e1000000-0000-4000-8000-000000000001"
 printf -- '---\nschema: 1\nkind: card\ntitle: "Unread"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nBody.\n' > "$UI"
 printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nA note.\n' > "$UC/comments/e1000000-0000-4000-8000-000000000001/index.md"
+USEN=f9000000-0000-4000-8000-000000000009; sent_card "$UL" "$USEN"   # the card a readable run must find
 unr_restore() { chmod 755 "$UL" "$UC" 2>/dev/null || true; chmod 644 "$UI" 2>/dev/null || true; }
 trap 'unr_restore; kill "$PSP" 2>/dev/null || true' EXIT
 # unr_run <script> <board>: UO stdout, UE stderr, UR exit
@@ -1173,16 +1194,16 @@ ok "lint-stamps follows a symlinked board: exit 1 with the same findings as the 
 # a mode-000 lane, card folder and card index.md each give exit 2 and a could-not-read line on stderr, for the three lints
 if [ "$(id -u)" = 0 ]; then echo "skip: running as root, mode 000 stays readable"; else
   for U in "$LS" "$LL" "$WL"; do
-    unr_run "$U" "$UB"; [ "$UR" = 0 ] && [ -z "$UO" ] || unr_fail "$(basename "$U") on a readable board: want silent exit 0"
+    unr_run "$U" "$UB"; sent_check "$U" "$UB" "$UL" "$USEN"
     for what in lane card index; do
       case $what in lane) X=$UL ;; card) X=$UC ;; index) X=$UI ;; esac
       chmod 000 "$X"; if [ -r "$X" ]; then unr_restore; unr_fail "$what is still readable after chmod 000"; fi
       unr_run "$U" "$UB"; unr_restore
       [ "$UR" = 2 ] && grep -q "^$(basename "$U"): could not read " <<<"$UE" || unr_fail "$(basename "$U") with the $what at mode 000: want exit 2 and a could not read line on stderr"
     done
-    unr_run "$U" "$UB"; [ "$UR" = 0 ] && [ -z "$UO" ] || unr_fail "$(basename "$U") after the modes were restored: want silent exit 0"
+    unr_run "$U" "$UB"; sent_check "$U" "$UB" "$UL" "$USEN"
   done
-  ok "lint-stamps, lint-leases and lint-waiting-clears: a lane, a card folder and a card index.md at mode 000 each exit 2 with a could not read line; a readable board stays silent, exit 0"
+  ok "lint-stamps, lint-leases and lint-waiting-clears: a lane, a card folder and a card index.md at mode 000 each exit 2 with a could not read line; a readable board finds exactly its sentinel card"
 fi
 # a board path starting with - is a path, not a find option; a path that vanished between find and the read check is a moved card, not an error
 UW="$T/UnrAsk.lanework"; cp -R "$UB" "$UW"; mkdir -p "$UW/$(basename "$UL")/$(basename "$UC")/comments/e2000000-0000-4000-8000-000000000001"
@@ -1191,7 +1212,7 @@ printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-02T00:00:00Z, by
 cp -R "$UW" "$T/-dashask.lanework"; cp -R "$USB" "$T/-dashstamps.lanework"
 for pair in "$WL:UnrAsk.lanework:-dashask.lanework" "$LS:UnrStamps.lanework:-dashstamps.lanework"; do
   U=${pair%%:*}; r=${pair#*:}; plain=${r%%:*}; dash=${r#*:}
-  unr_run "$U" "$T/$plain"; PR=$UR; PN=$(grep -c . <<<"$UO")
+  unr_run "$U" "$T/$plain"; PR=$UR; PN=$(grep -c . <<<"$UO" || true)
   UR=0; UO=$(cd "$T" && "$U" "$dash" 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err")
   [ "$PR" = 1 ] && [ "$PN" -ge 1 ] && [ "$UR" = "$PR" ] && [ "$(grep -c . <<<"$UO")" = "$PN" ] && [ -z "$UE" ] || unr_fail "$(basename "$U") on $dash: want exit $PR and $PN lines like the plain name (plain rc $PR, $PN lines)"
 done
@@ -1199,6 +1220,42 @@ UO=$(. "$SK/lanework/scripts/lib.sh"; printf '%s\n' "$UB/moved-away/index.md" | 
 [ "$UR" = 0 ] && [ -z "$UO" ] && [ -z "$UE" ] || unr_fail "a listed path that no longer exists: want it skipped silently, exit 0"
 ok "the lints read a board whose name starts with -, and a path that vanished after find listed it is skipped, not reported"
 unr_restore
+
+# work: the lints read symlinked lanes and names with a newline, print the path as the caller spelled it, and a smoke line that greps nothing still reaches its message
+NB="$T/NewCases.lanework"; cp -R "$D" "$NB"; NL=$(dirname "$(ls "$NB"/*/index.md | sed -n 2p)"); rm -rf "$NB"/*/*/
+SLX="$T/ExtLane"; mkdir -p "$SLX"; cp "$NL/index.md" "$SLX/index.md"; SLC=f2000000-0000-4000-8000-000000000002; sent_card "$SLX" "$SLC"
+ln -s "$SLX" "$NB/f2000000-0000-4000-8000-0000000000ff"   # a lane that is a symlink to a folder elsewhere
+for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NB/f2000000-0000-4000-8000-0000000000ff" "$SLC"; done
+rm "$NB/f2000000-0000-4000-8000-0000000000ff"
+ok "lint-stamps, lint-leases and lint-waiting-clears read a lane that is a symlink: each reports that lane's card"
+NLN=f3000000-0000-4000-8000-000000000003$'\n'x; NLC=$'\n'y; sent_card "$NL" "$NLN" "$NLC"   # a card folder and its comment folders with a newline in the name
+for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$NLN" "$NLC"; done
+rm -rf "$NL/$NLN"
+NLT=f5000000-0000-4000-8000-000000000005$'\n'; sent_card "$NL" "$NLT"   # a card folder whose name ends in a newline
+for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$NLT"; done
+rm -rf "$NL/$NLT"
+ok "lint-stamps, lint-leases and lint-waiting-clears read a card and a comment folder with a newline in the name"
+if [ "$(id -u)" != 0 ]; then
+  N4=f4000000-0000-4000-8000-000000000004; sent_card "$NL" "$N4"; N4I="$NL/$N4/comments/$SENT_START/index.md"
+  chmod 000 "$N4I"; unr_run "$WL" "$NB"; chmod 644 "$N4I"
+  [ "$UR" = 2 ] && [ "$UE" = "lint-waiting-clears.sh: could not read $N4I" ] || unr_fail "lint-waiting-clears with an unreadable comment: want exit 2 and only its own could-not-read line on stderr"
+  ok "lint-waiting-clears with a comment index.md at mode 000 prints its could-not-read line and no awk error, exit 2"
+  ln -s "$NB" "$T/BL.lanework"; chmod 000 "$N4I"
+  for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$T/BL.lanework"
+    [ "$UR" = 2 ] && grep -q "^$(basename "$U"): could not read $T/BL.lanework/" <<<"$UE" || { chmod 644 "$N4I"; unr_fail "$(basename "$U") on a symlinked board with an unreadable card: want the path as given ($T/BL.lanework/...)"; }
+  done
+  chmod 644 "$N4I"; rm -rf "$NL/$N4"
+  ok "all three lints name an unreadable path in the spelling given for a symlinked board, not the resolved folder"
+fi
+mkdir -p "$T/-dashnew.lanework"; cp -R "$USB"/. "$T/-dashnew.lanework"/
+UO=$(cd "$T" && "$LS" -dashnew.lanework 2>&1) || true
+[ -n "$UO" ] && ! grep -v '^-dashnew.lanework/' <<<"$UO" >/dev/null && UR=0 || unr_fail "lint-stamps on a - board: every finding must begin -dashnew.lanework/, not ./"
+: > "$T/-f"; UO=$(cd "$T" && "$WL" -f 2>&1) && UR=0 || UR=$?
+[ "$UR" = 2 ] && [ "$UO" = "lint-waiting-clears.sh: not a board folder: -f" ] || unr_fail "lint-waiting-clears -f (a file): want not a board folder: -f"
+ok "lint-stamps prints a - board's paths as given, and lint-waiting-clears names a - file as given"
+P1='PR=$UR; PN=$(grep -c . <<<"$UO" '; P2='|| true)'   # split, so this line does not match itself
+grep -qF "$P1$P2" "$0" || unr_fail "the dash case's PN line must keep || true: a silent plain run must reach its message"
+ok "a grep -c that counts nothing does not stop smoke before its message"
 
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
 PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"

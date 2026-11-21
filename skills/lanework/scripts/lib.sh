@@ -313,20 +313,27 @@ unreadable_files() {
   return "$rc"
 }
 
-# board_index_files <dir>: every readable index.md under <dir> (not .dot or attachments folders), one per line, in find order. <dir> may be a
-# symlink (find -H). Anything it could not read (a folder find cannot enter, an index.md that fails [ -r ]) -> "<script>: could not read <path>"
-# on stderr and return 2; the readable paths still print. The lints finish their findings, then exit 2 on that.
+# board_index_files <dir> <outfile>: writes every readable index.md under <dir> (not .dot or attachments folders), NUL-separated, to <outfile>
+# (a shell variable cannot hold NULs, and a name may hold a newline). Symlinked folders, lanes and cards included, are followed (find -L; a symlink loop is skipped by find without a message, exit 0), spelled as
+# the caller wrote <dir>. Anything it could not read (a folder find cannot enter, an index.md that fails [ -r ]) ->
+# "<script>: could not read <path>" on stderr and return 2; the readable paths are still written. The lints finish their findings, then exit 2 on that.
 board_index_files() {
-  local err out rc=0 l
-  local d=$1; case "$d" in -*) d=./$d ;; esac   # find reads a leading - as an option
+  local err rc=0 l p pre=""
+  local d=$1 o=$2; case "$d" in -*) d=./$d; pre=./ ;; esac   # find reads a leading - as an option; the prefix is stripped from every path printed
   err=$(mktemp "${TMPDIR:-/tmp}/lw-find.XXXXXX") || return 2
-  out=$(find -H "$d" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print 2>"$err") || rc=2
+  : > "$o"
+  find -L "$d" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print0 2>"$err" \
+    | while IFS= read -r -d '' p; do
+        if [ -r "$p" ]; then printf '%s\0' "${p#"$pre"}" >> "$o"
+        elif [ -e "$p" ]; then printf '%s: could not read %s\n' "$(basename "$0")" "${p#"$pre"}" >&2; echo x >> "$err.bad"
+        fi   # else: moved since find listed it
+      done
+  [ ! -e "$err.bad" ] || { rm -f "$err.bad"; rc=2; }
   while IFS= read -r l; do
     [ -n "$l" ] || continue
-    l=${l#find: }; l=${l%: *}
-    printf '%s: could not read %s\n' "$(basename "$0")" "$l" >&2
+    l=${l#find: }; l=${l%: *}; l=${l#"$pre"}
+    printf '%s: could not read %s\n' "$(basename "$0")" "$l" >&2; rc=2
   done < "$err"
   rm -f "$err"
-  [ -z "$out" ] || printf '%s\n' "$out" | unreadable_files || rc=2
   return "$rc"
 }
