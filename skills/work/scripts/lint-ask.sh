@@ -13,7 +13,7 @@
 # when clean.
 set -u
 . "$(dirname "$0")/../../lanework/scripts/lib.sh"
-f=${1:?usage: lint-ask.sh <file> [<board dir>]}; board=${2:-}
+[ $# -ge 1 ] || { echo "usage: lint-ask.sh <file> [<board dir>]" >&2; exit 2; }; f=$1; board=${2:-}
 [ -r "$f" ] || { echo "no such file: $f"; exit 2; }
 body=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {fm=0; next} !fm' "$f")
 strip='s/`[^`]*`//g; s/\]\([^)]*\)/]/g; s#[[:alpha:]][[:alnum:]+.-]*://[^[:space:]>)]*##g'   # code spans, link targets, URLs
