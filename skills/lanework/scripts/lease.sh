@@ -240,7 +240,8 @@ timer() {
     if f=$(find_card) && t=$(cat "$f" 2>/dev/null); then miss=0; else miss=$((miss + 1)); [ "$miss" -lt 3 ] || exit 0; continue; fi
     read_claim /dev/stdin <<<"$t"; [ -n "$CL_TEXT" ] || exit 0     # released
     if [ "$CL_SESS" != "$SESSION" ]; then lose "$CL_SESS" || true; exit 0; fi
-    na=$(thread "$(dirname "$f")" | awk -F'\t' -v s="$SESSION" 'index($2, "**Takeover notice**:") == 1 && index($2, "from session " s " at ") {print $1}' | sort | tail -1)
+    na=$(thread "$(dirname "$f")" | awk -F'\t' -v s="$SESSION" 'index($2, "**Takeover notice**:") == 1 && index($2, "from session " s " at ") {print $1}' | sort | tail -1) \
+      || na=""   # the card moved while its comments were read (set -e would end the timer): read again next poll
     if [ -n "$na" ] && [[ "$na" > "$M_NOTICE" ]]; then
       M_PID=$$; M_NOTICE=$na; mem_save; write_card renew || true; n=0; continue   # renew 5: the next poll finds the loss or release
     fi

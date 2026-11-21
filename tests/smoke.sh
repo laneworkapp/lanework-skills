@@ -3056,14 +3056,21 @@ for i in 1 2 3 4 5; do mv "$LL/$C11g" "$SHL2/$C11g"; sleep 0.15; mv "$SHL2/$C11g
 mv "$LL/$C11g" "$T/l11g-hold"; sleep 1; mv "$T/l11g-hold" "$SHL2/$C11g"; sleep 1
 alive "$TP" || { echo "11g: the timer exited while its card moved between lanes"; exit 1; }
 rm -rf "$SHL2/$C11g"; waitfor '! alive "$TP"' || { echo "11g: the timer outlived its deleted card"; exit 1; }
-# a card found but not readable (moved between the find and the read: a cat shim on the timer's PATH fails once on it) is a miss
+# a card found but not readable (moved between the find and the read), or whose comment is gone when read (moved between the
+# find and the thread read): shims on the timer's PATH, cat on the card and awk on its comment, each fail once. Neither ends it
 CSH="$T/l11g-shim"; mkdir -p "$CSH"; printf '%s\n' '#!/bin/bash' \
-  'case "${1:-}" in */"$L11G_CID"/index.md) [ ! -f "$L11G_ONCE" ] || { rm -f "$L11G_ONCE"; exit 1; } ;; esac; exec /bin/cat "$@"' > "$CSH/cat"; chmod +x "$CSH/cat"
-C11r=$(lcard "Eleven r"); ( export PATH="$CSH:$PATH" L11G_CID="$C11r" L11G_ONCE="$T/l11g-once"; L S-elr stake "$LB" "$C11r" --model smoke >/dev/null )
+  'case "${1:-}" in */"$L11G_CID"/index.md) [ ! -f "$L11G_ONCE" ] || { rm -f "$L11G_ONCE"; exit 1; } ;; esac; exec /bin/cat "$@"' > "$CSH/cat"
+printf '%s\n' '#!/bin/bash' \
+  'case "${@: -1}" in */"$L11G_CID"/comments/*/index.md) [ ! -f "$L11G_AONCE" ] || { rm -f "$L11G_AONCE"; exit 2; } ;; esac; exec /usr/bin/awk "$@"' > "$CSH/awk"; chmod +x "$CSH/cat" "$CSH/awk"
+C11r=$(lcard "Eleven r"); NI=$(uuidgen | tr A-Z a-z); mkdir -p "$(dirname "$(lcf "$C11r")")/comments/$NI"
+printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nA note.\n' > "$(dirname "$(lcf "$C11r")")/comments/$NI/index.md"
+( export PATH="$CSH:$PATH" L11G_CID="$C11r" L11G_ONCE="$T/l11g-once" L11G_AONCE="$T/l11g-aonce"; L S-elr stake "$LB" "$C11r" --model smoke >/dev/null )
 TP=$(mpid S-elr "$C11r"); : > "$T/l11g-once"; waitfor '[ ! -e "$T/l11g-once" ]' || { echo "11g: the cat shim never ran"; exit 1; }
 sleep 0.6; alive "$TP" || { echo "11g: the timer exited on one unreadable read of its card"; exit 1; }
+: > "$T/l11g-aonce"; waitfor '[ ! -e "$T/l11g-aonce" ]' || { echo "11g: the awk shim never ran"; exit 1; }
+sleep 0.6; alive "$TP" || { echo "11g: the timer exited on one comment gone while its thread was read"; exit 1; }
 L S-elr release "$LB" "$C11r" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11g: the timer outlived the release"; exit 1; }
-ok "lease: the timer outlives its card's moves between lanes, a second out of the board and one failed read, and exits once the card is deleted"
+ok "lease: the timer outlives its card's moves between lanes, a second out of the board, one failed read of the card and one of a comment, and exits once the card is deleted"
 
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
