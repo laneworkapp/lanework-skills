@@ -2,6 +2,12 @@
 
 Version 0.9.0: the dispatch skill is retired; use /lanework:watch instead, which now catches up when it starts.
 
+Sessions now take a lease on a card before working it, so two sessions no longer work the same card at once, and a lease left behind expires on its own.
+
+/lanework:watch now reads the app's record of a card move to tell who moved the card.
+
+Cards that wait on something only you can do, such as running a trial or cutting a release, now get a clear request to you and show as waiting.
+
 Question, ticket and decision cards filed on a board whose app shows card citations now carry a citation such as Q3, T2 or ADR1 in place of a number in the title, and links to a card are labelled with it.
 
 Agents now file, move and commit cards with ready-made scripts, so moves show who made them and board commits leave your other files alone.
@@ -15,6 +21,24 @@ If you installed the skills by hand, remove the old link with rm ~/.claude/skill
 Questions the skills ask now go to anyone on a board by default, so every person on a shared board gets the answer buttons, and they name one person only when the question is theirs alone.
 
 Healing a board no longer lets an agent sign its work as "anyone", a name Lanework keeps for addressing every person.
+
+An agent can now clear a card's waiting mark after you rule outside the board, and a new check lists every such clear.
+
+A new check finds cards that two sessions started work on at the same time.
+
+When a board commit's hook fails or its push is rejected, your own staged changes are now kept exactly as they were.
+
+Discovery no longer settles or parks a question that is waiting on you unless your answer is recorded on the card.
+
+Discovery now records an answer you give in chat in the same quoted format as the work skill, so it counts as an answer.
+
+Asks addressed to one person by their handle are now checked like any other ask.
+
+A card whose text contains three closing braces no longer stops scripts from writing to it.
+
+Citation numbers on older boards no longer collide after a zero-padded or hand-typed citation.
+
+The board checks now stop with an error, instead of reporting a clean board, when part of the board can't be read.
 
 Skills now follow version 118 of Lanework's agent guide.
 
