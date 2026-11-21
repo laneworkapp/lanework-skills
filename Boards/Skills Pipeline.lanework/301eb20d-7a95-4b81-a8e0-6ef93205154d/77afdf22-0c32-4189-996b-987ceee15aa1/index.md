@@ -12,7 +12,8 @@ labels:
   - {text: "heal", kind: {type: "skill", text: "Skill"}}
   - {text: "watch", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-21T18:45:26Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-21T18:57:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-21T18:57:24Z, comment: b62baf4c-5066-45a6-a7e7-ac803ab57365}
+modified: {at: 2026-11-21T18:57:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Script headers will state the exit codes, refusals and outputs their code actually produces, and seven small code defects behind those headers get fixed, so an agent that reads a header as the script's contract stops getting wrong exit codes, a stray comment or an empty board folder.
 
