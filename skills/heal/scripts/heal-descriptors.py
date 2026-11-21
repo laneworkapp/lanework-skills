@@ -138,6 +138,7 @@ OLD_BODIES = {
     },
     "discovery": {
         "Brief": [
+            "The two standing references: the Topic card (scope) and the Discovery map card (every decision, by corner of the space). The agent rewrites the map at the close of each round, and a resuming session reads it first.",
             "The two standing references. The Topic card states the scope and what a shared understanding must cover. The Discovery map card is the outline of every decision, grouped by corner of the space, rewritten by the agent at the close of each round, and is the first thing a resuming session reads.",
         ],
         "Facts": [
@@ -153,6 +154,7 @@ OLD_BODIES = {
             "Questions the owner deferred or declined, with the reason as the ruling. Collapsed because it is read least; reopen one by asking it again as a new card that links this one.",
         ],
         "Decisions": [
+            "One card per ADR or PDR, titled `ADR" ":` or `PDR:`, with `Record` and `Status` labels and line 1 linking its question. The agent files it from a question's ruling, before the question settles. Cards never leave; an overturned decision gets the `superseded` status and a dated comment linking its replacement.",   # v0.8.0; the split keeps a grep for the stale advice clean
             "One card per ADR or PDR, filed by the agent straight into this lane from a ruling in Settled. The title starts `ADR:` or `PDR:`, the `Record` and `Status` labels say which and whether it still stands, and line 1 of the body links the question it came from. Cards never leave this lane. A decision overturned keeps its card: it gets the `superseded` status and a dated comment linking its replacement, and the new card links it under Related.",
             "One card per ADR or PDR, filed by the agent straight into this lane from a question's ruling, before the question settles. The title starts `ADR:` or `PDR:`, the `Record` and `Status` labels say which and whether it still stands, and line 1 of the body links the question it came from. Cards never leave this lane. A decision overturned keeps its card: it gets the `superseded` status and a dated comment linking its replacement, and the new card links it under Related.",
         ],
