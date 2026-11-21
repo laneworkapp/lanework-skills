@@ -12,8 +12,7 @@ labels:
   - {text: "heal", kind: {type: "skill", text: "Skill"}}
   - {text: "watch", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-21T18:45:26Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-waiting: {for: anyone, since: 2026-11-21T19:00:05Z, comment: b34f7ea6-d116-434f-bddb-f4fb3052f14a}
-modified: {at: 2026-11-21T19:00:06Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T19:02:38Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Script headers will state the exit codes, refusals and outputs their code actually produces, and seven small code defects behind those headers get fixed, so an agent that reads a header as the script's contract stops getting wrong exit codes, a stray comment or an empty board folder.
 
@@ -118,9 +117,20 @@ Each group below can go to one fixer. Header-only means comment, docstring or us
 - **Code, item 8**: `watch-boards.sh`, before the first `snap`: `command -v fswatch >/dev/null || { echo "watch-boards.sh: needs fswatch (brew install fswatch)" >&2; exit 2 }`.
 - **Header, items 29-30**: `watch-boards.sh:15` ("the resolved watch, work and lanework folders join fswatch"), plus its exit 2 list and the fswatch requirement. `arm-pass.sh`: add exit 2.
 
+### Exit-code convention (owner's ruling: option C)
+
+A usage error (an unknown flag, a missing positional or flag value, a missing required flag, a value outside its set) exits 2 in every shell script and in `lanework-merge.py`. A refusal stays 1, and a lost lease stays 3. Twelve scripts change:
+
+- `file-question.sh`, `file-record.sh`, `file-ticket.sh`: every bad-argument path, now 1.
+- `settle-question.sh`, `claim-ticket.sh`, `resolve-ticket.sh`: the `${N:?}` paths (a missing positional or flag value), now 1.
+- `found-board.sh`: an unknown argument and a flag with no value, now 1. `found-discovery-board.sh` and `found-plan-board.sh` pass its codes through, and their own `${1:?}` paths exit 2 as well.
+- `read-board.sh`, `frontier.sh`, `merge-board.sh`: no argument or an unknown argument, now 1. "Not a board" and "not a repo" are refusals and stay 1.
+
+Each replaces `${N:?}` with an explicit check that prints the usage line on stderr and exits 2, the form `post-ask.sh` uses. The two heal scripts keep 64 for usage errors: `heal/references/descriptors.md` documents it and smoke asserts it. Each header states the result. State the convention once, in `lanework/references/writes.md`, and nowhere else.
+
 ### Guard against new drift (`tests/smoke.sh`)
 
-One smoke case. For every file in `skills/*/scripts/` except `lib.sh`: run it with no arguments (`</dev/null`, `env -u CLAUDE_MODEL -u CLAUDE_CODE_SESSION_ID`, under a 10-second `perl -e 'alarm 10; exec @ARGV'`). Assert a non-zero exit, and assert that the file's first 60 lines contain `exit <that code>`, case-insensitive. This needs no board and costs about 29 short runs. It catches a new script with no stated usage code, and a code change that leaves its header behind. It does not check refusal codes, so a wrong reading of those can still slip through.
+One smoke case. For every file in `skills/*/scripts/` except `lib.sh`: run it with no arguments (`</dev/null`, `env -u CLAUDE_MODEL -u CLAUDE_CODE_SESSION_ID`, under a 10-second `perl -e 'alarm 10; exec @ARGV'`). Assert the exit is 2 (64 for the two heal scripts, and whatever a script that needs no arguments returns is listed by name in the case), and assert that the file's first 60 lines contain `exit <that code>`, case-insensitive. This needs no board and costs about 29 short runs. It catches a new script with no stated usage code, and a code change that leaves its header behind. It does not check refusal codes, so a wrong reading of those can still slip through.
 
 ## Verified
 
@@ -137,7 +147,7 @@ One smoke case. For every file in `skills/*/scripts/` except `lib.sh`: run it wi
 
 ## Done when
 
-- `tests/smoke.sh` passes with the nine new cases above.
+- `tests/smoke.sh` passes with the nine new cases above, plus one case per changed script in the exit-code convention: a bad flag exits 2 and writes nothing. Each fails before the change with exit 1.
 - For each of items 9 to 30, except the dropped 24, a fresh read of the touched header against its code finds no mismatch. A reviewer checks each against the line numbers in `## Problem`, re-resolved after the merges named in `## Risks`.
 - `grep -L -i 'exit [0-9]' skills/*/scripts/*` lists only `lib.sh`.
 - `grep -c CLAUDE_MODEL` is at least 1 in each of the 13 `require_model` callers.
@@ -148,14 +158,15 @@ One smoke case. For every file in `skills/*/scripts/` except `lib.sh`: run it wi
 - Item 5's `-lt 80` makes an ask of exactly 80 words fail where it passed. `post-ask.sh` and `file-question.sh` lint asks, so such an ask would now be refused (`post-ask.sh`) or warned about (`file-question.sh`).
 - Item 1 moves where the comment lands. A failure between the comment and the `mv` (a full disk) can still leave it. The header says so rather than claiming none.
 - Item 8 makes `watch-boards.sh` refuse where it used to exit 0. A Monitor without fswatch now ends with exit 2, which is the point.
+- The convention edits the argument handling of twelve scripts, most of which `stamp-values` also edits for `--name`. Build after that branch is on `main`, on its lines as merged.
 - The guard reads prose with a grep, so a header that says "exit 2" about something else satisfies it. It is a floor, not a proof.
 - Item 12 edits one line of `writes.md`. That file is also on the `stamp-values` branch, and `tests/check-sizes.sh` checks its README word count, so the README row moves with it.
 
 ## Recommendation
 
-Build it all, in one fixer per skill group after the listed branches merge: items 1 to 8 as code fixes with their smoke cases, items 9 to 30 (without 24) as header edits, plus the no-argument guard. The exit-code convention is the owner's call (below). Until it is made, the headers state each script's codes as they are, which the guard then holds in place.
+Build it all, in one fixer per skill group after the listed branches merge: items 1 to 8 as code fixes with their smoke cases, items 9 to 30 (without 24) as header edits, plus the no-argument guard. The owner ruled option C on the exit-code convention: usage errors exit 2 in all twelve scripts that returned 1, which the guard then holds in place.
 
-## Open call: one exit-code convention
+## Ruled: one exit-code convention (option C)
 
 What each script does now, for usage errors (bad or missing arguments) against refusals:
 
@@ -173,6 +184,6 @@ In-repo callers: no skill prose depends on a usage-error code of the scripts tha
 
 Options:
 
-- **A (recommended).** Bad arguments exit 2 in `file-question.sh`, `file-record.sh` and `file-ticket.sh`: an unknown flag, a missing value, a missing required flag, a value outside its set. That changes 3 scripts' code, and their headers state the result.
+- **A.** Bad arguments exit 2 in `file-question.sh`, `file-record.sh` and `file-ticket.sh`: an unknown flag, a missing value, a missing required flag, a value outside its set. That changes 3 scripts' code, and their headers state the result.
 - **B.** No code change. Each header states its codes as they are. That changes 0 scripts.
-- **C.** A plus the `${N:?}` and unknown-argument paths in the other 9 scripts that exit 1 for usage errors (the 3, 3 and 3 rows above, counting `found-board.sh` and its two pass-throughs). That changes 12 scripts' code and overlaps `stamp-values`' `--name` edits in most of them. The heal scripts' 64 stays in every option.
+- **C (ruled).** A plus the `${N:?}` and unknown-argument paths in the other 9 scripts that exit 1 for usage errors (the 3, 3 and 3 rows above, counting `found-board.sh` and its two pass-throughs). That changes 12 scripts' code and overlaps `stamp-values`' `--name` edits in most of them. The heal scripts' 64 stays in every option.
