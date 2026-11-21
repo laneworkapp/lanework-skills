@@ -10,7 +10,7 @@
 #        lease.sh _timer  <board> <card-uuid> <session> <claude-pid>      internal: started detached by stake, check, renew
 # The holder is CLAUDE_CODE_SESSION_ID (never a flag); stake needs CLAUDE_PID, the session's process, which the timer
 # outlives by at most one poll. Exit: 0 ok (check: held), 1 refused (held by another, backed off, nothing to renew), 2 usage / no model / no session id / no CLAUDE_PID /
-# not exactly one card with that uuid, 3 lost, 4 check: never held.
+# a session id with a slash, backslash, quote, space, comma or closing brace, not exactly one card with that uuid, 3 lost, 4 check: never held.
 # Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<board key>/<card-uuid>, the board key
 # the first 16 hex of the shasum of the board's resolved path (`pwd -P`: a symlink or a trailing slash is the same board), so the
 # same card uuid on another copy of the board is never held there. A file in the older <session>/<card-uuid> layout is never
@@ -18,7 +18,8 @@
 # `claimed` still reads as held, and the next write renews it and starts a new timer. Lapsed and taken over meanwhile, the next write
 # lands with no loss record. A lease write lands only on the card as read: that narrows the window against another writer, never
 # closes it, because no lock is shared with the app or the other scripts. A write across volumes stages a .lanework-tmp file at the
-# board root, which the app's board .gitignore ignores; a board the app has never opened has no .gitignore, so it is not ignored there.
+# board root, which the app's board .gitignore ignores; a board the app has never opened has no .gitignore, so it is not ignored there,
+# and a killed write's file is swept by the next lease write on the board.
 # Each file: key=value lines: board,
 # timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
 # <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
@@ -74,6 +75,11 @@ status_of() {
 write_card() {
   local f f2 stage now by until="" try
   stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX") || return 1
+  local sw sp                                                           # sweep the temp files of killed writes: the pid in the name is dead
+  for sw in "$BOARD"/.lease-write.*.*.lanework-tmp; do
+    [ -f "$sw" ] || continue; sp=${sw%.lanework-tmp}; sp=${sp##*.}
+    [[ "$sp" =~ ^[0-9]+$ ]] && ! kill -0 "$sp" 2>/dev/null && rm -f "$sw"
+  done
   for try in 1 2 3 4 5; do
     f=$(find_card) || { rm -rf "$stage"; return 1; }
     cp "$f" "$stage/read" 2>/dev/null || continue                      # moved meanwhile: read again
@@ -106,7 +112,7 @@ write_card() {
       # The stage on another volume than the board (EXDEV): the content is copied to <board>/.lease-write.<card>.<pid>.lanework-tmp,
       # at the board root (no card folder: the app moves loose files there into attachments), compared again, then renamed over
       # the card. That temp file is removed on every failure path and on TERM, INT or HUP; a kill of this script leaves perl to
-      # finish. The test pause, first try only, also holds the temp file before its compare.
+      # finish, and a KILL of perl leaves the file for the sweep at the top of write_card. The test pause, first try only, also holds the temp file before its compare.
       local r=0 p=0; [ "$try" != 1 ] || p=$WRITE_PAUSE
       perl -e 'my ($rd, $nw, $f, $tmp, $p) = @ARGV; local $/;
         sub same { open(my $a, "<", $rd) or return 0; open(my $b, "<", $f) or return 0; return <$a> eq <$b> }
@@ -270,7 +276,7 @@ done
 require_model lease.sh "$USAGE"
 SESSION="${CLAUDE_CODE_SESSION_ID:-}"
 [ -n "$SESSION" ] || usage "no CLAUDE_CODE_SESSION_ID: no session id, no lease"
-case "$SESSION" in */*|*\"*|*[[:space:]]*) usage "session id with a slash, quote or space: $SESSION" ;; esac
+case "$SESSION" in */*|*\"*|*[[:space:]]*|*\\*|*,*|*\}*) usage "session id with a slash, backslash, quote, space, comma or closing brace: $SESSION" ;; esac
 [ "$SUB" != stake ] || [ -n "${CLAUDE_PID:-}" ] || usage "no CLAUDE_PID: the timer exits with the session's process"
 [[ "$CID" =~ $UUID_RE ]] || usage "not a lowercase card uuid: $CID"
 [ -f "$BOARD/index.md" ] || usage "not a board: $BOARD"
@@ -330,7 +336,7 @@ release)
   fi
   if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8} and writes it no more" >&2; exit 3; fi
   if [ "$ST" != none ] && [ "$CL_SESS" != "$SESSION" ]; then
-    echo "lease.sh: ${CID:0:8} is held by session $CL_SESS; --force on the owner's word only" >&2; exit 1
+    echo "lease.sh: ${CID:0:8} is held by session $CL_SESS; lease.sh list <board> shows whether it lapsed (take a lapsed one with stake); --force on the owner's word only" >&2; exit 1
   fi
   mem_load; stop_timer
   RC=0; CLEAR_SESS="$SESSION"; [ "$ST" = none ] || write_card clear || RC=$?
