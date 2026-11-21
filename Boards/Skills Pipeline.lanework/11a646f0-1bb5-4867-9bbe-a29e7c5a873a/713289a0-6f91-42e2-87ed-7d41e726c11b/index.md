@@ -4,10 +4,6 @@ kind: card
 title: "Review leftovers 3: Recap-click edges, lease memory file, commit-board setsid, smoke guard"
 order: 1024
 labels: [{text: "discovery", kind: {type: "skill", text: "Skill"}}, {text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "work", kind: {type: "skill", text: "Skill"}}, {text: "repo", kind: {type: "skill", text: "Skill"}}]
-  - {text: "Skill=discovery", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
-  - {text: "Skill=lanework", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
-  - {text: "Skill=work", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
-  - {text: "Skill=repo", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
 created:  {at: 2026-11-21T19:23:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 modified: {at: 2026-11-21T19:23:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
