@@ -1,7 +1,7 @@
 ---
 schema: 1
 kind: card
-title: "Shaping writes a card's label as a block list, which heal flags every run"
+title: "A hand-written card label lands as a block list, which heal flags every run"
 order: 7168
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T12:03:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
