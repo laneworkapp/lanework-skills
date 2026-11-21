@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Citation leftovers: an unchecked stamp, a reissue on older boards, stale ADR: lane text"
-order: 8192
+order: 10240
 labels: [{text: lanework, kind: {type: skill, text: Skill}}, {text: discovery, kind: {type: skill, text: Skill}}, {text: plan, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T14:21:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T17:55:04Z}
+modified: {at: 2026-11-21T00:24:16Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Four small edges of the citation work can still put a wrong citation or a muddled face on a board: an unchecked stamp, a reissued number on older boards, a stale lane description, and a doubled prefix. The fix is one numbered list of small changes, each separable; items 1 and 2 are the ones that matter.
 
