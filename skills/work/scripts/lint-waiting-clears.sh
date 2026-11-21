@@ -33,11 +33,12 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -e "$board" ] || { echo "no such path: $board" >&2; exit 2; }
-case "$board" in -*) board=./$board ;; esac   # the helper lists "./<board>/..." for it; the card depth below strips $board as spelled
-[ -d "$board" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
+d=$board; case "$d" in -*) d=./$d ;; esac   # a leading - is no option for test
+[ -d "$d" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
 # comment_row <comment index.md>: created.at, agent|human|other, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
 comment_row() {
-  awk -v id="$(basename "$(dirname "$1")")" '
+  LW_ID="$(basename -- "$(dirname -- "$1")")" awk '   # the id rides in the environment: awk -v rejects a newline in it
+    BEGIN { id = ENVIRON["LW_ID"] }
     { sub(/\r$/, "") }
     NR == 1 { if ($0 == "---") fm = 1; next }
     fm && $0 == "---" { fm = 0; body = 1; next }
@@ -48,25 +49,28 @@ comment_row() {
     body && !fence && /^>[ \t]*[^ \t]/ { q = 1 }
     body && !fence && /^\*\*Given\*\*:/ { g = 1 }
     END {
+      gsub(/[\t\n]/, " ", id)   # a newline or tab in the folder name would split the row
       at = ""
       if (match(cr, /(^|[ {,])at:[ \t]*["\x27]?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z/)) { s = substr(cr, RSTART, RLENGTH); match(s, /[0-9]{4}-.*$/); at = substr(s, RSTART); sub(/\.[0-9]+Z$/, "Z", at) }
       kind = "human"
       if (cr ~ /(^|[ {,])by:/ && match(cr, /kind:[ \t]*["\x27]?[A-Za-z]+/)) { kind = substr(cr, RSTART, RLENGTH); sub(/^kind:[ \t]*["\x27]?/, "", kind); if (kind != "agent" && kind != "human") kind = "other" }
       printf "%s\t%s\t%s\t%d\t%d\t%s\n", at, kind, irt, ask + 0, (q && g) + 0, id
-    }' "$1"
+    }' "$(dp "$1")"
 }
 # has_waiting <card index.md>: a top-level `waiting:` key in the frontmatter, flow or block
-has_waiting() { awk 'NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { exit } fm && /^waiting:/ { f = 1 } END { exit !f }' "$1"; }
+dp() { case "$1" in -*) printf './%s' "$1" ;; *) printf '%s' "$1" ;; esac; }   # a path that starts with - is no awk option
+has_waiting() { awk 'NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { exit } fm && /^waiting:/ { f = 1 } END { exit !f }' "$(dp "$1")"; }
 quoted=0; noquote=0; unread=0
-list=$(board_index_files "$board") || unread=1
-while IFS= read -r idx; do   # a card is <board>/<lane>/<card>/index.md; the helper skips .trash, .log, .schema
+LIST=$(mktemp "${TMPDIR:-/tmp}/lw-wc.XXXXXX") || exit 2; trap 'rm -f "$LIST"' EXIT
+board_index_files "$board" "$LIST" || unread=1
+while IFS= read -r -d '' idx; do   # a card is <board>/<lane>/<card>/index.md; the helper skips .trash, .log, .schema
   [ -n "$idx" ] || continue
   rel=${idx#"$board"}; rel=${rel#/}; rel=${rel#/}; rel=${rel%/index.md}
   case "$rel" in */*/*) continue ;; */*) ;; *) continue ;; esac
-  card=$(dirname "$idx"); has_waiting "$idx" && continue
+  card=$(dirname -- "$idx"); has_waiting "$idx" && continue
   rows=""
   for c in "$card"/comments/*/index.md; do
-    [ -f "$c" ] || continue
+    [ -f "$c" ] && [ -r "$c" ] || continue   # an unreadable one: the helper already printed its could-not-read line
     rows="$rows$(comment_row "$c")"$'\n'
   done
   [ -n "$rows" ] || continue
@@ -78,14 +82,14 @@ while IFS= read -r idx; do   # a card is <board>/<lane>/<card>/index.md; the hel
       for (i = 1; i <= n; i++) if (k[i] == "human" && (c[i] > c[b] || r[i] == u[b])) exit
       s = "NO-QUOTE"; for (i = 1; i <= n; i++) if (k[i] == "agent" && r[i] == u[b] && q[i] == 1) s = "QUOTED"
       t = c[b]; for (i = 1; i <= n; i++) if (k[i] == "agent" && r[i] == u[b] && c[i] > t) t = c[i]
-      print s, u[b], t
+      print s "\t" u[b] "\t" t
     }')
   [ -n "$res" ] || continue
-  read -r verdict ask clear <<<"$res"
+  IFS=$'\t' read -r verdict ask clear <<<"$res"   # tab-separated: an id may hold a space
   [ -z "$since" ] || [ ! "$clear" \< "$since" ] || continue
-  echo "$verdict $(basename "$card") $ask"
+  echo "$verdict $(basename -- "$card") $ask"
   case "$res" in QUOTED*) quoted=$((quoted + 1)) ;; *) noquote=$((noquote + 1)) ;; esac
-done < <(printf '%s\n' "$list" | sort)
+done < <(sort -z "$LIST")
 [ $((quoted + noquote)) -eq 0 ] || echo "QUOTED $quoted, NO-QUOTE $noquote"
 [ "$unread" -eq 0 ] || exit 2
 [ "$noquote" -eq 0 ]
