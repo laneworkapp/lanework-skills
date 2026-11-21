@@ -5,7 +5,7 @@ title: "A hand-written card label lands as a block list, which heal flags every 
 order: 7168
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T12:03:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-21T12:06:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
+modified: {at: 2026-11-21T13:15:44Z}
 ---
 An agent adding a label to a card by hand leaves `labels` as a two-line block list, where the guide's compact form is one line, so the board's heal flags the card on every run.
 

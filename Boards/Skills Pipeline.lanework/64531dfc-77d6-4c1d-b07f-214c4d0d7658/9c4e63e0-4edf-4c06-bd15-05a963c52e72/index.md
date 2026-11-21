@@ -4,7 +4,7 @@ kind: card
 title: "Lint leftovers: symlinked lanes, odd names, message spelling, smoke gaps"
 order: 6144
 created:  {at: 2026-11-21T01:59:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T01:59:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T13:15:44Z}
 ---
 ## Problem
 

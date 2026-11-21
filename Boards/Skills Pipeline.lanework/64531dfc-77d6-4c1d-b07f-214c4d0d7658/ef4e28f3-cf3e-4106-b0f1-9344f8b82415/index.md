@@ -4,7 +4,7 @@ kind: card
 title: "Smoke fails under machine load: plan-claim timing cases and a broken pipe from head -1"
 order: 1024
 created:  {at: 2026-11-20T23:06:30Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T23:06:30Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T13:15:44Z}
 ---
 ## Problem
 
