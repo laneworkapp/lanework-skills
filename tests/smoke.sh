@@ -419,6 +419,32 @@ SKSTUB="$T/skstub"; cp -R "$SK" "$SKSTUB"; printf '#!/bin/bash\necho "QUOTED x y
 RC=0; "$SKSTUB/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A2" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
 [ "$RC" = 1 ] && grep -q 'lint-waiting-clears.sh failed' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "settle with a lint exiting 2: want exit 1 and nothing written, got rc $RC"; cat "$T/err.txt"; exit 1; }
 ok "settle-question treats a waiting-clear lint exit of 2 as failed even when its output reads QUOTED: exit 1, nothing written"
+# refusal text names the newest ask and the real causes: a bare > quote and the right --reply
+printf '**Owner ruled off the board.**\n\n>\n\n**Given**: chat, 2026-09-27\n' > "$T/rec-bare.md"
+RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec-bare.md" --reply "$A2" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q "$A2" "$T/err.txt" && grep -q 'fence' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "bare > record: want exit 1, the newest ask id and 'fence', nothing written; got rc $RC"; cat "$T/err.txt"; exit 1; }
+RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q "$A2" "$T/err.txt" && ! grep -q "$A1" "$T/err.txt" || { echo "stale --reply: the message must name the newest ask $A2, not $A1"; cat "$T/err.txt"; exit 1; }
+ok "settle-question refusal names the newest ask's id and the fence cause, not the passed --reply"
+# only each comment's index.md is staged for the lint (the stub refuses with NO-QUOTE, so nothing is written)
+SKL="$T/sklist"; rm -rf "$SKL"; cp -R "$SK" "$SKL"; LS="$SKL/work/scripts/lint-waiting-clears.sh"
+printf '#!/bin/bash\nfind "$1" > "%s/listing.txt"\necho "NO-QUOTE x y"; exit 1\n' "$T" > "$LS"; chmod +x "$LS"
+ATT="$(dirname "$CF2")/comments/$A2/attachments/aaaaaaaa-0000-4000-8000-000000000000"; mkdir -p "$ATT"; echo blob > "$ATT/blob.txt"
+S2B=$(sum "$D")
+RC=0; "$SKL/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A2" --model smoke >/dev/null 2>&1 || RC=$?
+[ "$RC" = 1 ] && grep -q "comments/$A2/index.md" "$T/listing.txt" && ! grep -q attachments "$T/listing.txt" || { echo "staged lint input: want each comment's index.md and no attachments (rc $RC)"; cat "$T/listing.txt"; exit 1; }
+rm -rf "$(dirname "$ATT")"; S2B=$(sum "$D")
+ok "settle-question stages only each comment's index.md for the waiting-clear lint, no attachments"
+# a present lint that is not executable is not called missing, and an absent one is
+chmod -x "$LS"
+RC=0; "$SKL/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A2" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q 'not executable' "$T/err.txt" && ! grep -q 'missing' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "non-executable lint: want exit 1, 'not executable', not 'missing'; got rc $RC"; cat "$T/err.txt"; exit 1; }
+rm -f "$LS"
+RC=0; "$SKL/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A2" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q 'missing' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "absent lint: want exit 1 and 'missing'; got rc $RC"; cat "$T/err.txt"; exit 1; }
+ok "settle-question says 'not executable' for a present lint without the x bit and 'missing' for an absent one, nothing written"
+grep 'owner answer' "$SK/discovery/references/rounds.md" | grep -q 'Recap' || { echo "rounds.md lost the Recap rule beside 'owner answer'"; exit 1; }
+ok "rounds.md says a Recap: click is not an owner answer"
 # --record with no --reply, CRLF line ends: in reply to waiting.comment, written LF, read QUOTED
 printf '**Owner ruled off the board.**\r\n\r\n> Later.\r\n\r\n**Given**: chat, 2026-09-27\r\n' > "$T/rec-crlf.md"; printf '**2026-09-27**: Parked. "Later."\r\n' > "$T/r-crlf.md"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r-crlf.md" --to parked --record "$T/rec-crlf.md" --model smoke >/dev/null
@@ -484,7 +510,7 @@ grep -qxF 'title: "Q5: C:\\path \"x\" tail"' "$D"/*/"$C5"/index.md || { echo "qu
 validate "$D" >/dev/null; ok "file-question.sh: a title with a backslash, a quote and a newline round-trips and the board validates"
 # a question with no waiting settles with no record, as before
 O6=$("$SK/discovery/scripts/file-question.sh" "$D" "No waiting" --round 1 --body "$T/q1.md" --model smoke 2>&1); C6=$(head -1 <<<"$O6" | sed 's#.*/##')
-CF6="$(ls "$D"/*/"$C6"/index.md)"; perl -ni -e 'print unless /^waiting:/' "$CF6"; ! grep -q '^waiting:' "$CF6"
+CF6="$(ls "$D"/*/"$C6"/index.md)"; perl -ni -e 'print unless /^waiting:/' "$CF6"; ! grep -q '^waiting:' "$CF6" || { echo "the no-waiting card still has a waiting line"; exit 1; }
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C6" --ruling "$T/r1.md" --model smoke >/dev/null || { echo "settle-question refused a question with no waiting"; exit 1; }
 [ "$(grep -m1 '^title:' "$(dirname "$(dirname "$(ls "$D"/*/"$C6"/index.md)")")/index.md")" = 'title: "Settled"' ] || { echo "question with no waiting not in Settled"; exit 1; }
 ok "a question with no waiting settles with no record"
