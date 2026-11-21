@@ -89,14 +89,14 @@ guide_version() {
   printf '%s' "$v"; [ -n "$v" ]
 }
 
-# ask_handle <board>: whom an ask addresses by default. `anyone` on a board whose guide is v117 or later (older builds draw no buttons for it),
+# ask_handle <board>: whom an ask addresses by default. `anyone` on a board whose guide has `@anyone` (older builds draw no buttons for it),
 # else owner_handle (empty + exit 1 if none). A person's handle for a question that is theirs alone is the caller's call, never this one's.
 ask_handle() {
   local v; v=$(guide_version "$1" || true)
   if [ -n "$v" ] && [ "$v" -ge 117 ]; then printf anyone; else owner_handle "$1"; fi
 }
 
-# cite_enabled <board>: true when the board's guide line reads v117 or later, the builds that draw a card's `cite-as`. Only then does a script
+# cite_enabled <board>: true when the board's guide line is new enough for the builds that draw a card's `cite-as`. Only then does a script
 # mint a citation and write a bare title; below it, or with no readable stamp (a board no app has opened), it files as before. ask_handle's gate.
 cite_enabled() { local v; v=$(guide_version "$1" || true); [ -n "$v" ] && [ "$v" -ge 117 ]; }
 

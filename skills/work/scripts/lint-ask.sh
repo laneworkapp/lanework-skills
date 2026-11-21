@@ -1,10 +1,10 @@
 #!/bin/bash
 # Lint an ask comment before it lands.   Usage: lint-ask.sh <file> [<board dir>]
 #   <file>   a comment index.md (frontmatter + body) or a bare body file
-#   <board>  the .lanework folder; its CLAUDE.md names the human's handle, and on a guide v117+ board
+#   <board>  the .lanework folder; its CLAUDE.md names the human's handle, and on a board whose guide has `@anyone`
 #            `@anyone` is the human's handle too. Without it, the first @token outside code spans and URLs is taken as the handle.
 # A body that mentions nobody is a record and passes untouched. A body is an ask for a handle when it names the
-# human (the board's handle, or `@anyone` on v117+) anywhere, or starts its first line with anyone's handle; a mid-sentence
+# human (the board's handle, or `@anyone` where the guide has it) anywhere, or starts its first line with anyone's handle; a mid-sentence
 # mention of someone else stays a record. An ask must fit references/writing.md § The ask: handle on the first
 # line (and every other @handle it names, outside code spans and URLs), under 80 words, one question, one clause per sentence (no em-dash, no semicolon),
 # no hedging, a blank line after any list, every card it names linked (`lanework://<board-id>/<card-id>`
@@ -21,7 +21,7 @@ lead=$(printf '%s\n' "$body" | grep -v '^[[:space:]]*$' | head -1 | grep -o -E '
 handle=""
 [ -n "$board" ] && handle=$(owner_handle "$board" || true)
 if [ -n "$board" ] && [ "$(ask_handle "$board" || true)" = anyone ] && printf '%s\n' "$body" | sed -E "$strip" | grep -q -i -E '(^|[^[:alnum:]_])@anyone([^[:alnum:]_-]|$)'; then handle=anyone; fi
-# a leading handle wins: the ask is for that person (but below v117 `@anyone` is nobody's handle)
+# a leading handle wins: the ask is for that person (but on an older guide `@anyone` is nobody's handle)
 [ -z "$lead" ] || { [ "$lead" = anyone ] && [ -n "$board" ] && [ "$(ask_handle "$board" || true)" != anyone ]; } || handle=$lead
 [ -n "$handle" ] || handle=$(printf '%s\n' "$body" | sed -E "$strip" | grep -o -E '(^|[^[:alnum:]_])@[[:alnum:]_-]+' | head -1 | sed 's/.*@//')
 [ -n "$handle" ] || exit 0                                   # no mention anywhere: a record
