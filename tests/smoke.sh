@@ -2265,7 +2265,7 @@ kill -TERM "$KP"; sleep 0.3; touch "$G/go"; rc=0; wait "$KP" || rc=$?
 perl -e 'alarm 20; exec @ARGV' bash -c "until [ -e '$G/landed' ]; do sleep 0.1; done" || { echo "the commit never landed"; exit 1; }
 rm -f "$G/work/.git/hooks/commit-msg" "$G/work/.git/hooks/post-commit"
 [ "$rc" -eq 143 ] && [ "$(g log -1 --format=%s)" = "B: termed in hook" ] && [ "$(g show "HEAD:$CP")" = u3 ] && g diff --cached --quiet HEAD -- "$CD" \
-  && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$o9" ] && [ ! -e "$G/work/.git/lanework-commit-board.lock" ] && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed, not pushed" "$G/term.out" || { echo "commit-board: SIGTERM during a commit-msg hook (rc $rc):"; cat "$G/term.out"; g status --short; exit 1; }
+  && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$o9" ] && [ ! -e "$G/work/.git/lanework-commit-board.lock" ] && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed, not confirmed pushed (origin/main does not hold it)" "$G/term.out" || { echo "commit-board: SIGTERM during a commit-msg hook (rc $rc):"; cat "$G/term.out"; g status --short; exit 1; }
 g push -q origin main 2>/dev/null
 ok "commit-board.sh: SIGTERM during a commit-msg hook waits for the commit, then syncs the index to it and says it is not pushed: exit 143, the lock gone"
 # (3) during a push that succeeds (pre-push paused until go3): the commit is on origin, and the line says pushed, not "not pushed"
@@ -2324,6 +2324,71 @@ grep -q '^exit 0$' "$T/cb-wait.txt" && [ "$(g log -1 --format=%s)" = "B: after t
 sh -c 'exit 0' & DPID=$!; wait "$DPID"; mkdir "$LK"; echo "$DPID" > "$LK/pid"; echo l > "$G/work/$CP"
 perl -e 'alarm 20; exec @ARGV' bash -c "cd '$G/work' && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 '$CB' 'B: reclaimed' '$CP'" >/dev/null 2>&1 && [ "$(g log -1 --format=%s)" = "B: reclaimed" ] && [ ! -e "$LK" ] || { echo "commit-board did not reclaim a dead pid's lock"; exit 1; }
 ok "commit-board.sh waits while the lock's pid is alive, then commits; a dead pid's lock is reclaimed; the lock is gone after"
+# --push with nothing to commit but HEAD ahead of origin (a run SIGKILLed while its pre-push hook slept): pushes it
+g reset -q --hard HEAD; g push -q origin main 2>/dev/null; rm -f "$PP" "$G/inpush4" "$G/hookpid"; echo r4 > "$G/work/$CP"
+printf '#!/bin/bash\necho $$ > "%s/hookpid"; touch "%s/inpush4"; exec sleep 30\n' "$G" "$G" > "$PP"; chmod +x "$PP"
+(cd "$G/work" && TMPDIR="$G/tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: killed, then retried" "$CP") >/dev/null 2>&1 & KP=$!
+perl -e 'alarm 60; exec @ARGV' bash -c "until [ -e '$G/inpush4' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the push never reached the hook"; exit 1; }
+kill -KILL "$KP"; wait "$KP" 2>/dev/null || true; HK=$(cat "$G/hookpid"); kill -KILL "$HK" 2>/dev/null || true; rm -f "$PP"
+perl -e 'alarm 60; exec @ARGV' bash -c "while kill -0 $HK 2>/dev/null; do sleep 0.1; done"; sleep 0.5
+hk=$(g rev-parse HEAD); [ "$(g log -1 --format=%s)" = "B: killed, then retried" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" != "$hk" ] || { echo "the killed run did not leave its commit unpushed"; exit 1; }
+rc=0; O=$(cb --push "B: retry" "$CP" 2>&1) || rc=$?
+[ "$rc" -eq 0 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$hk" ] && [ "$(g rev-parse HEAD)" = "$hk" ] && ! grep -q 'nothing to commit' <<<"$O" \
+  || { echo "commit-board --push after a killed push left its commit unpushed (rc $rc): $O"; exit 1; }
+ok "commit-board.sh --push with nothing to commit but HEAD ahead of origin (an earlier run SIGKILLed mid-push): pushes it, exit 0"
+# the same with origin refusing every push: exit 1 after 5 tries, naming the unpushed commit
+echo r5 > "$G/work/$CP"; cb "B: unpushed" "$CP" >/dev/null; hu=$(g rev-parse HEAD)
+printf '#!/bin/bash\nexit 1\n' > "$G/origin.git/hooks/pre-receive"; chmod +x "$G/origin.git/hooks/pre-receive"
+rc=0; O=$(cb --push "B: refused retry" "$CP" 2>&1) || rc=$?; rm -f "$G/origin.git/hooks/pre-receive"
+[ "$rc" -eq 1 ] && grep -q "push failed 5 times; ${hu:0:8}" <<<"$O" && [ "$(g rev-parse HEAD)" = "$hu" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" != "$hu" ] \
+  || { echo "commit-board --push of an earlier commit to an origin that refuses (rc $rc): $O"; exit 1; }
+g push -q origin main 2>/dev/null
+ok "commit-board.sh --push of an earlier unpushed commit that origin refuses: exit 1 after 5 tries, naming it, HEAD kept"
+# the push bound: LANEWORK_PUSH_TIMEOUT=2, a pre-push hook that sleeps 30 in a child; the run ends at the bound, the hook's
+# child gone, the commit kept and the cleanup run; a later --push lands it
+mkdir -p "$G/tmp3"; rm -f "$G/sleeppid"; echo r6 > "$G/work/$CP"
+printf '#!/bin/bash\nsleep 30 & echo $! > "%s/sleeppid"; wait\n' "$G" > "$PP"; chmod +x "$PP"
+t0=$(date +%s); rc=0; O=$(cd "$G/work" && TMPDIR="$G/tmp3" LANEWORK_PUSH_TIMEOUT=2 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 perl -e 'alarm 45; exec @ARGV' "$CB" --push "B: bounded" "$CP" 2>&1) || rc=$?; t1=$(date +%s)
+SP=$(cat "$G/sleeppid" 2>/dev/null || true); rm -f "$PP"; sleep 0.3
+if [ -n "$SP" ] && kill -0 "$SP" 2>/dev/null; then kill "$SP"; echo "commit-board: the pre-push hook's child outlived the bound"; exit 1; fi
+[ "$rc" -eq 1 ] && [ $((t1 - t0)) -lt 15 ] && [ -n "$SP" ] && grep -q "push timed out after 2 s; $(g rev-parse --short=8 HEAD) committed, not confirmed pushed" <<<"$O" && ! grep -q interrupted <<<"$O" \
+  && [ "$(g log -1 --format=%s)" = "B: bounded" ] && [ -z "$(g status --porcelain -- "$CP")" ] && [ ! -e "$LK" ] && [ -z "$(ls "$G/tmp3")" ] \
+  || { echo "commit-board: a push past LANEWORK_PUSH_TIMEOUT (rc $rc, $((t1 - t0)) s): $O"; g status --short; ls "$G/tmp3"; exit 1; }
+hb=$(g rev-parse HEAD); cb --push "B: after the bound" "$CP" >/dev/null && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$hb" ] || { echo "commit-board: --push after a timed-out push did not land it"; exit 1; }
+rc=0; (cd "$G/work" && LANEWORK_PUSH_TIMEOUT=x GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$CB" --push "B: bad bound" "$CP") >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "commit-board: a bad LANEWORK_PUSH_TIMEOUT: want exit 2, got $rc"; exit 1; }
+ok "commit-board.sh: a push past LANEWORK_PUSH_TIMEOUT ends at the bound (exit 1, timed out, not confirmed pushed), the hook's child killed, the commit on HEAD, the index synced, lock and stage folder gone; the next --push lands it; a bad value exits 2"
+# push.err unwritable (a pre-commit hook makes the stage folder read-only): a failed push, the commit taken back, no "interrupted"
+mkdir -p "$G/tmp4"; echo r7 > "$G/work/$CP"; h7=$(g rev-parse HEAD)
+printf '#!/bin/bash\nchmod a-w "%s/tmp4"/work-commit.*\n' "$G" > "$G/work/.git/hooks/pre-commit"; chmod +x "$G/work/.git/hooks/pre-commit"
+rc=0; O=$(cd "$G/work" && TMPDIR="$G/tmp4" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$CB" --push "B: unwritable" "$CP" 2>&1) || rc=$?
+rm -f "$G/work/.git/hooks/pre-commit"; chmod -R u+w "$G/tmp4"
+[ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h7" ] && ! grep -q interrupted <<<"$O" && grep -q 'git push output unavailable' <<<"$O" && [ ! -e "$LK" ] \
+  || { echo "commit-board: an unwritable push.err (rc $rc): $O"; g log --oneline -2; exit 1; }
+ok "commit-board.sh: push.err unwritable: a failed push (git push output unavailable), the commit taken back, HEAD as before, no interrupted line, the lock gone"
+# the saved-file sweep: a dead pid's saved file two days old goes, one an hour old stays
+sh -c 'exit 0' & DPID=$!; wait "$DPID"; SO="$G/work/.git/lanework-commit-board.saved.$DPID.oldold"; SN="$G/work/.git/lanework-commit-board.saved.$DPID.newnew"
+: > "$SO"; : > "$SN"; touch -t "$(date -v-2d +%Y%m%d%H%M.%S)" "$SO"; touch -t "$(date -v-1H +%Y%m%d%H%M.%S)" "$SN"
+echo r8 > "$G/work/$CP"; cb "B: swept" "$CP" >/dev/null || { echo "commit-board: the sweep run failed"; exit 1; }
+[ ! -e "$SO" ] && [ -e "$SN" ] || { echo "commit-board: the saved-file sweep: want only the old one gone"; ls "$G/work/.git"; exit 1; }
+rm -f "$SN"
+ok "commit-board.sh sweeps a dead pid's saved file over a day old and keeps one an hour old"
+# the closing line after an owner's reset during a good push names the run's commit, not the owner's
+echo r9 > "$G/work/$CP"; g push -q origin main 2>/dev/null
+printf '#!/bin/bash\nunset GIT_DIR GIT_INDEX_FILE; git -C "%s/work" update-ref refs/heads/main HEAD^; rm -f "$0"; exit 0\n' "$G" > "$PP"; chmod +x "$PP"
+O=$(cb --push "B: owner reset" "$CP" 2>/dev/null) || { echo "commit-board: a good push with an owner reset failed"; exit 1; }
+hn=$(gx --git-dir="$G/origin.git" rev-parse main)
+[ "$(tail -1 <<<"$O")" = "$(g log --oneline -1 "$hn")" ] && [ "$(gx --git-dir="$G/origin.git" log -1 --format=%s main)" = "B: owner reset" ] || { echo "commit-board: the closing line after an owner reset: $O"; exit 1; }
+g reset -q --hard origin/main
+ok "commit-board.sh: an owner's reset during a good push: the closing line names the run's commit, not the owner's"
+# a push mapped to another branch (remote.origin.push), SIGTERM during it: "not confirmed pushed", never "not pushed"
+g config remote.origin.push refs/heads/main:refs/heads/other; rm -f "$G/inpush7" "$G/go7"; echo r10 > "$G/work/$CP"
+printf '#!/bin/bash\ntouch "%s/inpush7"; n=0; until [ -e "%s/go7" ] || [ $n -ge 100 ]; do sleep 0.1; n=$((n+1)); done; rm -f "$0"; exit 0\n' "$G" "$G" > "$PP"; chmod +x "$PP"
+(cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec "$CB" --push "B: mapped" "$CP") > "$G/term.out" 2>&1 & KP=$!
+perl -e 'alarm 20; exec @ARGV' bash -c "until [ -e '$G/inpush7' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the mapped push never reached its hook"; cat "$G/term.out"; exit 1; }
+kill -TERM "$KP"; sleep 0.3; touch "$G/go7"; rc=0; wait "$KP" || rc=$?; g config --unset remote.origin.push
+[ "$rc" -eq 143 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse other)" = "$(g rev-parse HEAD)" ] && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed, not confirmed pushed (origin/main does not hold it)" "$G/term.out" \
+  && ! grep -q 'not pushed' "$G/term.out" || { echo "commit-board: SIGTERM during a push mapped to another branch (rc $rc):"; cat "$G/term.out"; exit 1; }
+ok "commit-board.sh: SIGTERM during a push mapped to another branch: exit 143, it says not confirmed pushed, never not pushed"
 
 # release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
