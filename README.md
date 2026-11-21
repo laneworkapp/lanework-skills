@@ -28,15 +28,15 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,270 |
-| `work` | 16 | 454 | 7,969 |
+| `lanework` | 10 | 382 | 5,289 |
+| `work` | 16 | 463 | 7,962 |
 | `watch` | 4 | 182 | 2,083 |
 | `discovery` | 14 | 510 | 3,004 |
 | `plan` | 9 | 467 | 2,855 |
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10 (`watch`, `work` and `plan` on 2026-11-17, `lanework` and `discovery` on 2026-11-20, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discovery` on 2026-11-20, `lanework` and `work` on 2026-11-21, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -49,22 +49,22 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `work` and `plan` on 2026-11-17, `
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 150 |
-| `references/writes.md` | 2,041 |
+| `references/writes.md` | 2,060 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,270** |
+| **total** | **5,289** |
 
 #### `work`
 
 | file | words |
 |---|---|
-| `SKILL.md` | 454 |
+| `SKILL.md` | 463 |
 | `references/companions.md` | 262 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 424 |
 | `references/lead.md` | 1,075 |
 | `references/reviewer.md` | 415 |
-| `references/sweep.md` | 830 |
+| `references/sweep.md` | 814 |
 | `references/team.md` | 532 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
@@ -74,7 +74,7 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `work` and `plan` on 2026-11-17, `
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **7,969** |
+| **total** | **7,962** |
 
 #### `watch`
 
