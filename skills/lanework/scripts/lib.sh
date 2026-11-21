@@ -110,12 +110,12 @@ card_ref() {
 }
 
 # next_cite <board> <prefix>: the next citation for a prefix (`Q`, `T`, `ADR`, `PDR`): the highest trailing number over every card, `.trash/`
-# flat and in trashed lanes included, plus one. Counts a `cite-as: <prefix><n>` and a legacy `<prefix><n>: ` title prefix. Call it as late as possible.
+# flat and in trashed lanes included, plus one. Counts a `cite-as: <prefix><n>` (any case, a trailing `# comment` ignored) and a legacy `<prefix><n>: ` title prefix. Call it as late as possible.
 next_cite() {
-  local f c t max=0 re_c="^$2([0-9]+)\$" re_t="^$2([0-9]+): "
+  local f c t max=0 re_c="^$(printf '%s' "$2" | tr a-z A-Z)([0-9]+)\$" re_t="^$2([0-9]+): "
   for f in "$1"/*/*/index.md "$1"/.trash/*/index.md "$1"/.trash/*/*/index.md; do
     [ -f "$f" ] || continue
-    c=$(cite_of "$f"); t=$(strip_quotes "$(fm_value "$f" title)")
+    c=$(fm_value "$f" cite-as | sed -E "s/[[:space:]]+#.*\$//; s/[[:space:]]+\$//; s/^[\"']//; s/[\"']\$//" | tr a-z A-Z); t=$(strip_quotes "$(fm_value "$f" title)")
     if [[ "$c" =~ $re_c ]] && [ "$((10#${BASH_REMATCH[1]}))" -gt "$max" ]; then max=$((10#${BASH_REMATCH[1]})); fi   # 10#: a zero-padded number is decimal
     if [[ "$t" =~ $re_t ]] && [ "$((10#${BASH_REMATCH[1]}))" -gt "$max" ]; then max=$((10#${BASH_REMATCH[1]})); fi
   done
@@ -124,7 +124,12 @@ next_cite() {
 
 # stamp_cite <staged frontmatter> <board> <prefix>: a gated filing script renders `cite-as: CITEPENDING`; this scans (next_cite) and fills it in,
 # so the scan runs after everything slow and just before the card is written. Prints the citation.
-stamp_cite() { local c; c=$(next_cite "$2" "$3"); perl -pi -e "s/^cite-as: CITEPENDING\$/cite-as: $c/" "$1"; printf '%s' "$c"; }
+stamp_cite() {   # dies if the prefix gave no citation or the placeholder survived (no `cite-as: CITEPENDING` line to fill)
+  local c; [ -n "$3" ] && c=$(next_cite "$2" "$3") || { echo "stamp_cite: no citation for prefix '$3'" >&2; return 1; }
+  perl -pi -e "s/^cite-as: CITEPENDING\$/cite-as: $c/" "$1"
+  if grep -qx 'cite-as: CITEPENDING' "$1" || ! grep -qxF "cite-as: $c" "$1"; then echo "stamp_cite: $c not stamped into $1" >&2; return 1; fi
+  printf '%s' "$c"
+}
 
 # by_of <name> <model> [session]: the stamp's `by` mapping.
 by_of() {

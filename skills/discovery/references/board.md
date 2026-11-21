@@ -17,7 +17,7 @@ Brief · Facts · Asked · Settled · Decisions · Parked. Order, collapse, and 
 | card | lane | template |
 |---|---|---|
 | Topic | Brief, order 1024 | `templates/topic-card.md` |
-| Discovery map | Brief, order 2048 | `templates/map-card.md` |
+| Map ("Every decision, by corner") | Brief, order 2048 | `templates/map-card.md` |
 | Fact | Facts | `templates/fact-card.md` |
 | Question | Asked → Settled / Parked | `templates/question-card.md` |
 | Record (ADR/PDR) | Decisions, filed there directly | `templates/record.md` |

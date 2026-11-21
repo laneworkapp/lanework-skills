@@ -80,7 +80,7 @@ C="$STAGE/$CARD_ID"; mkdir -p "$C/comments/$FOUND_ID"
 if cite_enabled "$BOARD"; then   # the citation is scanned later (stamp_cite), just before the card is written
   CITE=CITEPENDING; CARD_TITLE=$(title_str "$TITLE"); frontmatter_of "$TEMPLATES/ticket-card.md" > "$STAGE/fm.md"
 else
-  CITE="T$((MAXT + 1))"; CARD_TITLE="$CITE: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/ticket-card.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
+  CITE="T$((10#$MAXT + 1))"; CARD_TITLE="$CITE: $(title_str "$TITLE")"; frontmatter_of "$TEMPLATES/ticket-card.md" | grep -v '^cite-as:' > "$STAGE/fm.md"
 fi
 render "$STAGE/fm.md" cite "$CITE" title "$CARD_TITLE" order "$(next_order "$DEST")" \
   type "$LABEL" rank "$RANK" glyph "$GLYPH" stamp "{at: $NOW, by: $BY}" > "$STAGE/fm.out"
