@@ -14,8 +14,9 @@
 # on it go too. Without --push nothing leaves the machine. With --push and nothing to commit, but HEAD ahead of
 # origin/<branch> (an earlier run killed or timed out mid-push): pushes HEAD, a rejected push retried the same way
 # (nothing to un-commit), and after 5 tries exit 1 naming the unpushed commit.
-# Push bound: each `git push` runs in its own process group (a perl wrapper), the group killed after
-# LANEWORK_PUSH_TIMEOUT seconds (default 120; with --push, not a whole number above 0: exit 2). A timeout is never retried
+# Push bound: each `git push` runs in its own session (a perl wrapper), so it has no terminal: a credential, passphrase
+# or host-key prompt fails at once, a rejected push, rather than stopping until the bound. Its process group is killed after
+# LANEWORK_PUSH_TIMEOUT seconds (default 120; with --push, not a whole number from 1 to 86400: exit 2). A timeout is never retried
 # and never un-commits, as the push may have landed: the commit stays on HEAD, the cleanup runs, exit 1 with
 # `push timed out after N s; <sha> committed, not confirmed pushed; run --push again`.
 # Never stashes (warns if the stash count changed), never `add -A` without paths, never rebases.
@@ -38,7 +39,7 @@
 # SIGTERM, SIGHUP to the script: held until the command running returns (git with its hooks, a sleep; a push
 # up to the bound), then exit 143, 129 through the EXIT trap, so no git child outlives the cleanup. SIGINT the
 # same (130), except that bash drops one sent to the script alone while a command runs: the run goes on.
-# Sent to the process group (Ctrl-C), the git child dies too (the push wrapper passes it on to the push's group), its step fails as any failed step does, and
+# Sent to the process group (Ctrl-C), the git child dies too (the push wrapper passes it on to the push's session), its step fails as any failed step does, and
 # the cleanup runs.
 # Window left, SIGKILL only (it also leaves the saved file, swept after a day, and a dead pid's lock, reclaimed by
 # the next run; the push group keeps running until it ends or the bound):
@@ -70,7 +71,9 @@ done
 [ $# -ge 2 ] && [ -n "$1" ] || { echo "commit-board.sh: a message and at least one path" >&2; echo "usage: $USAGE" >&2; exit 2; }
 MSG="$1"; shift
 LIM=${LANEWORK_PUSH_TIMEOUT:-120}
-[ -z "$PUSH" ] || case "$LIM" in ''|*[!0-9]*|0*) echo "commit-board.sh: LANEWORK_PUSH_TIMEOUT must be a whole number of seconds above 0: $LIM" >&2; exit 2 ;; esac
+badlim() { echo "commit-board.sh: LANEWORK_PUSH_TIMEOUT must be a whole number of seconds from 1 to 86400: $LIM" >&2; exit 2; }
+# a ceiling, as perl's alarm on macOS sets nothing from 1000000000 up; over 5 digits refused first, so -le cannot overflow
+[ -z "$PUSH" ] || case "$LIM" in ''|*[!0-9]*|0*|??????*) badlim ;; *) [ "$LIM" -le 86400 ] || badlim ;; esac
 
 TOP=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "commit-board.sh: not inside a git work tree: $(pwd)" >&2; exit 1; }
 TOP=$(cd "$TOP" && pwd -P)
@@ -97,7 +100,7 @@ LOCK="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/lanework-commit-board.
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-commit.XXXXXX")
 mvdir() { perl -e 'rename($ARGV[0], $ARGV[1]) or exit 1' "$1" "$2" 2>/dev/null; }   # rename(2): fails onto a non-empty dir
 own() { [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ]; }
-SAVED=""; ADD=(); OWNER=(); ITA=(); PRE=""; LANDED=""; NEW=""; KEEP=""; AHEAD=""; TIMED=""
+SAVED=""; ADD=(); OWNER=(); ITA=(); PRE=""; LANDED=""; NEW=""; KEEP=""; AHEAD=""; TIMED=""; SAVEDONE=""
 release() {
   trap '' TERM INT HUP   # the cleanup runs to its end
   # only while the lock is ours: HEAD back at PRE (taken back) -> restore; our commit on HEAD or under it (or HEAD moved off
@@ -149,14 +152,14 @@ for f in "$GD"/lanework-commit-board.saved.*.*; do
   case "$p" in ''|*[!0-9]*) continue ;; esac
   [ "$f" != "$SAVED" ] && [ -f "$f" ] && ! kill -0 "$p" 2>/dev/null && [ -n "$(find "$f" -mtime +1 2>/dev/null)" ] && rm -f "$f" || true
 done
-# push_bounded: git push in its own process group under perl (no timeout(1) on macOS); the group is killed after LIM s
-# and it returns 124, only then (a git 124 reads 1); INT, TERM, HUP to perl are passed on to the group. Its stderr goes to
+# push_bounded: git push in its own session under perl (no timeout(1) on macOS; no terminal, so a prompt fails at once); its
+# group is killed after LIM s and it returns 124, only then (a git 124 reads 1); INT, TERM, HUP to perl are passed on to the
+# group, or to the child alone before its setsid (the parent never sets the group: that races the setsid). Its stderr goes to
 # push.err by a redirect on perl itself, never on the function: a trap run inside a redirected function keeps the redirect
 push_bounded() {
-  perl -e 'my $t = shift; my $pid = fork; defined $pid or exit 125;
-    if (!$pid) { setpgrp(0, 0); exec @ARGV; exit 127 }
-    setpgrp($pid, $pid);
-    $SIG{$_} = sub { kill $_[0], -$pid } for qw(INT TERM HUP);
+  perl -mPOSIX -e 'my $t = shift; my $pid = fork; defined $pid or exit 125;
+    if (!$pid) { POSIX::setsid(); exec @ARGV; exit 127 }
+    $SIG{$_} = sub { kill $_[0], -$pid or kill $_[0], $pid } for qw(INT TERM HUP);
     $SIG{ALRM} = sub { kill "KILL", -$pid; waitpid $pid, 0; exit 124 };
     alarm $t; my $r; do { $r = waitpid $pid, 0 } until $r == $pid || $r == -1 && !$!{EINTR}; alarm 0;
     exit 1 if $r != $pid; my $s = $?; exit 128 + ($s & 127) if $s & 127; $s >>= 8; exit($s == 124 ? 1 : $s)' \
@@ -248,7 +251,7 @@ for try in 1 2 3 4 5; do
   else
     mine
     AHEAD=""; LANDED=""; NEW=""; PRE=$(git rev-parse HEAD)   # the EXIT trap syncs the index once HEAD is no longer this (or LANDED)
-    [ "$try" -gt 1 ] || save_owner   # once: later tries start from the restored index, and an upstream change to a staged path stops the fast-forward
+    [ -n "$SAVEDONE" ] || { save_owner; SAVEDONE=1; }   # once, at the first commit (a push-only try 1 commits nothing): later tries start from the restored index, and an upstream change to a staged path stops the fast-forward
     GIT_INDEX_FILE="$IDX" git commit -q -F "$STAGE/msg" || { echo "commit-board.sh: git commit failed (a pre-commit or commit-msg hook?); nothing committed, $KEPT" >&2; exit 1; }
     LANDED=1; NEW=$(git rev-parse HEAD)
     sync_index   # before the push: a kill from here on leaves an index that matches HEAD
