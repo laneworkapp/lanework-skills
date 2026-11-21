@@ -33,6 +33,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -e "$board" ] || { echo "no such path: $board" >&2; exit 2; }
+case "$board" in -*) board=./$board ;; esac   # the helper lists "./<board>/..." for it; the card depth below strips $board as spelled
 [ -d "$board" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
 # comment_row <comment index.md>: created.at, agent|human|other, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
 comment_row() {

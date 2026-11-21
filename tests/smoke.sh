@@ -1159,8 +1159,16 @@ if [ "$(id -u)" = 0 ]; then echo "skip: running as root, mode 000 stays readable
   ok "lint-stamps, lint-leases and lint-waiting-clears: a lane, a card folder and a card index.md at mode 000 each exit 2 with a could not read line; a readable board stays silent, exit 0"
 fi
 # a board path starting with - is a path, not a find option; a path that vanished between find and the read check is a moved card, not an error
-cp -R "$UB" "$T/-dash.lanework"
-for U in "$LS" "$WL"; do (cd "$T" && UR=0; UO=$("$U" -dash.lanework 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err"); [ "$UR" = 0 ] && [ -z "$UO" ] && [ -z "$UE" ]) || unr_fail "$(basename "$U") on a board named -dash.lanework: want silent exit 0"; done
+UW="$T/UnrAsk.lanework"; cp -R "$UB" "$UW"; mkdir -p "$UW/$(basename "$UL")/$(basename "$UC")/comments/e2000000-0000-4000-8000-000000000001"
+printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-02T00:00:00Z, by: {name: claude, kind: agent, model: smoke}}\n---\n@anyone Which route?\n' > "$UW/$(basename "$UL")/$(basename "$UC")/comments/e2000000-0000-4000-8000-000000000001/index.md"
+# a board with findings, under a plain name and under one starting with -: same exit code, same number of lines
+cp -R "$UW" "$T/-dashask.lanework"; cp -R "$USB" "$T/-dashstamps.lanework"
+for pair in "$WL:UnrAsk.lanework:-dashask.lanework" "$LS:UnrStamps.lanework:-dashstamps.lanework"; do
+  U=${pair%%:*}; r=${pair#*:}; plain=${r%%:*}; dash=${r#*:}
+  unr_run "$U" "$T/$plain"; PR=$UR; PN=$(grep -c . <<<"$UO")
+  UR=0; UO=$(cd "$T" && "$U" "$dash" 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err")
+  [ "$PR" = 1 ] && [ "$PN" -ge 1 ] && [ "$UR" = "$PR" ] && [ "$(grep -c . <<<"$UO")" = "$PN" ] && [ -z "$UE" ] || unr_fail "$(basename "$U") on $dash: want exit $PR and $PN lines like the plain name (plain rc $PR, $PN lines)"
+done
 UO=$(. "$SK/lanework/scripts/lib.sh"; printf '%s\n' "$UB/moved-away/index.md" | unreadable_files 2>"$T/unr.err") && UR=0 || UR=$?; UE=$(cat "$T/unr.err")
 [ "$UR" = 0 ] && [ -z "$UO" ] && [ -z "$UE" ] || unr_fail "a listed path that no longer exists: want it skipped silently, exit 0"
 ok "the lints read a board whose name starts with -, and a path that vanished after find listed it is skipped, not reported"
