@@ -2879,10 +2879,11 @@ setclaim "$F5c" S-icon "$(iso $(( $(date -u +%s) - 60 )))"; RC3=0; CO=$(L S-icon
 [ "$RC$RC2$RC3$CO" = 000held ] && [ "$(epoch "$(cuntil "$F5c")")" -gt "$(date -u +%s)" ] && grep -qxF "$LBL" "$F5c" || { echo "iconed label: stake $RC, renew $RC2, check $RC3 '$CO'"; cat "$F5c"; exit 1; }
 RC=0; L S-icon release "$LB" "$C5c" --model smoke >/dev/null 2>&1 || RC=$?
 [ $RC = 0 ] && ! grep -q '^claimed:' "$F5c" && grep -qxF "$LBL" "$F5c" && validate "$LB" >/dev/null || { echo "iconed label: release rc $RC"; cat "$F5c"; exit 1; }
-# control: a broken stamp in a line lease.sh writes (a model ending in }}}) still trips the guard: refused, nothing written
-C5d=$(lcard "Five d"); F5d=$(lcf "$C5d"); H5=$(shasum < "$F5d"); RC=0; L S-icon stake "$LB" "$C5d" --model 'x}}}' >/dev/null 2>&1 || RC=$?
-[ $RC = 1 ] && [ "$H5" = "$(shasum < "$F5d")" ] || { echo "the guard let a broken modified/claimed stamp through: rc $RC"; cat "$F5d"; exit 1; }
-ok "lease: a card whose iconed label ends in }}} is staked, renewed, checked and released and validates; a broken stamp in a line lease.sh writes is still refused"
+# control: a model ending in }}} is quoted by by_of, so the stamp lease.sh writes is valid; the stake lands and the board validates
+C5d=$(lcard "Five d"); F5d=$(lcf "$C5d"); RC=0; L S-icon stake "$LB" "$C5d" --model 'x}}}' >/dev/null 2>&1 || RC=$?
+[ $RC = 0 ] && grep -qF 'model: "x}}}"' "$F5d" && validate "$LB" >/dev/null || { echo "a model ending in }}} was not quoted or not staked: rc $RC"; cat "$F5d"; exit 1; }
+L S-icon release "$LB" "$C5d" --model smoke >/dev/null 2>&1 || true
+ok "lease: a card whose iconed label ends in }}} is staked, renewed, checked and released and validates; a model ending in }}} is written quoted and validates"
 
 # 6. a changed by: the timer finds the loss and posts one record; then no further write
 TP=$(mpid $SID1 "$C1"); setclaim "$F1" S-other "$(iso $(( $(date -u +%s) + 1500 )))"
