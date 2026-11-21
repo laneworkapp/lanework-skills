@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "commit-board.sh leftovers: staged entries on a retry, unbounded timeout value, uncovered rules, tty prompt"
-order: 10240
+order: 11264
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T15:44:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T17:13:46Z}
+modified: {at: 2026-11-21T17:14:08Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 `commit-board.sh` stops losing an owner's staged entries when its first try was the push-only path, refuses a push bound that macOS cannot honour, and gives its push no terminal so a credential prompt fails at once instead of waiting out the bound; four untested safety behaviors get smoke cases.
 
