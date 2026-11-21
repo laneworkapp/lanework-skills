@@ -2,9 +2,9 @@
 schema: 1
 kind: card
 title: "settle-question.sh clears waiting with no owner words recorded"
-order: 9216
+order: 81920
 created:  {at: 2026-11-20T20:16:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T23:45:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T00:23:52Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 `discovery/scripts/settle-question.sh` clears a question's `waiting` in two cases where no owner words end up recorded, so the waiting-clear lint reports a miss.
 
