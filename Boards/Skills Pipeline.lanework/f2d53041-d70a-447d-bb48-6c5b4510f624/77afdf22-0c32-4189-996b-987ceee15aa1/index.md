@@ -2,7 +2,7 @@
 schema: 1
 kind: card
 title: "Script headers disagree with their code in about forty places"
-order: 1024
+order: 10240
 labels:
   - {text: "lanework", kind: {type: "skill", text: "Skill"}}
   - {text: "work", kind: {type: "skill", text: "Skill"}}
@@ -12,7 +12,7 @@ labels:
   - {text: "heal", kind: {type: "skill", text: "Skill"}}
   - {text: "watch", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-21T18:45:26Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-21T19:02:38Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T19:05:01Z}
 ---
 Script headers will state the exit codes, refusals and outputs their code actually produces, and seven small code defects behind those headers get fixed, so an agent that reads a header as the script's contract stops getting wrong exit codes, a stray comment or an empty board folder.
 
