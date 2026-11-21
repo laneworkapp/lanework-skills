@@ -227,7 +227,8 @@ own_held() {
   ensure_timer
 }
 
-# timer: a card not found (or not readable as found) on 3 polls in a row has gone; fewer is a move that outlasted find_card's retry
+# timer: a card not found (or not readable as found) on 3 polls in a row has gone, so a deleted card ends it 3 polls later;
+# fewer is a move that outlasted find_card's retry
 timer() {
   local f t n=0 na miss=0
   while :; do

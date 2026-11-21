@@ -732,6 +732,7 @@ PY
 # bfirst <script...>: the last path segment of the script's first output line. The output is read whole first: a reader that
 # closes after one line (head -1) can break the script's later writes, rc 141 under pipefail
 bfirst() { local o; o=$("$@") || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
+! bfirst false >/dev/null || { echo "bfirst hides a failing script"; exit 1; }
 bodyof() { awk 'n >= 2 { print } /^---$/ { n++ }' "$1"; }
 bsnap() { (cd "$1" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do shasum "$f"; done) | shasum; }
 # bholds <before copy> <after file>: the labels line and the whole old body are as they were (a body only grew by an appended ruling)
@@ -3033,15 +3034,20 @@ rm -f "$LW"; L S-own release "$LB" "$C11e" --model smoke >/dev/null; kill "$LV" 
 ok "lease: a session id with a comma, closing brace or backslash is refused (exit 2) with no claim written; another session's release names lease.sh list; a write sweeps the temp file of a dead pid and leaves a live one"
 
 # 11f. find_card on a card in transit between lanes (renamed while the glob expands: in no lane): lease.sh's own function, run with
-# a sleep that lands the card in Shaping, so its first look always misses. It looks again and finds it; a card gone stays 1, two 2
-FC=$(awk '/^find_card\(\) \{/,/^\}/' "$LS"); SHL2=$(dirname "$(lane_of "$LB" Shaping)")
-fc() { ( BOARD="$LB"; CID="$1"; eval "$FC"; sleep() { [ ! -d "$T/l11f-hold" ] || /bin/mv "$T/l11f-hold" "$SHL2/$CID"; command sleep "$@"; }; find_card ); }
+# a sleep that lands the card in Shaping (or, FDROP set, removes that copy of a card in two lanes), so its first look always
+# misses, or always sees two. It looks again and finds the one; a card gone stays 1, a card in two lanes for good 2
+FC=$(awk '/^find_card\(\) \{/,/^\}/' "$LS"); SHL2=$(dirname "$(lane_of "$LB" Shaping)"); FDROP=""
+fc() { ( BOARD="$LB"; CID="$1"; eval "$FC"
+  sleep() { if [ -d "$T/l11f-hold" ]; then /bin/mv "$T/l11f-hold" "$SHL2/$CID"; elif [ -n "$FDROP" ]; then rm -rf "$FDROP"; fi; command sleep "$@"; }
+  find_card ); }
 C11f=$(lcard "Eleven f"); mv "$LL/$C11f" "$T/l11f-hold"; RC=0; O=$(fc "$C11f") || RC=$?
 [ $RC = 0 ] && [ "$O" = "$SHL2/$C11f/index.md" ] || { echo "11f: find_card on a card in transit: rc $RC, '$O'"; exit 1; }
+cp -R "$SHL2/$C11f" "$LL/$C11f"; FDROP="$LL/$C11f"; RC=0; O=$(fc "$C11f") || RC=$?; FDROP=""
+[ $RC = 0 ] && [ "$O" = "$SHL2/$C11f/index.md" ] || { echo "11f: find_card on a card in two lanes for a moment: rc $RC, '$O'"; exit 1; }
 RC=0; fc 00000000-0000-4000-8000-000000000000 >/dev/null || RC=$?; [ $RC = 1 ] || { echo "11f: find_card on no card: rc $RC"; exit 1; }
 cp -R "$SHL2/$C11f" "$LL/$C11f"; RC=0; fc "$C11f" >/dev/null || RC=$?; [ $RC = 2 ] || { echo "11f: find_card on a card in two lanes: rc $RC"; exit 1; }
 rm -rf "$LL/$C11f"
-ok "lease: find_card looks again for a card in transit between lanes and finds it; no card is still 1, a card in two lanes 2"
+ok "lease: find_card looks again for a card in transit between lanes, or in two for a moment, and finds it; no card is still 1, a card in two lanes 2"
 
 # 11g. the timer across moves: a card moved between lanes ten times, then out of the board for 1 s (longer than find_card's
 # retry, a few polls), keeps its timer; a card deleted ends it within a few polls
@@ -3050,12 +3056,20 @@ for i in 1 2 3 4 5; do mv "$LL/$C11g" "$SHL2/$C11g"; sleep 0.15; mv "$SHL2/$C11g
 mv "$LL/$C11g" "$T/l11g-hold"; sleep 1; mv "$T/l11g-hold" "$SHL2/$C11g"; sleep 1
 alive "$TP" || { echo "11g: the timer exited while its card moved between lanes"; exit 1; }
 rm -rf "$SHL2/$C11g"; waitfor '! alive "$TP"' || { echo "11g: the timer outlived its deleted card"; exit 1; }
-ok "lease: the timer outlives its card's moves between lanes and a second out of the board, and exits once the card is deleted"
+# a card found but not readable (moved between the find and the read: a cat shim on the timer's PATH fails once on it) is a miss
+CSH="$T/l11g-shim"; mkdir -p "$CSH"; printf '%s\n' '#!/bin/bash' \
+  'case "${1:-}" in */"$L11G_CID"/index.md) [ ! -f "$L11G_ONCE" ] || { rm -f "$L11G_ONCE"; exit 1; } ;; esac; exec /bin/cat "$@"' > "$CSH/cat"; chmod +x "$CSH/cat"
+C11r=$(lcard "Eleven r"); ( export PATH="$CSH:$PATH" L11G_CID="$C11r" L11G_ONCE="$T/l11g-once"; L S-elr stake "$LB" "$C11r" --model smoke >/dev/null )
+TP=$(mpid S-elr "$C11r"); : > "$T/l11g-once"; waitfor '[ ! -e "$T/l11g-once" ]' || { echo "11g: the cat shim never ran"; exit 1; }
+sleep 0.6; alive "$TP" || { echo "11g: the timer exited on one unreadable read of its card"; exit 1; }
+L S-elr release "$LB" "$C11r" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11g: the timer outlived the release"; exit 1; }
+ok "lease: the timer outlives its card's moves between lanes, a second out of the board and one failed read, and exits once the card is deleted"
 
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
 C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
 C12u=$(lcard "Unreadable one"); setclaim "$(lcf "$C12u")" S-skew "soon"
+L S-multi renew "$LB" "$CA" --model smoke >/dev/null   # staked many cases back: renewed here, so "29 or 30 min left" never hangs on the cases' run time
 LO=$("$LS" list "$LB"); line() { awk -F'\t' -v c="$1" '$1==c' <<<"$LO"; }
 [ "$(line "$C12l" | cut -f2-)" = "$(printf 'claude (S-gone)\t10 min lapsed\tlapsed\tLapsed one')" ] || { echo "list lapsed: $(line "$C12l")"; exit 1; }
 line "$C12v" | grep -q -E "$(printf '^[^\t]*\tclaude \\(S-skew\\)\t1[12][0-9] min left\tvoided\tVoided one$')" || { echo "list voided: $(line "$C12v")"; exit 1; }
