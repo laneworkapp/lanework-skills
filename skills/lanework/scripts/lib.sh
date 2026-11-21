@@ -314,8 +314,8 @@ unreadable_files() {
 }
 
 # board_index_files <dir> <outfile>: writes every readable index.md under <dir> (not .dot or attachments folders), NUL-separated, to <outfile>
-# (a shell variable cannot hold NULs, and a name may hold a newline). Symlinked folders, lanes and cards included, are followed (find -L), spelled as
-# the caller wrote <dir>. Anything it could not read (a folder find cannot enter, a symlink loop, an index.md that fails [ -r ]) ->
+# (a shell variable cannot hold NULs, and a name may hold a newline). Symlinked folders, lanes and cards included, are followed (find -L; a symlink loop is skipped by find without a message, exit 0), spelled as
+# the caller wrote <dir>. Anything it could not read (a folder find cannot enter, an index.md that fails [ -r ]) ->
 # "<script>: could not read <path>" on stderr and return 2; the readable paths are still written. The lints finish their findings, then exit 2 on that.
 board_index_files() {
   local err rc=0 l p pre=""
