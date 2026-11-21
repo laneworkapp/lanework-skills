@@ -2529,6 +2529,49 @@ RA=$(cat "$T/race-a"); RB=$(cat "$T/race-b"); WIN=$(csess "$F3")
 LOSER=S-race-a; [ "$WIN" = S-race-a ] && LOSER=S-race-b; [ ! -e "$(mem "$LOSER" "$C3")" ] || { echo "race: the loser kept a memory file"; exit 1; }
 ok "lease: two racing stakes leave one holder"
 
+# 3b. a stake held between its read and its write (LEASE_TEST_WRITE_PAUSE, a TMPDIR of its own) while another session's stake lands:
+# the held stake writes only over the claimed it read, so it backs off: exit 1, nothing written, no memory, no timer
+C3b=$(lcard "Three b"); F3b=$(lcf "$C3b"); LSA=$(mktemp -d "$T/lease-stake-a.XXXXXX")
+( RC=0; CLAUDE_CODE_SESSION_ID=S-held CLAUDE_PID="$LPID" TMPDIR="$LSA" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 \
+  LEASE_TEST_WRITE_PAUSE=1.5 "$LS" stake "$LB" "$C3b" --model smoke >/dev/null 2>"$T/s3b.err" || RC=$?; echo "$RC" > "$T/s3b.rc" ) & S3P=$!
+waitfor '[ -n "$(ls "$LSA"/lease-write.*/read 2>/dev/null)" ]' || { echo "3b: the held stake never read the card"; exit 1; }
+L S-first stake "$LB" "$C3b" --model smoke >/dev/null || { echo "3b: the stake landing during the pause failed"; exit 1; }
+H3b=$(shasum < "$F3b"); wait "$S3P"
+[ "$(cat "$T/s3b.rc")" = 1 ] && [ "$(csess "$F3b")" = S-first ] && [ "$H3b" = "$(shasum < "$F3b")" ] && grep -q 'staked by S-first meanwhile; backing off' "$T/s3b.err" \
+  && [ ! -e "$LSA/lanework-lease/S-held" ] && [ -z "$(pgrep -f "$LS _timer $(cd "$LB" && pwd -P) $C3b S-held " || true)" ] \
+  || { echo "3b: held stake rc $(cat "$T/s3b.rc"), holder $(csess "$F3b"), err: $(cat "$T/s3b.err")"; cat "$F3b"; exit 1; }
+L S-first release "$LB" "$C3b" --model smoke >/dev/null
+ok "lease: a stake held through another session's stake backs off (exit 1), writes nothing over it, and keeps no memory or timer"
+
+# 3c. a release held between its read and its write while claimed changes: it clears only its holder's claim.
+# LRP <tmpdir> <session> <args...>: lease.sh in the background under the pause, rc to $T/lrp.rc, stdout and stderr to lrp.out/lrp.err
+LRP() { local d="$1" s="$2"; shift 2; ( RC=0; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$d" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1000 LEASE_TEST_WRITE_PAUSE=1.5 "$LS" "$@" --model smoke >"$T/lrp.out" 2>"$T/lrp.err" || RC=$?; echo "$RC" > "$T/lrp.rc" ) & LRPP=$!
+  PD="$d"; waitfor '[ -n "$(ls "$PD"/lease-write.*/read 2>/dev/null)" ]'; }
+# own release, another session's claim set during the pause: exit 1, nothing released, the memory kept; check then finds the loss once
+LRA=$(mktemp -d "$T/lease-rel-a.XXXXXX"); C3c=$(lcard "Three c"); F3c=$(lcf "$C3c")
+CLAUDE_CODE_SESSION_ID=S-rel CLAUDE_PID="$LPID" TMPDIR="$LRA" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$LS" stake "$LB" "$C3c" --model smoke >/dev/null
+LRP "$LRA" S-rel release "$LB" "$C3c" || { echo "3c: the release never read the card"; exit 1; }
+setclaim "$F3c" S-other "$(iso $(( $(date -u +%s) + 1500 )))"; wait "$LRPP"
+[ "$(cat "$T/lrp.rc")" = 1 ] && grep -q 'held by S-other meanwhile; nothing released' "$T/lrp.err" && [ "$(csess "$F3c")" = S-other ] \
+  && [ -n "$(ls "$LRA"/lanework-lease/S-rel/*/"$C3c" 2>/dev/null)" ] || { echo "3c: own release rc $(cat "$T/lrp.rc"), holder $(csess "$F3c"), err: $(cat "$T/lrp.err")"; cat "$F3c"; exit 1; }
+RC=0; CO=$(CLAUDE_CODE_SESSION_ID=S-rel CLAUDE_PID="$LPID" TMPDIR="$LRA" "$LS" check "$LB" "$C3c" --model smoke 2>/dev/null) || RC=$?
+[ "$CO$RC" = lost3 ] && [ "$(records "$C3c" "**Lease lost**")" = 1 ] || { echo "3c: check after the refused release: '$CO' $RC, records $(records "$C3c" "**Lease lost**")"; exit 1; }
+# --force, the holder changed during the pause: exit 1, the new holder kept, no force record
+C3f=$(lcard "Three f"); F3f=$(lcf "$C3f"); L S-hold stake "$LB" "$C3f" --model smoke >/dev/null; LRF=$(mktemp -d "$T/lease-rel-f.XXXXXX")
+LRP "$LRF" S-owner release "$LB" "$C3f" --force || { echo "3c: the forced release never read the card"; exit 1; }
+setclaim "$F3f" S-third "$(iso $(( $(date -u +%s) + 1500 )))"; wait "$LRPP"
+[ "$(cat "$T/lrp.rc")" = 1 ] && [ "$(csess "$F3f")" = S-third ] && [ "$(records "$C3f" "**Lease released by force**")" = 0 ] \
+  || { echo "3c: forced release over a new holder: rc $(cat "$T/lrp.rc"), holder $(csess "$F3f"), force records $(records "$C3f" "**Lease released by force**")"; exit 1; }
+# --force, the holder released during the pause: exit 0, already released, no force record
+C3r=$(lcard "Three r"); F3r=$(lcf "$C3r"); L S-hold stake "$LB" "$C3r" --model smoke >/dev/null; LRG=$(mktemp -d "$T/lease-rel-g.XXXXXX")
+LRP "$LRG" S-owner release "$LB" "$C3r" --force || { echo "3c: the forced release never read the second card"; exit 1; }
+perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m' "$F3r"; wait "$LRPP"
+[ "$(cat "$T/lrp.rc")" = 0 ] && grep -q 'was already released; nothing released by force' "$T/lrp.out" && ! grep -q '^claimed:' "$F3r" \
+  && [ "$(records "$C3r" "**Lease released by force**")" = 0 ] || { echo "3c: forced release of a released card: rc $(cat "$T/lrp.rc"), out: $(cat "$T/lrp.out"), force records $(records "$C3r" "**Lease released by force**")"; exit 1; }
+validate "$LB" >/dev/null
+ok "lease: a release held while claimed changes clears only its holder's claim: own release over another session exits 1 and the next check records the loss once; --force over a new holder exits 1 with no record; --force on a card released meanwhile exits 0 with no record"
+
 # 4. another session's live lease is refused
 HS1=$(shasum < "$F1"); RC=0; L S-four stake "$LB" "$C1" --model smoke >/dev/null 2>&1 || RC=$?
 [ $RC = 1 ] && [ "$HS1" = "$(shasum < "$F1")" ] || { echo "stake over a live lease: rc $RC"; exit 1; }
@@ -2696,6 +2739,72 @@ t0=$(date +%s); waitfor '[ "$(cuntil "$F11n")" != "$U0" ]' || { echo "the timer 
 standin; P11=$SP; C11p=$(lcard "Eleven p"); LPID=$P11 L S-eleven stake "$LB" "$C11p" --model smoke >/dev/null; TP=$(mpid S-eleven "$C11p")
 alive "$TP" && kill "$P11" && waitfor '! alive "$TP"' || { echo "the timer outlived its CLAUDE_PID"; exit 1; }
 ok "lease: the timer renews by elapsed time, answers a notice within one poll, and exits when its CLAUDE_PID is gone or the lease is lost"
+
+# 11b. a renewal held between its read and its compare (LEASE_TEST_WRITE_PAUSE) while another write lands in place: it lands only
+# on the card as it read it, else reads again. LWP <tmpdir> <session>: renewing at every poll, under a TMPDIR of each half's own, so
+# the paused renewal's stage is the only one there; inpause waits for its read copy (lease-write.*/read), the pause follows it
+LWP() { local d="$1" s="$2"; shift 2; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$d" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1 LEASE_TEST_WRITE_PAUSE=1 "$@"; }
+inpause() { PD="$1"; waitfor '[ -n "$(ls "$PD"/lease-write.*/read 2>/dev/null)" ]'; }
+ppid_of() { sed -n 's/^pid=//p' "$1/lanework-lease/$2/$(printf '%s' "$(cd "$LB" && pwd -P)" | shasum | cut -c1-16)/$3"; }
+# inplace <file>: another script's write, staged and renamed over the card, no folder move: waiting dropped, order to the top (-5)
+inplace() { perl -ne 'print unless /^waiting:/' "$1" | perl -pe 's/^order: .*$/order: -5/' > "$1.w" && mv "$1.w" "$1"; }
+LPA=$(mktemp -d "$T/lease-pause-a.XXXXXX"); C11w=$(lcard "Eleven w"); F11w=$(lcf "$C11w")
+perl -pi -e 's/^(order: .*)$/order: 999\nwaiting: {for: owner, since: 2026-01-01T00:00:00Z, comment: 00000000-0000-4000-8000-000000000000}/' "$F11w"
+LWP "$LPA" S-pause "$LS" stake "$LB" "$C11w" --model smoke >/dev/null; inpause "$LPA" || { echo "11b: no renewal began"; exit 1; }
+U0=$(cuntil "$F11w"); inplace "$F11w"
+waitfor '[ "$(cuntil "$F11w")" != "$U0" ]' || { echo "11b: the held renewal never landed"; exit 1; }
+! grep -q '^waiting:' "$F11w" && grep -q '^order: -5$' "$F11w" && [ "$(csess "$F11w")" = S-pause ] || { echo "11b: a renewal undid an in-place write:"; cat "$F11w"; exit 1; }
+LWP "$LPA" S-pause "$LS" release "$LB" "$C11w" --model smoke >/dev/null
+# the same pause, claimed changed to another session during it: the renewal writes nothing; the next poll posts one loss record
+LPB=$(mktemp -d "$T/lease-pause-b.XXXXXX"); C11x=$(lcard "Eleven x"); F11x=$(lcf "$C11x")
+LWP "$LPB" S-pausex "$LS" stake "$LB" "$C11x" --model smoke >/dev/null; TP=$(ppid_of "$LPB" S-pausex "$C11x")
+inpause "$LPB" || { echo "11b: no renewal began on the second card"; exit 1; }
+setclaim "$F11x" S-other "$(iso $(( $(date -u +%s) + 1500 )))"; H11x=$(shasum < "$F11x")
+waitfor '! alive "$TP"' || { echo "11b: the timer outlived the changed claimed"; exit 1; }
+[ "$H11x" = "$(shasum < "$F11x")" ] && [ "$(csess "$F11x")" = S-other ] && [ "$(records "$C11x" "**Lease lost**")" = 1 ] \
+  || { echo "11b: a renewal over another session's claimed: records $(records "$C11x" "**Lease lost**")"; cat "$F11x"; exit 1; }
+validate "$LB" >/dev/null
+ok "lease: a renewal held through another script's in-place write keeps that write (no waiting, the new order); over another session's claimed it writes nothing and the next poll posts one Lease lost record"
+
+# 11c. a memory file holding pid= empty (the timer started, its id not saved yet): the timer waits for its id, alive two polls later
+C11e=$(lcard "Eleven e"); L S-epid stake "$LB" "$C11e" --model smoke >/dev/null; TP=$(mpid S-epid "$C11e")
+perl -pi -e 's/^pid=.*/pid=/' "$(mem S-epid "$C11e")"; sleep 0.5
+alive "$TP" || { echo "11c: the timer exited on an empty pid"; exit 1; }
+L S-epid release "$LB" "$C11e" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11c: the timer outlived the release"; exit 1; }
+ok "lease: a timer whose memory holds an empty pid keeps running, and still exits on release"
+
+# 11d. TMPDIR on another volume than the board (a RAM disk mounted on a mktemp folder; skipped with a note when one cannot be made):
+# the stage cannot be renamed over the card (EXDEV), so the write goes through a temp file at the board root, and none is left behind
+RAMD=""; RAMM=$(mktemp -d "$T/lease-ram.XXXXXX")
+ram_off() { [ -z "$RAMD" ] || { umount "$RAMM" 2>/dev/null || umount -f "$RAMM" 2>/dev/null; hdiutil detach "$RAMD" -quiet -force 2>/dev/null; RAMD=""; } || true; }
+trap 'ram_off; lease_cleanup' EXIT
+RAMD=$(hdiutil attach -nomount ram://8192 2>/dev/null | awk 'NR==1 {print $1}') || RAMD=""
+if [ -n "$RAMD" ] && newfs_hfs -v leasesmoke "$RAMD" >/dev/null 2>&1 && mount -t hfs "$RAMD" "$RAMM" 2>/dev/null \
+  && [ "$(stat -f %d "$RAMM")" != "$(stat -f %d "$LB")" ]; then
+  LX() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$RAMM" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 \
+    LEASE_TEST_RENEW_EVERY="${RE:-1}" "$LS" "$@"; }
+  C11v=$(lcard "Eleven v"); F11v=$(lcf "$C11v"); RC=0; LX S-vol stake "$LB" "$C11v" --model smoke >/dev/null 2>"$T/lx.err" || RC=$?
+  [ $RC = 0 ] && [ "$(csess "$F11v")" = S-vol ] || { echo "11d: stake across volumes: rc $RC, $(cat "$T/lx.err")"; ram_off; exit 1; }
+  U0=$(cuntil "$F11v"); sleep 1.1
+  waitfor '[ "$(cuntil "$F11v")" != "$U0" ]' || { echo "11d: the timer never renewed across volumes"; ram_off; exit 1; }
+  RC=0; LX S-vol release "$LB" "$C11v" --model smoke >/dev/null 2>"$T/lx.err" || RC=$?
+  [ $RC = 0 ] && ! grep -q '^claimed:' "$F11v" || { echo "11d: release across volumes: rc $RC, $(cat "$T/lx.err")"; ram_off; exit 1; }
+  # an in-place write while the renewal holds its temp file, between the first compare and the second: the write survives
+  C11y=$(lcard "Eleven y"); F11y=$(lcf "$C11y"); RE=1000 LX S-vol2 stake "$LB" "$C11y" --model smoke >/dev/null; U0=$(cuntil "$F11y"); sleep 1.1
+  ( RC=0; LEASE_TEST_WRITE_PAUSE=1 RE=1000 LX S-vol2 renew "$LB" "$C11y" --model smoke >/dev/null 2>"$T/lx.err" || RC=$?; echo "$RC" > "$T/lx.rc" ) & RNP=$!
+  waitfor '[ -n "$(ls "$LB"/.lease-write.*.lanework-tmp 2>/dev/null)" ]' || { echo "11d: the renewal never held a temp file"; ram_off; exit 1; }
+  perl -pe 's/^Body line one\.$/Body edited in place./' "$F11y" > "$F11y.w" && mv "$F11y.w" "$F11y"; wait "$RNP"
+  [ "$(cat "$T/lx.rc")" = 0 ] && grep -qx 'Body edited in place.' "$F11y" && [ "$(csess "$F11y")" = S-vol2 ] && [ "$(cuntil "$F11y")" != "$U0" ] \
+    || { echo "11d: a renewal across volumes undid an in-place write: rc $(cat "$T/lx.rc"), $(cat "$T/lx.err")"; cat "$F11y"; ram_off; exit 1; }
+  RE=1000 LX S-vol2 release "$LB" "$C11y" --model smoke >/dev/null
+  sleep 0.5; [ -z "$(find "$LB" -name '.lease-write.*.lanework-tmp' 2>/dev/null)" ] || { echo "11d: a temp file was left:"; find "$LB" -name '.lease-write.*'; ram_off; exit 1; }
+  validate "$LB" >/dev/null
+  ok "lease: with TMPDIR on another volume than the board, stake, the timer's renewal and release all write; a write landing while the temp file waits survives; no temp file is left"
+else
+  echo "# skip 11d: no RAM disk volume could be made; the cross-volume lease write is untested in this run"
+fi
+ram_off
 
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
