@@ -5,7 +5,7 @@
 # so the ask's deliberate one-second offset stays legal) is one line on stdout and exit 1:
 #   <path>: <field> <value> is <n>s ahead
 # Silent exit 0 when clean; exit 2 (message on stderr) on a missing path, a bad flag, no argument or a path it could not read
-# (`lint-stamps.sh: could not read <path>` on stderr, before the findings; what was read still prints). A symlinked board, lane or card is followed, and a name with a newline is read. Only
+# (`lint-stamps.sh: could not read <path>` on stderr, before the findings; what was read still prints). A symlinked board, lane or card is followed. Only
 # `...Z` stamps are compared, quoted or not, flow or block form, CRLF files included; an offset stamp is
 # skipped. Skips .trash, .log, .schema and attachments. Fix = restamp from the clock.
 set -u
@@ -38,7 +38,7 @@ while IFS=$'\t' read -r -d $'\001' f field val; do
   echo "$f: $field $val is $((e - nowe))s ahead"; v=1
 done < <(while IFS= read -r -d '' f; do
   rf=$f; [ "${f#-}" = "$f" ] || rf=./$f   # a path that starts with - is no awk option
-  LW_F="$f" awk -v limit="$limit" '   # the path rides in the environment: awk -v rejects a newline in it
+  LW_F="$f" awk -v limit="$limit" "$SHOW_NAME_AWK"'   # the path rides in the environment: awk -v rejects a newline in it; it prints escaped (lib.sh show_name), so no tab splits the record
     # top(line, name): the text after `name:` when it is a key of the outermost flow mapping (after the
     # opening brace or a comma at depth 1, outside quotes), else "". Quoted contents are never a key.
     function top(l, name,   i, c, d, qt, ks, n, k) {
@@ -65,7 +65,7 @@ done < <(while IFS= read -r -d '' f; do
       else if ($0 ~ ("^[ \t]+" name ":")) { v = $0; sub(/^[ \t]+[a-z]+:/, "", v) }
       if (v != "") {
         sub(/^[ \t]*["\x27]?/, "", v)
-        if (match(v, "^" st)) { t = substr(v, 1, RLENGTH); if (t > limit) printf "%s\t%s\t%s\001", f, (key == "waiting" ? "waiting.since" : key ".at"), t }
+        if (match(v, "^" st)) { t = substr(v, 1, RLENGTH); if (t > limit) printf "%s\t%s\t%s\001", show_name(f), (key == "waiting" ? "waiting.since" : key ".at"), t }
       }
     }' "$rf"
 done < "$LIST")
