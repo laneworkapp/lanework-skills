@@ -177,7 +177,7 @@ EOF
 # a string (a free label as is) or a label map. An entry is dropped when the card has the same text and kind (case-insensitive), or its own value of a
 # `single` kind; several of one `single` kind keep one (lowest rank, a ranked entry before an unranked, else the first). An undefined kind stays as
 # written, in a map. Nothing to add: the file is left untouched. --strict (a caller's own labels, not a lane's defaults): an undefined kind, a value a
-# closed kind does not list, an unreadable entry, or a different value of a `single` kind the card holds (or another entry names) is stderr and
+# closed kind does not list, or a different value of a `single` kind the card holds (or another entry names) is stderr and
 # exit 1, nothing written, the owner's value never overwritten. The heal's label model, loaded by path. Run it before compact_fm.
 union_labels() {
   local flags=""
@@ -228,9 +228,7 @@ for item in own:
 cands, seen, best, named = [], set(), {}, {}
 for item in raw:
     n = hb.normalize_entry(item)[0]
-    if not hb.entry_of(n):
-        if strict:
-            die("unreadable label: %s" % json.dumps(item, default=str))
+    if not hb.entry_of(n):   # only a lane's --json item can be unreadable: a spec always builds text and kind
         continue
     k, t = key(n), hb.canon(n["kind"]["type"])
     d = defs.get(t)
