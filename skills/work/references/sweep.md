@@ -29,11 +29,11 @@ Per board, after the authority chain:
 | **Holding** | Ideas (triage), Issues, Tasks | report; research or answer only (`lanework/references/board-kinds.md`) |
 | **Hygiene** | Done / Rejected overdue for archive | only on the owner's explicit ask |
 
-**Shaping in a grouped lane** (Shaping lane `group: {by: label, kind: K}`, K not `priority`; guide § Frontmatter, lanes). Shaping only: filing and moves into other lanes are unchanged. The lane sections on K and a drop assigns it; a file write assigns nothing, so write it yourself:
+**Shaping in a grouped lane** (Shaping lane `group: {by: label, kind: K}`, K not `priority`; guide § Frontmatter, lanes). Shaping only: filing and moves into other lanes are unchanged. The lane sections on K and a drop assigns it; a file write assigns nothing, so write it with `scripts/label-card.sh`:
 
 - Card has an entry of K (kind matched case-insensitively on `kind.type`) → leave it. Never overwrite the owner's value.
 - Else pick one value that fits: closed kind → one listed in `config.labels`; open kind → a value already on a board card, never a new spelling.
-- Write it as a drop would: the flattened `labels` entry of K, stamped from `config.labels` if K is defined there, else copy the shape from the board card the value came from.
+- Write it: `scripts/label-card.sh <board> <card> "<value>:K" --model m` (stamped from `config.labels`, compact form, `modified` restamped).
 - Unsure → leave it off, say so in the record. The trailing "No K" section beats a wrong one.
 - Nothing to do: `by: modified`/`created`, no `group`, `by: label` without `kind`.
 - Never assign (owner's call): `by: priority` or `kind: priority` → no priority; `by: due` → no date.

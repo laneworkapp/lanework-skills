@@ -2020,6 +2020,43 @@ setdef "$DP" Frontier nope; rc=0; "$FC" "$DP" Frontier "x" --body "$T/fc.md" --m
 [ "$rc" -eq 1 ] && [ "$S9" = "$(sum "$WB")" ] && [ "$S9D" = "$(sum "$DP")" ] || { echo "a refused file-card wrote something (rc $rc)"; exit 1; }
 ok "file-card.sh: a missing lane and a malformed card-defaults exit 1, no --body and no --model exit 2, a body with frontmatter exits 1; nothing written"
 
+# label-card: a hand-written label would land as a block list the heal flags (H17); the script writes the compact form
+LC="$SK/work/scripts/label-card.sh"
+L1=$("$FC" "$DP" Frontier "Unlabelled" --body "$T/fc.md" --model smoke); L1ID=$(basename "$L1")
+S10=$(others "$DP" "$(basename "$(dirname "$L1")")/$L1ID"); t0=$(date -u +%FT%TZ)
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "Needs review" --model smoke --name fixer --session smoke >/dev/null || rc=$?
+t1=$(date -u +%FT%TZ)
+[ "$rc" -eq 0 ] && [ "$(labels_of "$DP" "$L1ID")" = "labels: [{text: Needs review, $TXT}]" ] && [ "$(grep -c '^labels:' "$L1/index.md")" -eq 1 ] \
+  && grep -qxF "modified: {at: $(atof "$L1/index.md" modified), by: $BYF}" "$L1/index.md" && [[ ! "$(atof "$L1/index.md" modified)" < "$t0" && ! "$(atof "$L1/index.md" modified)" > "$t1" ]] \
+  && [ "$S10" = "$(others "$DP" "$(basename "$(dirname "$L1")")/$L1ID")" ] && nothing_to_heal "$DP" || { echo "label-card: rc $rc:"; cat "$L1/index.md"; exit 1; }
+ok "label-card.sh: a card with no labels gets one stamped label on one compact line, modified from the clock with the caller's by, no other file changed, validates, heal finds nothing"
+FIRST=$(labels_of "$DP" "$L1ID" | sed 's/^labels: \[//; s/\]$//')
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1/index.md" "second" "Urgent:priority" --model smoke >/dev/null
+[ "$(labels_of "$DP" "$L1ID")" = "labels: [$FIRST, {text: second, $TXT}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]" ] \
+  && nothing_to_heal "$DP" || { echo "label-card, existing label:"; labels_of "$DP" "$L1ID"; exit 1; }
+ok "label-card.sh: a second and a kinded label append after the first entry, byte for byte, on one line (block only past 120 characters); heal finds nothing"
+S11=$(sum "$DP")
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "High:priority" --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 1 ] && [ "$S11" = "$(sum "$DP")" ] || { echo "label-card, a different value of a single kind: want exit 1, nothing written, got $rc"; exit 1; }
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "urgent:Priority" "NEEDS REVIEW" --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 0 ] && [ "$S11" = "$(sum "$DP")" ] || { echo "label-card, labels the card has: want exit 0, nothing written, got $rc"; exit 1; }
+ok "label-card.sh: a different value of a single kind the card holds exits 1; the same labels, case aside, are a no-op (exit 0); nothing written either way"
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "x:nokind" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, undefined kind: want exit 1, got $rc"; exit 1; }
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "Nope:priority" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, unlisted priority value: want exit 1, got $rc"; exit 1; }
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$(dirname "$L1")" "x" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, a lane: want exit 1, got $rc"; exit 1; }
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "label-card, no label: want exit 2, got $rc"; exit 1; }
+refused label-card "$LC" "$DP" "$L1" x
+[ "$S11" = "$(sum "$DP")" ] || { echo "a refused label-card wrote something"; exit 1; }
+ok "label-card.sh: an undefined kind, a value a closed kind does not list and a path that is not a card exit 1, no label and no model exit 2; nothing written"
+setdef "$DP" Frontier '{labels: [extra]}'
+F4=$("$FC" "$DP" Frontier "Both" --body "$T/fc.md" --model smoke --label "High:priority" --label "hand: written:text"); F4ID=$(basename "$F4")
+[ "$(labels_of "$DP" "$F4ID")" = "labels: [{text: High, rank: 1, color: \"#E07A1F\", icon: {glyph: exclamationmark}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: hand: written, $TXT}, {text: extra, $TXT}]" ] \
+  && nothing_to_heal "$DP" || { echo "file-card --label:"; labels_of "$DP" "$F4ID"; exit 1; }
+rc=0; "$FC" "$DP" Frontier "Clash" --body "$T/fc.md" --model smoke --label "High:priority" --label "Low:priority" >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 1 ] || { echo "file-card, two values of a single kind: want exit 1, got $rc"; exit 1; }
+setdef "$DP" Frontier -
+ok "file-card.sh --label: the labels, then the lane's default, on one compact line; heal finds nothing; two values of one single kind exit 1"
+
 # move-card: owner-filed cards (no by on any stamp) seeded by hand, two sharing a prefix, one waiting
 IDEAS=$(lanedir "$WB" Ideas); OW1=abcd0000-0000-4000-8000-000000000001; OW2=abcd0000-0000-4000-8000-000000000002; AQ=abcd0000-0000-4000-8000-0000000000aa
 for c in $OW1 $OW2; do mkdir -p "$IDEAS/$c"; printf -- '---\nschema: 1\nkind: card\ntitle: "Owner %s"\norder: %s\ncreated: {at: 2026-10-01T00:00:00Z}\nmodified: {at: 2026-10-01T00:00:00Z}\n---\nFiled in the app.\n' "${c: -1}" "${c: -1}024" > "$IDEAS/$c/index.md"; done
