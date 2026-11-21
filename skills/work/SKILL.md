@@ -27,6 +27,6 @@ On a pipeline, agents **shape** Shaping cards into proposals that meet the board
 | a command about to do something subtle | `references/traps.md` |
 | ask, farmed prompt, phase reports, verdict | `templates/` |
 
-Fill templates with the structure they give, not free-form prose. `scripts/lint-ask.sh <file> <board>` checks an ask before it lands. `scripts/lint-stamps.sh <board>` checks no stamp is in the future. `scripts/lint-leases.sh <board>... [--since <ts>] [--first <n>]` finds lease collisions (read-only). `scripts/lint-waiting-clears.sh <board>` lists cards whose latest ask an agent cleared.
+Fill templates with the structure they give, not free-form prose. `scripts/lint-ask.sh <file> <board>` checks an ask before it lands. `scripts/lint-stamps.sh <board>` checks no stamp is in the future. `scripts/lint-leases.sh <board>... [--since <ts>] [--first <n>]` finds lease collisions (read-only). `scripts/lint-waiting-clears.sh <board>` lists cards whose latest ask an agent cleared. Findings print one per line: a tab, newline, carriage return or backslash in a name prints as `\t`, `\n`, `\r` or `\\`.
 
 Board writes, usage in each header: `scripts/file-card.sh` files a card (`--label Text[:kind]` adds labels), `label-card.sh` labels an existing one, `move-card.sh` moves one, `post-comment.sh` posts a record, `post-ask.sh` an ask with its `waiting`, `commit-board.sh` commits named board paths.

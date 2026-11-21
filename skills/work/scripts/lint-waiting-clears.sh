@@ -37,7 +37,8 @@ d=$board; case "$d" in -*) d=./$d ;; esac   # a leading - is no option for test
 [ -d "$d" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
 # comment_row <comment index.md>: created.at, agent|human|other, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
 comment_row() {
-  LW_ID="${1%/index.md}"; LW_ID="${LW_ID##*/}" awk '   # the id rides in the environment: awk -v rejects a newline in it
+  local id="${1%/index.md}"; id="${id##*/}"
+  LW_ID="$id" awk "$SHOW_NAME_AWK"'   # the id rides in the environment: awk -v rejects a newline in it
     BEGIN { id = ENVIRON["LW_ID"] }
     { sub(/\r$/, "") }
     NR == 1 { if ($0 == "---") fm = 1; next }
@@ -49,7 +50,7 @@ comment_row() {
     body && !fence && /^>[ \t]*[^ \t]/ { q = 1 }
     body && !fence && /^\*\*Given\*\*:/ { g = 1 }
     END {
-      gsub(/[\t\n]/, " ", id)   # a newline or tab in the folder name would split the row
+      id = show_name(id)   # escaped (lib.sh show_name): a tab or newline would split the row
       at = ""
       if (match(cr, /(^|[ {,])at:[ \t]*["\x27]?[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z/)) { s = substr(cr, RSTART, RLENGTH); match(s, /[0-9]{4}-.*$/); at = substr(s, RSTART); sub(/\.[0-9]+Z$/, "Z", at) }
       kind = "human"
@@ -88,7 +89,7 @@ while IFS= read -r -d '' idx; do   # a card is <board>/<lane>/<card>/index.md; t
   [ -n "$res" ] || continue
   IFS=$'\t' read -r verdict ask clear <<<"$res"   # tab-separated: an id may hold a space
   [ -z "$since" ] || [ ! "$clear" \< "$since" ] || continue
-  echo "$verdict ${card##*/} $ask"
+  printf '%s %s %s\n' "$verdict" "$(show_name "${card##*/}")" "$ask"
   case "$res" in QUOTED*) quoted=$((quoted + 1)) ;; *) noquote=$((noquote + 1)) ;; esac
 done < <(sort -z "$LIST")
 [ $((quoted + noquote)) -eq 0 ] || echo "QUOTED $quoted, NO-QUOTE $noquote"
