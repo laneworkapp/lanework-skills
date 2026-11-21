@@ -10,7 +10,8 @@
 # newest created.at among its ask and the agent comments in-reply-to it (an ask with no record: its own time). The tally counts the
 # listed cards only. A stamp with fractional seconds is read to the whole second; an offset stamp is read as unreadable (UTC `Z` is the rule).
 # then `QUOTED <n>, NO-QUOTE <m>`. Silent exit 0 when nothing is listed; exit 1 when any NO-QUOTE; exit 2
-# (message on stderr) on a missing path, a file, a bad flag or no argument. Skips .trash, .log, .schema and attachments.
+# (message on stderr) on a missing path, a file, a bad flag, no argument or a path it could not read
+# (`lint-waiting-clears.sh: could not read <path>` on stderr, before the listed cards; what was read still lists). Skips .trash, .log, .schema and attachments.
 # An ask here is looser than lint-ask.sh's: that one needs the board's human handle (guide line, or the anyone handle)
 # on line 1 and checks the shape; this one takes any `@` that starts the first non-blank line and checks nothing else.
 # Agent = a `created.by` with `kind: agent`; human = no `by`, or `kind: human`; any other kind (a shortcut) is neither an ask nor an answer.
@@ -32,6 +33,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -e "$board" ] || { echo "no such path: $board" >&2; exit 2; }
+case "$board" in -*) board=./$board ;; esac   # the helper lists "./<board>/..." for it; the card depth below strips $board as spelled
 [ -d "$board" ] || { echo "lint-waiting-clears.sh: not a board folder: $board" >&2; exit 2; }
 # comment_row <comment index.md>: created.at, agent|human|other, in-reply-to, ask (1/0), quoting (1/0), uuid; tab-separated
 comment_row() {
@@ -55,9 +57,12 @@ comment_row() {
 }
 # has_waiting <card index.md>: a top-level `waiting:` key in the frontmatter, flow or block
 has_waiting() { awk 'NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { exit } fm && /^waiting:/ { f = 1 } END { exit !f }' "$1"; }
-quoted=0; noquote=0
-for idx in "$board"/*/*/index.md; do   # globs skip the dot folders (.trash, .log, .schema); a card is <board>/<lane>/<card>/index.md
-  [ -f "$idx" ] || continue
+quoted=0; noquote=0; unread=0
+list=$(board_index_files "$board") || unread=1
+while IFS= read -r idx; do   # a card is <board>/<lane>/<card>/index.md; the helper skips .trash, .log, .schema
+  [ -n "$idx" ] || continue
+  rel=${idx#"$board"}; rel=${rel#/}; rel=${rel#/}; rel=${rel%/index.md}
+  case "$rel" in */*/*) continue ;; */*) ;; *) continue ;; esac
   card=$(dirname "$idx"); has_waiting "$idx" && continue
   rows=""
   for c in "$card"/comments/*/index.md; do
@@ -80,6 +85,7 @@ for idx in "$board"/*/*/index.md; do   # globs skip the dot folders (.trash, .lo
   [ -z "$since" ] || [ ! "$clear" \< "$since" ] || continue
   echo "$verdict $(basename "$card") $ask"
   case "$res" in QUOTED*) quoted=$((quoted + 1)) ;; *) noquote=$((noquote + 1)) ;; esac
-done
+done < <(printf '%s\n' "$list" | sort)
 [ $((quoted + noquote)) -eq 0 ] || echo "QUOTED $quoted, NO-QUOTE $noquote"
+[ "$unread" -eq 0 ] || exit 2
 [ "$noquote" -eq 0 ]

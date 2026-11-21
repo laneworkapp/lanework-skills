@@ -414,6 +414,11 @@ ok "settle-question refuses to clear waiting with no record and no owner answer 
 RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null 2>&1 || RC=$?
 [ "$RC" = 1 ] && [ "$(sum "$D")" = "$S2B" ] || { echo "settle with a record in reply to another ask: rc $RC, or the board changed"; exit 1; }
 ok "settle-question refuses a record in reply to an ask other than the card's newest: exit 1, nothing written"
+# a waiting-clear lint that exits 2 (it could not read the board) is a failure whatever its text says: refused, nothing written
+SKSTUB="$T/skstub"; cp -R "$SK" "$SKSTUB"; printf '#!/bin/bash\necho "QUOTED x y"; echo "QUOTED 1, NO-QUOTE 0"; exit 2\n' > "$SKSTUB/work/scripts/lint-waiting-clears.sh"
+RC=0; "$SKSTUB/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A2" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q 'lint-waiting-clears.sh failed' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "settle with a lint exiting 2: want exit 1 and nothing written, got rc $RC"; cat "$T/err.txt"; exit 1; }
+ok "settle-question treats a waiting-clear lint exit of 2 as failed even when its output reads QUOTED: exit 1, nothing written"
 # --record with no --reply, CRLF line ends: in reply to waiting.comment, written LF, read QUOTED
 printf '**Owner ruled off the board.**\r\n\r\n> Later.\r\n\r\n**Given**: chat, 2026-09-27\r\n' > "$T/rec-crlf.md"; printf '**2026-09-27**: Parked. "Later."\r\n' > "$T/r-crlf.md"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r-crlf.md" --to parked --record "$T/rec-crlf.md" --model smoke >/dev/null
@@ -1121,6 +1126,53 @@ wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; printf 'waiting: 
 wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
 ok "lint-waiting-clears: a waiting: line in the card body is not the frontmatter key, the card is still listed"
 wl_reset
+
+# work: the lints follow a symlinked board and exit 2 with `could not read <path>` when part of it is unreadable (lanework/scripts/lib.sh board_index_files)
+UB="$T/Unread.lanework"; cp -R "$D" "$UB"; UL=$(dirname "$(ls "$UB"/*/index.md | sed -n 2p)"); rm -rf "$UB"/*/*/   # no cards but the one built here
+UC="$UL/e0000000-0000-4000-8000-000000000001"; UI="$UC/index.md"; mkdir -p "$UC/comments/e1000000-0000-4000-8000-000000000001"
+printf -- '---\nschema: 1\nkind: card\ntitle: "Unread"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nBody.\n' > "$UI"
+printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nA note.\n' > "$UC/comments/e1000000-0000-4000-8000-000000000001/index.md"
+unr_restore() { chmod 755 "$UL" "$UC" 2>/dev/null || true; chmod 644 "$UI" 2>/dev/null || true; }
+trap 'unr_restore; kill "$PSP" 2>/dev/null || true' EXIT
+# unr_run <script> <board>: UO stdout, UE stderr, UR exit
+unr_run() { UR=0; UO=$("$1" "$2" 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err"); }
+unr_fail() { echo "$1"; echo "stdout: $UO"; echo "stderr: $UE"; echo "exit: $UR"; exit 1; }
+# a symlinked board with a future stamp reads like the folder
+USB="$T/UnrStamps.lanework"; cp -R "$D" "$USB"; USC=$(ls "$USB"/*/*/index.md | sed -n 1p)
+sed -i '' -E "s/^modified: \{at: [^,}]*/modified: {at: $(date -u -v+600S +%FT%TZ)/" "$USC"
+unr_run "$LS" "$USB"; [ "$UR" = 1 ] && [ -n "$UO" ] || unr_fail "lint-stamps on the real path: want exit 1 and findings"
+UREAL=$(sed -E "s/is [0-9]+s ahead/is Ns ahead/" <<<"$UO"); ln -s "$USB" "$T/UnrStampsLink.lanework"
+unr_run "$LS" "$T/UnrStampsLink.lanework"; [ "$UR" = 1 ] && [ "$(sed -E "s#^$T/UnrStampsLink.lanework/#$USB/#; s/is [0-9]+s ahead/is Ns ahead/" <<<"$UO")" = "$UREAL" ] || unr_fail "lint-stamps on a symlink: want exit 1 and the same findings as the real path"
+ok "lint-stamps follows a symlinked board: exit 1 with the same findings as the real path"
+# a mode-000 lane, card folder and card index.md each give exit 2 and a could-not-read line on stderr, for the three lints
+if [ "$(id -u)" = 0 ]; then echo "skip: running as root, mode 000 stays readable"; else
+  for U in "$LS" "$LL" "$WL"; do
+    unr_run "$U" "$UB"; [ "$UR" = 0 ] && [ -z "$UO" ] || unr_fail "$(basename "$U") on a readable board: want silent exit 0"
+    for what in lane card index; do
+      case $what in lane) X=$UL ;; card) X=$UC ;; index) X=$UI ;; esac
+      chmod 000 "$X"; if [ -r "$X" ]; then unr_restore; unr_fail "$what is still readable after chmod 000"; fi
+      unr_run "$U" "$UB"; unr_restore
+      [ "$UR" = 2 ] && grep -q "^$(basename "$U"): could not read " <<<"$UE" || unr_fail "$(basename "$U") with the $what at mode 000: want exit 2 and a could not read line on stderr"
+    done
+    unr_run "$U" "$UB"; [ "$UR" = 0 ] && [ -z "$UO" ] || unr_fail "$(basename "$U") after the modes were restored: want silent exit 0"
+  done
+  ok "lint-stamps, lint-leases and lint-waiting-clears: a lane, a card folder and a card index.md at mode 000 each exit 2 with a could not read line; a readable board stays silent, exit 0"
+fi
+# a board path starting with - is a path, not a find option; a path that vanished between find and the read check is a moved card, not an error
+UW="$T/UnrAsk.lanework"; cp -R "$UB" "$UW"; mkdir -p "$UW/$(basename "$UL")/$(basename "$UC")/comments/e2000000-0000-4000-8000-000000000001"
+printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-02T00:00:00Z, by: {name: claude, kind: agent, model: smoke}}\n---\n@anyone Which route?\n' > "$UW/$(basename "$UL")/$(basename "$UC")/comments/e2000000-0000-4000-8000-000000000001/index.md"
+# a board with findings, under a plain name and under one starting with -: same exit code, same number of lines
+cp -R "$UW" "$T/-dashask.lanework"; cp -R "$USB" "$T/-dashstamps.lanework"
+for pair in "$WL:UnrAsk.lanework:-dashask.lanework" "$LS:UnrStamps.lanework:-dashstamps.lanework"; do
+  U=${pair%%:*}; r=${pair#*:}; plain=${r%%:*}; dash=${r#*:}
+  unr_run "$U" "$T/$plain"; PR=$UR; PN=$(grep -c . <<<"$UO")
+  UR=0; UO=$(cd "$T" && "$U" "$dash" 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err")
+  [ "$PR" = 1 ] && [ "$PN" -ge 1 ] && [ "$UR" = "$PR" ] && [ "$(grep -c . <<<"$UO")" = "$PN" ] && [ -z "$UE" ] || unr_fail "$(basename "$U") on $dash: want exit $PR and $PN lines like the plain name (plain rc $PR, $PN lines)"
+done
+UO=$(. "$SK/lanework/scripts/lib.sh"; printf '%s\n' "$UB/moved-away/index.md" | unreadable_files 2>"$T/unr.err") && UR=0 || UR=$?; UE=$(cat "$T/unr.err")
+[ "$UR" = 0 ] && [ -z "$UO" ] && [ -z "$UE" ] || unr_fail "a listed path that no longer exists: want it skipped silently, exit 0"
+ok "the lints read a board whose name starts with -, and a path that vanished after find listed it is skipped, not reported"
+unr_restore
 
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
 PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"

@@ -4,7 +4,8 @@
 # `modified.at` and `waiting.since` to the clock. A stamp more than <slack> seconds ahead (default 60,
 # so the ask's deliberate one-second offset stays legal) is one line on stdout and exit 1:
 #   <path>: <field> <value> is <n>s ahead
-# Silent exit 0 when clean; exit 2 (message on stderr) on a missing path, a bad flag or no argument. Only
+# Silent exit 0 when clean; exit 2 (message on stderr) on a missing path, a bad flag, no argument or a path it could not read
+# (`lint-stamps.sh: could not read <path>` on stderr, before the findings; what was read still prints). A symlinked board is followed. Only
 # `...Z` stamps are compared, quoted or not, flow or block form, CRLF files included; an offset stamp is
 # skipped. Skips .trash, .log, .schema and attachments. Fix = restamp from the clock.
 set -u
@@ -22,11 +23,13 @@ done
 case "$slack" in ''|*[!0-9]*) echo "lint-stamps.sh: --slack needs whole seconds" >&2; exit 2 ;; esac
 [ -e "$target" ] || { echo "no such path: $target" >&2; exit 2; }
 limit=$(now_utc "$slack"); nowe=$(date -u +%s); v=0
+unread=0
 if [ -d "$target" ]; then
-  files() { find "$target" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print; }
+  list=$(board_index_files "$target") || unread=1
 else
-  files() { printf '%s\n' "$target"; }
+  list=$(printf '%s\n' "$target" | unreadable_files) || unread=1
 fi
+files() { [ -z "$list" ] || printf '%s\n' "$list"; }
 epoch() { date -j -u -f %Y-%m-%dT%H:%M:%SZ "$1" +%s 2>/dev/null; }
 while IFS=$'\t' read -r f field val; do
   [ -n "$f" ] || continue
@@ -63,4 +66,5 @@ done < <(files | while IFS= read -r f; do
       }
     }' "$f"
 done)
+[ "$unread" -eq 0 ] || exit 2
 exit $v
