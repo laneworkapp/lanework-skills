@@ -3,7 +3,12 @@ schema: 1
 kind: card
 title: "A brace, quote or backslash in a stamp value can still write invalid front matter"
 order: 1024
-labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}]
+labels:
+  - {text: "lanework", kind: {type: "skill", text: "Skill"}}
+  - {text: "work", kind: {type: "skill", text: "Skill"}}
+  - {text: "discovery", kind: {type: "skill", text: "Skill"}}
+  - {text: "plan", kind: {type: "skill", text: "Skill"}}
+  - {text: "merge", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-20T23:06:30Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 modified: {at: 2026-11-21T13:21:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
