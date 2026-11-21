@@ -2143,6 +2143,17 @@ rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L2" "x" --model smoke >/dev/nu
 [ "$rc" -eq 1 ] && grep -q "CRLF line endings" "$T/err.txt" && [ "$S12" = "$(sum "$DP")" ] || { echo "label-card, a CRLF card: want exit 1 naming CRLF, got $rc:"; cat "$T/err.txt"; exit 1; }
 cp "$T/lf.md" "$L2/index.md"
 ok "label-card.sh: an undefined kind, a value a closed kind does not list and a path that is not a card exit 1, no label and no model exit 2; nothing written"
+# an index.md at card depth under attachments/ or a dot folder is no card (board_index_files prunes the same): refused, while a real card on the same board is labelled
+GB="$T/Guard.lanework"; rm -rf "$GB"; cp -R "$DP" "$GB"; GL=$(dirname "$(dirname "$GB/${L2#"$DP"/}")"); GREAL="$GB/${L2#"$DP"/}"
+mkdir -p "$GB/attachments/x" "$GL/attachments" "$GB/.hidden/x"; for g in "$GB/attachments/x" "$GL/attachments" "$GB/.hidden/x"; do printf -- '---\ntitle: "x"\n---\nb\n' > "$g/index.md"; done
+S15=$(sum "$GB")
+for g in "$GB/attachments/x/index.md" "$GL/attachments/index.md" "$GB/.hidden/x/index.md"; do
+  rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$GB" "$g" "x" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+  [ "$rc" -eq 1 ] && [ "$S15" = "$(sum "$GB")" ] || { echo "label-card on $g: want exit 1, nothing written, got $rc:"; cat "$T/err.txt"; exit 1; }
+done
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$GB" "$GREAL" "real" --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 0 ] && grep -q '^labels: \[{text: "real"' "$GREAL/index.md" && [ "$S15" != "$(sum "$GB")" ] || { echo "label-card on a real card of the same board: rc $rc"; exit 1; }
+ok "label-card.sh refuses an index.md under attachments/ at the board or lane level and under a dot folder (exit 1, nothing written), while a real card on the same board is labelled"
 setdef "$DP" Frontier '{labels: [extra]}'
 F4=$("$FC" "$DP" Frontier "Both" --body "$T/fc.md" --model smoke --label "High:priority" --label "hand: written:text"); F4ID=$(basename "$F4")
 [ "$(labels_of "$DP" "$F4ID")" = "labels: [{text: High, rank: 1, color: \"#E07A1F\", icon: {glyph: exclamationmark}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: hand: written, $TXT}, {text: extra, $TXT}]" ] \
@@ -2159,7 +2170,7 @@ env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L3" "tidy" --model smoke >/dev/null
 [ "$(fmlines "$L3/index.md" icon)" = 1 ] && [ "$(fmlines "$L3/index.md" labels)" = 1 ] && nothing_to_heal "$DP" || { echo "label-card, compact_fm:"; sed -n 1,12p "$L3/index.md"; exit 1; }
 ok "label-card.sh runs compact_fm over the card: a block icon that fits one line comes out on one, and heal finds nothing"
 
-# the validator step, on a board that ships one (VB: a copy of WB with the borrowed .schema in place; WB's own .schema is nested one level too deep)
+# the validator step, on a board that ships one (VB: a copy of WB with the borrowed .schema re-copied in place; the label-card cases above ran on DP, the plan board, which has no .schema, so they skipped validation)
 VB="$T/Validated.lanework"; cp -R "$WB" "$VB"; rm -rf "$VB/.schema"; cp -R "$VAL" "$VB/.schema"; [ -f "$VB/.schema/bin/lanework-validate.py" ] || { echo "fixture: VB has no validator"; exit 1; }
 V1=$("$FC" "$VB" Approved "Valid" --body "$T/fc.md" --model smoke 2>/dev/null)
 env -u CLAUDE_CODE_SESSION_ID "$LC" "$VB" "$V1" "checked" --model smoke >/dev/null 2>"$T/err.txt" && grep -q '^labels: \[{text: "checked"' "$V1/index.md" && ! grep -q 'not validated' "$T/err.txt" && validate "$VB" >/dev/null \
