@@ -2195,7 +2195,7 @@ BO8=$(cq "$CB" eight); [ "$(cite_of_card "$CB" "$(cc "$BO8")")" = Q8 ] || { echo
   [ "$(cite_of "$ASKED/$BL2/index.md")" = "" ] && [ "$(card_ref "$ASKED/$BL2/index.md")" = "Q7: old" ] && [ "$(cite_of "$(ls "$CB"/*/"$BQ1"/index.md)")" = Q1 ] && [ "$(card_ref "$(ls "$CB"/*/"$BQ1"/index.md)")" = Q1 ] \
     || { echo "cite_of/card_ref wrong"; exit 1; }
   printf -- '---\nschema: 1\nkind: card\ntitle: "A [x] \\\\ b"\n---\n' > "$T/ref.md"; [ "$(card_ref "$T/ref.md")" = 'A \[x\] \\ b' ] || { echo "card_ref did not escape: $(card_ref "$T/ref.md")"; exit 1; } )
-validate "$CB" >/dev/null; ok "cite trash and legacy scan: a flat-trashed Q2 and a Q3 in a trashed lane are not reissued, a legacy Q7: title makes the next Q8 while "See Q40: ..." is not counted; next_cite counts per prefix, cite_of and card_ref read the key, else the escaped title"
+validate "$CB" >/dev/null; ok "cite trash and legacy scan: a flat-trashed Q2 and a Q3 in a trashed lane are not reissued, a legacy Q7: title makes the next Q8 while a See Q40: title is not counted; next_cite counts per prefix, cite_of and card_ref read the key, else the escaped title"
 # cite-as: a board on an older guide, or with no readable stamp, is filed as before
 printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Sync is free.\n' > "$T/cr.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
 cc() { head -1 <<<"$1" | sed 's#.*/##'; }
@@ -2296,9 +2296,33 @@ ok "cite older-board padding: Q9 and Q010 on a v114 board file Q11 (not a second
 NQ="$T/Case Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$NQ" --model smoke >/dev/null; mkguide "$NQ" 117
 NC="$T/Comment Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$NC" --model smoke >/dev/null; mkguide "$NC" 117
 cardw "$(firstlane "$NQ")/$(uuidgen | tr A-Z a-z)" "lower" q7; cardw "$(firstlane "$NC")/$(uuidgen | tr A-Z a-z)" "commented" "Q15 # x"
+NK="$T/Quoted Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$NK" --model smoke >/dev/null; mkguide "$NK" 117
+cardw "$(firstlane "$NK")/$(uuidgen | tr A-Z a-z)" "quoted" '"q9" # c'
 ( . "$SK/lanework/scripts/lib.sh"
-  [ "$(next_cite "$NQ" Q)" = Q8 ] && [ "$(next_cite "$NC" Q)" = Q16 ] || { echo "next_cite: lower-case q7 gives $(next_cite "$NQ" Q), 'Q15 # x' gives $(next_cite "$NC" Q)"; exit 1; } )
-ok "next_cite counts a hand-typed cite-as: q7 and a cite-as: Q15 # x with its trailing comment"
+  [ "$(next_cite "$NQ" Q)" = Q8 ] && [ "$(next_cite "$NC" Q)" = Q16 ] && [ "$(next_cite "$NK" Q)" = Q10 ] || { echo "next_cite: lower-case q7 gives $(next_cite "$NQ" Q), 'Q15 # x' gives $(next_cite "$NC" Q), quoted "q9" # c gives $(next_cite "$NK" Q)"; exit 1; } )
+ok "next_cite counts a hand-typed cite-as: q7, a cite-as: Q15 # x and a quoted \"q9\" # c with the trailing comment"
+# a title holding the word CITEPENDING files fine on a gated board
+printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
+NP="$T/Pending Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$NP" --model smoke >/dev/null; mkguide "$NP" 117
+NPP="$T/Pending Plan.lanework"; "$PS/found-plan-board.sh" "$NPP" --model smoke >/dev/null; mkguide "$NPP" 117
+PQO=$("$SK/discovery/scripts/file-question.sh" "$NP" "Why is CITEPENDING left in a title" --round 1 --body "$T/cq.md" --model smoke 2>&1) || { echo "file-question.sh refused a CITEPENDING title: $PQO"; exit 1; }
+PTO=$("$PS/file-ticket.sh" "$NPP" "CITEPENDING in a title" --type grilling --body "$T/ct.md" --model smoke 2>&1) || { echo "file-ticket.sh refused a CITEPENDING title: $PTO"; exit 1; }
+grep -qx 'cite-as: Q1' "$NP"/*/"$(cc "$PQO")"/index.md && grep -qx 'cite-as: T1' "$NPP"/*/"$(cc "$PTO")"/index.md || { echo "CITEPENDING-titled cards not stamped Q1 and T1"; exit 1; }
+ok "a question and a ticket whose title holds CITEPENDING are filed and stamped Q1 and T1 on a gated board"
+# heal-descriptors: the v0.8.0 discovery Brief and Decisions bodies are replaced; an edited body is not
+HB='The two standing references: the Topic card (scope) and the Discovery map card (every decision, by corner of the space). The agent rewrites the map at the close of each round, and a resuming session reads it first.'
+HDN="One card per ADR or PDR, titled \`ADR:\` or \`PDR:\`, with \`Record\` and \`Status\` labels and line 1 linking its question. The agent files it from a question's ruling, before the question settles. Cards never leave; an overturned decision gets the \`superseded\` status and a dated comment linking its replacement."
+setb() { local f; f=$(lane_file "$1" "$2"); sed -i '' '$d' "$f"; printf '%s\n' "$3" >> "$f"; }
+HO="$T/HealOld Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$HO" --model smoke >/dev/null; HE="$T/HealEdited Discovery.lanework"; cp -R "$HO" "$HE"
+CURB=$(lane_body "$HO" Brief); CURD=$(lane_body "$HO" Decisions)
+setb "$HO" Brief "$HB"; setb "$HO" Decisions "$HDN"; setb "$HE" Brief "${HB/rewrites/rewrites quietly}"; setb "$HE" Decisions "${HDN/Cards never leave/Cards stay}"
+O=$("$SK/heal/scripts/heal-descriptors.py" "$HO"); { grep -q '^lane Brief: replace-body ' <<<"$O" && grep -q '^lane Decisions: replace-body ' <<<"$O"; } || { echo "old Brief and Decisions not replace-body:"; echo "$O"; exit 1; }
+"$SK/heal/scripts/heal-descriptors.py" "$HO" --apply --model smoke >/dev/null
+{ [ "$(lane_body "$HO" Brief)" = "$CURB" ] && [ "$(lane_body "$HO" Decisions)" = "$CURD" ]; } || { echo "old bodies not replaced by the current template"; exit 1; }
+O=$("$SK/heal/scripts/heal-descriptors.py" "$HE"); if grep -q 'replace-body' <<<"$O"; then echo "an edited body was replaced:"; echo "$O"; exit 1; fi
+"$SK/heal/scripts/heal-descriptors.py" "$HE" --apply --model smoke >/dev/null
+{ grep -q 'rewrites quietly' "$(lane_file "$HE" Brief)" && grep -q 'Cards stay' "$(lane_file "$HE" Decisions)"; } || { echo "an edited body lost its own text"; exit 1; }
+ok "heal-descriptors replaces the v0.8.0 discovery Brief and Decisions bodies word for word and keeps an edited body's own text"
 
 # lanework: lease.sh. A copy of the pipeline board with the borrowed .schema; fake session ids; stand-in CLAUDE_PIDs (sleeps this
 # smoke starts and kills); per-session memory under a TMPDIR of its own, never the real one; the test knobs keep it to seconds.
