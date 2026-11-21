@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "commit-board.sh: a --push retry that does not push, a push that can hang, and five smaller leftovers"
-order: 10240
+order: 3072
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T01:04:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T13:20:11Z}
+modified: {at: 2026-11-21T13:21:54Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 `commit-board.sh --push` now pushes a commit that an earlier interrupted run left unpushed, a push that never returns ends within a bound with the cleanup run, and the script's closing and interrupted lines stop naming the wrong commit.
 
