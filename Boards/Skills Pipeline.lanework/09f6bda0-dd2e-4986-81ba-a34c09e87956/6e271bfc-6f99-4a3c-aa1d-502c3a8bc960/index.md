@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Lints: a symlinked board or an unreadable folder reads as clean"
-order: 9216
+order: 5120
 labels: [{text: work, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-17T23:21:07Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-20T17:55:04Z}
+modified: {at: 2026-11-21T01:04:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Three lints under `skills/work/scripts` can exit 0 on a board they did not fully read: `lint-stamps.sh` on a symlinked board, and `lint-stamps.sh`, `lint-leases.sh` and `lint-waiting-clears.sh` on an unreadable folder or file. The fix is to follow a symlinked board and to exit 2 whenever any part of the board could not be read.
 
