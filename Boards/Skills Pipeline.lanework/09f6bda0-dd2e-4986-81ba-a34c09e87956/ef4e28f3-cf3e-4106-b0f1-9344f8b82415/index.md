@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Smoke fails under machine load: plan-claim timing cases and a broken pipe from head -1"
-order: 7168
+order: 9216
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "repo", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-20T23:06:30Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T16:42:43Z}
+modified: {at: 2026-11-21T16:42:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Smoke gives the same result on a busy machine as on an idle one, and a lease timer no longer dies silently when its card is moved between lanes under load.
 
