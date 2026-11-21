@@ -5,7 +5,7 @@ title: "settle-question.sh settles on a Recap click, against rounds.md"
 order: 1024
 labels: [{text: "discovery", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T15:44:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T15:44:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T16:42:56Z}
 ---
 Reviewer note from `c7379e38`, not fixed there.
 
