@@ -39,10 +39,15 @@ usage() { printf 'lease.sh: %s\nusage: %s\n' "$1" "$USAGE" >&2; exit 2; }
 # board_key <resolved board path>: the memory's directory level for that board
 board_key() { printf '%s' "$1" | shasum | cut -c1-16; }
 
-# find_card: the card's index.md, resolved fresh. 0 + path; 1 none; 2 several
+# find_card: the card's index.md, resolved fresh. 0 + path; 1 none; 2 several. A card renamed between lanes while the glob
+# expands is in neither lane, or both: not exactly one → look again, up to 10 times 0.05 s apart, then the last answer
 find_card() {
-  local m n; m=$(ls "$BOARD"/*/"$CID"/index.md 2>/dev/null || true); n=$(printf '%s' "$m" | grep -c . || true)
-  if [ "$n" -eq 1 ]; then printf '%s' "$m"; return 0; fi
+  local m n i=0
+  while :; do
+    m=$(ls "$BOARD"/*/"$CID"/index.md 2>/dev/null || true); n=$(printf '%s' "$m" | grep -c . || true)
+    if [ "$n" -eq 1 ]; then printf '%s' "$m"; return 0; fi
+    i=$((i + 1)); [ "$i" -le 10 ] || break; sleep 0.05
+  done
   if [ "$n" -eq 0 ]; then return 1; fi; return 2
 }
 card_file() { local f; if f=$(find_card); then printf '%s' "$f"; else echo "lease.sh: not exactly one card $CID on $BOARD" >&2; exit 2; fi; }
@@ -223,18 +228,21 @@ own_held() {
   ensure_timer
 }
 
+# timer: a card not found (or not readable as found) on 3 polls in a row has gone, so a deleted card ends it 3 polls later;
+# fewer is a move that outlasted find_card's retry
 timer() {
-  local f n=0 na
+  local f t n=0 na miss=0
   while :; do
     sleep "$POLL"; n=$((n + 1))
     kill -0 "$TCPID" 2>/dev/null || exit 0
     [ -f "$MEM" ] && [ ! -d "$MEM.lost" ] || exit 0
     mem_load; [ -z "$M_PID" ] || [ "$M_PID" = "$$" ] || exit 0   # released, or a newer timer took over; empty: not saved yet
     NAME=${M_NAME:-claude}; MODEL=${M_MODEL:-unknown}
-    f=$(find_card) || exit 0
-    read_claim "$f"; [ -n "$CL_TEXT" ] || exit 0     # released
+    if f=$(find_card) && t=$(cat "$f" 2>/dev/null); then miss=0; else miss=$((miss + 1)); [ "$miss" -lt 3 ] || exit 0; continue; fi
+    read_claim /dev/stdin <<<"$t"; [ -n "$CL_TEXT" ] || exit 0     # released
     if [ "$CL_SESS" != "$SESSION" ]; then lose "$CL_SESS" || true; exit 0; fi
-    na=$(thread "$(dirname "$f")" | awk -F'\t' -v s="$SESSION" 'index($2, "**Takeover notice**:") == 1 && index($2, "from session " s " at ") {print $1}' | sort | tail -1)
+    na=$(thread "$(dirname "$f")" | awk -F'\t' -v s="$SESSION" 'index($2, "**Takeover notice**:") == 1 && index($2, "from session " s " at ") {print $1}' | sort | tail -1) \
+      || na=""   # the card moved while its comments were read (set -e would end the timer): read again next poll
     if [ -n "$na" ] && [[ "$na" > "$M_NOTICE" ]]; then
       M_PID=$$; M_NOTICE=$na; mem_save; write_card renew || true; n=0; continue   # renew 5: the next poll finds the loss or release
     fi

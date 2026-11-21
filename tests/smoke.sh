@@ -55,6 +55,14 @@ done
 ! grep -q dispatch "$ROOT/.claude-plugin/plugin.json" || { echo "plugin.json still names dispatch"; exit 1; }
 ok "no skill folder or plugin.json entry is named pitlane, pitwall or dispatch"
 
+# early-closing readers: no script under test pipes into head or grep -q/-m here. The reader closes after its first match and a
+# later write of the script dies of a broken pipe, rc 141 under pipefail. Capture the output whole (bfirst). The pattern matches a sample
+EC='(scripts/[a-z-]+|\$PS/[a-z-]+)\.sh"[^|]*\| *(head|grep -[a-zA-Z]*[qm])'
+ec1='X=$("$PS/file-ticket'; ec1+='.sh" "$B" t | head -1)'; ec2='"$SK/x/scripts/a-b'; ec2+='.sh" 2>&1 | grep -qF y'   # split: no self-match
+[ "$(printf '%s\n' "$ec1" "$ec2" | grep -cE "$EC")" = 2 ] || { echo "the early-reader pattern misses its samples"; exit 1; }
+hits=$(grep -nE "$EC" "$ROOT/tests/smoke.sh" || true); [ -z "$hits" ] || { echo "a script's output piped into an early-closing reader:"; echo "$hits"; exit 1; }
+ok "no script under test pipes its output into head or grep -q/-m in smoke"
+
 # folder convention: Lanework/ first, then Boards/, then legacy Pitlane/; the legacy name lives only in finding.md
 hits=$(grep -rn Pitlane "$SK" || true)
 [ -z "$hits" ] || [ -z "$(grep -v '^[^:]*/lanework/references/finding\.md:[0-9]*:.*legacy' <<<"$hits")" ] \
@@ -445,6 +453,25 @@ RC=0; "$SKL/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md"
 ok "settle-question says 'not executable' for a present lint without the x bit and 'missing' for an absent one, nothing written"
 grep 'owner answer' "$SK/discovery/references/rounds.md" | grep -q 'Recap' || { echo "rounds.md lost the Recap rule beside 'owner answer'"; exit 1; }
 ok "rounds.md says a Recap: click is not an owner answer"
+# a Recap: click is not an owner answer: refused with no --record, an answer before or after it still counts (own board, own questions)
+R="$T/Recap Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$R" --model smoke >/dev/null
+rq() { local o; o=$("$SK/discovery/scripts/file-question.sh" "$R" "$1" --round 1 --body "$T/q1.md" --model smoke 2>&1) || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
+rcard() { ls -d "$R"/*/"$1"; }
+RA=$(rq "Click only"); RB=$(rq "Click then answer"); RC_=$(rq "Click then record"); RD=$(rq "Recapitulate")
+owner_comment "$(rcard "$RA")" "Recap: Explain this in plain terms first"
+owner_comment "$(rcard "$RB")" "Recap: Explain this in plain terms first"; owner_comment "$(rcard "$RB")" "A."
+owner_comment "$(rcard "$RC_")" "Recap: Explain this in plain terms first"
+owner_comment "$(rcard "$RD")" "Recapitulate: A."
+SR=$(sum "$R")
+RC=0; "$SK/discovery/scripts/settle-question.sh" "$R" "$RA" --ruling "$T/r1.md" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q -- '--record' "$T/err.txt" && [ "$(sum "$R")" = "$SR" ] || { echo "settle on a Recap: click alone: want exit 1, --record in the message, nothing written; got rc $RC"; cat "$T/err.txt"; exit 1; }
+ok "settle-question refuses a waiting card whose only owner comment is a Recap: click: exit 1, message names --record, nothing written"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RB" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question settles when a real owner answer follows the Recap: click"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RC_" --ruling "$T/r1.md" --record "$T/rec.md" --model smoke >/dev/null
+ok "settle-question settles a card with only a Recap: click when --record quotes the owner"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RD" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question counts Recapitulate: A. (not the Recap: prefix) as an answer"
 # --record with no --reply, CRLF line ends: in reply to waiting.comment, written LF, read QUOTED
 printf '**Owner ruled off the board.**\r\n\r\n> Later.\r\n\r\n**Given**: chat, 2026-09-27\r\n' > "$T/rec-crlf.md"; printf '**2026-09-27**: Parked. "Later."\r\n' > "$T/r-crlf.md"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r-crlf.md" --to parked --record "$T/rec-crlf.md" --model smoke >/dev/null
@@ -517,7 +544,7 @@ ok "a question with no waiting settles with no record"
 
 # discovery: file-record.sh --supersedes states a supersedes relation on the new card, never touches the old one
 FR="$SK/discovery/scripts/file-record.sh"
-SQ() { "$SK/discovery/scripts/file-question.sh" "$D" "$1" --round 2 --body "$T/q3.md" --model smoke 2>&1 | head -1 | sed 's#.*/##'; }
+SQ() { local o; o=$("$SK/discovery/scripts/file-question.sh" "$D" "$1" --round 2 --body "$T/q3.md" --model smoke 2>&1) || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
 SQ1=$(SQ "Supersede one"); SQ2=$(SQ "Supersede two"); SQ3=$(SQ "Supersede three"); SQ4=$(SQ "Supersede bad")
 OLD1="$K1"; OLD2="$K2"
 sum_old=$(cksum < "$DEC/$OLD1/index.md")
@@ -721,7 +748,10 @@ else: lines.insert(len(lines) - 1, "labels: [" + lab + "]")
 open(p, "w").write(head + "---\n" + "\n".join(lines) + "---\n" + body.rstrip("\n") + '\n\n```json\n{"a": {"b": {"c": 1}}}\n```\n')
 PY
 }
-bfirst() { local o; o=$("$@"); head -1 <<<"$o" | sed 's#.*/##'; }
+# bfirst <script...>: the last path segment of the script's first output line. The output is read whole first: a reader that
+# closes after one line (head -1) can break the script's later writes, rc 141 under pipefail
+bfirst() { local o; o=$("$@") || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
+! bfirst false >/dev/null || { echo "bfirst hides a failing script"; exit 1; }
 bodyof() { awk 'n >= 2 { print } /^---$/ { n++ }' "$1"; }
 bsnap() { (cd "$1" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do shasum "$f"; done) | shasum; }
 # bholds <before copy> <after file>: the labels line and the whole old body are as they were (a body only grew by an appended ruling)
@@ -775,6 +805,7 @@ for sv in "${SV[@]}"; do for k in name model session; do
   svcheck "file-card $k=$sv" "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "SV card" --body "$SVBODY" "${F[@]}"
   svcheck "file-question $k=$sv" "$BQ" "$SK/discovery/scripts/file-question.sh" "$BQ" "SV q" --round 1 --body "$T/bq.md" "${F[@]}"
   SQ=$(bq "SV id $k $sv"); SQF=$(bcard "$SQ")
+  svcheck "label-card $k=$sv" "$BQ" "$SK/work/scripts/label-card.sh" "$BQ" "$SQF" "Needs review" "${F[@]}"
   svcheck "post-ask $k=$sv" "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$SQ" --body "$SVBODY" --for anyone "${F[@]}"
   SQ2=$(bq "SV id2 $k $sv"); owner_comment "$(dirname "$(bcard "$SQ2")")" 'A.'
   svcheck "settle-question $k=$sv" "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$SQ2" --ruling "$T/bruling.md" "${F[@]}"
@@ -792,7 +823,9 @@ for sv in "${SV[@]}"; do for k in name model session; do
   rc2=0; "$SK/work/scripts/move-card.sh" "$BQ" "$SQ4" Parked "${F[@]}" >/dev/null 2>&1 || rc2=$?
   if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
     [ -n "$CB" ] && [ "$CB" = "$(byof "$(bcard "$SQ4")")" ] || { echo "by differs between post-comment and move-card for $k=$sv: '$CB' vs '$(byof "$(bcard "$SQ4")")'"; exit 1; }
-    validate "$BQ" >/dev/null || { echo "post-comment/move-card $k=$sv: board invalid"; exit 1; }
+    rc3=0; "$SK/work/scripts/label-card.sh" "$BQ" "$(bcard "$SQ4")" "Needs review" "${F[@]}" >/dev/null 2>&1 || rc3=$?
+    [ $rc3 -eq 0 ] && { [ "$CB" = "$(byof "$(bcard "$SQ4")")" ] || { echo "by differs after label-card for $k=$sv: '$CB' vs '$(byof "$(bcard "$SQ4")")'"; exit 1; }; }
+    validate "$BQ" >/dev/null || { echo "post-comment/move-card/label-card $k=$sv: board invalid"; exit 1; }
   else svcheck "post-comment $k=$sv" "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$SQ4" --body "$SVBODY" "${F[@]}"; fi
 done; done
 ok "file-card, file-question, post-ask, settle-question, file-record, file-ticket, claim-ticket, resolve-ticket, post-comment and move-card, given {n}, a\"b, a\\, a\\\"}}}, 'x: y' and #x as --name, --model and --session: exit 0 and the board validates, or nothing written; the stamp's by is the same from a comment and a card"
@@ -806,14 +839,17 @@ ok "found-board.sh given {n}, a\"b, a\\, a\\\"}}}, 'x: y' and #x as --name or --
 # a control character in a stamp value is refused by every script with exit 2 and nothing written (stamp_args_ok); an empty --name too
 NLV=$'a\nb'; TBV=$'a\tb'
 SVQ=$(bq "SV refuse"); owner_comment "$(dirname "$(bcard "$SVQ")")" 'A.'
+# the plan scripts run on a board of their own with no claim and no lease timer: nothing writes to it while the snapshots compare
+# (stamp_args_ok runs before any state check, so an unclaimed ticket is refused with exit 2 by resolve-ticket.sh too)
+SBPL2="$BPL"; BPL="$T/sv-bpl2.lanework"; "$PS/found-plan-board.sh" "$BPL" --model smoke >/dev/null; cp -R "$VAL" "$BPL/.schema"
 SVT=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV refuse t" --type grilling --body "$T/bt.md" --model smoke); SVT2=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV refuse t2" --type grilling --body "$T/bt.md" --model smoke)
-PE "$PS/claim-ticket.sh" "$BPL" "$SVT" --model smoke >/dev/null
 FLS=(--name "$NLV" --model "$NLV" --session "$TBV" --name "")
 for ((i = 0; i < ${#FLS[@]}; i += 2)); do
   FF=(--model smoke "${FLS[i]}" "${FLS[i+1]}"); [ "${FLS[i]}" = --model ] && FF=(--model "$NLV"); w=2; [ -z "${FLS[i+1]}" ] && w=any; fl="${FLS[i]}#$i"
   svrefused "file-card $fl" $w "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "R" --body "$SVBODY" "${FF[@]}"
   svrefused "post-comment $fl" $w "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ" --body "$SVBODY" "${FF[@]}"
   svrefused "post-ask $fl" $w "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$SVQ" --body "$SVBODY" --for anyone "${FF[@]}"
+  svrefused "label-card $fl" $w "$BQ" "$SK/work/scripts/label-card.sh" "$BQ" "$(bcard "$SVQ")" "Needs review" "${FF[@]}"
   svrefused "move-card $fl" $w "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$SVQ" Parked "${FF[@]}"
   svrefused "file-question $fl" $w "$BQ" "$SK/discovery/scripts/file-question.sh" "$BQ" "R" --round 1 --body "$T/bq.md" "${FF[@]}"
   svrefused "settle-question $fl" $w "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$SVQ" --ruling "$T/bruling.md" "${FF[@]}"
@@ -826,6 +862,26 @@ for fl in --name --model; do
   rm -rf "$T/sv-found.lanework"; rc=0; "$FB" "$T/sv-found.lanework" "${FA[@]}" --model smoke "$fl" "$NLV" >/dev/null 2>&1 || rc=$?
   [ $rc -eq 2 ] && [ ! -e "$T/sv-found.lanework" ] || { echo "found-board $fl newline: exit $rc or a folder exists"; exit 1; }; done
 ok "a newline in --name or --model, a tab in --session: exit 2 and nothing written from every stamping script; an empty --name is refused too"
+# values YAML would not read back as the same string (null, ~, a bool word, a number) are quoted: valid, and the same bytes from every script
+for nv in null '~' true 123 1e3; do for k in name model; do
+  F=(--model smoke); case $k in model) F=(--model "$nv") ;; name) F+=(--name "$nv") ;; esac
+  NQ=$(bq "NV same $k $nv"); NQD=$(dirname "$(bcard "$NQ")"); NC0=$({ ls "$NQD"/comments/*/index.md 2>/dev/null || true; } | sort)
+  "$SK/work/scripts/post-comment.sh" "$BQ" "$NQ" --body "$SVBODY" --ahead 5 "${F[@]}" >/dev/null || { echo "post-comment.sh refused $k=$nv"; exit 1; }
+  NCN=$(comm -13 <(printf '%s\n' "$NC0") <({ ls "$NQD"/comments/*/index.md 2>/dev/null || true; } | sort) | head -1); NCB=$(byof "$NCN")
+  "$SK/work/scripts/move-card.sh" "$BQ" "$NQ" Parked "${F[@]}" >/dev/null || { echo "move-card.sh refused $k=$nv"; exit 1; }
+  NMB=$(byof "$(bcard "$NQ")")
+  svcheck "label-card $k=$nv" "$BQ" "$SK/work/scripts/label-card.sh" "$BQ" "$(bcard "$NQ")" "Needs review" "${F[@]}"
+  svcheck "file-card $k=$nv" "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "NV card" --body "$SVBODY" "${F[@]}"
+  [ -n "$NCB" ] && [ "$NCB" = "$NMB" ] && grep -qF "$k: \"$nv\"" <<<"$NMB" && validate "$BQ" >/dev/null || { echo "$k=$nv: not quoted, invalid, or by differs: '$NCB' vs '$NMB'"; exit 1; }
+done; done
+ok "null, ~, true, 123 and 1e3 as --name or --model are written quoted by file-card, post-comment, move-card and label-card: the board validates and the by is the same from a comment and a card"
+# stamp_lines_ok, the last guard, refuses a broken stamp line and passes a quoted brace (nothing now feeds it a bare brace, so it is tested directly)
+( . "$SK/lanework/scripts/lib.sh"
+  printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: n}}}\n---\nbody }}}\n' > "$T/sl-bad.md"
+  printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: "n}}}", kind: agent}}\nlabels: [{text: a, kind: {type: b, icon: {glyph: c}}}]\n---\nbody }}}\n' > "$T/sl-ok.md"
+  printf -- '---\nkind: comment\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: n}, kind: agent}}\n---\n' > "$T/sl-open.md"
+  ! stamp_lines_ok "$T/sl-bad.md" created && ! stamp_lines_ok "$T/sl-open.md" created && stamp_lines_ok "$T/sl-ok.md" created ) || { echo "stamp_lines_ok: a broken stamp passed or a quoted brace was refused"; exit 1; }
+ok "stamp_lines_ok refuses a triple brace and an unbalanced brace on the stamp lines, and passes a quoted brace and a copied iconed label"
 # existing bare stamps are unchanged: no quotes, no churn
 SVQ2=$(bq "SV bare"); "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ2" --body "$SVBODY" --model claude-fable-5-2 --name claude --session s-1_2 --ahead 5 >/dev/null
 grep -q '^modified: {at: [^,]*, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "s-1_2"}}$' "$(dirname "$(bcard "$SVQ2")")"/comments/*/index.md || { echo "a bare stamp changed"; exit 1; }
@@ -834,11 +890,18 @@ ok "a plain --name and --model stay bare in the stamp, byte for byte as before"
 python3 - "$SK/merge/scripts/lanework-merge.py" <<'PY' || { echo "lanework-merge.py signer: model not quoted"; exit 1; }
 import importlib.util, sys, yaml; sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("lm", sys.argv[1]); lm = importlib.util.module_from_spec(spec); spec.loader.exec_module(lm)
-for m in ['a: b', '{n}', 'a"b', 'a\\', 'a\\"}}}', '#x', 'plain-1.2']:
+for m in ['a: b', '{n}', 'a"b', 'a\\', 'a\\"}}}', '#x', 'plain-1.2', 'null', 'Null', '~', 'true', 'Yes', '123', '1e3', '0x1F', '0o17', '.inf', '-.NaN', '1.5']:
     by = yaml.safe_load("by: " + lm.signer(m))["by"]
     assert by["model"] == m and by["session"] == "merge" and by["name"] == "claude", (m, by)
 assert lm.signer("plain-1.2") == '{name: claude, kind: agent, model: plain-1.2, session: "merge"}'
-by = yaml.safe_load("by: " + lm.signer("a\nb"))["by"]; assert "model" not in by, by
+for bad in ("a\nb", "a\x85b", "a\x9fb", "a\x7fb"):
+    by = yaml.safe_load("by: " + lm.signer(bad))["by"]; assert "model" not in by, (bad, by)
+assert lm.signer("claude-fable-5-2") == '{name: claude, kind: agent, model: claude-fable-5-2, session: "merge"}'
+hs = importlib.util.spec_from_file_location("hd", sys.argv[1].replace("merge/scripts/lanework-merge.py", "heal/scripts/heal-descriptors.py")); hd = importlib.util.module_from_spec(hs); hs.loader.exec_module(hd)
+for m in ["null", "~", "true", "123", "1e3", "0x1F", ".inf", "a: b"]:
+    assert yaml.safe_load("v: " + hd.scalar(m))["v"] == m, m
+for m in ["claude", "claude-fable-5-2", "smoke", "m"]:
+    assert hd.scalar(m) == m, m
 PY
 ok "lanework-merge.py signer: model 'a: b', '{n}', a quote, a backslash and '#x' parse back unchanged, a plain model stays bare, a control character is dropped"
 BQ="$SBQ"; BPL="$SBPL"
@@ -2023,8 +2086,8 @@ DD="$T/Defaults Discovery.lanework"; "$SK/discovery/scripts/found-discovery-boar
 
 # 1. file-record: a free label and a kinded entry; the card's own single-kind value wins
 setdef "$DD" Decisions '{labels: [needs-review, {text: Proposed, kind: {type: status, text: Status}}]}'
-DQ=$("$SK/discovery/scripts/file-question.sh" "$DD" "Free" --round 1 --body "$T/dq.md" --model smoke | head -1 | sed 's#.*/##')
-DR=$("$SK/discovery/scripts/file-record.sh" "$DD" "$DQ" --record ADR --title "Free sync" --body "$T/dadr.md" --model smoke | head -1 | sed 's#.*/##')
+DQ=$(bfirst "$SK/discovery/scripts/file-question.sh" "$DD" "Free" --round 1 --body "$T/dq.md" --model smoke)
+DR=$(bfirst "$SK/discovery/scripts/file-record.sh" "$DD" "$DQ" --record ADR --title "Free sync" --body "$T/dadr.md" --model smoke)
 [ "$(labels_of "$DD" "$DR")" = "labels: [{text: ADR, rank: 1, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}, {text: needs-review, $TXT}]" ] \
   || { echo "file-record: lane defaults not unioned:"; labels_of "$DD" "$DR"; exit 1; }
 nothing_to_heal "$DD" || { echo "file-record: board not clean"; exit 1; }
@@ -2042,8 +2105,8 @@ ok "file-question.sh: 'urgent' is added, 'ROUND 1' of the same kind is not repea
 # 3. file-ticket: kinded entries stamped from config.labels; Blocked has no defaults
 DP="$T/Defaults Plan.lanework"; "$SK/plan/scripts/found-plan-board.sh" "$DP" --labels priority --model smoke >/dev/null
 setdef "$DP" Frontier '{labels: [{text: Grilling, kind: {type: ticket}}, {text: urgent, kind: {type: priority}}, extra]}'
-DT1=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Rates" --type research --body "$T/t.md" --model smoke | head -1); DT1=${DT1##*/}
-DT2=$("$SK/plan/scripts/file-ticket.sh" "$DP" "After rates" --type task --body "$T/t.md" --depends "lanework://$(sed -n 's/^id: //p' "$DP/index.md")/$DT1" --model smoke | head -1); DT2=${DT2##*/}
+DT1=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Rates" --type research --body "$T/t.md" --model smoke)
+DT2=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "After rates" --type task --body "$T/t.md" --depends "lanework://$(sed -n 's/^id: //p' "$DP/index.md")/$DT1" --model smoke)
 [ "$(labels_of "$DP" "$DT1")" = "labels: [{text: Research, rank: 2, icon: {glyph: magnifyingglass}, kind: {type: ticket, text: Ticket}}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: extra, $TXT}]" ] \
   || { echo "file-ticket: lane defaults not unioned:"; labels_of "$DP" "$DT1"; exit 1; }
 [ "$(labels_of "$DP" "$DT2")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}]" ] || { echo "file-ticket: Blocked got defaults:"; labels_of "$DP" "$DT2"; exit 1; }
@@ -2052,18 +2115,18 @@ ok "file-ticket.sh: Frontier's 'urgent' is stamped from the board's priority kin
 
 # 4. a single kind with several lane values: the lowest rank is kept, and the card's own value beats them all
 setdef "$DP" Frontier '{labels: [{text: High, kind: {type: priority}}, {text: Urgent, kind: {type: priority}}, {text: Task, kind: {type: ticket}}, {text: Grilling, kind: {type: ticket}}]}'
-DT3=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Hammer" --type prototype --body "$T/t.md" --model smoke | head -1); DT3=${DT3##*/}
+DT3=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Hammer" --type prototype --body "$T/t.md" --model smoke)
 [ "$(labels_of "$DP" "$DT3")" = "labels: [{text: Prototype, rank: 3, icon: {glyph: hammer}, kind: {type: ticket, text: Ticket}}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]" ] \
   || { echo "single kind: wrong pick:"; labels_of "$DP" "$DT3"; exit 1; }
 setdef "$DD" Decisions '{labels: [{text: superseded, kind: {type: status}}, {text: deprecated, kind: {type: status}}]}'
-DR2=$("$SK/discovery/scripts/file-record.sh" "$DD" "$DQ2" --record PDR --title "Also free" --body "$T/dadr.md" --model smoke | head -1 | sed 's#.*/##')
+DR2=$(bfirst "$SK/discovery/scripts/file-record.sh" "$DD" "$DQ2" --record PDR --title "Also free" --body "$T/dadr.md" --model smoke)
 [ "$(labels_of "$DD" "$DR2")" = "labels: [{text: PDR, rank: 2, kind: {type: record, text: Record}}, {text: accepted, rank: 1, kind: {type: status, text: Status}}]" ] || { echo "single kind: own value did not win:"; labels_of "$DD" "$DR2"; exit 1; }
 nothing_to_heal "$DP" && nothing_to_heal "$DD" || { echo "single kind: board not clean"; exit 1; }
 ok "single kind: of High and Urgent the lower rank (Urgent) is kept; the card's own accepted beats superseded and deprecated; heal finds nothing"
 
 # 5. no defaults (or none with labels) change nothing; a malformed card-defaults refuses and writes nothing
 for v in - '{note: 1}' '{labels: []}'; do
-  setdef "$DP" Frontier "$v"; DT4=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Plain" --type grilling --body "$T/t.md" --model smoke | head -1); DT4=${DT4##*/}
+  setdef "$DP" Frontier "$v"; DT4=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Plain" --type grilling --body "$T/t.md" --model smoke)
   [ "$(labels_of "$DP" "$DT4")" = "labels: [{text: Grilling, rank: 1, icon: {glyph: bubble.left.and.bubble.right}, kind: {type: ticket, text: Ticket}}]" ] || { echo "no-op ($v) changed the labels:"; labels_of "$DP" "$DT4"; exit 1; }
 done
 for v in nope '[x]' '{labels: {a: 1}}'; do
@@ -2074,19 +2137,19 @@ for v in nope '[x]' '{labels: {a: 1}}'; do
   [ "$S5" = "$(sum "$DP")$(sum "$DD")" ] || { echo "a refused filing wrote something ($v)"; exit 1; }
 done
 grep -q 'card-defaults' "$T/err.txt" || { echo "the refusal does not name card-defaults:"; cat "$T/err.txt"; exit 1; }
-setdef "$DP" Frontier '{labels: solo}'; DT5=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Solo" --type task --body "$T/t.md" --model smoke | head -1); DT5=${DT5##*/}
+setdef "$DP" Frontier '{labels: solo}'; DT5=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Solo" --type task --body "$T/t.md" --model smoke)
 [ "$(labels_of "$DP" "$DT5")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: solo, $TXT}]" ] || { echo "a bare-name labels: is one free label:"; labels_of "$DP" "$DT5"; exit 1; }
 ok "no card-defaults, none with labels, or an empty list; labels: <name> is one free label: the card is the template's own; a card-defaults that is a scalar or a list, or labels that is a mapping, exits non-zero naming card-defaults, in all three scripts, and writes nothing"
 
 # 6. a bare number or boolean is the text as typed (1.10 stays 1.10), in the list and as the one-name scalar
 setdef "$DP" Frontier '={labels: [v1, 2026, 1.10, true, "2027"]}'
-DT6=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Typed" --type task --body "$T/t.md" --model smoke | head -1); DT6=${DT6##*/}
+DT6=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Typed" --type task --body "$T/t.md" --model smoke)
 [ "$(labels_of "$DP" "$DT6")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: v1, $TXT}, {text: 2026, $TXT}, {text: 1.10, $TXT}, {text: true, $TXT}, {text: 2027, $TXT}]" ] \
   || { echo "typed scalars in card-defaults.labels not read as typed:"; labels_of "$DP" "$DT6"; exit 1; }
 nothing_to_heal "$DP" || { echo "typed scalars: board not clean"; exit 1; }
 for v in 2026 1.10 true; do
   setdef "$DP" Frontier "={labels: $v}"
-  DT7=$("$SK/plan/scripts/file-ticket.sh" "$DP" "One $v" --type task --body "$T/t.md" --model smoke | head -1); DT7=${DT7##*/}
+  DT7=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "One $v" --type task --body "$T/t.md" --model smoke)
   [ "$(labels_of "$DP" "$DT7")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: $v, $TXT}]" ] || { echo "labels: $v is not one free label:"; labels_of "$DP" "$DT7"; exit 1; }
 done
 nothing_to_heal "$DP" || { echo "scalar labels: board not clean"; exit 1; }
@@ -2094,7 +2157,7 @@ ok "card-defaults.labels: a bare 2026, 1.10 or true is the label as typed, in a 
 
 # 7. the union is case-insensitive: a repeat within the lane's list, and a default equal to the card's own free label
 setdef "$DP" Frontier '={labels: [extra, EXTRA, Extra]}'
-DT8=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Cased" --type task --body "$T/t.md" --model smoke | head -1); DT8=${DT8##*/}
+DT8=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Cased" --type task --body "$T/t.md" --model smoke)
 [ "$(labels_of "$DP" "$DT8")" = "labels: [{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}, {text: extra, $TXT}]" ] || { echo "case-variants not merged:"; labels_of "$DP" "$DT8"; exit 1; }
 setdef "$DP" Frontier -; setdef "$DP" Blocked -
 mkdir -p "$T/ulu"; printf -- '---\nschema: 1\nkind: card\ntitle: "x"\norder: 1024\nlabels: [{text: Mixed, %s}]\ncreated:  {at: 2026-10-01T00:00:00Z, by: {name: claude}}\n---\n' "$TXT" > "$T/ulu/fm.md"
@@ -2106,7 +2169,7 @@ ok "union_lane_defaults: 'extra', 'EXTRA' and 'Extra' in the lane make one label
 
 # 8. typed text applies to names only: a kinded default's numeric rank stays a number on the card
 setdef "$DP" Frontier '={labels: [{text: Critical, rank: 5, kind: {type: priority}}, {text: Odd, rank: 2, kind: {type: epic}}, 2026, {text: 1.10, kind: {type: text}}]}'
-DT9=$("$SK/plan/scripts/file-ticket.sh" "$DP" "Ranked" --type task --body "$T/t.md" --model smoke | head -1); DT9=${DT9##*/}
+DT9=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Ranked" --type task --body "$T/t.md" --model smoke)
 python3 - "$(ls "$DP"/*/"$DT9"/index.md)" <<'PYEND' || { echo "a kinded default's rank or a typed name came out wrong:"; labels_of "$DP" "$DT9"; exit 1; }
 import sys, yaml
 L = yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1])["labels"]
@@ -2165,6 +2228,95 @@ refused file-card "$FC" "$WB" Approved "x" --body "$T/fc.md"
 setdef "$DP" Frontier nope; rc=0; "$FC" "$DP" Frontier "x" --body "$T/fc.md" --model smoke >/dev/null 2>&1 || rc=$?; setdef "$DP" Frontier -
 [ "$rc" -eq 1 ] && [ "$S9" = "$(sum "$WB")" ] && [ "$S9D" = "$(sum "$DP")" ] || { echo "a refused file-card wrote something (rc $rc)"; exit 1; }
 ok "file-card.sh: a missing lane and a malformed card-defaults exit 1, no --body and no --model exit 2, a body with frontmatter exits 1; nothing written"
+
+# label-card: a hand-written label would land as a block list the heal flags (H17); the script writes the compact form
+LC="$SK/work/scripts/label-card.sh"
+# fmlines <file> <key>: how many physical frontmatter lines the key takes (1 = compact one-liner)
+fmlines() { awk -v k="$2" 'NR > 1 && /^---$/ {exit} $0 ~ ("^" k ":") {f=1; n=1; next} f && /^[^ \t]/ {f=0} f {n++} END {print n+0}' "$1"; }
+L1=$("$FC" "$DP" Frontier "Unlabelled" --body "$T/fc.md" --model smoke); L1ID=$(basename "$L1")
+S10=$(others "$DP" "$(basename "$(dirname "$L1")")/$L1ID"); t0=$(date -u +%FT%TZ)
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "Needs review" --model smoke --name fixer --session smoke >/dev/null || rc=$?
+t1=$(date -u +%FT%TZ)
+[ "$rc" -eq 0 ] && [ "$(labels_of "$DP" "$L1ID")" = "labels: [{text: Needs review, $TXT}]" ] && [ "$(fmlines "$L1/index.md" labels)" = 1 ] \
+  && grep -qxF "modified: {at: $(atof "$L1/index.md" modified), by: $BYF}" "$L1/index.md" && [[ ! "$(atof "$L1/index.md" modified)" < "$t0" && ! "$(atof "$L1/index.md" modified)" > "$t1" ]] \
+  && [ "$S10" = "$(others "$DP" "$(basename "$(dirname "$L1")")/$L1ID")" ] && nothing_to_heal "$DP" || { echo "label-card: rc $rc:"; cat "$L1/index.md"; exit 1; }
+ok "label-card.sh: a card with no labels gets one stamped label on one compact line, modified from the clock with the caller's by, no other file changed, validates, heal finds nothing"
+RAW1=$(sed -n 's/^labels: \[\(.*\)\]$/\1/p' "$L1/index.md"); [ -n "$RAW1" ] || { echo "fixture: the first label is not one compact line"; exit 1; }
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1/index.md" "second" --model smoke >/dev/null
+# two entries pass 120 characters: the block form, key line then one line per entry, the first entry byte for byte
+[ "$(fmlines "$L1/index.md" labels)" = 3 ] && [ "$(grep -A1 '^labels:$' "$L1/index.md" | tail -1)" = "  - $RAW1" ] && nothing_to_heal "$DP" \
+  || { echo "label-card, existing label: $(fmlines "$L1/index.md" labels) lines:"; sed -n 1,12p "$L1/index.md"; exit 1; }
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1/index.md" "Urgent:priority" --model smoke >/dev/null
+[ "$(labels_of "$DP" "$L1ID")" = "labels: [{text: Needs review, $TXT}, {text: second, $TXT}, {text: Urgent, rank: 0, color: \"#C8283C\", icon: {glyph: exclamationmark.2}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}]" ] \
+  && nothing_to_heal "$DP" || { echo "label-card, kinded label:"; sed -n 1,16p "$L1/index.md"; exit 1; }
+ok "label-card.sh: a second label makes the block form (past 120 characters, measured: key line and one line per entry) with the first entry byte for byte; a kinded label is stamped from the board; heal finds nothing"
+S11=$(sum "$DP")
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "High:priority" --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 1 ] && [ "$S11" = "$(sum "$DP")" ] || { echo "label-card, a different value of a single kind: want exit 1, nothing written, got $rc"; exit 1; }
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "urgent:Priority" "NEEDS REVIEW" --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 0 ] && [ "$S11" = "$(sum "$DP")" ] || { echo "label-card, labels the card has: want exit 0, nothing written, got $rc"; exit 1; }
+ok "label-card.sh: a different value of a single kind the card holds exits 1; the same labels, case aside, are a no-op (exit 0); nothing written either way"
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" "x:nokind" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, undefined kind: want exit 1, got $rc"; exit 1; }
+L2=$("$FC" "$DP" Frontier "No priority yet" --body "$T/fc.md" --model smoke); S12=$(sum "$DP"); S11=$S12   # no priority on it: only the closed-kind rule can refuse
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L2" "Nope:priority" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "not a value of the closed kind priority" "$T/err.txt" && [ "$S12" = "$(sum "$DP")" ] || { echo "label-card, unlisted priority value on a card with none: want exit 1, got $rc:"; cat "$T/err.txt"; exit 1; }
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$(dirname "$L1")" "x" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "label-card, a lane: want exit 1, got $rc"; exit 1; }
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L1" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "label-card, no label: want exit 2, got $rc"; exit 1; }
+refused label-card "$LC" "$DP" "$L1" x
+[ "$S11" = "$(sum "$DP")" ] || { echo "a refused label-card wrote something"; exit 1; }
+cp "$L2/index.md" "$T/lf.md"; sed 's/$/\r/' "$T/lf.md" > "$L2/index.md"; S12=$(sum "$DP")
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L2" "x" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "CRLF line endings" "$T/err.txt" && [ "$S12" = "$(sum "$DP")" ] || { echo "label-card, a CRLF card: want exit 1 naming CRLF, got $rc:"; cat "$T/err.txt"; exit 1; }
+cp "$T/lf.md" "$L2/index.md"
+ok "label-card.sh: an undefined kind, a value a closed kind does not list and a path that is not a card exit 1, no label and no model exit 2; nothing written"
+# an index.md at card depth under attachments/ or a dot folder is no card (board_index_files prunes the same): refused, while a real card on the same board is labelled
+GB="$T/Guard.lanework"; rm -rf "$GB"; cp -R "$DP" "$GB"; GL=$(dirname "$(dirname "$GB/${L2#"$DP"/}")"); GREAL="$GB/${L2#"$DP"/}"
+mkdir -p "$GB/attachments/x" "$GL/attachments" "$GB/.hidden/x"; for g in "$GB/attachments/x" "$GL/attachments" "$GB/.hidden/x"; do printf -- '---\ntitle: "x"\n---\nb\n' > "$g/index.md"; done
+S15=$(sum "$GB")
+for g in "$GB/attachments/x/index.md" "$GL/attachments/index.md" "$GB/.hidden/x/index.md"; do
+  rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$GB" "$g" "x" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+  [ "$rc" -eq 1 ] && [ "$S15" = "$(sum "$GB")" ] || { echo "label-card on $g: want exit 1, nothing written, got $rc:"; cat "$T/err.txt"; exit 1; }
+done
+rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$GB" "$GREAL" "real" --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 0 ] && grep -q '^labels: \[{text: "real"' "$GREAL/index.md" && [ "$S15" != "$(sum "$GB")" ] || { echo "label-card on a real card of the same board: rc $rc"; exit 1; }
+ok "label-card.sh refuses an index.md under attachments/ at the board or lane level and under a dot folder (exit 1, nothing written), while a real card on the same board is labelled"
+setdef "$DP" Frontier '{labels: [extra]}'
+F4=$("$FC" "$DP" Frontier "Both" --body "$T/fc.md" --model smoke --label "High:priority" --label "hand: written:text"); F4ID=$(basename "$F4")
+[ "$(labels_of "$DP" "$F4ID")" = "labels: [{text: High, rank: 1, color: \"#E07A1F\", icon: {glyph: exclamationmark}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}, {text: hand: written, $TXT}, {text: extra, $TXT}]" ] \
+  && nothing_to_heal "$DP" || { echo "file-card --label:"; labels_of "$DP" "$F4ID"; exit 1; }
+rc=0; "$FC" "$DP" Frontier "Clash" --body "$T/fc.md" --model smoke --label "High:priority" --label "Low:priority" >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 1 ] || { echo "file-card, two values of a single kind: want exit 1, got $rc"; exit 1; }
+setdef "$DP" Frontier -
+ok "file-card.sh --label: the labels, then the lane's default, on one compact line; heal finds nothing; two values of one single kind exit 1"
+
+# compact_fm earns its place: a block `icon:` that fits one line is rewritten by the same write, so the card leaves no H17 behind
+L3=$("$FC" "$DP" Frontier "Block icon" --body "$T/fc.md" --model smoke); perl -pi -e 's/^(order: .*)$/$1\nicon:\n  glyph: hammer.fill\n  color: fern/' "$L3/index.md"
+[ "$(fmlines "$L3/index.md" icon)" = 3 ] || { echo "fixture: block icon"; exit 1; }
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$DP" "$L3" "tidy" --model smoke >/dev/null
+[ "$(fmlines "$L3/index.md" icon)" = 1 ] && [ "$(fmlines "$L3/index.md" labels)" = 1 ] && nothing_to_heal "$DP" || { echo "label-card, compact_fm:"; sed -n 1,12p "$L3/index.md"; exit 1; }
+ok "label-card.sh runs compact_fm over the card: a block icon that fits one line comes out on one, and heal finds nothing"
+
+# the validator step, on a board that ships one (VB: a copy of WB with the borrowed .schema re-copied in place; the label-card cases above ran on DP, the plan board, which has no .schema, so they skipped validation)
+VB="$T/Validated.lanework"; cp -R "$WB" "$VB"; rm -rf "$VB/.schema"; cp -R "$VAL" "$VB/.schema"; [ -f "$VB/.schema/bin/lanework-validate.py" ] || { echo "fixture: VB has no validator"; exit 1; }
+V1=$("$FC" "$VB" Approved "Valid" --body "$T/fc.md" --model smoke 2>/dev/null)
+env -u CLAUDE_CODE_SESSION_ID "$LC" "$VB" "$V1" "checked" --model smoke >/dev/null 2>"$T/err.txt" && grep -q '^labels: \[{text: "checked"' "$V1/index.md" && ! grep -q 'not validated' "$T/err.txt" && validate "$VB" >/dev/null \
+  || { echo "label-card on a board with a validator:"; cat "$T/err.txt" "$V1/index.md"; exit 1; }
+V2=$("$FC" "$VB" Approved "Invalid" --body "$T/fc.md" --model smoke 2>/dev/null); perl -pi -e 's/^title: .*$/title: [a, b]/' "$V2/index.md"
+if python3 "$VAL/bin/lanework-validate.py" --schema "$VAL" "$V2/index.md" >/dev/null 2>&1; then echo "fixture: the validator accepts a list for title"; exit 1; fi
+S13=$(sum "$VB"); rc=0; env -u CLAUDE_CODE_SESSION_ID "$LC" "$VB" "$V2" "x" --model smoke >/dev/null 2>"$T/err.txt" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "fails the board's validator" "$T/err.txt" && [ "$S13" = "$(sum "$VB")" ] || { echo "label-card, validator: want exit 1, nothing written, got $rc:"; cat "$T/err.txt"; exit 1; }
+perl -pi -e 's/^title: .*$/title: "Invalid"/' "$V2/index.md"
+ok "label-card.sh validates the staged card with the board's validator: a valid result lands (no 'not validated' note), an invalid one exits 1 and writes nothing"
+
+# a card changed between the read and the rename is not overwritten (LABEL_CARD_TEST_HOLD holds the script just before the compare)
+V3=$("$FC" "$VB" Approved "Raced" --body "$T/fc.md" --model smoke 2>/dev/null); HD="$T/hold"; rm -rf "$HD"; mkdir "$HD"
+env -u CLAUDE_CODE_SESSION_ID LABEL_CARD_TEST_HOLD="$HD" "$LC" "$VB" "$V3" "late" --model smoke >/dev/null 2>"$T/err.txt" & LCPID=$!
+n=0; while [ ! -e "$HD/held" ] && [ $n -lt 400 ]; do sleep 0.05; n=$((n+1)); done; [ -e "$HD/held" ] || { kill "$LCPID"; echo "label-card never reached the hold"; exit 1; }
+printf 'A late edit by someone else.\n' >> "$V3/index.md"; S14=$(sum "$VB"); : > "$HD/release"
+rc=0; wait "$LCPID" || rc=$?
+[ "$rc" -eq 1 ] && grep -q "changed while it was staged" "$T/err.txt" && [ "$S14" = "$(sum "$VB")" ] && grep -q "A late edit" "$V3/index.md" && ! grep -q '^labels:' "$V3/index.md" \
+  || { echo "label-card, a card changed meanwhile: rc $rc:"; cat "$T/err.txt"; exit 1; }
+ok "label-card.sh: a card changed between the read and the rename is not overwritten: exit 1, the other writer's edit kept, no label added"
 
 # move-card: owner-filed cards (no by on any stamp) seeded by hand, two sharing a prefix, one waiting
 IDEAS=$(lanedir "$WB" Ideas); OW1=abcd0000-0000-4000-8000-000000000001; OW2=abcd0000-0000-4000-8000-000000000002; AQ=abcd0000-0000-4000-8000-0000000000aa
@@ -2485,13 +2637,14 @@ rm -f "$G/work/.git/hooks/pre-commit"; chmod -R u+w "$G/tmp4"
 [ "$rc" -eq 1 ] && [ "$(g rev-parse HEAD)" = "$h7" ] && ! grep -q interrupted <<<"$O" && grep -q 'git push output unavailable' <<<"$O" && [ ! -e "$LK" ] \
   || { echo "commit-board: an unwritable push.err (rc $rc): $O"; g log --oneline -2; exit 1; }
 ok "commit-board.sh: push.err unwritable: a failed push (git push output unavailable), the commit taken back, HEAD as before, no interrupted line, the lock gone"
-# the saved-file sweep: a dead pid's saved file two days old goes, one an hour old stays
+# the saved-file sweep: a dead pid's saved file from 2020 goes; one an hour old, and a live pid's from 2020, stay
 sh -c 'exit 0' & DPID=$!; wait "$DPID"; SO="$G/work/.git/lanework-commit-board.saved.$DPID.oldold"; SN="$G/work/.git/lanework-commit-board.saved.$DPID.newnew"
-: > "$SO"; : > "$SN"; touch -t "$(date -v-2d +%Y%m%d%H%M.%S)" "$SO"; touch -t "$(date -v-1H +%Y%m%d%H%M.%S)" "$SN"
-echo r8 > "$G/work/$CP"; cb "B: swept" "$CP" >/dev/null || { echo "commit-board: the sweep run failed"; exit 1; }
-[ ! -e "$SO" ] && [ -e "$SN" ] || { echo "commit-board: the saved-file sweep: want only the old one gone"; ls "$G/work/.git"; exit 1; }
-rm -f "$SN"
-ok "commit-board.sh sweeps a dead pid's saved file over a day old and keeps one an hour old"
+sleep 60 & LPID=$!; SL="$G/work/.git/lanework-commit-board.saved.$LPID.livold"
+: > "$SO"; : > "$SN"; : > "$SL"; touch -t 202001010000 "$SO" "$SL"; touch -t "$(date -v-1H +%Y%m%d%H%M.%S)" "$SN"
+echo r8 > "$G/work/$CP"; rc=0; cb "B: swept" "$CP" >/dev/null || rc=$?; kill "$LPID"; wait "$LPID" 2>/dev/null || true
+[ "$rc" -eq 0 ] && [ ! -e "$SO" ] && [ -e "$SN" ] && [ -e "$SL" ] || { echo "commit-board: the saved-file sweep (rc $rc): want only the dead pid's old one gone"; ls "$G/work/.git"; exit 1; }
+rm -f "$SN" "$SL"
+ok "commit-board.sh sweeps a dead pid's saved file over a day old and keeps one an hour old and a live pid's old one"
 # the closing line after an owner's reset during a good push names the run's commit, not the owner's
 echo r9 > "$G/work/$CP"; g push -q origin main 2>/dev/null
 printf '#!/bin/bash\nunset GIT_DIR GIT_INDEX_FILE; git -C "%s/work" update-ref refs/heads/main HEAD^; rm -f "$0"; exit 0\n' "$G" > "$PP"; chmod +x "$PP"
@@ -2509,6 +2662,68 @@ kill -TERM "$KP"; sleep 0.3; touch "$G/go7"; rc=0; wait "$KP" || rc=$?; g config
 [ "$rc" -eq 143 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse other)" = "$(g rev-parse HEAD)" ] && grep -q "interrupted: $(g rev-parse --short=8 HEAD) committed, not confirmed pushed (origin/main does not hold it)" "$G/term.out" \
   && ! grep -q 'not pushed' "$G/term.out" || { echo "commit-board: SIGTERM during a push mapped to another branch (rc $rc):"; cat "$G/term.out"; exit 1; }
 ok "commit-board.sh: SIGTERM during a push mapped to another branch: exit 143, it says not confirmed pushed, never not pushed"
+# the owner's staged entries across a push-only first try: HEAD ahead of origin, the card staged at pown with HEAD's p1 on
+# disk; the pre-push hook rejects every push and writes p2 to disk on its first call, so try 2 commits; after 5 the index is pown
+g push -q origin main 2>/dev/null; rm -f "$PP" "$G/rw1"; echo p1 > "$G/work/$CP"; g commit -q -am "B: ahead"; hp=$(g rev-parse HEAD)
+echo pown > "$G/work/$CP"; g add -- "$CP"; echo p1 > "$G/work/$CP"; sv0=$(saved)   # an earlier SIGKILL leg's saved file stays
+printf '#!/bin/bash\n[ -e "%s/rw1" ] || { touch "%s/rw1"; echo p2 > "%s/work/%s"; }; exit 1\n' "$G" "$G" "$G" "$CP" > "$PP"; chmod +x "$PP"
+rc=0; O=$(cb --push "B: push-only first" "$CP" 2>&1) || rc=$?; rm -f "$PP"
+[ "$rc" -eq 1 ] && grep -q "push of ${hp:0:8} rejected (try 1 of 5)" <<<"$O" && grep -q 'push rejected (try 2 of 5)' <<<"$O" && grep -q 'the index restored to what was staged before the run' <<<"$O" \
+  && [ "$(g show ":$CP")" = pown ] && ! g diff --quiet -- "$CP" && [ "$(cat "$G/work/$CP")" = p2 ] && [ "$(g rev-parse HEAD)" = "$hp" ] && [ "$(saved)" = "$sv0" ] \
+  || { echo "commit-board: staged entries across a push-only first try (rc $rc, index $(g show ":$CP")): $O"; g status --short; exit 1; }
+g reset -q -- "$CP"; g checkout -q -- "$CP"; g push -q origin main 2>/dev/null
+ok "commit-board.sh: a push-only first try, then commits on the retries: the owner's staged entry is saved and put back, the message true"
+# the bound's ceiling: above 86400 (alarm sets nothing from 1000000000 up) exits 2, no commit, no lock, the hook never run; 86400 pushes
+printf '#!/bin/bash\ntouch "%s/ranhook"; exit 0\n' "$G" > "$PP"; chmod +x "$PP"; rm -f "$G/ranhook"; echo c1 > "$G/work/$CP"; hc=$(g rev-parse HEAD)
+for v in 86401 100000000 99999999999; do
+  rc=0; O=$(cd "$G/work" && LANEWORK_PUSH_TIMEOUT=$v GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 perl -e 'alarm 30; exec @ARGV' "$CB" --push "B: ceiling $v" "$CP" 2>&1) || rc=$?
+  [ "$rc" -eq 2 ] && grep -q 'a whole number of seconds from 1 to 86400' <<<"$O" && [ "$(g rev-parse HEAD)" = "$hc" ] && [ ! -e "$G/ranhook" ] && [ ! -e "$LK" ] \
+    || { echo "commit-board: LANEWORK_PUSH_TIMEOUT=$v: want exit 2, nothing run (rc $rc): $O"; exit 1; }
+done
+rc=0; O=$(cd "$G/work" && LANEWORK_PUSH_TIMEOUT=86400 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 perl -e 'alarm 30; exec @ARGV' "$CB" --push "B: ceiling 86400" "$CP" 2>&1) || rc=$?; rm -f "$PP"
+[ "$rc" -eq 0 ] && [ -e "$G/ranhook" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] || { echo "commit-board: LANEWORK_PUSH_TIMEOUT=86400 (rc $rc): $O"; exit 1; }
+ok "commit-board.sh: LANEWORK_PUSH_TIMEOUT above 86400 (86401, 100000000, 99999999999) exits 2, nothing committed or run, no lock; 86400 pushes"
+# signals to the push wrapper (the hook's grandparent, found by pid; never a group): TERM, HUP, INT each end the push and the
+# hook's foreground sleep at once, and the retry pushes. Launched with INT at its default (a background job ignores it)
+for sig in TERM HUP INT; do
+  rm -f "$G/fw1" "$G/hookppid" "$G/sleeppid"; echo "f$sig" > "$G/work/$CP"
+  printf '#!/bin/bash\n[ -e "%s/fw1" ] && exit 0; touch "%s/fw1"; echo $PPID > "%s/hookppid"; bash -c '\''echo $$ > "$1"; exec sleep 30'\'' _ "%s/sleeppid"\n' "$G" "$G" "$G" "$G" > "$PP"; chmod +x "$PP"
+  (cd "$G/work" && LANEWORK_PUSH_TIMEOUT=60 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 exec perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$CB" --push "B: forwarded $sig" "$CP") > "$G/fw.out" 2>&1 & KP=$!
+  perl -e 'alarm 20; exec @ARGV' bash -c "until [ -s '$G/sleeppid' ]; do sleep 0.1; done" || { kill -KILL "$KP"; echo "the forwarded push never reached its sleep"; cat "$G/fw.out"; exit 1; }
+  SP=$(cat "$G/sleeppid"); WP=$(ps -o ppid= -p "$(cat "$G/hookppid")" | tr -d ' ')
+  case "$(ps -o comm= -p "$WP")" in *perl*) ;; *) kill -KILL "$KP" "$SP"; echo "the hook's grandparent $WP is not the perl wrapper"; exit 1 ;; esac
+  t0=$(date +%s); kill -"$sig" "$WP"
+  perl -e 'alarm 30; exec @ARGV' bash -c "while kill -0 $KP 2>/dev/null; do sleep 0.1; done" || true; t1=$(date +%s)
+  if kill -0 "$KP" 2>/dev/null; then kill -KILL "$KP" "$SP" 2>/dev/null; echo "commit-board: $sig to the push wrapper did not end the run"; cat "$G/fw.out"; exit 1; fi
+  rc=0; wait "$KP" || rc=$?
+  if kill -0 "$SP" 2>/dev/null; then kill -KILL "$SP"; echo "commit-board: $sig to the push wrapper left the hook's sleep running"; exit 1; fi
+  [ "$rc" -eq 0 ] && [ $((t1 - t0)) -lt 15 ] && ! grep -q 'timed out' "$G/fw.out" && grep -q 'push rejected (try 1 of 5)' "$G/fw.out" && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] \
+    || { echo "commit-board: $sig to the push wrapper (rc $rc, $((t1 - t0)) s):"; cat "$G/fw.out"; exit 1; }
+done
+rm -f "$PP"
+ok "commit-board.sh: TERM, HUP and INT to the push wrapper end the push and the hook's sleep at once (no timeout), and the retry pushes"
+# a git that itself exits 124 on its first push reads as a rejected push, never a timeout
+WB3="$G/wbin3"; mkdir -p "$WB3"; rm -f "$G/g124"; echo g124 > "$G/work/$CP"
+printf '#!/bin/bash\nif [ "$1" = push ] && [ ! -e "%s/g124" ]; then touch "%s/g124"; exit 124; fi\nexec "%s" "$@"\n' "$G" "$G" "$RG" > "$WB3/git"; chmod +x "$WB3/git"
+rc=0; O=$(cd "$G/work" && PATH="$WB3:$PATH" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$CB" --push "B: git 124" "$CP" 2>&1) || rc=$?
+[ "$rc" -eq 0 ] && [ -e "$G/g124" ] && grep -q 'push rejected (try 1 of 5)' <<<"$O" && ! grep -q 'timed out' <<<"$O" && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] \
+  || { echo "commit-board: a git push exiting 124 (rc $rc): $O"; exit 1; }
+ok "commit-board.sh: a git push that itself exits 124 is a rejected push (retried, pushed), not a timeout"
+# the cleanup's rm is not fatal: a pre-push hook makes the git dir read-only, so the lock and saved file cannot go; exit 0, pushed
+echo ro > "$G/work/$CP"; printf '#!/bin/bash\nchmod a-w "%s/work/.git"\n' "$G" > "$PP"; chmod +x "$PP"
+rc=0; O=$(cb --push "B: read-only git dir" "$CP" 2>&1) || rc=$?
+chmod u+w "$G/work/.git"; rm -f "$PP"; ro=$([ -e "$LK" ] && echo lock; saved); rm -rf "$LK"; rm -f "$G/work/.git"/lanework-commit-board.saved.*
+[ "$rc" -eq 0 ] && [ -n "$ro" ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s)" = "B: read-only git dir" ] \
+  || { echo "commit-board: a cleanup rm that fails (rc $rc, left: $ro): $O"; exit 1; }
+ok "commit-board.sh: a cleanup whose rm fails (the git dir read-only) still exits 0 with the commit on origin"
+# no terminal for the push: under a pty (script), a pre-push hook cannot open /dev/tty, and the push lands
+rm -f "$G/ttyres" "$G/ttyrc"; echo tty > "$G/work/$CP"
+printf '#!/bin/bash\nif ( exec 3<>/dev/tty ) 2>/dev/null; then echo tty-open; else echo tty-closed; fi > "%s/ttyres"\n' "$G" > "$PP"; chmod +x "$PP"
+(cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 perl -e 'alarm 60; exec @ARGV' script -q /dev/null bash -c '"$1" --push "B: no tty" "$2"; echo $? > "$3"' _ "$CB" "$CP" "$G/ttyrc") < /dev/null > "$G/tty.out" 2>&1 || true
+rm -f "$PP"
+[ "$(cat "$G/ttyres" 2>/dev/null)" = tty-closed ] && [ "$(cat "$G/ttyrc" 2>/dev/null)" = 0 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s)" = "B: no tty" ] \
+  || { echo "commit-board: the push under a pty (hook: $(cat "$G/ttyres" 2>/dev/null), rc $(cat "$G/ttyrc" 2>/dev/null)):"; cat "$G/tty.out"; exit 1; }
+ok "commit-board.sh: under a pty the push has no terminal (a pre-push hook cannot open /dev/tty), and it lands"
 
 # release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
@@ -2756,7 +2971,8 @@ mem() { printf '%s' "$LT/lanework-lease/$1/$(printf '%s' "$(cd "$LB" && pwd -P)"
 mpid() { sed -n 's/^pid=//p' "$(mem "$1" "$2")"; }
 alive() { kill -0 "$1" 2>/dev/null; }
 records() { { grep -l -F -- "$2" "$(dirname "$(lcf "$1")")"/comments/*/index.md 2>/dev/null || true; } | grep -c . || true; }
-waitfor() { local i=0; while [ $i -lt 40 ]; do if eval "$1"; then return 0; fi; sleep 0.1; i=$((i+1)); done; return 1; }
+# waitfor <condition> [seconds, default 20]: poll every 0.1 s until it holds, bounded by wall time (a count of polls stretches under load)
+waitfor() { local wf_end=$((SECONDS + ${2:-20})); while :; do if eval "$1"; then return 0; fi; [ $SECONDS -lt $wf_end ] || return 1; sleep 0.1; done; }
 # SID1: a session id of real length (a uuid): its by passes 120 characters, so claimed keeps the 3-line block form
 SID1=$(uuidgen | tr A-Z a-z)
 # a git repo to stake from: the loss record names its branch, directory and touched files
@@ -2887,7 +3103,7 @@ ok "lease: a card whose iconed label ends in }}} is staked, renewed, checked and
 
 # 6. a changed by: the timer finds the loss and posts one record; then no further write
 TP=$(mpid $SID1 "$C1"); setclaim "$F1" S-other "$(iso $(( $(date -u +%s) + 1500 )))"
-waitfor '[ "$(records "$C1" "**Lease lost**")" = 1 ]' || { echo "no Lease lost record within 4 s"; exit 1; }
+waitfor '[ "$(records "$C1" "**Lease lost**")" = 1 ]' || { echo "no Lease lost record within 20 s"; exit 1; }
 waitfor '! alive "$TP"' || { echo "the timer outlived the loss"; exit 1; }
 R=$(grep -l -F '**Lease lost**' "$(dirname "$F1")"/comments/*/index.md)
 for w in "session $SID1 no longer holds this card; session S-other does" "branch lease-br" "directory $GR" "wip.txt" "This session writes this card no more."; do
@@ -3095,10 +3311,50 @@ L S-own renew "$LB" "$C11e" --model smoke >/dev/null
 rm -f "$LW"; L S-own release "$LB" "$C11e" --model smoke >/dev/null; kill "$LV" 2>/dev/null || true
 ok "lease: a session id with a comma, closing brace or backslash is refused (exit 2) with no claim written; another session's release names lease.sh list; a write sweeps the temp file of a dead pid and leaves a live one"
 
+# 11f. find_card on a card in transit between lanes (renamed while the glob expands: in no lane): lease.sh's own function, run with
+# a sleep that lands the card in Shaping (or, FDROP set, removes that copy of a card in two lanes), so its first look always
+# misses, or always sees two. It looks again and finds the one; a card gone stays 1, a card in two lanes for good 2
+FC=$(awk '/^find_card\(\) \{/,/^\}/' "$LS"); SHL2=$(dirname "$(lane_of "$LB" Shaping)"); FDROP=""
+fc() { ( BOARD="$LB"; CID="$1"; eval "$FC"
+  sleep() { if [ -d "$T/l11f-hold" ]; then /bin/mv "$T/l11f-hold" "$SHL2/$CID"; elif [ -n "$FDROP" ]; then rm -rf "$FDROP"; fi; command sleep "$@"; }
+  find_card ); }
+C11f=$(lcard "Eleven f"); mv "$LL/$C11f" "$T/l11f-hold"; RC=0; O=$(fc "$C11f") || RC=$?
+[ $RC = 0 ] && [ "$O" = "$SHL2/$C11f/index.md" ] || { echo "11f: find_card on a card in transit: rc $RC, '$O'"; exit 1; }
+cp -R "$SHL2/$C11f" "$LL/$C11f"; FDROP="$LL/$C11f"; RC=0; O=$(fc "$C11f") || RC=$?; FDROP=""
+[ $RC = 0 ] && [ "$O" = "$SHL2/$C11f/index.md" ] || { echo "11f: find_card on a card in two lanes for a moment: rc $RC, '$O'"; exit 1; }
+RC=0; fc 00000000-0000-4000-8000-000000000000 >/dev/null || RC=$?; [ $RC = 1 ] || { echo "11f: find_card on no card: rc $RC"; exit 1; }
+cp -R "$SHL2/$C11f" "$LL/$C11f"; RC=0; fc "$C11f" >/dev/null || RC=$?; [ $RC = 2 ] || { echo "11f: find_card on a card in two lanes: rc $RC"; exit 1; }
+rm -rf "$LL/$C11f"
+ok "lease: find_card looks again for a card in transit between lanes, or in two for a moment, and finds it; no card is still 1, a card in two lanes 2"
+
+# 11g. the timer across moves: a card moved between lanes ten times, then out of the board for 1 s (longer than find_card's
+# retry, a few polls), keeps its timer; a card deleted ends it within a few polls
+C11g=$(lcard "Eleven g"); L S-elg stake "$LB" "$C11g" --model smoke >/dev/null; TP=$(mpid S-elg "$C11g")
+for i in 1 2 3 4 5; do mv "$LL/$C11g" "$SHL2/$C11g"; sleep 0.15; mv "$SHL2/$C11g" "$LL/$C11g"; sleep 0.15; done
+mv "$LL/$C11g" "$T/l11g-hold"; sleep 1; mv "$T/l11g-hold" "$SHL2/$C11g"; sleep 1
+alive "$TP" || { echo "11g: the timer exited while its card moved between lanes"; exit 1; }
+rm -rf "$SHL2/$C11g"; waitfor '! alive "$TP"' || { echo "11g: the timer outlived its deleted card"; exit 1; }
+# a card found but not readable (moved between the find and the read), or whose comment is gone when read (moved between the
+# find and the thread read): shims on the timer's PATH, cat on the card and awk on its comment, each fail once. Neither ends it
+CSH="$T/l11g-shim"; mkdir -p "$CSH"; printf '%s\n' '#!/bin/bash' \
+  'case "${1:-}" in */"$L11G_CID"/index.md) [ ! -f "$L11G_ONCE" ] || { rm -f "$L11G_ONCE"; exit 1; } ;; esac; exec /bin/cat "$@"' > "$CSH/cat"
+printf '%s\n' '#!/bin/bash' \
+  'case "${@: -1}" in */"$L11G_CID"/comments/*/index.md) [ ! -f "$L11G_AONCE" ] || { rm -f "$L11G_AONCE"; exit 2; } ;; esac; exec /usr/bin/awk "$@"' > "$CSH/awk"; chmod +x "$CSH/cat" "$CSH/awk"
+C11r=$(lcard "Eleven r"); NI=$(uuidgen | tr A-Z a-z); mkdir -p "$(dirname "$(lcf "$C11r")")/comments/$NI"
+printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: smoke, kind: agent, model: smoke}}\n---\nA note.\n' > "$(dirname "$(lcf "$C11r")")/comments/$NI/index.md"
+( export PATH="$CSH:$PATH" L11G_CID="$C11r" L11G_ONCE="$T/l11g-once" L11G_AONCE="$T/l11g-aonce"; L S-elr stake "$LB" "$C11r" --model smoke >/dev/null )
+TP=$(mpid S-elr "$C11r"); : > "$T/l11g-once"; waitfor '[ ! -e "$T/l11g-once" ]' || { echo "11g: the cat shim never ran"; exit 1; }
+sleep 0.6; alive "$TP" || { echo "11g: the timer exited on one unreadable read of its card"; exit 1; }
+: > "$T/l11g-aonce"; waitfor '[ ! -e "$T/l11g-aonce" ]' || { echo "11g: the awk shim never ran"; exit 1; }
+sleep 0.6; alive "$TP" || { echo "11g: the timer exited on one comment gone while its thread was read"; exit 1; }
+L S-elr release "$LB" "$C11r" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11g: the timer outlived the release"; exit 1; }
+ok "lease: the timer outlives its card's moves between lanes, a second out of the board, one failed read of the card and one of a comment, and exits once the card is deleted"
+
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
 C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
 C12u=$(lcard "Unreadable one"); setclaim "$(lcf "$C12u")" S-skew "soon"
+L S-multi renew "$LB" "$CA" --model smoke >/dev/null   # staked many cases back: renewed here, so "29 or 30 min left" never hangs on the cases' run time
 LO=$("$LS" list "$LB"); line() { awk -F'\t' -v c="$1" '$1==c' <<<"$LO"; }
 [ "$(line "$C12l" | cut -f2-)" = "$(printf 'claude (S-gone)\t10 min lapsed\tlapsed\tLapsed one')" ] || { echo "list lapsed: $(line "$C12l")"; exit 1; }
 line "$C12v" | grep -q -E "$(printf '^[^\t]*\tclaude \\(S-skew\\)\t1[12][0-9] min left\tvoided\tVoided one$')" || { echo "list voided: $(line "$C12v")"; exit 1; }
@@ -3237,6 +3493,20 @@ RC=0; O=$(LW SW-a "$PAS" "$LB" "$A2" --body "$T/ask1.md" --for anyone --model sm
 validate "$LB" >/dev/null
 ok "post-ask.sh on a lost lease writes neither the ask nor waiting (exit 3, the Lease lost record only); on a held one both land"
 
+# label-card: the lease check first. Lost: exit 3, nothing written to the card; held: labels land and the claim stays; no session id: as today
+LCS="$SK/work/scripts/label-card.sh"
+Y1=$(lostcard SW-l "LC lost"); FY1=$(lcf "$Y1"); H=$(shasum < "$FY1")
+RC=0; LW SW-l "$LCS" "$LB" "$FY1" "tagged" --model smoke >/dev/null 2>"$T/lw-err.txt" || RC=$?
+[ $RC = 3 ] && grep -q 'lost' "$T/lw-err.txt" && [ "$H" = "$(shasum < "$FY1")" ] && ! grep -q 'tagged' "$FY1" && [ "$(records "$Y1" "**Lease lost**")" = 1 ] \
+  || lw_fail "label-card on a lost lease: rc $RC, err: $(cat "$T/lw-err.txt")"
+Y2=$(lcard "LC held"); FY2=$(lcf "$Y2"); L SW-l2 stake "$LB" "$Y2" --model smoke >/dev/null
+RC=0; LW SW-l2 "$LCS" "$LB" "$FY2" "tagged" --model smoke >/dev/null || RC=$?
+[ $RC = 0 ] && grep -q '^labels: \[{text: "tagged"' "$FY2" && [ "$(csess "$FY2")" = SW-l2 ] || lw_fail "label-card on a held card: rc $RC"
+RC=0; LN "$LCS" "$LB" "$FY1" "tagged" --model smoke >/dev/null || RC=$?
+[ $RC = 0 ] && grep -q '^labels: \[{text: "tagged"' "$FY1" || lw_fail "label-card with no session id: rc $RC"
+validate "$LB" >/dev/null
+ok "label-card.sh checks the lease before it writes: lost exits 3 and the card is untouched; held labels it and keeps the claim; no session id writes as today"
+
 # 10. another copy of the board: a card this session holds on LB, the same uuid on a copy made before the stake, is never held
 # there; the write to the copy passes and posts no loss, and the lease on LB stays held (also through a symlink and a trailing slash)
 KC=$(lcard "PC board copy"); FKC=$(lcf "$KC"); LBC="$T/Lease copy.lanework"; cp -R "$LB" "$LBC"; ln -s "$LB" "$T/lease-link"
@@ -3278,7 +3548,7 @@ ok "work prose: no START read as a claim; START defined once, in writing.md, and
 PB="$T/Lease Plan.lanework"; "$PS/found-plan-board.sh" "$PB" --model smoke >/dev/null; PBR=$(cd "$PB" && pwd -P)
 PLS() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="${PCP:-$LPID}" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT="${NW:-1.5}" \
   LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$@"; }
-ptk() { "$PS/file-ticket.sh" "$PB" "$1" --type research --body "$T/t.md" --model smoke | head -1 | sed 's#.*/##'; }
+ptk() { bfirst "$PS/file-ticket.sh" "$PB" "$1" --type research --body "$T/t.md" --model smoke; }
 pf() { ls "$PB"/*/"$1"/index.md; }
 plb() { sed -n 's/^title: "\(.*\)"$/\1/p' "$(dirname "$(dirname "$(pf "$1")")")/index.md"; }
 pmem() { printf '%s' "$LT/lanework-lease/$1/$(printf '%s' "$PBR" | shasum | cut -c1-16)/$2"; }
@@ -3319,20 +3589,22 @@ kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
 ok "plan claim ended during its stake releases what the stake left: Frontier, no claimed, no timer, no memory, no Claimed comment"
 
 # P2c. a claim ended once its own move has put the card in Working has landed: it keeps the lease. Shims on that one claim's
-# PATH hold it at a set point (each marks a file, then waits): mv just after the card's own move into Working, mkdir on the
-# comments folder after it. The TERM lands there every time
+# PATH hold it at a set point (each marks a file, then waits for the release file PL_SHIM_GO, 30 s at most): mv just after the
+# card's own move into Working, mkdir on the comments folder after it. The TERM lands there every time, the release after it
 PSH="$T/plan-shim"; mkdir -p "$PSH"
 printf '%s\n' '#!/bin/bash' 'r=0; /bin/mv "$@" || r=$?' \
-  'case "${@: -1}" in *"/${PL_SHIM_MV:-none}") : > "$PL_SHIM_MARK"; sleep 3 ;; esac' 'exit $r' > "$PSH/mv"
-printf '%s\n' '#!/bin/bash' 'case "${@: -1}" in */comments) [ -z "${PL_SHIM_DIR:-}" ] || { : > "$PL_SHIM_MARK"; sleep 3; } ;; esac' \
+  'hold() { : > "$PL_SHIM_MARK"; local e=$((SECONDS + 30)); until [ -f "$PL_SHIM_GO" ] || [ $SECONDS -ge $e ]; do sleep 0.1; done; }' \
+  'case "${@: -1}" in *"/${PL_SHIM_MV:-none}") hold ;; esac' 'exit $r' > "$PSH/mv"
+printf '%s\n' '#!/bin/bash' 'hold() { : > "$PL_SHIM_MARK"; local e=$((SECONDS + 30)); until [ -f "$PL_SHIM_GO" ] || [ $SECONDS -ge $e ]; do sleep 0.1; done; }' \
+  'case "${@: -1}" in */comments) [ -z "${PL_SHIM_DIR:-}" ] || hold ;; esac' \
   'exec /bin/mkdir "$@"' > "$PSH/mkdir"; chmod +x "$PSH/mv" "$PSH/mkdir"
 WLN=$(basename "$(dirname "$(lane_of "$PB" Working)")")
 for hold in move comment; do
-  PC2c=$(ptk "Landed $hold"); rm -f "$T/pl-mark"; SV=PL_SHIM_MV; SVV="$WLN/$PC2c"; [ $hold = move ] || { SV=PL_SHIM_DIR; SVV=1; }
-  env PATH="$PSH:$PATH" "$SV=$SVV" PL_SHIM_MARK="$T/pl-mark" CLAUDE_CODE_SESSION_ID=S-pkeep CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 \
+  PC2c=$(ptk "Landed $hold"); rm -f "$T/pl-mark" "$T/pl-go"; SV=PL_SHIM_MV; SVV="$WLN/$PC2c"; [ $hold = move ] || { SV=PL_SHIM_DIR; SVV=1; }
+  env PATH="$PSH:$PATH" "$SV=$SVV" PL_SHIM_MARK="$T/pl-mark" PL_SHIM_GO="$T/pl-go" CLAUDE_CODE_SESSION_ID=S-pkeep CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 \
     LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$PS/claim-ticket.sh" "$PB" "$PC2c" --model smoke >/dev/null 2>"$T/pl-err.txt" & CLP=$!
-  waitfor '[ -f "$T/pl-mark" ]' || waitfor '[ -f "$T/pl-mark" ]' || pl_fail "plan claim landed ($hold): the shim never held the claim"
-  kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
+  waitfor '[ -f "$T/pl-mark" ]' 30 || { : > "$T/pl-go"; pl_fail "plan claim landed ($hold): the shim never held the claim"; }
+  kill -TERM "$CLP"; : > "$T/pl-go"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
   [ "$RC" != 0 ] && [ "$(plb "$PC2c")" = Working ] && [ "$(csess "$(pf "$PC2c")")" = S-pkeep ] && [ -f "$(pmem S-pkeep "$PC2c")" ] && alive "$(pmpid S-pkeep "$PC2c")" \
     && [ "$(pcount "$PC2c" "**Lease lost**")" = 0 ] || pl_fail "plan claim ended at the $hold: rc $RC, lane $(plb "$PC2c"), session '$(csess "$(pf "$PC2c")")', err: $(cat "$T/pl-err.txt")"
   PLS S-pkeep "$LS" release "$PB" "$PC2c" --model smoke

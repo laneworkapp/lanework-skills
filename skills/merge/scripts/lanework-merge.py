@@ -642,15 +642,25 @@ def merge_bytes(repo, c, b, o, t):
 
 # ---------------------------------------------------------------- merge comments
 
+_YAML_NUM = re.compile(r'[-+]?(0[xob][0-9a-f_]+|[0-9._]+(e[-+]?[0-9]+)?|\.?(inf|nan))', re.I)
+
+
+def _bare_ok(v):
+    """Bare only when it reads back as the same string: [A-Za-z0-9._-]+ with a letter, not null/bool words, not number-shaped
+    (the same rule as lanework/scripts/lib.sh yaml_scalar)."""
+    return bool(re.fullmatch(r'[A-Za-z0-9._-]+', v) and re.search(r'[A-Za-z]', v)
+                and v.lower() not in ('null', 'true', 'false', 'yes', 'no', 'on', 'off') and not _YAML_NUM.fullmatch(v))
+
+
 def signer(model):
     """The merge comment's `by`. `model` is quoted by the rule of lib.sh yaml_scalar and heal-descriptors.py scalar().
     A control character cannot be carried by any quoting: the model is dropped with a note (the driver never aborts a merge)."""
     model = model or os.environ.get('LANEWORK_MERGE_MODEL')
-    if model and re.search(r'[\x00-\x1f\x7f]', model):
+    if model and re.search(r'[\x00-\x1f\x7f-\x9f]', model):
         sys.stderr.write('lanework-merge: control character in the model; signing without one\n')
         model = None
     if model:
-        q = model if re.fullmatch(r'[A-Za-z0-9._-]+', model) else '"' + model.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        q = model if _bare_ok(model) else '"' + model.replace('\\', '\\\\').replace('"', '\\"') + '"'
         return '{name: claude, kind: agent, model: %s, session: "merge"}' % q
     return '{name: merge, kind: agent, session: "merge"}'
 

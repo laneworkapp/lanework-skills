@@ -131,13 +131,23 @@ stamp_cite() {   # dies if the prefix gave no citation or the placeholder surviv
   printf '%s' "$c"
 }
 
-# yaml_scalar <v>: the one quoting rule for a stamp value. Bare when [A-Za-z0-9._-]+ (every existing stamp unchanged), else double-quoted with \ and " escaped.
+# yaml_scalar <v>: the one quoting rule for a stamp value; yaml_quote <v>: always double-quoted, \ and " escaped.
 # merge/scripts/lanework-merge.py signer() and heal/scripts/heal-descriptors.py scalar() apply the same rule.
 yaml_quote() {
   local v=$1 bs='\' dq='"'
   v=${v//"$bs"/"$bs$bs"}; v=${v//"$dq"/"$bs$dq"}; printf '"%s"' "$v"
 }
-yaml_scalar() { if [[ $1 =~ ^[A-Za-z0-9._-]+$ ]]; then printf '%s' "$1"; else yaml_quote "$1"; fi; }
+# Bare only when the value reads back as the same string: [A-Za-z0-9._-]+ with at least one letter, not null/true/false/yes/no/on/off (any case)
+# and not number-shaped (sign, digits, `1e3`, `0x1F`, `0o17`, `.inf`, `.nan`). Anything else is quoted. Plain ids (`claude`, `claude-fable-5-2`) stay bare.
+YAML_NUM='^[-+]?(0[xob][0-9a-f_]+|[0-9._]+(e[-+]?[0-9]+)?|\.?(inf|nan))$'
+yaml_scalar() {
+  local v=$1 l
+  if [[ $v =~ ^[A-Za-z0-9._-]+$ ]] && [[ $v =~ [A-Za-z] ]]; then
+    l=$(printf '%s' "$v" | tr 'A-Z' 'a-z')
+    case $l in null|true|false|yes|no|on|off) yaml_quote "$v"; return ;; esac
+    if [[ $l =~ $YAML_NUM ]]; then yaml_quote "$v"; else printf '%s' "$v"; fi
+  else yaml_quote "$v"; fi
+}
 
 # by_of <name> <model> [session]: the stamp's `by` mapping. The one writer: name and model through yaml_scalar, session always yaml_quote'd.
 by_of() {
@@ -149,12 +159,12 @@ by_of() {
 # stamp_args_ok <name> <model> [session]: call right after require_model. A value that is empty or holds a control character (newline, tab) cannot be
 # carried by any quoting: exit 2 "nothing written".
 stamp_args_ok() {
-  local w v i=0; set -- "$@"
+  local w v i=0 LC_ALL=C   # bytes: a C1 control (U+0080-U+009F, UTF-8 C2 80-9F) is caught like the ASCII ones
   for w in name model session; do
     i=$((i + 1)); [ $i -le $# ] || break; v=${!i}
     if [ -z "$v" ] && [ "$w" != session ]; then printf '%s: empty --%s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2; fi
     if [ "$i" = 3 ] && [ -z "$v" ]; then continue; fi
-    case "$v" in *[[:cntrl:]]*) printf '%s: control character in the stamp %s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2 ;; esac
+    case "$v" in *[[:cntrl:]]*|*$'\xc2'[$'\x80'-$'\x9f']*) printf '%s: control character in the stamp %s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2 ;; esac
   done
 }
 
@@ -192,19 +202,107 @@ if hb.Heal(".", {}).heal_layout(doc):
 EOF
 }
 
-# union_lane_defaults <lane> <board> <staged-fm>: a card born by file into <lane> starts with the lane's card-defaults.labels (guide § Frontmatter, lanes).
-# Rewrites the staged frontmatter's `labels`: the card's own entries as written, then the lane's that it lacks. A bare name = a free label, a kinded
-# entry = stamped from the board's current config.labels (an undefined kind stays as written). A default is dropped when the card has the same text and
-# kind (case-insensitive), or its own value of a `single` kind; several lane values of one `single` kind keep one (lowest rank, a ranked entry before an
-# unranked, else the first). No card-defaults or no labels in it: the file is left untouched. A card-defaults that is not a mapping, or labels that are
-# neither a list nor one name: message on stderr, exit 1, nothing written, by this card's ruling (the app would ignore the value and still make
-# the card). A bare number or boolean is the label's text as typed. Unreadable single items are skipped. The heal's label model, loaded by path.
-# Run it after `render`, before compact_fm; never on a move.
-union_lane_defaults() {
-  python3 -B - "$LIB_DIR/heal-board.py" "$1" "$2" "$3" <<'EOF'   # -B: no __pycache__ in the skill tree
-import importlib.util, os, sys
+# union_labels [--strict] [--json] <staged-fm> <board> <entry>...: the one label model. Rewrites the staged file's `labels`: the card's own entries as
+# written, then each <entry> it lacks, stamped from the board's current config.labels (guide § Frontmatter, labels). An entry is `Text` (a free label) or
+# `Text:kind` (the part after the last colon names the kind; `Text:text` for a free label whose text holds a colon); with --json each is one JSON value:
+# a string (a free label as is) or a label map. An entry is dropped when the card has the same text and kind (case-insensitive), or its own value of a
+# `single` kind; several of one `single` kind keep one (lowest rank, a ranked entry before an unranked, else the first). An undefined kind stays as
+# written, in a map. Nothing to add: the file is left untouched. --strict (a caller's own labels, not a lane's defaults): an undefined kind, a value a
+# closed kind does not list, or a different value of a `single` kind the card holds (or another entry names) is stderr and
+# exit 1, nothing written, the owner's value never overwritten. The heal's label model, loaded by path. Run it before compact_fm.
+union_labels() {
+  local flags=""
+  while [ $# -gt 0 ]; do case "$1" in --strict) flags="${flags}s"; shift ;; --json) flags="${flags}j"; shift ;; *) break ;; esac; done
+  python3 -B - "$LIB_DIR/heal-board.py" "$flags" "$@" <<'EOF'   # -B: no __pycache__ in the skill tree
+import importlib.util, json, os, sys
 spec = importlib.util.spec_from_file_location("heal_board", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
-lane, board, staged = sys.argv[2:5]
+flags, staged, board, args = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5:]
+strict, asjson = "s" in flags, "j" in flags
+def die(msg):
+    print("union_labels: " + msg, file=sys.stderr); sys.exit(1)
+try:
+    cfg = hb.Doc(os.path.join(board, "index.md")).get("config")
+except (OSError, hb.ParseError, UnicodeDecodeError) as e:
+    die("%s: unreadable board: %s" % (board, e))
+if isinstance(cfg, dict) and cfg.get("labels") is not None and not isinstance(cfg["labels"], list):
+    die("%s: config.labels is not a list" % board)
+defs = hb.definitions_of(hb.config_labels(os.path.join(board, "index.md"), "labels"))
+raw = []
+for a in args:
+    if asjson:
+        raw.append(json.loads(a)); continue
+    text, kind = a, "text"
+    if ":" in a:
+        text, kind = a.rsplit(":", 1)
+    if not text.strip() or not kind.strip():
+        die("not a label: %r (Text or Text:kind)" % a)
+    t = hb.canon(kind)
+    if t != "text" and t not in defs:
+        die("%s: undefined kind %r on this board" % (a, kind.strip()))
+    raw.append({"text": text.strip(), "kind": {"type": defs[t]["type"] if t in defs else "text"}})
+doc = hb.Doc(staged)
+own = doc.get("labels") if doc.has("labels") else []
+if own is None:
+    own = []
+if not isinstance(own, list):
+    die("%s: labels is not a list" % staged)
+def key(e):
+    return (hb.canon(e["text"]), hb.canon(e["kind"]["type"]))
+have, single_have = set(), {}
+for item in own:
+    n = hb.normalize_entry(item)[0]
+    if hb.entry_of(n):
+        have.add(key(n))
+        d = defs.get(hb.canon(n["kind"]["type"]))
+        if d and d["single"]:
+            single_have[hb.canon(n["kind"]["type"])] = n["text"]
+cands, seen, best, named = [], set(), {}, {}
+for item in raw:
+    n = hb.normalize_entry(item)[0]
+    if not hb.entry_of(n):   # only a lane's --json item can be unreadable: a spec always builds text and kind
+        continue
+    k, t = key(n), hb.canon(n["kind"]["type"])
+    d = defs.get(t)
+    if strict and d and d["closed"] and hb.matched(n, d) is None:
+        die("%s is not a value of the closed kind %s" % (n["text"], d["type"]))
+    if k in have or k in seen:
+        continue
+    if d and d["single"] and t in single_have:
+        if strict:
+            die("the card already has %s of the single kind %s; %s not added" % (single_have[t], t, n["text"]))
+        continue
+    if strict and d and d["single"] and t in named:
+        die("two values of the single kind %s: %s and %s" % (t, named[t], n["text"]))
+    seen.add(k)
+    if d and d["single"]:
+        named[t] = n["text"]
+    f = hb.flattened(n, defs)
+    cands.append((t, f, bool(d and d["single"])))
+    if d and d["single"]:
+        cur = best.get(t)
+        r = hb.numeric_rank(f.get("rank")); cr = hb.numeric_rank(cur.get("rank")) if cur else None
+        if cur is None or (r is not None and (cr is None or r < cr)):
+            best[t] = f
+added = [f for t, f, single in cands if not single or best[t] is f]
+if not added:
+    sys.exit(0)
+doc.set("labels", hb.emit_key("labels", own + added))
+with open(staged, "w", encoding="utf-8", newline="") as fh:
+    fh.write(doc.text())
+EOF
+}
+
+# union_lane_defaults <lane> <board> <staged-fm>: a card born by file into <lane> starts with the lane's card-defaults.labels (guide § Frontmatter, lanes).
+# Reads the lane's labels and hands them to union_labels (the merge: own entries first, kinded ones stamped, `single` kinds resolved). No card-defaults or
+# no labels in it: the file is left untouched. A card-defaults that is not a mapping, or labels that are neither a list nor one name: message on stderr,
+# exit 1, nothing written, by this card's ruling (the app would ignore the value and still make the card). A bare number or boolean is the label's text as
+# typed. Unreadable single items are skipped. Run it after `render`, before compact_fm; never on a move.
+union_lane_defaults() {
+  local out line items=()
+  out=$(python3 -B - "$LIB_DIR/heal-board.py" "$1" <<'EOF'   # -B: no __pycache__ in the skill tree
+import importlib.util, json, os, sys
+spec = importlib.util.spec_from_file_location("heal_board", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
+lane = sys.argv[2]
 def die(msg):
     print("union_lane_defaults: " + msg, file=sys.stderr); sys.exit(1)
 def read_lane(typed):
@@ -246,55 +344,13 @@ if hb.is_text(raw):
     raw = [raw]
 if not isinstance(raw, list):
     die("%s: card-defaults.labels is neither a list nor one name" % lane)
-try:
-    cfg = hb.Doc(os.path.join(board, "index.md")).get("config")
-except (OSError, hb.ParseError, UnicodeDecodeError) as e:
-    die("%s: unreadable board: %s" % (board, e))
-if isinstance(cfg, dict) and cfg.get("labels") is not None and not isinstance(cfg["labels"], list):
-    die("%s: config.labels is not a list" % board)
-defs = hb.definitions_of(hb.config_labels(os.path.join(board, "index.md"), "labels"))
-doc = hb.Doc(staged)
-own = doc.get("labels") if doc.has("labels") else []
-if own is None:
-    own = []
-if not isinstance(own, list):
-    die("%s: labels is not a list" % staged)
-def key(e):
-    return (hb.canon(e["text"]), hb.canon(e["kind"]["type"]))
-have, single_have = set(), set()
-for item in own:
-    n = hb.normalize_entry(item)[0]
-    if hb.entry_of(n):
-        have.add(key(n))
-        d = defs.get(hb.canon(n["kind"]["type"]))
-        if d and d["single"]:
-            single_have.add(hb.canon(n["kind"]["type"]))
-cands, seen, best = [], set(), {}
 for item in raw:
-    n = hb.normalize_entry(item)[0]
-    if not hb.entry_of(n):
-        continue
-    k, t = key(n), hb.canon(n["kind"]["type"])
-    if k in have or k in seen:
-        continue
-    d = defs.get(t)
-    if d and d["single"] and t in single_have:
-        continue
-    seen.add(k)
-    f = hb.flattened(n, defs)
-    cands.append((t, f, bool(d and d["single"])))
-    if d and d["single"]:
-        cur = best.get(t)
-        r = hb.numeric_rank(f.get("rank")); cr = hb.numeric_rank(cur.get("rank")) if cur else None
-        if cur is None or (r is not None and (cr is None or r < cr)):
-            best[t] = f
-added = [f for t, f, single in cands if not single or best[t] is f]
-if not added:
-    sys.exit(0)
-doc.set("labels", hb.emit_key("labels", own + added))
-with open(staged, "w", encoding="utf-8", newline="") as fh:
-    fh.write(doc.text())
+    print(json.dumps(item, default=str))
 EOF
+  ) || return 1
+  [ -n "$out" ] || return 0
+  while IFS= read -r line; do items+=("$line"); done <<<"$out"
+  union_labels --json "$3" "$2" "${items[@]}"
 }
 
 # stamp_lines_ok <file> <key>...: the guard for the stamp lines a script wrote. Reads the front matter only (line 2 to the closing ---, trailing

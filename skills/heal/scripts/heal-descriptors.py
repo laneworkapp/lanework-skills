@@ -327,8 +327,13 @@ class Document:
         return text + self.nl + body
 
 
-def scalar(v):
-    return v if re.fullmatch(r"[A-Za-z0-9._-]+", v) else '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
+_YAML_NUM = re.compile(r"[-+]?(0[xob][0-9a-f_]+|[0-9._]+(e[-+]?[0-9]+)?|\.?(inf|nan))", re.I)
+
+
+def scalar(v):   # the rule of lanework/scripts/lib.sh yaml_scalar
+    bare = (re.fullmatch(r"[A-Za-z0-9._-]+", v) and re.search(r"[A-Za-z]", v)
+            and v.lower() not in ("null", "true", "false", "yes", "no", "on", "off") and not _YAML_NUM.fullmatch(v))
+    return v if bare else '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def stamp_line(at, name, model, session):
