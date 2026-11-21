@@ -4,7 +4,6 @@ title: "Credit Matt Pocock for the ideas the skills draw on"
 order: 8192
 labels: [{text: "repo", kind: {type: "skill", text: "Skill"}}]
 created: {at: 2026-11-21T13:16:55Z}
-waiting: {for: anyone, since: 2026-11-21T13:17:45Z, comment: 370050d6-17fb-4823-87b9-a01ade7d32f3}
 modified: {at: 2026-11-21T13:17:46Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 kind: card
 ---
