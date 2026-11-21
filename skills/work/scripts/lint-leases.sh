@@ -3,7 +3,7 @@
 # Usage: lint-leases.sh <board dir>... [--since <ts>] [--first <n>] [--window <s>] [--grace <s>]
 # Read-only. One line per finding on stdout (sorted), exit 1 if any; silent exit 0 when clean; exit 2 (message on
 # stderr) on a missing path, a dir that is no board, a bad flag value, no board or a path it could not read
-# (`lint-leases.sh: could not read <path>`, after the findings and the tally). The tally always goes to stderr:
+# (`lint-leases.sh: could not read <path>` on stderr, before the findings; what was read still prints). The tally always goes to stderr:
 #   leased cards: N, lease lost: a, two STARTs: b, lapsed: c
 # A comment's session is `created.by.session`; a START is a comment whose first line begins `START` or `**START`;
 # a lease-lost record is a comment whose first line begins LEASE_LOST_PREFIX (lib.sh). Cards are lane/card folders.

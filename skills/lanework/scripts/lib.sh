@@ -307,7 +307,8 @@ comment_file() {
 unreadable_files() {
   local p rc=0
   while IFS= read -r p; do
-    if [ -r "$p" ]; then printf '%s\n' "$p"; else printf '%s: could not read %s\n' "$(basename "$0")" "$p" >&2; rc=2; fi
+    if [ -r "$p" ]; then printf '%s\n' "$p"; elif [ ! -e "$p" ]; then :   # moved since find listed it
+    else printf '%s: could not read %s\n' "$(basename "$0")" "$p" >&2; rc=2; fi
   done
   return "$rc"
 }
@@ -317,8 +318,9 @@ unreadable_files() {
 # on stderr and return 2; the readable paths still print. The lints finish their findings, then exit 2 on that.
 board_index_files() {
   local err out rc=0 l
+  local d=$1; case "$d" in -*) d=./$d ;; esac   # find reads a leading - as an option
   err=$(mktemp "${TMPDIR:-/tmp}/lw-find.XXXXXX") || return 2
-  out=$(find -H "$1" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print 2>"$err") || rc=2
+  out=$(find -H "$d" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print 2>"$err") || rc=2
   while IFS= read -r l; do
     [ -n "$l" ] || continue
     l=${l#find: }; l=${l%: *}

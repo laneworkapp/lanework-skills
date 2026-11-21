@@ -5,7 +5,7 @@
 # so the ask's deliberate one-second offset stays legal) is one line on stdout and exit 1:
 #   <path>: <field> <value> is <n>s ahead
 # Silent exit 0 when clean; exit 2 (message on stderr) on a missing path, a bad flag, no argument or a path it could not read
-# (`lint-stamps.sh: could not read <path>`; findings from what it read print first). A symlinked board is followed. Only
+# (`lint-stamps.sh: could not read <path>` on stderr, before the findings; what was read still prints). A symlinked board is followed. Only
 # `...Z` stamps are compared, quoted or not, flow or block form, CRLF files included; an offset stamp is
 # skipped. Skips .trash, .log, .schema and attachments. Fix = restamp from the clock.
 set -u

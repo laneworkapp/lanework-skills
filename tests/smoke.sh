@@ -414,6 +414,11 @@ ok "settle-question refuses to clear waiting with no record and no owner answer 
 RC=0; "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A1" --model smoke >/dev/null 2>&1 || RC=$?
 [ "$RC" = 1 ] && [ "$(sum "$D")" = "$S2B" ] || { echo "settle with a record in reply to another ask: rc $RC, or the board changed"; exit 1; }
 ok "settle-question refuses a record in reply to an ask other than the card's newest: exit 1, nothing written"
+# a waiting-clear lint that exits 2 (it could not read the board) is a failure whatever its text says: refused, nothing written
+SKSTUB="$T/skstub"; cp -R "$SK" "$SKSTUB"; printf '#!/bin/bash\necho "QUOTED x y"; echo "QUOTED 1, NO-QUOTE 0"; exit 2\n' > "$SKSTUB/work/scripts/lint-waiting-clears.sh"
+RC=0; "$SKSTUB/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r1.md" --to parked --record "$T/rec.md" --reply "$A2" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+[ "$RC" = 1 ] && grep -q 'lint-waiting-clears.sh failed' "$T/err.txt" && [ "$(sum "$D")" = "$S2B" ] || { echo "settle with a lint exiting 2: want exit 1 and nothing written, got rc $RC"; cat "$T/err.txt"; exit 1; }
+ok "settle-question treats a waiting-clear lint exit of 2 as failed even when its output reads QUOTED: exit 1, nothing written"
 # --record with no --reply, CRLF line ends: in reply to waiting.comment, written LF, read QUOTED
 printf '**Owner ruled off the board.**\r\n\r\n> Later.\r\n\r\n**Given**: chat, 2026-09-27\r\n' > "$T/rec-crlf.md"; printf '**2026-09-27**: Parked. "Later."\r\n' > "$T/r-crlf.md"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r-crlf.md" --to parked --record "$T/rec-crlf.md" --model smoke >/dev/null
@@ -1153,6 +1158,12 @@ if [ "$(id -u)" = 0 ]; then echo "skip: running as root, mode 000 stays readable
   done
   ok "lint-stamps, lint-leases and lint-waiting-clears: a lane, a card folder and a card index.md at mode 000 each exit 2 with a could not read line; a readable board stays silent, exit 0"
 fi
+# a board path starting with - is a path, not a find option; a path that vanished between find and the read check is a moved card, not an error
+cp -R "$UB" "$T/-dash.lanework"
+for U in "$LS" "$WL"; do (cd "$T" && UR=0; UO=$("$U" -dash.lanework 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err"); [ "$UR" = 0 ] && [ -z "$UO" ] && [ -z "$UE" ]) || unr_fail "$(basename "$U") on a board named -dash.lanework: want silent exit 0"; done
+UO=$(. "$SK/lanework/scripts/lib.sh"; printf '%s\n' "$UB/moved-away/index.md" | unreadable_files 2>"$T/unr.err") && UR=0 || UR=$?; UE=$(cat "$T/unr.err")
+[ "$UR" = 0 ] && [ -z "$UO" ] && [ -z "$UE" ] || unr_fail "a listed path that no longer exists: want it skipped silently, exit 0"
+ok "the lints read a board whose name starts with -, and a path that vanished after find listed it is skipped, not reported"
 unr_restore
 
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)

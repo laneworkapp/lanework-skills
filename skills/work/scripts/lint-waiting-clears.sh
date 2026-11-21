@@ -11,7 +11,7 @@
 # listed cards only. A stamp with fractional seconds is read to the whole second; an offset stamp is read as unreadable (UTC `Z` is the rule).
 # then `QUOTED <n>, NO-QUOTE <m>`. Silent exit 0 when nothing is listed; exit 1 when any NO-QUOTE; exit 2
 # (message on stderr) on a missing path, a file, a bad flag, no argument or a path it could not read
-# (`lint-waiting-clears.sh: could not read <path>`, after the listed cards). Skips .trash, .log, .schema and attachments.
+# (`lint-waiting-clears.sh: could not read <path>` on stderr, before the listed cards; what was read still lists). Skips .trash, .log, .schema and attachments.
 # An ask here is looser than lint-ask.sh's: that one needs the board's human handle (guide line, or the anyone handle)
 # on line 1 and checks the shape; this one takes any `@` that starts the first non-blank line and checks nothing else.
 # Agent = a `created.by` with `kind: agent`; human = no `by`, or `kind: human`; any other kind (a shortcut) is neither an ask nor an answer.

@@ -78,7 +78,8 @@ if [ "$WAITING" = 1 ]; then   # the waiting-clear lint on the card as it will la
   LC="$STAGE/lint/lane/$CID"; mkdir -p "$LC/comments"; cp "$STAGE/index.md" "$LC/index.md"
   [ ! -d "$CARD/comments" ] || cp -R "$CARD/comments/." "$LC/comments/"
   [ -z "$COID" ] || cp -R "$STAGE/comment" "$LC/comments/$COID"
-  LO=$("$LINT_CLEARS" "$STAGE/lint" 2>&1) || true
+  LRC=0; LO=$("$LINT_CLEARS" "$STAGE/lint" 2>&1) || LRC=$?
+  [ "$LRC" -lt 2 ] || { echo "settle-question.sh: lint-waiting-clears.sh failed (exit $LRC): $LO" >&2; exit 1; }
   case "$LO" in
     NO-QUOTE*) if [ -n "$RECORD" ]; then echo "settle-question.sh: the record does not answer the card's newest ask (--reply ${REPLY:-none}); nothing written" >&2
                else echo "settle-question.sh: waiting is set and no owner comment answers the ask: pass --record with the owner's words (templates/ruling.md); nothing written" >&2; fi
