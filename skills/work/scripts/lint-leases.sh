@@ -2,7 +2,8 @@
 # Lint a board's threads and cards for lease collisions.
 # Usage: lint-leases.sh <board dir>... [--since <ts>] [--first <n>] [--window <s>] [--grace <s>]
 # Read-only. One line per finding on stdout (sorted), exit 1 if any; silent exit 0 when clean; exit 2 (message on
-# stderr) on a missing path, a dir that is no board, a bad flag value or no board. The tally always goes to stderr:
+# stderr) on a missing path, a dir that is no board, a bad flag value, no board or a path it could not read
+# (`lint-leases.sh: could not read <path>`, after the findings and the tally). The tally always goes to stderr:
 #   leased cards: N, lease lost: a, two STARTs: b, lapsed: c
 # A comment's session is `created.by.session`; a START is a comment whose first line begins `START` or `**START`;
 # a lease-lost record is a comment whose first line begins LEASE_LOST_PREFIX (lib.sh). Cards are lane/card folders.
@@ -154,16 +155,18 @@ END {
   printf "leased cards: %d, lease lost: %d, two STARTs: %d, lapsed: %d\n", kept, nl, n2, nlap > "/dev/stderr"
 }'
 
-nowe=$(date -u +%s)
+nowe=$(date -u +%s); unread=0
+i=1; while [ "$i" -le "$nb" ]; do eval "r=\$real_$i"; l=$(board_index_files "$r") || unread=1; eval "files_$i=\$l"; i=$((i + 1)); done
 out=$(
   i=1
   while [ "$i" -le "$nb" ]; do
-    eval "b=\$board_$i; r=\$real_$i"
-    find "$r" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print0 \
+    eval "b=\$board_$i; r=\$real_$i; l=\$files_$i"
+    [ -z "$l" ] || printf '%s\n' "$l" | tr '\n' '\0' \
       | LL_BOARD="$r" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$S1"
     i=$((i + 1))
   done | awk -v since="$since" -v first="$first" -v window="$window" -v grace="$grace" -v now="$nowe" "$S2" | sort
 )
-[ -z "$out" ] && exit 0
-printf '%s\n' "$out"
-exit 1
+[ -z "$out" ] || printf '%s\n' "$out"
+[ "$unread" -eq 0 ] || exit 2
+[ -z "$out" ] || exit 1
+exit 0

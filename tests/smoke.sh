@@ -1122,6 +1122,39 @@ wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
 ok "lint-waiting-clears: a waiting: line in the card body is not the frontmatter key, the card is still listed"
 wl_reset
 
+# work: the lints follow a symlinked board and exit 2 with `could not read <path>` when part of it is unreadable (lanework/scripts/lib.sh board_index_files)
+UB="$T/Unread.lanework"; cp -R "$D" "$UB"; UL=$(dirname "$(ls "$UB"/*/index.md | sed -n 2p)"); rm -rf "$UB"/*/*/   # no cards but the one built here
+UC="$UL/e0000000-0000-4000-8000-000000000001"; UI="$UC/index.md"; mkdir -p "$UC/comments/e1000000-0000-4000-8000-000000000001"
+printf -- '---\nschema: 1\nkind: card\ntitle: "Unread"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nBody.\n' > "$UI"
+printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nA note.\n' > "$UC/comments/e1000000-0000-4000-8000-000000000001/index.md"
+unr_restore() { chmod 755 "$UL" "$UC" 2>/dev/null || true; chmod 644 "$UI" 2>/dev/null || true; }
+trap 'unr_restore; kill "$PSP" 2>/dev/null || true' EXIT
+# unr_run <script> <board>: UO stdout, UE stderr, UR exit
+unr_run() { UR=0; UO=$("$1" "$2" 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err"); }
+unr_fail() { echo "$1"; echo "stdout: $UO"; echo "stderr: $UE"; echo "exit: $UR"; exit 1; }
+# a symlinked board with a future stamp reads like the folder
+USB="$T/UnrStamps.lanework"; cp -R "$D" "$USB"; USC=$(ls "$USB"/*/*/index.md | sed -n 1p)
+sed -i '' -E "s/^modified: \{at: [^,}]*/modified: {at: $(date -u -v+600S +%FT%TZ)/" "$USC"
+unr_run "$LS" "$USB"; [ "$UR" = 1 ] && [ -n "$UO" ] || unr_fail "lint-stamps on the real path: want exit 1 and findings"
+UREAL=$(sed -E "s/is [0-9]+s ahead/is Ns ahead/" <<<"$UO"); ln -s "$USB" "$T/UnrStampsLink.lanework"
+unr_run "$LS" "$T/UnrStampsLink.lanework"; [ "$UR" = 1 ] && [ "$(sed -E "s#^$T/UnrStampsLink.lanework/#$USB/#; s/is [0-9]+s ahead/is Ns ahead/" <<<"$UO")" = "$UREAL" ] || unr_fail "lint-stamps on a symlink: want exit 1 and the same findings as the real path"
+ok "lint-stamps follows a symlinked board: exit 1 with the same findings as the real path"
+# a mode-000 lane, card folder and card index.md each give exit 2 and a could-not-read line on stderr, for the three lints
+if [ "$(id -u)" = 0 ]; then echo "skip: running as root, mode 000 stays readable"; else
+  for U in "$LS" "$LL" "$WL"; do
+    unr_run "$U" "$UB"; [ "$UR" = 0 ] && [ -z "$UO" ] || unr_fail "$(basename "$U") on a readable board: want silent exit 0"
+    for what in lane card index; do
+      case $what in lane) X=$UL ;; card) X=$UC ;; index) X=$UI ;; esac
+      chmod 000 "$X"; if [ -r "$X" ]; then unr_restore; unr_fail "$what is still readable after chmod 000"; fi
+      unr_run "$U" "$UB"; unr_restore
+      [ "$UR" = 2 ] && grep -q "^$(basename "$U"): could not read " <<<"$UE" || unr_fail "$(basename "$U") with the $what at mode 000: want exit 2 and a could not read line on stderr"
+    done
+    unr_run "$U" "$UB"; [ "$UR" = 0 ] && [ -z "$UO" ] || unr_fail "$(basename "$U") after the modes were restored: want silent exit 0"
+  done
+  ok "lint-stamps, lint-leases and lint-waiting-clears: a lane, a card folder and a card index.md at mode 000 each exit 2 with a could not read line; a readable board stays silent, exit 0"
+fi
+unr_restore
+
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
 PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"
 PCARD=$(basename "$(dirname "$(ls "$PB"/*/*/index.md | head -1)")")
