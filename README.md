@@ -28,7 +28,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,215 |
+| `lanework` | 10 | 382 | 5,270 |
 | `work` | 16 | 454 | 7,969 |
 | `watch` | 4 | 182 | 2,083 |
 | `discovery` | 14 | 510 | 3,004 |
@@ -36,7 +36,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `merge` | 2 | 362 | 1,612 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work` and `plan` on 2026-11-17, `discovery` on 2026-11-20, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`watch`, `work` and `plan` on 2026-11-17, `lanework` and `discovery` on 2026-11-20, `merge` on 2026-11-12), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -49,10 +49,10 @@ Measured with `wc -w` on 2026-10-10 (`watch`, `lanework`, `work` and `plan` on 2
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 150 |
-| `references/writes.md` | 1,986 |
+| `references/writes.md` | 2,041 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,215** |
+| **total** | **5,270** |
 
 #### `work`
 

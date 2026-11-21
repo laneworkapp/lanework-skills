@@ -64,7 +64,7 @@ claimed:
 - **Lost** (another session's `by`, or `claimed` gone, on a card this session staked): stop. One **Lease lost** record naming the work left in place (branch, directory, files touched at stake's directory), then never write that card again. The work stays; the new holder decides.
 - **Check before every card write**: `lease.sh check` → `held` (a lapsed own lease renewed, a dead timer restarted), `lost`, or `never-held` (free, or another's, and never staked here: not blocked, nothing written).
 - **Release** in the holder's closing write (done, at a gate, given up): `claimed` deleted, timer stopped. `--force` only on the owner's word: posts **Lease released by force**.
-- **Writes**: every stake, renewal and release restamps `modified` whole with the writer's `by`. Never committed alone: it rides with the holder's next board commit. A merge keeps the side with the later `modified`, as for any state.
+- **Writes**: every stake, renewal and release restamps `modified` whole with the writer's `by`. A lease write lands only on the card as it read it, and otherwise reads again. That narrows the window against another writer and does not close it: no lock is shared with the app or other writers. A release that finds another session's claim exits 1, and the next lease call records the loss. Never committed alone: it rides with the holder's next board commit. A merge keeps the side with the later `modified`, as for any state.
 - **Exit codes**: 0 ok (`check`: held); 1 refused (held by another, backed off, or nothing to renew); 2 usage, no model, no session id, no `CLAUDE_PID` (`stake`), or not one card with that uuid; 3 lost; 4 `check`: never held.
 
 Records, fixed wording (match keys for the timer and lints; never an ask, no handle):
