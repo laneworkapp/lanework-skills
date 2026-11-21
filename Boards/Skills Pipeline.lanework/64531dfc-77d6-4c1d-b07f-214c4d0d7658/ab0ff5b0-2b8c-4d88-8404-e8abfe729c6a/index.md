@@ -5,7 +5,7 @@ title: "commit-board.sh leftovers: staged entries on a retry, unbounded timeout 
 order: 2048
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T15:44:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T15:44:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T16:42:56Z}
 ---
 Reviewer notes from `647a2050` (approved), not fixed there. All in `skills/work/scripts/commit-board.sh`.
 

@@ -5,7 +5,7 @@ title: "lease.sh leftovers 2: sweep and EPERM, temp file pid, two small wording 
 order: 4096
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T15:44:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T15:44:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T16:42:56Z}
 ---
 Reviewer notes from `ae676e47` (approved), not fixed there.
 
