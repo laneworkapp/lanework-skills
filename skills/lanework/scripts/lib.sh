@@ -301,3 +301,32 @@ comment_file() {
     cat
   } > "$1"
 }
+
+# unreadable_files: paths on stdin, one per line. Each that passes [ -r ] prints on stdout; each that fails -> "<script>: could not read <path>"
+# on stderr. Returns 2 if any failed.
+unreadable_files() {
+  local p rc=0
+  while IFS= read -r p; do
+    if [ -r "$p" ]; then printf '%s\n' "$p"; elif [ ! -e "$p" ]; then :   # moved since find listed it
+    else printf '%s: could not read %s\n' "$(basename "$0")" "$p" >&2; rc=2; fi
+  done
+  return "$rc"
+}
+
+# board_index_files <dir>: every readable index.md under <dir> (not .dot or attachments folders), one per line, in find order. <dir> may be a
+# symlink (find -H). Anything it could not read (a folder find cannot enter, an index.md that fails [ -r ]) -> "<script>: could not read <path>"
+# on stderr and return 2; the readable paths still print. The lints finish their findings, then exit 2 on that.
+board_index_files() {
+  local err out rc=0 l
+  local d=$1; case "$d" in -*) d=./$d ;; esac   # find reads a leading - as an option
+  err=$(mktemp "${TMPDIR:-/tmp}/lw-find.XXXXXX") || return 2
+  out=$(find -H "$d" -mindepth 1 \( -name '.*' -o -name attachments \) -prune -o -type f -name index.md -print 2>"$err") || rc=2
+  while IFS= read -r l; do
+    [ -n "$l" ] || continue
+    l=${l#find: }; l=${l%: *}
+    printf '%s: could not read %s\n' "$(basename "$0")" "$l" >&2
+  done < "$err"
+  rm -f "$err"
+  [ -z "$out" ] || printf '%s\n' "$out" | unreadable_files || rc=2
+  return "$rc"
+}
