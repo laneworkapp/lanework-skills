@@ -1707,6 +1707,87 @@ printf '#!/bin/bash\necho "boom: no lease today" >&2\nexit 1\n' > "$SNL/lanework
 ok "arm-pass.sh: a failing lease.sh list has its own stderr passed through, beside the arm-pass note, and exit 1"
 validate "$AB" >/dev/null; ok "the arm-pass fixture board validates"
 
+# pick order: read-board.sh prints a card's priority after its id; arm-pass.sh arms the first Approved card by (rank, order)
+RBS="$SK/lanework/scripts/read-board.sh"; FC="$SK/work/scripts/file-card.sh"
+PB="$T/Prio Pipeline.lanework"
+"$SK/lanework/scripts/found-board.sh" "$PB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Prio --var verified=make --labels priority --model smoke >/dev/null
+# pfile <lane> <title> [file-card flags]: files on $PB (or $PFB), prints the card's index.md
+pfile() { local c; c=$("$FC" "${PFB:-$PB}" "$1" "$2" --body "$T/arm.body" --model smoke "${@:3}" 2>/dev/null) || return 1; echo "${c%/}/index.md"; }
+printf 'Body.\n' > "$T/arm.body"
+PH=$(pfile Ideas "Card High" --label High:priority); PL=$(pfile Ideas "Card Low" --label Low:priority); PN=$(pfile Ideas "Card None")
+PZ=$(pfile Ideas "Card Zed"); PM=$(pfile Ideas "Card Multi" --label Medium:priority)
+python3 - "$PZ" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read().split("---\n", 2)
+s[1] = s[1].rstrip("\n") + '\nlabels: [{text: "Zed", kind: {type: "priority", text: "Priority"}}]\n'
+open(p, "w").write("---\n".join(s))
+PY
+pid() { basename "$(dirname "$1")"; }
+RO=$("$RBS" "$PB" | sed -n '/^== Ideas/,/^== /p')
+grep -qE "^   [0-9.]+ +Card High  \[$(pid "$PH" | cut -c1-8)\]  priority: High \(1\)$" <<<"$RO" \
+  && grep -qE "^   [0-9.]+ +Card Low  \[$(pid "$PL" | cut -c1-8)\]  priority: Low \(3\)$" <<<"$RO" \
+  && grep -qE "^   [0-9.]+ +Card None  \[$(pid "$PN" | cut -c1-8)\]$" <<<"$RO" \
+  && grep -qE "^   [0-9.]+ +Card Zed  \[$(pid "$PZ" | cut -c1-8)\]  priority: Zed \(-\)$" <<<"$RO" \
+  || { echo "read-board.sh priority suffixes:"; echo "$RO"; exit 1; }
+ok "read-board.sh: a card prints priority: <text> (<rank>) after its id, (-) for a priority with no readable rank, and a card with no priority prints with nothing after the id"
+# both on-disk forms: the app's one-line flow form reads the same as the block form scripts write
+grep -q '^labels:$' "$PH" || { echo "file-card.sh no longer writes the block form"; exit 1; }
+python3 - "$PH" <<'PY'
+import sys
+p = sys.argv[1]; head, fm, body = open(p).read().split("---\n", 2)
+out, skip = [], False
+for l in fm.splitlines():
+    if l == "labels:": skip = True; out.append('labels: [{text: "High", rank: 1, color: "#E07A1F", icon: {glyph: "exclamationmark"}, kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}}]'); continue
+    if skip and l.startswith(" "): continue
+    skip = False; out.append(l)
+open(p, "w").write("---\n" + "\n".join(out) + "\n---\n" + body)
+PY
+grep -q '^labels: \[{' "$PH"; RO2=$("$RBS" "$PB" | sed -n '/^== Ideas/,/^== /p')
+[ "$RO2" = "$RO" ] || { echo "block and flow form read differently:"; diff <(echo "$RO") <(echo "$RO2"); exit 1; }
+ok "read-board.sh: the block form and the app's one-line flow form of a priority print the same"
+# several priority entries on one card: the lowest rank prints
+python3 - "$PM" <<'PY'
+import sys
+p = sys.argv[1]; head, fm, body = open(p).read().split("---\n", 2)
+out, skip = [], False
+for l in fm.splitlines():
+    if l.startswith("labels:"): skip = l == "labels:"; out.append('labels: [{text: "Low", rank: 3, kind: {type: "priority"}}, {text: "Urgent", rank: 0, kind: {type: "priority"}}, {text: "Medium", rank: 2, kind: {type: "priority"}}]'); continue
+    if skip and l.startswith(" "): continue
+    skip = False; out.append(l)
+open(p, "w").write("---\n" + "\n".join(out) + "\n---\n" + body)
+PY
+RM=$("$RBS" "$PB"); grep -qE "^   [0-9.]+ +Card Multi  \[$(pid "$PM" | cut -c1-8)\]  priority: Urgent \(0\)$" <<<"$RM" || { echo "Card Multi:"; grep Multi <<<"$RM"; exit 1; }
+ok "read-board.sh: a card with several priority entries prints the lowest rank"
+# a board with no priority kind prints exactly the old format
+NB="$T/NoPrio Pipeline.lanework"
+"$SK/lanework/scripts/found-board.sh" "$NB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=NoPrio --var verified=make --model smoke >/dev/null
+PFB="$NB" pfile Ideas "Plain one" >/dev/null; PFB="$NB" pfile Ideas "Plain two" >/dev/null
+RN=$("$RBS" "$NB" | sed -n '/^== Ideas/,/^== /p'); [ "$(grep -cE '^   [0-9.]+ +Plain (one|two)  \[[0-9a-f]{8}\]$' <<<"$RN")" -eq 2 ] || { echo "$RN"; exit 1; }
+ok "read-board.sh: a board with no priority kind prints every card line as before (nothing after the id)"
+# arm-pass.sh: Approved arms the first card by (rank, order)
+AP2="$SK/watch/scripts/arm-pass.sh"; AGP='Approved'
+PA1=$(pfile Approved "Rank three first" --label Low:priority); PA2=$(pfile Approved "Rank one second" --label High:priority); PA3=$(pfile Approved "Unranked third")
+arm_ids() { "$AP2" "$PB" | awk -F'\t' '$1 == "arm" && $4 == "Approved" { print $3 }'; }
+[ "$(arm_ids)" = "$(pid "$PA2")" ] || { echo "arm-pass.sh Approved arms:"; arm_ids; exit 1; }
+ok "arm-pass.sh: Approved holds a rank-3 card at the top by order and a rank-1 card below: only the rank-1 card arms"
+# a lease on the first in pick order still blocks the next
+python3 - "$PA2" <<'PY'
+import sys, datetime
+p = sys.argv[1]; head, fm, body = open(p).read().split("---\n", 2)
+u = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=20)).strftime("%Y-%m-%dT%H:%M:%SZ")
+fm += 'claimed:\n  by: {name: claude, kind: agent, model: x, session: "s-p"}\n  until: %s\n' % u
+open(p, "w").write("---\n".join([head, fm, body]))
+PY
+AH=$("$AP2" "$PB"); [ -z "$(arm_ids)" ] && grep -q "^held	.*	$(pid "$PA2")	" <<<"$AH" || { echo "leased first card:"; "$AP2" "$PB"; exit 1; }
+ok "arm-pass.sh: a leased first-in-pick-order Approved card is held and the next card does not arm"
+# all unranked: the first by order, as before
+UB="$T/Unranked Pipeline.lanework"
+"$SK/lanework/scripts/found-board.sh" "$UB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=U --var verified=make --labels priority --model smoke >/dev/null
+U1=$(PFB="$UB" pfile Approved "First"); PFB="$UB" pfile Approved "Second" >/dev/null
+[ "$("$AP2" "$UB" | awk -F'\t' '$1 == "arm" { print $3 }')" = "$(pid "$U1")" ] || { echo "unranked Approved:"; "$AP2" "$UB"; exit 1; }
+ok "arm-pass.sh: Approved cards with no priority arm the first by order, as before"
+validate "$PB" >/dev/null; validate "$NB" >/dev/null; ok "the pick-order fixture boards validate"
+
 # merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
 for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/null; ok "merge case: every row resolves with no prompt, as a $m"; done
 "$ROOT/tests/merge-case.sh" "$T" clean >/dev/null; ok "merge case: git finishes a lossless merge alone, stops on a loss, and a comment left by a move is re-homed"

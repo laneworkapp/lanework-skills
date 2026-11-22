@@ -447,3 +447,51 @@ board_index_files() {
   fi
   return "$rc"
 }
+
+# priorities_of <card index.md>...: one Python start for any number of cards. For each card with a `priority` label entry prints
+# `<path>\t<text>\t<rank>`: the entry of the lowest rank (guide § Frontmatter, labels); `-` as the rank when no priority entry has a
+# readable rank (the first entry's text). A card with no priority entry, or unreadable labels, prints nothing. Reads the block form
+# scripts write and the one-line flow form the app writes, through heal-board.py's parser (loaded by path). Read-only.
+priorities_of() {
+  [ $# -gt 0 ] || return 0
+  python3 -B - "$LIB_DIR/heal-board.py" "$@" <<'EOF2'   # -B: no __pycache__ in the skill tree
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("heal_board", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
+for path in sys.argv[2:]:
+    try:
+        doc = hb.Doc(path)
+        items = doc.get("labels") if doc.has("labels") else None
+    except Exception:
+        continue
+    if isinstance(items, (str, dict)):
+        items = [items]
+    if not isinstance(items, list):
+        continue
+    best = None
+    first = None
+    for item in items:
+        try:
+            e = hb.normalize_entry(item)[0]
+        except Exception:
+            continue
+        if not hb.entry_of(e) or hb.canon(e["kind"]["type"]) != "priority":
+            continue
+        r = hb.numeric_rank(e.get("rank"))
+        if first is None:
+            first = e
+        if r is not None and (best is None or r < best[0]):
+            best = (r, e)
+    if first is None:
+        continue
+    text = " ".join(str(first["text"] if best is None else best[1]["text"]).split()).replace("\t", " ")
+    if best is None:
+        print("%s\t%s\t-" % (path, text))
+    else:
+        r = best[0]
+        print("%s\t%s\t%s" % (path, text, int(r) if r == int(r) else repr(r)))
+EOF2
+}
+
+# priority_of <card index.md>: `<text>\t<rank>` for the card's priority (see priorities_of); nothing when it has none. One card at a time:
+# for a board, call priorities_of once with every card.
+priority_of() { priorities_of "$1" | cut -f2-; }

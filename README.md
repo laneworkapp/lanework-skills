@@ -28,15 +28,15 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,468 |
-| `work` | 16 | 488 | 7,987 |
-| `watch` | 4 | 182 | 2,083 |
+| `lanework` | 10 | 382 | 5,611 |
+| `work` | 16 | 488 | 7,988 |
+| `watch` | 4 | 182 | 2,096 |
 | `discovery` | 14 | 510 | 3,010 |
 | `plan` | 9 | 467 | 2,855 |
 | `merge` | 2 | 362 | 1,702 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discovery` on 2026-11-20, `lanework` and `work` on 2026-11-21, `merge` on 2026-11-22), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`plan` on 2026-11-17, `discovery` on 2026-11-20, `lanework`, `work`, `watch` and `merge` on 2026-11-22), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -44,15 +44,15 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discover
 |---|---|
 | `SKILL.md` | 382 |
 | `references/authority.md` | 129 |
-| `references/board-kinds.md` | 1,241 |
+| `references/board-kinds.md` | 1,248 |
 | `references/finding.md` | 386 |
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
-| `references/reading.md` | 150 |
+| `references/reading.md` | 286 |
 | `references/writes.md` | 2,239 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,468** |
+| **total** | **5,611** |
 
 #### `work`
 
@@ -62,9 +62,9 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discover
 | `references/companions.md` | 262 |
 | `references/evidence.md` | 419 |
 | `references/fixer.md` | 424 |
-| `references/lead.md` | 1,075 |
+| `references/lead.md` | 1,062 |
 | `references/reviewer.md` | 415 |
-| `references/sweep.md` | 814 |
+| `references/sweep.md` | 828 |
 | `references/team.md` | 532 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
@@ -74,17 +74,17 @@ Measured with `wc -w` on 2026-10-10 (`watch` and `plan` on 2026-11-17, `discover
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **7,987** |
+| **total** | **7,988** |
 
 #### `watch`
 
 | file | words |
 |---|---|
 | `SKILL.md` | 182 |
-| `references/arming.md` | 790 |
+| `references/arming.md` | 797 |
 | `references/events.md` | 532 |
-| `references/responding.md` | 579 |
-| **total** | **2,083** |
+| `references/responding.md` | 585 |
+| **total** | **2,096** |
 
 #### `discovery`
 

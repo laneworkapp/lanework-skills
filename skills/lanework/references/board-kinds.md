@@ -18,7 +18,7 @@ Work from raw idea to built. **Lanes = stages of commitment; a card's lane says 
 | Tasks | holding | owner moves a chore to Approved |
 | Shaping | agent | the owner places a card here: develop the proposal, move to Proposed |
 | Proposed | gate | review: approve, bounce to Shaping, reject. Agents move finished proposals in |
-| Approved | agent | the owner moves a card in, which is the go-ahead: take the top into Active |
+| Approved | agent | the owner moves a card in, which is the go-ahead: take the first in pick order (`references/reading.md` § Pick order) into Active |
 | Active | agent | an agent moves a card in as it starts: build, evidence, move to Done |
 | Done | none | the agent that built a card moves it in when its done-when is met |
 

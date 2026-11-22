@@ -11,7 +11,7 @@
 # (<kind> <board folder> <card uuid> <lane title> <card title> <author> <paths>):
 #   comment  the card's newest owner comment has no agent comment `in-reply-to` it. Author `owner`,
 #            paths = that comment's path. Wins over arm on the same card.
-#   arm      a card in an agent lane with no lease (none, or voided by the clock guard; Approved: its top card only, by `order`). Author and paths `-`.
+#   arm      a card in an agent lane with no lease (none, or voided by the clock guard; Approved: its first card only, by priority rank then `order`: lanework/references/reading.md § Pick order). Author and paths `-`.
 #            A START comment is no claim: only a lease is.
 #   held     a valid lease: any lane but Done. Author `-`, paths = the minutes left, `<n>m`. Report-only.
 #   stale    a lapsed lease (past `until`): any lane but Done. Author `-`, paths = the minutes since `until`, `<n>m`.
@@ -32,6 +32,7 @@ USAGE="usage: arm-pass.sh <board> [<agent lane title>...]"
 BOARD="${1%/}"; shift
 [ -f "$BOARD/index.md" ] || { echo "arm-pass.sh: not a board: $BOARD" >&2; exit 2; }
 BOARD="$(cd "$BOARD" && pwd)"; NAME="${BOARD##*/}"
+PRI=$(priorities_of "$BOARD"/*/*/index.md 2>/dev/null || true)   # one Python start per board: `<card path>\t<text>\t<rank>`
 LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
 LEASES=; LEASE_OK=1
 if [ -f "$LEASE" ] && LEASES=$(bash "$LEASE" list "$BOARD"); then :
@@ -71,7 +72,15 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
   lt=$(title_of "$lane/index.md")
   case "$lt" in [Dd]one) continue ;; esac
   agent=; case "$AGENT_LANES" in *$'\n'"$lt"$'\n'*) agent=1 ;; esac
-  top=1
+  topcard=
+  if [ "$lt" = Approved ]; then   # the first card by (rank, order); no rank sorts last
+    topcard=$(for card in "$lane"/*/; do
+      card="${card%/}"; [ -f "$card/index.md" ] || continue
+      co=$(fm_value "$card/index.md" order)
+      rk=; [ -z "$PRI" ] || rk=$(printf '%s\n' "$PRI" | awk -F'\t' -v p="$card/index.md" '$1 == p && $3 != "-" { print $3; exit }')
+      printf '%s\t%s\t%s\n' "${rk:-999999999}" "${co:-999999999}" "$card"
+    done | sort -t "$(printf '\t')" -k1,1n -k2,2n -k3 | head -1 | cut -f3)
+  fi
   for card in "$lane"/*/; do
     card="${card%/}"; [ -f "$card/index.md" ] || continue
     co=$(fm_value "$card/index.md" order)
@@ -98,8 +107,8 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
       case "$lstate" in live|lapsed) ;; *) lstate= ;; esac   # voided and no row: no lease
     fi
     answered=; for r in ${replies[@]+"${replies[@]}"}; do [ "$r" = "$own_uuid" ] && answered=1; done
-    istop=$top; top=
-    # the top card of Approved is the first in order, leased or not; the next never takes its place
+    istop=; [ "$card" != "$topcard" ] || istop=1
+    # the top card of Approved is the first by (rank, order), leased or not; the next never takes its place
     if [ -n "$own_uuid" ] && [ -z "$answered" ]; then
       printf 'comment\t%s\t%s\t%s\t%s\towner\t%s\n' "$NAME" "$id" "$lt" "$ct" "$own_path"
     elif [ -n "$LEASE_OK" ] && [ -n "$agent" ] && [ -z "$lstate" ] && { [ "$lt" != Approved ] || [ -n "$istop" ]; }; then
