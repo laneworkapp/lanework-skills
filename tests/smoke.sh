@@ -736,6 +736,43 @@ refused found-plan-board "$PS/found-plan-board.sh" "$T/NoModel Plan.lanework"
 [ "$S4" = "$(sum "$PL")" ] && [ ! -e "$T/NoModel Plan.lanework" ] || { echo "a refused plan call wrote something"; exit 1; }
 ok "file-ticket, claim-ticket, resolve-ticket and found-plan-board exit 2 with usage and write nothing when no model is given"
 
+# usage errors exit 2 (option C): a bad flag, a flag with no value, or a missing positional exits 2 and writes nothing. Before, each of
+# these exited 1 (file-question, file-record, file-ticket: every bad-argument path; the other six: a ${N:?} path)
+usage2() { local n="$1"; shift; local rc=0; "$@" >/dev/null 2>"$T/err.txt" || rc=$?
+  [ "$rc" -eq 2 ] || { echo "$n: exit $rc, want 2: $*"; cat "$T/err.txt"; exit 1; }
+  [ -s "$T/err.txt" ] || { echo "$n: exit 2 with no message on stderr"; exit 1; }; }
+S5=$(sum "$D"); S6=$(sum "$PL")
+usage2 file-question-flag "$SK/discovery/scripts/file-question.sh" "$D" "Bad flag" --round 2 --body "$T/q5.md" --model smoke --bogus
+usage2 file-question-value "$SK/discovery/scripts/file-question.sh" "$D" "No value" --body "$T/q5.md" --model smoke --round
+usage2 file-question-round "$SK/discovery/scripts/file-question.sh" "$D" "No round" --body "$T/q5.md" --model smoke
+usage2 file-question-bare "$SK/discovery/scripts/file-question.sh" "$D"
+usage2 file-record-flag "$SK/discovery/scripts/file-record.sh" "$D" "$C4" --record ADR --title x --body "$T/adr.md" --model smoke --bogus
+usage2 file-record-kind "$SK/discovery/scripts/file-record.sh" "$D" "$C4" --record XDR --title x --body "$T/adr.md" --model smoke
+usage2 file-record-bare "$SK/discovery/scripts/file-record.sh" "$D"
+usage2 settle-question-flag "$SK/discovery/scripts/settle-question.sh" "$D" "$C4" --ruling "$T/r1.md" --model smoke --bogus
+usage2 settle-question-value "$SK/discovery/scripts/settle-question.sh" "$D" "$C4" --model smoke --ruling
+usage2 settle-question-bare "$SK/discovery/scripts/settle-question.sh" "$D"
+usage2 file-ticket-flag "$PS/file-ticket.sh" "$PL" "Bad flag" --type grilling --body "$T/t.md" --model smoke --bogus
+usage2 file-ticket-type "$PS/file-ticket.sh" "$PL" "Bad type" --type nonsense --body "$T/t.md" --model smoke
+usage2 file-ticket-value "$PS/file-ticket.sh" "$PL" "No value" --type grilling --body "$T/t.md" --model smoke --why
+usage2 file-ticket-bare "$PS/file-ticket.sh" "$PL"
+usage2 claim-ticket-flag "$PS/claim-ticket.sh" "$PL" "$T5" --model smoke --bogus
+usage2 claim-ticket-value "$PS/claim-ticket.sh" "$PL" "$T5" --model smoke --session
+usage2 claim-ticket-bare "$PS/claim-ticket.sh" "$PL"
+usage2 resolve-ticket-flag "$PS/resolve-ticket.sh" "$PL" "$T3" --resolution "$T/res1.md" --model smoke --bogus
+usage2 resolve-ticket-value "$PS/resolve-ticket.sh" "$PL" "$T3" --model smoke --resolution
+usage2 resolve-ticket-bare "$PS/resolve-ticket.sh" "$PL"
+usage2 found-discovery-board-bare "$SK/discovery/scripts/found-discovery-board.sh"
+usage2 found-discovery-board-labels "$SK/discovery/scripts/found-discovery-board.sh" "$T/XU Discovery.lanework" --model smoke --labels
+usage2 found-plan-board-bare "$PS/found-plan-board.sh"
+usage2 found-plan-board-labels "$PS/found-plan-board.sh" "$T/XU Plan.lanework" --model smoke --labels
+usage2 frontier-bare "$PS/frontier.sh"
+usage2 frontier-extra "$PS/frontier.sh" "$PL" --bogus
+FRC=0; "$PS/frontier.sh" "$T/not-a-board" >/dev/null 2>&1 || FRC=$?
+[ "$FRC" -eq 1 ] || { echo "frontier.sh: not a board exits $FRC, want 1"; exit 1; }
+[ "$S5" = "$(sum "$D")" ] && [ "$S6" = "$(sum "$PL")" ] && [ ! -e "$T/XU Discovery.lanework" ] && [ ! -e "$T/XU Plan.lanework" ] || { echo "a usage-error call wrote something"; exit 1; }
+ok "file-question, file-record, settle-question, file-ticket, claim-ticket, resolve-ticket, found-discovery-board, found-plan-board and frontier exit 2 on a bad flag, a flag with no value or a missing positional, and write nothing; frontier's not-a-board stays 1"
+
 # triple closing brace: the guard reads only the stamp lines a script wrote (lanework/scripts/lib.sh stamp_lines_ok), so a card whose
 # labels line (an iconed kind) or body (a JSON example) holds `}}}` is still written, and a `}}}` in a stamp the script writes is still refused
 BQ="$T/Brace Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$BQ" --model smoke >/dev/null
