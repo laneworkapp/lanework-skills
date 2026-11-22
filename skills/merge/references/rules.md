@@ -17,7 +17,7 @@ Every rule is 3-way against the merge base: a key changed on one side only → t
 
 | what | result |
 |---|---|
-| `modified` | the later stamp, `at` and `by` together |
+| `modified` | the later stamp, `at` and `by` together. Any form the schema's `timestamp` allows; no zone → UTC (YAML 1.1) |
 | `title` | later wins; the other title in the merge comment (an attachment's: named by its id). A lane or board title: the earlier inline, `Earlier title: "…"` under the body's merged-from heading |
 | `labels`, board `config.labels` values | union, by `text` within a kind. A removal on one side holds |
 | single-valued label kinds: priority, any kind the board marks `single` | state: the later side's entries of that kind, whole |
@@ -44,7 +44,7 @@ The pass matches cards by uuid across base, ours and theirs, not by git's rename
 | trashed on one side, edited on the other | later `modified` wins: a later trash stays trashed carrying the edit; a later edit restores the card to the lane it held at the base (or the editing side's lane) |
 | trashed on both | trashed once |
 | same uuid added on both sides | ours; theirs' body in the merge comment |
-| deleted for good (`rm`) on one side, edited on the other | the edit kept; the merge comment says the other side deleted it |
+| deleted for good (`rm`) on one side, edited on the other (a comment alone included) | the surviving side's whole card: every file, its own removals and additions held. The merge comment says the other side deleted it. A file removed inside a card both sides kept: 3-way, as above |
 | git paired two different cards by similarity (a delete plus an add) | refused: `created` differs. The pass rebuilds both cards by uuid |
 | card's lane gone on the winning side | the lane's trashed copy, else ours' location |
 | uncommitted local edits in a card the pass rebuilds | carried as ours, 3-way against theirs, staged, named in the report. Never erased. Only git's own conflict output (`<<<<<<< `, `=======`, `>>>>>>> ` lines, in order) is not an edit |
@@ -63,7 +63,7 @@ The pass matches cards by uuid across base, ours and theirs, not by git's rename
   - Nothing lost → exit 0, git carries on.
   - A loss, or a trash against a possibly later edit → the merged file with no markers, exit 1: git stops, and the pass keeps the losing side. Git may move the card or finish the operation without the pass, so nothing is ever written in place.
   - Any error → ours, exit 1. Never a half merge.
-- **Pass** (`merge-board.sh`): reads base/ours/theirs from `MERGE_HEAD` (base = `git merge-base`), or `REBASE_HEAD` / `CHERRY_PICK_HEAD` (base = its parent). Rebuilds each card with an unmerged path from the three trees, applies both tables, writes one merge comment per card, re-homes files a move left behind, `git add`s only what it touched, runs each board's `.schema/bin/lanework-validate.py`. Never commits. With no operation in progress it only re-homes.
+- **Pass** (`merge-board.sh`): reads base/ours/theirs from `MERGE_HEAD` (base = `git merge-base`), or `REBASE_HEAD` / `CHERRY_PICK_HEAD` (base = its parent). Rebuilds each card with an unmerged path from the three trees, applies both tables, writes every final file before it removes any path (an interruption leaves a second copy at worst; a rerun resolves it), writes one merge comment per card, re-homes files a move left behind, `git add`s only what it touched, runs each board's `.schema/bin/lanework-validate.py`. Never commits. With no operation in progress it only re-homes.
 - **Install**: the rule goes in the repo's `.gitattributes` (committed: it travels). The driver is registered per clone in `.git/config` as `python3` from `PATH` running a copy in the git dir (`$(git rev-parse --git-common-dir)/lanework-merge/`), so an interpreter upgrade, a moved repo or an updated skill can't break it. The pass refreshes that copy. A clone without it sees plain git markers until the pass runs; the pass resolves those too.
 
 ## Limits

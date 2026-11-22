@@ -357,13 +357,25 @@ def fm_get(entries, key):
     return None
 
 
+# The schema's `timestamp` pattern (YAML 1.1): a day, or a day with a time and an optional zone. No zone reads as UTC.
+STAMP = re.compile(r'\bat:\s*["\']?([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})(?:(?:[Tt]|[ \t]+)([0-9]{1,2}):([0-9]{2}):([0-9]{2})'
+                   r'(?:\.([0-9]*))?(?:[ \t]*(Z|([-+])([0-9]{1,2})(?::([0-9]{2}))?))?)?(?![0-9:])')
+
+
 def stamp_at(entries, key='modified'):
+    """The instant of `<key>.at`, always zone-aware (UTC when the stamp has no zone), or None."""
     ls = fm_get(entries, key)
-    m = re.search(r'\bat:\s*"?([0-9][0-9T:.+\-Z]*)', ' '.join(ls)) if ls else None
+    m = STAMP.search(' '.join(ls)) if ls else None
     if not m:
         return None
+    y, mo, d, h, mi, s, frac, z, sign, zh, zm = m.groups()
     try:
-        return datetime.datetime.fromisoformat(m.group(1).replace('Z', '+00:00'))
+        tz = datetime.timezone.utc
+        if sign:
+            off = datetime.timedelta(hours=int(zh), minutes=int(zm or 0))
+            tz = datetime.timezone(off if sign == '+' else -off)
+        return datetime.datetime(int(y), int(mo), int(d), int(h or 0), int(mi or 0), int(s or 0),
+                                 int(((frac or '') + '000000')[:6]), tzinfo=tz)
     except ValueError:
         return None
 
@@ -936,11 +948,16 @@ def process_card(repo, trees, revs, board, card, model, notes, um):
     old = [l for l in {lb, lo, lt} if l]
     old_dirs = ['/'.join([board] + list(l)) for l in old]
     final_dir = '/'.join([board] + list(L)) if L else None
-    # content
+    # content. A card kept against a whole-card delete: the deleting side reads as "left every file as it was",
+    # so the survivor's whole tree comes back, its own removals and additions included. Only a whole-card
+    # delete: a file removed inside a card both sides kept follows the 3-way rule.
+    co, ct = fo, ft
+    if L and lb is not None and (lo is None) != (lt is None):
+        co, ct = (fb, ft) if lo is None else (fo, fb)
     files, extras = {}, {}
     if L:
-        for w in sorted(set(fb) | set(fo) | set(ft)):
-            vb, vo, vt = fb.get(w), fo.get(w), ft.get(w)
+        for w in sorted(set(fb) | set(co) | set(ct)):
+            vb, vo, vt = fb.get(w), co.get(w), ct.get(w)
             if vo == vt or vt == vb:
                 pick = ('o', vo)
             elif vo == vb:
@@ -998,16 +1015,10 @@ def process_card(repo, trees, revs, board, card, model, notes, um):
                 p = os.path.relpath(os.path.join(root, f), repo)
                 if p not in tracked:
                     strays.append((d, p))
-    remove_paths(repo, sorted(tracked - {''}))
-    added = []
+    # write every final file first (in place), then remove what was not rewritten: an interruption leaves at
+    # worst a second copy and the unmerged entries, never a lost edit, and a rerun resolves it
+    added, written = [], set()
     if final_dir:
-        for d, p in strays:
-            dst = final_dir + p[len(d):]
-            if dst != p and not os.path.exists(os.path.join(repo, dst)):
-                os.makedirs(os.path.dirname(os.path.join(repo, dst)), exist_ok=True)
-                os.rename(os.path.join(repo, p), os.path.join(repo, dst))
-            if is_merge_artifact(repo, dst):
-                added.append(dst)
         for w in ['index.md'] + sorted(k for k in files if k != 'index.md'):
             if w in files:
                 mode, data = files[w]
@@ -1019,6 +1030,21 @@ def process_card(repo, trees, revs, board, card, model, notes, um):
         for p, data in extras.items():
             write_atomic(repo, p, data)
             added.append(p)
+        written = set(added)
+    remove_paths(repo, sorted(tracked - {''} - written))
+    if final_dir:
+        for d, p in strays:
+            dst = final_dir + p[len(d):]
+            if p in written:
+                continue
+            if dst != p and dst in written:
+                os.remove(os.path.join(repo, p))  # superseded by the file just written there
+                continue
+            if dst != p and not os.path.exists(os.path.join(repo, dst)):
+                os.makedirs(os.path.dirname(os.path.join(repo, dst)), exist_ok=True)
+                os.rename(os.path.join(repo, p), os.path.join(repo, dst))
+            if is_merge_artifact(repo, dst):
+                added.append(dst)
         if losses:
             added.append(post_losses(repo, final_dir, losses, model))
         git(repo, 'add', '-f', '--', *sorted(set(added)))

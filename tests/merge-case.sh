@@ -7,11 +7,13 @@
 #   clean: git finishing by itself, then a loss it must stop for; rebasemove: a later move in a rebase;
 #   dirty: an uncommitted local edit in a conflicted card, carried as ours
 #   appside: side B is bytes the Lanework app wrote (tests/fixtures/app-writes/), side A is scripted edits to the same items
+#   delete: a whole card deleted on one side, edited on the other: the survivor's whole tree comes back
+#   stamps: a zone-less or loosely written `modified` stamp; interrupt: the pass interrupted at its first write
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Boards/Skills Pipeline.lanework"
-T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove, dirty or appside}"
-case "$MODE" in merge|rebase|nodriver|clean|rebasemove|dirty|appside) ;; *) echo "merge-case: unknown mode '$MODE'" >&2; exit 2 ;; esac
+T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove, dirty, appside, delete, stamps or interrupt}"
+case "$MODE" in merge|rebase|nodriver|clean|rebasemove|dirty|appside|delete|stamps|interrupt) ;; *) echo "merge-case: unknown mode '$MODE'" >&2; exit 2 ;; esac
 . "$SK/lanework/scripts/lib.sh"
 MRG="$SK/merge/scripts/lanework-merge.py"
 fail() { echo "merge-case ($MODE): $*" >&2; exit 1; }
@@ -239,6 +241,109 @@ appside)
   one "$DONE" "$S1" "moved by A"; [ ! -e "$D/$IDEAS/$S1" ] || fail "appside comment: an orphan folder is left in Ideas"
   cmp -s "$FX/comment-posted.md" "$D/$DONE/$S1/comments/$CMT/index.md" || fail "appside comment: the app's comment is not in the moved card, byte for byte"
   echo "$OUT"; exit 0 ;;
+delete)
+  # whole cards (body, comment, attachment, relation) in base; one side runs `git rm -r` on each, the other edits it
+  full() { # <repo> <id> <tag>: a card with every kind of child
+    local d="$1/$BN/$IDEAS/$2"; card "$1" "$IDEAS" "$2" "$3 base" "$T0" "$BY0" "$3 base body."
+    comment "$d" "$(uuid)" "$T0" "$BY0" "$3 base comment one."; comment "$d" "$(uuid)" "$T0" "$BY0" "$3 base comment two."
+    mkdir -p "$d/attachments/$(uuid)"; local a; a=$(ls -d "$d"/attachments/*); printf '%s-bytes' "$3" > "$a/blob.png"
+    printf -- '---\nschema: 1\nkind: attachment\ntitle: "shot"\nextension: png\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n' "$T0" "$BY0" "$T0" "$BY0" > "$a/index.md"
+    relation "$d" "$(uuid)" "$T0" "$BY0" "$3 base relation."
+  }
+  # X1: rm ours, body theirs; X2: the mirror; X3: rm ours, theirs edits the body, removes one comment, adds one;
+  # X4: rm ours, comment-only edit theirs; X5: the mirror; X6: rm ours, theirs untouched (control);
+  # X7: both edit the body, ours removes a comment theirs left alone (3-way inside a kept card)
+  for n in X1 X2 X3 X4 X5 X6 X7; do eval "$n=$(uuid)"; full "$O" "${!n}" "$n"; done
+  cm "$O" delbase; validate_board "$O" "delete base"; G "$A" pull -q; G "$B" pull -q
+  c1() { (cd "$1/$BN/$IDEAS/$2/comments" && ls | head -1); }
+  for n in X1 X3 X4 X6; do G "$A" rm -rq "$BN/$IDEAS/${!n}"; done
+  for n in X2 X5; do G "$B" rm -rq "$BN/$IDEAS/${!n}"; done
+  card "$B" "$IDEAS" "$X1" "X1 base" "$TB" "$BYB" "X1 body TOKEN_B_X1."
+  card "$A" "$IDEAS" "$X2" "X2 base" "$TA" "$BYA" "X2 body TOKEN_A_X2."
+  card "$B" "$IDEAS" "$X3" "X3 base" "$TB" "$BYB" "X3 body TOKEN_B_X3."
+  X3GONE=$(c1 "$B" "$X3"); G "$B" rm -rq "$BN/$IDEAS/$X3/comments/$X3GONE"; X3NEW=$(uuid); comment "$B/$BN/$IDEAS/$X3" "$X3NEW" "$TB" "$BYB" "X3 added TOKEN_B_X3C."
+  X4C=$(c1 "$B" "$X4"); comment "$B/$BN/$IDEAS/$X4" "$X4C" "$TB" "$BYB" "X4 comment TOKEN_B_X4."
+  X5C=$(c1 "$A" "$X5"); comment "$A/$BN/$IDEAS/$X5" "$X5C" "$TA" "$BYA" "X5 comment TOKEN_A_X5."
+  card "$A" "$IDEAS" "$X7" "X7 base" "$TA" "$BYA" "X7 body TOKEN_A_X7."; X7GONE=$(c1 "$A" "$X7"); G "$A" rm -rq "$BN/$IDEAS/$X7/comments/$X7GONE"
+  card "$B" "$IDEAS" "$X7" "X7 base" "$TB" "$BYB" "X7 body TOKEN_B_X7."
+  cm "$A" a1; cm "$B" b1; mclone
+  if G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1; then fail "delete: the merge should stop on modify/delete"; fi
+  pass "delete"; G "$M" commit -q --no-edit; clean_status "delete"
+  if grep -q 'Not re-homed' <<<"$OUT"; then echo "$OUT"; fail "delete: a card was left for re-homing"; fi
+  # every base file of a kept card is back byte for byte, unless the survivor changed or removed it
+  same() { # <id> <path within the card>...: identical to base
+    local id="$1" f; shift
+    for f in "$@"; do cmp -s "$O/$BN/$IDEAS/$id/$f" "$D/$IDEAS/$id/$f" || fail "delete: ${id:0:8}/$f is not the base file, byte for byte"; done
+  }
+  basefiles() { (cd "$O/$BN/$IDEAS/$1" && find . -type f ! -path ./index.md | sed 's#^\./##' | sort); }
+  for n in X1 X2 X4 X5; do
+    id=${!n}; [ -f "$D/$IDEAS/$id/index.md" ] || fail "delete: $n has no index.md"
+    grep -rqF 'The other side deleted this card for good' "$D/$IDEAS/$id/comments" || fail "delete: $n's merge comment doesn't name the delete"
+    for f in $(basefiles "$id"); do case "$n:$f" in "X4:comments/$X4C/"*|"X5:comments/$X5C/"*) ;; *) same "$id" "$f" ;; esac; done
+  done
+  grep -q TOKEN_B_X1 "$D/$IDEAS/$X1/index.md" && grep -q TOKEN_A_X2 "$D/$IDEAS/$X2/index.md" || fail "delete: the body edit was not kept"
+  same "$X4" index.md; same "$X5" index.md
+  grep -rq TOKEN_B_X4 "$D/$IDEAS/$X4/comments" && grep -rq TOKEN_A_X5 "$D/$IDEAS/$X5/comments" || fail "delete: the comment-only edit was not kept"
+  # the survivor's own removal holds and its addition stays
+  [ ! -e "$D/$IDEAS/$X3/comments/$X3GONE" ] || fail "delete: X3's comment the survivor removed came back"
+  grep -q TOKEN_B_X3C "$D/$IDEAS/$X3/comments/$X3NEW/index.md" || fail "delete: X3's added comment is gone"
+  for f in $(basefiles "$X3"); do case "$f" in "comments/$X3GONE"/*) ;; *) same "$X3" "$f" ;; esac; done
+  # control: deleted against no change stays gone; a comment removed inside a card both kept stays removed
+  [ ! -e "$D/$IDEAS/$X6" ] || fail "delete control: X6 came back"
+  [ ! -e "$D/$IDEAS/$X7/comments/$X7GONE" ] || fail "delete: X7's removed comment came back (3-way inside a kept card)"
+  validate_board "$M" "delete"; echo "$OUT"; exit 0 ;;
+stamps)
+  # stamp_at() reads every form the schema's timestamp pattern allows, zone-less as UTC
+  python3 -B - "$MRG" <<'PY' || fail "stamp_at: a schema timestamp misread"
+import importlib.util, sys, datetime
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location('lm', sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+U = datetime.timezone.utc
+def at(s):
+    return m.stamp_at(m.split_doc('---\nmodified: {at: %s, by: {name: x, kind: human}}\n---\n' % s)[0])
+want = {'2026-01-03': datetime.datetime(2026, 1, 3, tzinfo=U), '2026-01-03T00:00:00': datetime.datetime(2026, 1, 3, tzinfo=U),
+        '2026-01-03 00:00:00Z': datetime.datetime(2026, 1, 3, tzinfo=U), '2026-01-03t00:00:00Z': datetime.datetime(2026, 1, 3, tzinfo=U),
+        '2026-1-3T0:00:00Z': datetime.datetime(2026, 1, 3, tzinfo=U), '2026-01-03T02:00:00+02': datetime.datetime(2026, 1, 3, tzinfo=U),
+        '2026-01-03T02:30:00.5+02:30': datetime.datetime(2026, 1, 3, 0, 0, 0, 500000, tzinfo=U), '"2026-01-03 00:00:00 Z"': datetime.datetime(2026, 1, 3, tzinfo=U)}
+bad = ['%s -> %r, want %s' % (k, at(k), v) for k, v in want.items() if at(k) != v]
+for k in want:
+    m.later(m.split_doc('---\nmodified: {at: 2026-01-02T00:00:00Z, by: x}\n---\n')[0], m.split_doc('---\nmodified: {at: %s, by: x}\n---\n' % k)[0])
+bad and print('\n'.join(bad)); sys.exit(1 if bad else 0)
+PY
+  # ours zoned, theirs zone-less and later: the pass finishes and theirs wins
+  card "$A" "$IDEAS" "$T1" "T1 base" "$TA" "$BYA" "T1 body TOKEN_A_T1."; cm "$A" a1
+  card "$B" "$IDEAS" "$T1" "T1 base" 2026-01-03T00:00:00 "$BYB" "T1 body TOKEN_B_T1."; cm "$B" b1
+  mclone
+  if G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1; then fail "stamps: the merge should stop on the body"; fi
+  pass "stamps"; G "$M" commit -q --no-edit; clean_status "stamps"
+  grep -q TOKEN_B_T1 "$D/$IDEAS/$T1/index.md" || fail "stamps: the later zone-less side did not win"
+  grep -rq TOKEN_A_T1 "$D/$IDEAS/$T1/comments" || fail "stamps: the earlier body is not in the merge comment"
+  validate_board "$M" "stamps"; echo "$OUT"; exit 0 ;;
+interrupt)
+  # both edit K1's body; M holds an uncommitted edit of K1's comment; the pass is interrupted at its first write
+  card "$A" "$IDEAS" "$K1" "K1 base" "$TA" "$BYA" "K1 body TOKEN_A_K1."; cm "$A" a1
+  card "$B" "$IDEAS" "$K1" "K1 base" "$TB" "$BYB" "K1 body TOKEN_B_K1."; cm "$B" b1
+  mclone; KF="$D/$IDEAS/$K1/comments/$KC/index.md"
+  comment "$D/$IDEAS/$K1" "$KC" 2026-01-07T00:00:00Z '{name: m, kind: human}' "INTERRUPT_LOCAL_TOKEN uncommitted."
+  if G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1; then fail "interrupt: the merge should stop on the body"; fi
+  python3 -B - "$MRG" "$M" <<'PY' || fail "interrupt: the harness did not reach the interruption"
+import importlib.util, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location('lm', sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+def stop(*a):
+    raise KeyboardInterrupt
+m.write_atomic = stop
+try:
+    m.cmd_resolve([sys.argv[2], '--model', 'test'])
+except KeyboardInterrupt:
+    sys.exit(0)
+sys.exit(1)
+PY
+  [ -z "$(find "$SK" "$M" -name __pycache__ 2>/dev/null)" ] || fail "interrupt: the harness wrote __pycache__"
+  grep -q INTERRUPT_LOCAL_TOKEN "$KF" 2>/dev/null || { G "$M" status --porcelain; fail "interrupt: the uncommitted edit is gone from disk after the interruption"; }
+  pass "interrupt rerun"; grep -q 'Uncommitted edits carried' <<<"$OUT" || { echo "$OUT"; fail "interrupt: the rerun doesn't carry the edit"; }
+  G "$M" commit -q --no-edit; clean_status "interrupt"; inhead INTERRUPT_LOCAL_TOKEN TOKEN_A_K1 TOKEN_B_K1
+  validate_board "$M" "interrupt"; echo "$OUT"; exit 0 ;;
 esac
 
 # ---- side A (earlier, except TR2)
