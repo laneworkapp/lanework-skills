@@ -736,6 +736,44 @@ refused found-plan-board "$PS/found-plan-board.sh" "$T/NoModel Plan.lanework"
 [ "$S4" = "$(sum "$PL")" ] && [ ! -e "$T/NoModel Plan.lanework" ] || { echo "a refused plan call wrote something"; exit 1; }
 ok "file-ticket, claim-ticket, resolve-ticket and found-plan-board exit 2 with usage and write nothing when no model is given"
 
+# usage errors exit 2 (option C): a bad flag, a flag with no value, or a missing positional exits 2 and writes nothing. Before, each of
+# these exited 1 (file-question, file-record, file-ticket: every bad-argument path; the other six: a ${N:?} path)
+usage2() { local n="$1"; shift; local rc=0; "$@" >/dev/null 2>"$T/err.txt" || rc=$?
+  [ "$rc" -eq 2 ] || { echo "$n: exit $rc, want 2: $*"; cat "$T/err.txt"; exit 1; }
+  [ -s "$T/err.txt" ] || { echo "$n: exit 2 with no message on stderr"; exit 1; }; }
+S5=$(sum "$D"); S6=$(sum "$PL")
+usage2 file-question-flag "$SK/discovery/scripts/file-question.sh" "$D" "Bad flag" --round 2 --body "$T/q5.md" --model smoke --bogus
+usage2 file-question-value "$SK/discovery/scripts/file-question.sh" "$D" "No value" --body "$T/q5.md" --model smoke --round
+usage2 file-question-round "$SK/discovery/scripts/file-question.sh" "$D" "No round" --body "$T/q5.md" --model smoke
+usage2 file-question-bare "$SK/discovery/scripts/file-question.sh" "$D"
+usage2 file-record-flag "$SK/discovery/scripts/file-record.sh" "$D" "$C4" --record ADR --title x --body "$T/adr.md" --model smoke --bogus
+usage2 file-record-kind "$SK/discovery/scripts/file-record.sh" "$D" "$C4" --record XDR --title x --body "$T/adr.md" --model smoke
+usage2 file-record-bare "$SK/discovery/scripts/file-record.sh" "$D"
+usage2 settle-question-flag "$SK/discovery/scripts/settle-question.sh" "$D" "$C4" --ruling "$T/r1.md" --model smoke --bogus
+usage2 settle-question-value "$SK/discovery/scripts/settle-question.sh" "$D" "$C4" --model smoke --ruling
+usage2 settle-question-bare "$SK/discovery/scripts/settle-question.sh" "$D"
+usage2 file-ticket-flag "$PS/file-ticket.sh" "$PL" "Bad flag" --type grilling --body "$T/t.md" --model smoke --bogus
+usage2 file-ticket-type "$PS/file-ticket.sh" "$PL" "Bad type" --type nonsense --body "$T/t.md" --model smoke
+usage2 file-ticket-value "$PS/file-ticket.sh" "$PL" "No value" --type grilling --body "$T/t.md" --model smoke --why
+usage2 file-ticket-bare "$PS/file-ticket.sh" "$PL"
+usage2 claim-ticket-flag "$PS/claim-ticket.sh" "$PL" "$T5" --model smoke --bogus
+usage2 claim-ticket-value "$PS/claim-ticket.sh" "$PL" "$T5" --model smoke --session
+usage2 claim-ticket-bare "$PS/claim-ticket.sh" "$PL"
+usage2 resolve-ticket-flag "$PS/resolve-ticket.sh" "$PL" "$T3" --resolution "$T/res1.md" --model smoke --bogus
+usage2 resolve-ticket-value "$PS/resolve-ticket.sh" "$PL" "$T3" --model smoke --resolution
+usage2 resolve-ticket-bare "$PS/resolve-ticket.sh" "$PL"
+usage2 found-discovery-board-bare "$SK/discovery/scripts/found-discovery-board.sh"
+usage2 found-discovery-board-labels "$SK/discovery/scripts/found-discovery-board.sh" "$T/XU Discovery.lanework" --model smoke --labels
+usage2 found-plan-board-bare "$PS/found-plan-board.sh"
+usage2 found-plan-board-labels "$PS/found-plan-board.sh" "$T/XU Plan.lanework" --model smoke --labels
+usage2 frontier-bare "$PS/frontier.sh"
+usage2 frontier-extra "$PS/frontier.sh" "$PL" --bogus
+usage2 frontier-leading-flag "$PS/frontier.sh" --bogus
+FRC=0; "$PS/frontier.sh" "$T/not-a-board" >/dev/null 2>&1 || FRC=$?
+[ "$FRC" -eq 1 ] || { echo "frontier.sh: not a board exits $FRC, want 1"; exit 1; }
+[ "$S5" = "$(sum "$D")" ] && [ "$S6" = "$(sum "$PL")" ] && [ ! -e "$T/XU Discovery.lanework" ] && [ ! -e "$T/XU Plan.lanework" ] || { echo "a usage-error call wrote something"; exit 1; }
+ok "file-question, file-record, settle-question, file-ticket, claim-ticket, resolve-ticket, found-discovery-board, found-plan-board and frontier exit 2 on a bad flag, a flag with no value or a missing positional, and write nothing; frontier's not-a-board stays 1"
+
 # triple closing brace: the guard reads only the stamp lines a script wrote (lanework/scripts/lib.sh stamp_lines_ok), so a card whose
 # labels line (an iconed kind) or body (a JSON example) holds `}}}` is still written, and a `}}}` in a stamp the script writes is still refused
 BQ="$T/Brace Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$BQ" --model smoke >/dev/null
@@ -1675,6 +1713,27 @@ for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/n
 "$ROOT/tests/merge-case.sh" "$T" rebasemove >/dev/null; ok "merge case: a rebase with a later move leaves no orphaned folder"
 "$ROOT/tests/merge-case.sh" "$T" dirty >/dev/null; ok "merge case: uncommitted edits in a conflicted card are carried as ours, never erased"
 "$ROOT/tests/merge-case.sh" "$T" appside >/dev/null; ok "merge case: bytes the app wrote (tests/fixtures/app-writes) collide with scripted edits and resolve with no prompt"
+
+# merge, heal and watch headers card: usage errors exit 2 (64 for the heal scripts), no traceback, no silent exit 0
+MP="$SK/merge/scripts/lanework-merge.py"; MBS="$SK/merge/scripts/merge-board.sh"; mkdir -p "$T/mhw"; git init -q "$T/mhw/repo"
+for a in "resolve $T/mhw/repo --model" "driver a b" "driver --quiet a b c" "resolve $T/mhw/nope" "install $T/mhw/nope"; do
+  rc=0; python3 "$MP" $a >"$T/mhw/out" 2>"$T/mhw/err" </dev/null || rc=$?
+  { [ "$rc" = 2 ] && ! grep -q Traceback "$T/mhw/err"; } || { echo "lanework-merge.py $a: rc=$rc"; cat "$T/mhw/err"; exit 1; }
+done
+uo=$(python3 "$MP" driver a b 2>&1 || true)
+{ grep -q 'not a git repo: ' "$T/mhw/err" && grep -q '^usage:' <<<"$uo"; } || { echo "lanework-merge.py usage or not-a-repo message missing"; exit 1; }
+ok "lanework-merge.py: driver with fewer than 4 paths, resolve with --model last, and resolve or install on a non-repo exit 2 with no traceback"
+rc=0; "$MBS" >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh with no argument: rc=$rc"; exit 1; }
+rc=0; "$MBS" --bogus >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh leading unknown argument: rc=$rc"; exit 1; }
+rc=0; "$MBS" "$T/mhw/repo" --bogus >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh unknown argument: rc=$rc"; exit 1; }
+rc=0; "$MBS" "$T/mhw/repo" --model >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh --model with no value: rc=$rc"; exit 1; }
+rc=0; "$MBS" "$T/mhw/nope" >/dev/null 2>"$T/mhw/err" || rc=$?; { [ "$rc" = 1 ] && grep -q 'not a git repo' "$T/mhw/err"; } || { echo "merge-board.sh not a repo: rc=$rc"; exit 1; }
+ok "merge-board.sh: no argument, an unknown argument and --model with no value exit 2; a path that is not a repo stays exit 1"
+mkdir -p "$T/mhw/wb"; : > "$T/mhw/wb/index.md"; rc=0
+env PATH=/usr/bin:/bin perl -e 'alarm 10; exec @ARGV' /bin/zsh "$SK/watch/scripts/watch-boards.sh" "$T/mhw/snap" "$T/mhw/wb" >"$T/mhw/out" 2>"$T/mhw/err" </dev/null || rc=$?
+{ [ "$rc" = 2 ] && grep -q 'needs fswatch' "$T/mhw/err"; } || { echo "watch-boards.sh without fswatch on PATH: rc=$rc"; cat "$T/mhw/err"; exit 1; }
+[ ! -e "$T/mhw/snap" ] || { echo "watch-boards.sh took a snapshot before checking for fswatch"; exit 1; }
+ok "watch-boards.sh: with no fswatch on PATH it prints 'needs fswatch' and exits 2 before the first snapshot"
 
 # lane actors: every lane body names its actor and trigger; the lane -> actor table lives once; heal-descriptors brings old boards to currency
 lane_file() { grep -l "^title: \"$2\"\$" "$1"/*/index.md | head -1; }
@@ -2770,6 +2829,34 @@ rm -f "$PP"
 [ "$(cat "$G/ttyres" 2>/dev/null)" = tty-closed ] && [ "$(cat "$G/ttyrc" 2>/dev/null)" = 0 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s)" = "B: no tty" ] \
   || { echo "commit-board: the push under a pty (hook: $(cat "$G/ttyres" 2>/dev/null), rc $(cat "$G/ttyrc" 2>/dev/null)):"; cat "$G/tty.out"; exit 1; }
 ok "commit-board.sh: under a pty the push has no terminal (a pre-push hook cannot open /dev/tty), and it lands"
+# work: headers card. move-card.sh posts --comment only after every refusal, and passes a lost lease from post-comment.sh through as exit 3;
+# lint-ask.sh sends its unreadable-file message to stderr and fails an ask of exactly 80 words
+HM="$T/HdrWork.lanework"; cp -R "$P" "$HM"; cp -R "$VAL" "$HM/.schema"
+HMI=$(dirname "$(lane_of "$HM" Ideas)"); HMA=$(dirname "$(lane_of "$HM" Active)")
+HC1=feed0000-0000-4000-8000-000000000001; mkdir -p "$HMI/$HC1"
+printf 'no frontmatter here\n' > "$HMI/$HC1/index.md"; printf 'A note.\n' > "$T/hm-c.md"
+rc=0; O=$(env -u CLAUDE_CODE_SESSION_ID "$MC" "$HM" "${HC1:0:8}" Active --model smoke --comment "$T/hm-c.md" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && grep -q 'no frontmatter; nothing written' <<<"$O" && [ ! -e "$HMI/$HC1/comments" ] && [ -f "$HMI/$HC1/index.md" ] && [ ! -e "$HMA/$HC1" ] \
+  || { echo "move-card --comment on a card with no frontmatter (rc $rc): want exit 1 and no comment left: $O"; ls -R "$HMI/$HC1"; exit 1; }
+ok "move-card.sh --comment: a card with no frontmatter is refused with the comment not posted (before the fix, one comment was left)"
+HMS="$T/hm-skills"; cp -R "$SK" "$HMS"; HC2=beef0000-0000-4000-8000-000000000002; mkdir -p "$HMI/$HC2"
+printf -- '---\nschema: 1\nkind: card\ntitle: "Lease race"\norder: 2048\ncreated: {at: 2026-10-01T00:00:00Z}\nmodified: {at: 2026-10-01T00:00:00Z}\n---\nBody.\n' > "$HMI/$HC2/index.md"
+printf '#!/bin/bash\nn="$0.calls"; c=$(cat "$n" 2>/dev/null || echo 0); echo $((c+1)) > "$n"; [ "$c" -eq 0 ] && exit 4; exit 3\n' > "$HMS/lanework/scripts/lease.sh"; chmod +x "$HMS/lanework/scripts/lease.sh"
+rc=0; O=$(CLAUDE_CODE_SESSION_ID=s-hm-test "$HMS/work/scripts/move-card.sh" "$HM" "${HC2:0:8}" Active --model smoke --comment "$T/hm-c.md" 2>&1) || rc=$?
+[ "$rc" -eq 3 ] && grep -q 'move-card.sh: this session.s lease on beef0000 is lost' <<<"$O" && [ -d "$HMI/$HC2" ] && [ ! -e "$HMI/$HC2/comments" ] \
+  || { echo "move-card --comment, lease lost at the comment (rc $rc): want exit 3 and the card not moved: $O"; exit 1; }
+ok "move-card.sh --comment: a lease lost between the move's check and the comment's exits 3 with its own line, the card unmoved (before the fix, exit 1 'the comment was refused')"
+rc=0; O=$("$SK/work/scripts/lint-ask.sh" "$T/no-such-ask.md" 2>/dev/null) || rc=$?
+[ "$rc" -eq 2 ] && [ -z "$O" ] || { echo "lint-ask, an unreadable file: want exit 2 and nothing on stdout (rc $rc): $O"; exit 1; }
+rc=0; O=$("$SK/work/scripts/lint-ask.sh" "$T/no-such-ask.md" 2>&1 >/dev/null) || rc=$?
+[ "$rc" -eq 2 ] && [ "$O" = "lint-ask.sh: no such file: $T/no-such-ask.md" ] || { echo "lint-ask, an unreadable file: want the message on stderr (rc $rc): $O"; exit 1; }
+{ printf '@owner Which engine?'; for _ in $(seq 1 77); do printf ' word'; done; printf '\n'; } > "$T/ask-80.md"
+{ printf '@owner Which engine?'; for _ in $(seq 1 76); do printf ' word'; done; printf '\n'; } > "$T/ask-79.md"
+[ "$(wc -w < "$T/ask-80.md" | tr -d ' ')" -eq 80 ] || { echo "ask-80 fixture is not 80 words"; exit 1; }
+rc=0; O=$("$SK/work/scripts/lint-ask.sh" "$T/ask-80.md") || rc=$?
+[ "$rc" -eq 1 ] && grep -q '^80 words; an ask stays under 80' <<<"$O" || { echo "lint-ask, an 80-word ask: want exit 1 (rc $rc): $O"; exit 1; }
+"$SK/work/scripts/lint-ask.sh" "$T/ask-79.md" || { echo "lint-ask, a 79-word ask failed"; exit 1; }
+ok "lint-ask.sh: an unreadable file prints 'lint-ask.sh: no such file: <f>' on stderr only, exit 2; an ask of exactly 80 words fails, 79 passes (before the fix: stdout message, 80 passed)"
 
 # release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
@@ -3596,6 +3683,37 @@ RC=0; LW SW-solo "$SOLO/work/scripts/move-card.sh" "$LB" "$KS" Shaping --model s
 rm -rf "$T/solo"; validate "$LB" >/dev/null
 ok "post-comment.sh and move-card.sh with no lanework/scripts/lease.sh beside work skip the check with one note on stderr and write as today"
 
+# script headers (lanework group): found-board render failure, usage strings, and usage errors exit 2
+HB="$T/hdr-lw"; rm -rf "$HB"; mkdir -p "$HB"; HFB="$SK/lanework/scripts/found-board.sh"
+HFA=(--index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --model smoke)
+# item 3: a template with a slot no --var fills exits 2 and writes nothing; before the fix exit 255 and an empty folder. An existing folder stays.
+RC=0; HO=$("$HFB" "$HB/Slot.lanework" "${HFA[@]}" 2>&1) || RC=$?
+[ $RC = 2 ] && [ ! -e "$HB/Slot.lanework" ] && [[ "$HO" == *unfilled* ]] || { echo "unfilled slot: rc $RC, $(ls -d "$HB"/Slot* 2>&1): $HO"; exit 1; }
+mkdir "$HB/Pre.lanework"; RC=0; "$HFB" "$HB/Pre.lanework" "${HFA[@]}" >/dev/null 2>&1 || RC=$?
+[ $RC = 2 ] && [ -d "$HB/Pre.lanework" ] && [ -z "$(ls -A "$HB/Pre.lanework")" ] || { echo "unfilled slot, existing empty folder: rc $RC"; exit 1; }
+ok "found-board.sh: a template that fails to render exits 2 with its message and creates no folder; an existing empty folder is left as it was"
+# item 6: the non-board usage line names --ignore-board-copy
+HE=$(python3 -B "$SK/lanework/scripts/heal-board.py" "$HB" 2>&1 >/dev/null) || true
+[[ "$HE" == *--ignore-board-copy* ]] || { echo "heal-board usage: $HE"; exit 1; }
+ok "heal-board.py: the usage line printed for a non-board names --ignore-board-copy"
+# item 7: _timer with a wrong argument count says so; --force appears once in the usage
+HL="$SK/lanework/scripts/lease.sh"
+RC=0; HE=$("$HL" _timer a b 2>&1 >/dev/null) || RC=$?; [ $RC = 2 ] && [[ "$HE" == *"_timer is internal"* ]] || { echo "_timer a b: rc $RC: $HE"; exit 1; }
+RC=0; HE=$("$HL" bogus 2>&1 >/dev/null) || RC=$?; HU=${HE#*usage: }
+[ $RC = 2 ] && [ "$(grep -o -e '\[--force\]' <<<"$HU" | wc -l | tr -d ' ')" = 1 ] || { echo "lease usage: rc $RC: $HE"; exit 1; }
+ok "lease.sh: a wrong _timer argument count prints that it is internal and exits 2; the usage lists [--force] once, under release"
+# option C: usage errors exit 2 and write nothing (found-board.sh: unknown argument, a flag with no value, no argument; read-board.sh: no or unknown argument; not a board stays 1)
+for bad in "--bogus" "--index" "--lanes" "--title" "--var" "--labels" "--model" "--name"; do
+  rm -rf "$HB/Bad.lanework"; RC=0; "$HFB" "$HB/Bad.lanework" "${HFA[@]}" $bad >/dev/null 2>&1 || RC=$?
+  [ $RC = 2 ] && [ ! -e "$HB/Bad.lanework" ] || { echo "found-board.sh ... $bad: rc $RC"; exit 1; }
+done
+RC=0; "$HFB" >/dev/null 2>&1 || RC=$?; [ $RC = 2 ] || { echo "found-board.sh no argument: rc $RC"; exit 1; }
+HR="$SK/lanework/scripts/read-board.sh"
+RC=0; "$HR" >/dev/null 2>&1 || RC=$?; [ $RC = 2 ] || { echo "read-board.sh no argument: rc $RC"; exit 1; }
+RC=0; "$HR" "$LB" --bogus >/dev/null 2>&1 || RC=$?; [ $RC = 2 ] || { echo "read-board.sh unknown argument: rc $RC"; exit 1; }
+RC=0; "$HR" "$HB/none.lanework" >/dev/null 2>&1 || RC=$?; [ $RC = 1 ] || { echo "read-board.sh not a board: rc $RC"; exit 1; }
+ok "found-board.sh and read-board.sh: an unknown argument, a flag with no value or no argument exits 2 and writes nothing; read-board.sh on a non-board stays 1"
+
 # 9. the prose: under skills/work/ no START is read as a claim; START is defined once, in writing.md, and linked; the lease is named to subagents
 printf '%s\n' '- **A START / plan comment is a claim.**' | grep 'START' | grep -q -i 'claim' || lw_fail "the START-claim pattern misses the line it retired"
 SC=$(grep -rn 'START' "$SK/work" | grep -i 'claim' || true); [ -z "$SC" ] || lw_fail "a START read as a claim under skills/work/: $SC"
@@ -3779,6 +3897,26 @@ for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
 for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do kill "$p" 2>/dev/null || true; done; LSP=()
 waitfor '[ -z "$(pgrep -f "$LS _timer" || true)" ]' || { echo "timers left:"; pgrep -fl "$LS _timer"; exit 1; }
 validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
+
+# usage guard: every script run with no arguments exits 2 (64 for the heal scripts) and its header states that code: in the comment lines (shell) or module docstring (.py) among the first 60 lines.
+# A script that needs no arguments is listed in NOARG with its code. Catches a new script with no stated usage code, and a code change
+# that leaves its header behind. A floor, not a proof: it does not check refusal codes. GUARD_DIR overrides the scanned skills dir (self-test).
+# NOARG: "name=code" words for a script that needs no arguments (bash 3.2 has no associative arrays); none yet
+NOARG=""
+for ug_s in "${GUARD_DIR:-$SK}"/*/scripts/*; do
+  ug_n=$(basename "$ug_s"); [ "$ug_n" != lib.sh ] || continue
+  case "$ug_n" in heal-board.py|heal-descriptors.py) ug_want=64 ;; *) ug_want=2 ;; esac
+  for ug_e in $NOARG; do [ "${ug_e%%=*}" != "$ug_n" ] || ug_want=${ug_e#*=}; done
+  ug_rc=0; env -u CLAUDE_MODEL -u CLAUDE_CODE_SESSION_ID -u CLAUDE_PID perl -e 'alarm 10; exec @ARGV' "$ug_s" </dev/null >/dev/null 2>&1 || ug_rc=$?
+  [ "$ug_rc" = "$ug_want" ] || { echo "$ug_s with no arguments exits $ug_rc, want $ug_want"; exit 1; }
+  # the header's prose only: comment lines of a shell script, the module docstring of a .py (code lines like `exit 2` do not count)
+  case "$ug_n" in
+    *.py) ug_hdr=$(head -60 "$ug_s" | awk '/"""/ { c += gsub(/"""/, "&") } c >= 1 { print } c >= 2 { exit }') ;;
+    *) ug_hdr=$(head -60 "$ug_s" | grep -E '^[[:space:]]*#' || true) ;;
+  esac
+  grep -qi "exit $ug_want" <<<"$ug_hdr" || { echo "$ug_s: first 60 lines never say 'exit $ug_want'"; exit 1; }
+done
+ok "usage guard: every script with no arguments exits 2 (64 for heal), and its header says so"
 
 # plugin: the manifest agrees with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'

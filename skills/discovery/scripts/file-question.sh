@@ -8,34 +8,37 @@
 # record (--why, no handle), then the ask (`waiting.comment` points at it).
 # No --ask: built from --body (first paragraph, Options bullets, first sentence of Recommended,
 # matching "If no answer"), then linted with work's lint-ask.sh (warns, never aborts).
+# Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, no --round, an unreadable --body or --ask, no model (--model, else CLAUDE_MODEL)).
+# Exit 1, nothing written: not a board, no Asked lane, a brace in the stamp values.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 TEMPLATES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)"
 LINT_SCRIPT="$LIB_DIR/../../work/scripts/lint-ask.sh"
 
-BOARD="${1:?usage: file-question.sh <board> <title> --round N --body F [...]}"
-TITLE="${2:?usage: file-question.sh <board> <title> --round N --body F [...]}"
+USAGE='file-question.sh <board> "<title, no Q-number>" --round N --body F --model m [--ask F] [--depends <link>]... [--why T] [--name n] [--session s]'
+[ $# -ge 2 ] || { echo "usage: $USAGE" >&2; exit 2; }
+BOARD="$1"; TITLE="$2"
 shift 2
 ROUND=""; BODY_FILE=""; ASK_FILE=""; WHY="**On the frontier now.**"
 MODEL=""; NAME="claude"; SESSION=""; DEPENDS=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --round)   ROUND="${2:?--round needs a value}"; shift 2 ;;
-    --body)    BODY_FILE="${2:?--body needs a file}"; shift 2 ;;
-    --ask)     ASK_FILE="${2:?--ask needs a file}"; shift 2 ;;
-    --depends) DEPENDS+=("${2:?--depends needs a link}"); shift 2 ;;
-    --why)     WHY="${2:?--why needs text}"; shift 2 ;;
-    --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2-}"; shift 2 ;;
-    --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
-    *) echo "file-question.sh: unknown argument: $1" >&2; exit 1 ;;
+    --round)   need_value "$@"; ROUND="$2"; shift 2 ;;
+    --body)    need_value "$@"; BODY_FILE="$2"; shift 2 ;;
+    --ask)     need_value "$@"; ASK_FILE="$2"; shift 2 ;;
+    --depends) need_value "$@"; DEPENDS+=("$2"); shift 2 ;;
+    --why)     need_value "$@"; WHY="$2"; shift 2 ;;
+    --model)   need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)    [ $# -ge 2 ] || need_value "$@"; NAME="$2"; shift 2 ;;
+    --session) need_value "$@"; SESSION="$2"; shift 2 ;;
+    *) echo "file-question.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 require_model file-question.sh "file-question.sh <board> <title> --round N --body F --model m [...]"
 stamp_args_ok "$NAME" "$MODEL" "$SESSION"
-[ -n "$ROUND" ] || { echo "file-question.sh: --round is required" >&2; exit 1; }
-[ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-question.sh: --body must name a readable file" >&2; exit 1; }
-[ -z "$ASK_FILE" ] || [ -r "$ASK_FILE" ] || { echo "file-question.sh: --ask must name a readable file" >&2; exit 1; }
+[ -n "$ROUND" ] || { echo "file-question.sh: --round is required" >&2; exit 2; }
+[ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-question.sh: --body must name a readable file" >&2; exit 2; }
+[ -z "$ASK_FILE" ] || [ -r "$ASK_FILE" ] || { echo "file-question.sh: --ask must name a readable file" >&2; exit 2; }
 [ -f "$BOARD/index.md" ] || { echo "file-question.sh: not a board: $BOARD" >&2; exit 1; }
 
 ASKED=$(lane_by_title "$BOARD" Asked) || { echo "file-question.sh: no Asked lane on $BOARD" >&2; exit 1; }

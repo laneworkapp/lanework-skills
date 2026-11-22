@@ -10,33 +10,36 @@
 # in Asked (a settled card is never edited), or in the --from lane (plan: Working). No waiting, no comments.
 # --supersedes <uuid> (repeatable): each must be a card in Decisions; the new card gets one `supersedes`
 # relation per target (relations/<uuid>/index.md). Nothing is written to the old card. Any bad target: exit 1, nothing written.
+# Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, --record not ADR or PDR, no --title, an unreadable --body, no model (--model, else CLAUDE_MODEL)).
+# Exit 1, nothing written: not a board, no Decisions or --from lane, a bad question uuid or one not in the --from lane, a bad --supersedes, a brace in the frontmatter.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 TEMPLATES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)"
 
-BOARD="${1:?usage: file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F [...]}"
-QID="${2:?usage: file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F [...]}"
+USAGE='file-record.sh <board> <question-card-uuid> --record ADR|PDR --title t --body F [--from <lane title>] [--supersedes <record-uuid>]... --model m [--name n] [--session s]'
+[ $# -ge 2 ] || { echo "usage: $USAGE" >&2; exit 2; }
+BOARD="$1"; QID="$2"
 shift 2
 KIND=""; TITLE=""; BODY_FILE=""; FROM="Asked"
 MODEL=""; NAME="claude"; SESSION=""; SUPERSEDES=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --record)  KIND="${2:?--record needs ADR or PDR}"; shift 2 ;;
-    --title)   TITLE="${2:?--title needs text}"; shift 2 ;;
-    --body)    BODY_FILE="${2:?--body needs a file}"; shift 2 ;;
-    --from)    FROM="${2:?--from needs a lane title}"; shift 2 ;;
-    --supersedes) SUPERSEDES+=("${2:?--supersedes needs a record card uuid}"); shift 2 ;;
-    --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2-}"; shift 2 ;;
-    --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
-    *) echo "file-record.sh: unknown argument: $1" >&2; exit 1 ;;
+    --record)  need_value "$@"; KIND="$2"; shift 2 ;;
+    --title)   need_value "$@"; TITLE="$2"; shift 2 ;;
+    --body)    need_value "$@"; BODY_FILE="$2"; shift 2 ;;
+    --from)    need_value "$@"; FROM="$2"; shift 2 ;;
+    --supersedes) need_value "$@"; SUPERSEDES+=("$2"); shift 2 ;;
+    --model)   need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)    [ $# -ge 2 ] || need_value "$@"; NAME="$2"; shift 2 ;;
+    --session) need_value "$@"; SESSION="$2"; shift 2 ;;
+    *) echo "file-record.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 require_model file-record.sh "file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F --model m [...]"
 stamp_args_ok "$NAME" "$MODEL" "$SESSION"
-case "$KIND" in ADR) RANK=1 ;; PDR) RANK=2 ;; *) echo "file-record.sh: --record is ADR or PDR" >&2; exit 1 ;; esac
-[ -n "$TITLE" ] || { echo "file-record.sh: --title is required" >&2; exit 1; }
-[ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-record.sh: --body must name a readable file" >&2; exit 1; }
+case "$KIND" in ADR) RANK=1 ;; PDR) RANK=2 ;; *) echo "file-record.sh: --record is ADR or PDR" >&2; exit 2 ;; esac
+[ -n "$TITLE" ] || { echo "file-record.sh: --title is required" >&2; exit 2; }
+[ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-record.sh: --body must name a readable file" >&2; exit 2; }
 [ -f "$BOARD/index.md" ] || { echo "file-record.sh: not a board: $BOARD" >&2; exit 1; }
 
 DEC=$(lane_by_title "$BOARD" Decisions) || { echo "file-record.sh: no Decisions lane on $BOARD (add it, with the record and status label kinds: templates/lanes.md, templates/board.md)" >&2; exit 1; }

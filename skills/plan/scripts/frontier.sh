@@ -6,11 +6,13 @@
 # dependencies not yet Resolved, then Working tickets (`waiting` marked). Warns on stderr when
 # a lane disagrees with its tickets' dependencies: a Blocked ticket with every dependency
 # Resolved, a Frontier ticket with one open, a dependency pointing at a missing card or at an
-# Out of scope one. Always exits 0 on a board.
+# Out of scope one. Exit 0 on a board, warnings or not. Exit 2: no argument or an unknown argument (a first argument starting with `-` is one). Exit 1: not a board.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 
-BOARD="${1:?usage: frontier.sh <board>}"
+[ $# -eq 1 ] || { echo "usage: frontier.sh <board>" >&2; exit 2; }
+case "$1" in -*) echo "frontier.sh: unknown argument: $1" >&2; echo "usage: frontier.sh <board>" >&2; exit 2 ;; esac
+BOARD="$1"
 [ -f "$BOARD/index.md" ] || { echo "frontier.sh: not a board: $BOARD" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
 

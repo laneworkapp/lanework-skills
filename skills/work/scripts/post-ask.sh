@@ -10,7 +10,7 @@
 # comment: <the ask's uuid>}` (replacing any earlier `waiting`) and `modified` whole with the
 # caller's `by`. Staged outside the board, then `mv`. Prints the ask's uuid. One handle only: a list
 # (`for: [a, b]`) is written by hand.
-# Exit 2, nothing written: no model, no --body, no --for, a bad flag or handle, no card or several.
+# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), no --body, no --for, a bad flag or handle, no card or several.
 # Exit 1, nothing written: not a board, not a lowercase uuid, the body fails lint or lacks @<handle>
 # on line 1, the newest comment over 30 s ahead of the clock, post-comment.sh refused. Exit 3, nothing
 # written but the Lease lost record: post-comment.sh found this session's lease on the card lost

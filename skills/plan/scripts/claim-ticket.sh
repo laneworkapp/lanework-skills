@@ -3,7 +3,8 @@
 # usage: claim-ticket.sh <board> <card-uuid> --model m [--name n] [--session s]
 # Stakes the card's lease (lanework/scripts/lease.sh stake, lanework/references/writes.md § Lease) while it is still in
 # Frontier, then moves it to the bottom of Working (fresh order, `modified` rewritten whole, `claimed` carried as the stake
-# left it) and posts "**Claimed** by <name>". The holder is CLAUDE_CODE_SESSION_ID, never --session (a stamp label).
+# left it) and posts "**Claimed** by <name>[, session <s>]" (the `, session` part only with --session). The holder is CLAUDE_CODE_SESSION_ID, never --session (a stamp label).
+# Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, an empty --name, no model (--model, else CLAUDE_MODEL)).
 # Exit 1, nothing written: the card not in Frontier (claimed by another session, blocked, resolved); no
 # CLAUDE_CODE_SESSION_ID or no CLAUDE_PID (no session, no lease); no lanework/scripts/lease.sh beside plan; the stake
 # refused or lost (lease.sh names the holder on stderr; a takeover notice it posted stays). After the stake, the card
@@ -17,15 +18,16 @@
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 
-BOARD="${1:?usage: claim-ticket.sh <board> <card-uuid> --model m [...]}"
-CID="${2:?usage: claim-ticket.sh <board> <card-uuid> --model m [...]}"
+USAGE='claim-ticket.sh <board> <card-uuid> --model m [--name n] [--session s]'
+[ $# -ge 2 ] || { echo "usage: $USAGE" >&2; exit 2; }
+BOARD="$1"; CID="$2"
 shift 2
 MODEL=""; NAME="claude"; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2-}"; shift 2 ;;
-    --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
+    --model)   need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)    [ $# -ge 2 ] || need_value "$@"; NAME="$2"; shift 2 ;;
+    --session) need_value "$@"; SESSION="$2"; shift 2 ;;
     *) echo "claim-ticket.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done

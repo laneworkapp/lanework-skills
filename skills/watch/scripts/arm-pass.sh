@@ -22,6 +22,8 @@
 # as held: `comment` lines still print (they read no lease), the failure goes to stderr and the exit is 1. An `arm` printed
 # without leases could double-dispatch a card another session holds.
 # A comment signed `board` (the app's move receipt, a `moved:` key) counts for nothing: not a reply.
+# Exit 0 = swept. Exit 1 = `lease.sh list` failed or is missing (above). Exit 2 = usage or setup, nothing printed:
+# no argument, not a board, no board-kinds.md (when no lane titles are given).
 # Owner = no `by`, or `by.kind: human` (either quote). CRLF files are read. Every comment's `created.at` orders the thread.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"

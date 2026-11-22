@@ -4,7 +4,7 @@
 # Run inside the repo (paths relative to the current directory, or absolute). Under a lock shared by
 # every worktree of the repo (<git common dir>/lanework-commit-board.lock, a directory holding the
 # holder's pid, created whole; a lock whose pid fails `kill -0` is reclaimed; waits up to 300 s):
-# fetch origin and `merge --ff-only` onto origin/<branch> (a dirty overlap or a diverged branch stops,
+# fetch origin (a failed fetch: exit 1 with --push, nothing committed; without it a warning, and the commit is local) and `merge --ff-only` onto origin/<branch> (a dirty overlap or a diverged branch stops,
 # naming the files), then commit through a private GIT_INDEX_FILE read from HEAD plus only the named
 # paths (`add -A` per path, literal pathspecs, so deletions and moves count; a path neither on disk nor
 # in HEAD, such as a card's old lane path when it was filed since, is skipped). The message is <msg>, and
@@ -50,7 +50,7 @@
 # <git dir>/lanework-commit-board.saved.<pid>.XXXXXX` puts them back (intent-to-add ones need `git add -N` again).
 # Prints the one-line log of the commit it made or pushed (not HEAD, which an owner may have reset meanwhile), or
 # "nothing to commit" (exit 0: the named paths exist, nothing changed, and with --push nothing unpushed).
-# Exit 2: a bad flag, no message, no paths, a bad LANEWORK_PUSH_TIMEOUT. Exit 1, nothing committed: not in a work tree, detached HEAD,
+# Exit 2: a bad flag, no message, no paths, with --push a bad LANEWORK_PUSH_TIMEOUT. Exit 1, nothing committed: the save file cannot be created in the git dir, the fetch fails with --push, not in a work tree, detached HEAD,
 # a path outside the work tree or the root itself, a `.DS_Store` or an owner's `comments/.draft/`
 # among what would be staged, a path git cannot add, every named path skipped (none on disk or in HEAD), `git commit` failing (a
 # pre-commit or commit-msg hook; the index stays as it was), --push with no origin, the lock not taken in

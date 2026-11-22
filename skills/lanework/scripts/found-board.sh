@@ -9,28 +9,33 @@
 #   Repeated --labels accumulate (a kind repeated across flags is written once); a kind twice in one list -> exit 2.
 # Lanes table rows: | order | title | collapsed (yes) | icon (YAML flow mapping, or empty) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
-# Refuses a non-empty folder.
+# Exit: 0 founded; 1 refused (non-empty folder, unreadable --index or --lanes, missing label-kinds.md, a brace in the stamp values), nothing written;
+#   2 usage, nothing written (no argument, unknown argument, a flag with no value, no model (--model, else CLAUDE_MODEL), empty or control-character --name or --model,
+#   blank flattened --title, reserved --var, a template with {{label_entries}} but no --labels, --labels with no slot, bad label kind, a template that fails to render, e.g. a {{slot}} no --var fills).
+# The folder is created only after the template renders, so a failed run leaves no folder.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-BOARD="${1:?usage: found-board.sh <board> --index F --lanes F [--title T] [--var k=v]... --model m [--labels k,...] [--name n]}"
+USAGE="found-board.sh <board> --index F --lanes F [--title T] [--var k=v]... --model m [--labels k,...] [--name n]"
+[ $# -ge 1 ] || { echo "usage: $USAGE" >&2; exit 2; }
+BOARD="$1"
 shift
 INDEX=""; LANES=""; TITLE=""; LABELS=""; VARS=()
 MODEL=""; NAME="claude"; HAVE_LABELS=""
 KINDS="$(dirname "${BASH_SOURCE[0]}")/../templates/label-kinds.md"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --index) INDEX="${2:?--index needs a file}"; shift 2 ;;
-    --lanes) LANES="${2:?--lanes needs a file}"; shift 2 ;;
-    --title) TITLE="${2:?--title needs a value}"; shift 2 ;;
-    --var)   v="${2:?--var needs key=value}"; VARS+=("${v%%=*}" "${v#*=}"); shift 2 ;;
-    --labels) LABELS="$(merge_kinds "$LABELS" "$HAVE_LABELS" "${2?--labels needs a kind list}")"; HAVE_LABELS=1; shift 2 ;;
-    --model) MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)  NAME="${2-}"; shift 2 ;;
-    *) echo "found-board.sh: unknown argument: $1" >&2; exit 1 ;;
+    --index) need_value "$@"; INDEX="$2"; shift 2 ;;
+    --lanes) need_value "$@"; LANES="$2"; shift 2 ;;
+    --title) need_value "$@"; TITLE="$2"; shift 2 ;;
+    --var)   need_value "$@"; v="$2"; VARS+=("${v%%=*}" "${v#*=}"); shift 2 ;;
+    --labels) [ $# -ge 2 ] || need_value "$@"; LABELS="$(merge_kinds "$LABELS" "$HAVE_LABELS" "$2")"; HAVE_LABELS=1; shift 2 ;;
+    --model) need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)  [ $# -ge 2 ] || need_value "$@"; NAME="$2"; shift 2 ;;
+    *) printf 'found-board.sh: unknown argument: %s\nusage: %s\n' "$1" "$USAGE" >&2; exit 2 ;;
   esac
 done
-require_model found-board.sh "found-board.sh <board> --index F --lanes F --model m [--title T] [--var k=v]... [--labels k,...] [--name n]"
+require_model found-board.sh "$USAGE"
 stamp_args_ok "$NAME" "$MODEL"
 [ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
 [ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
@@ -68,7 +73,8 @@ NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL"); BOARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/lanework-found.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 
 render "$INDEX" title "$(flat_str "$TITLE")" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
-  stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" label_entries "$LABEL_ENTRIES" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
+  stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" label_entries "$LABEL_ENTRIES" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md" ||
+  { echo "found-board.sh: the template did not render; nothing written" >&2; exit 2; }
 compact_fm "$STAGE/index.md"
 stamp_lines_ok "$STAGE/index.md" created modified || { echo "found-board.sh: a brace in the stamp (--model or --name); nothing written" >&2; exit 1; }
 mkdir -p "$BOARD"
