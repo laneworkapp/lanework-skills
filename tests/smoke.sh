@@ -3334,6 +3334,21 @@ if [ -n "$RAMD" ] && newfs_hfs -v leasesmoke "$RAMD" >/dev/null 2>&1 && mount -t
   [ "$(cat "$T/lx.rc")" = 0 ] && grep -qx 'Body edited in place.' "$F11y" && [ "$(csess "$F11y")" = S-vol2 ] && [ "$(cuntil "$F11y")" != "$U0" ] \
     || { echo "11d: a renewal across volumes undid an in-place write: rc $(cat "$T/lx.rc"), $(cat "$T/lx.err")"; cat "$F11y"; ram_off; exit 1; }
   RE=1000 LX S-vol2 release "$LB" "$C11y" --model smoke >/dev/null
+  # a SIGKILL of lease.sh while perl holds the temp file: the name carries perl's pid, so the sweep by another write leaves it and the write lands
+  C11k=$(lcard "Eleven k"); F11k=$(lcf "$C11k"); C11m=$(lcard "Eleven m"); RE=1000 LX S-vol5 stake "$LB" "$C11k" --model smoke >/dev/null; U0=$(cuntil "$F11k"); sleep 1.1
+  CLAUDE_CODE_SESSION_ID=S-vol5 CLAUDE_PID="$LPID" TMPDIR="$RAMM" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 LEASE_TEST_WRITE_PAUSE=3 \
+    "$LS" renew "$LB" "$C11k" --model smoke >/dev/null 2>"$T/lx.err" & KLS=$!
+  waitfor '[ -n "$(ls "$LB"/.lease-write.*.lanework-tmp 2>/dev/null)" ]' || { echo "11d: the kill case never held a temp file"; wait "$KLS"; ram_off; exit 1; }
+  KF=$(ls "$LB"/.lease-write.*.lanework-tmp | head -1); KP=${KF%.lanework-tmp}; KP=${KP##*.}
+  KPP=""; case "$KP" in ''|*[!0-9]*) ;; *) [ "$KP" -gt 1 ] && KPP=$(ps -o ppid= -p "$KP" 2>/dev/null | tr -d ' ') ;; esac
+  if [ -z "$KPP" ] || [ "$KPP" = "$KP" ] || [ "$KPP" != "$KLS" ] || ! ps -ww -p "$KPP" -o command= 2>/dev/null | grep -qF "$LS"; then
+    echo "11d: the temp file's pid ($KP, parent '$KPP') is not a process whose parent is the lease.sh started ($KLS)"; wait "$KLS"; ram_off; exit 1
+  fi
+  kill -9 "$KLS"; wait "$KLS" 2>/dev/null || true
+  RE=1000 LX S-vol6 stake "$LB" "$C11m" --model smoke >/dev/null     # a second lease write on the board runs the sweep
+  waitfor '[ "$(cuntil "$F11k")" != "$U0" ] && [ -z "$(ls "$LB"/.lease-write.*.lanework-tmp 2>/dev/null)" ]' 10 \
+    || { echo "11d: the write of a SIGKILLed lease.sh was dropped (until unchanged or a temp file left)"; ram_off; exit 1; }
+  RE=1000 LX S-vol5 release "$LB" "$C11k" --model smoke >/dev/null; RE=1000 LX S-vol6 release "$LB" "$C11m" --model smoke >/dev/null
   sleep 0.5; [ -z "$(find "$LB" -name '.lease-write.*.lanework-tmp' 2>/dev/null)" ] || { echo "11d: a temp file was left:"; find "$LB" -name '.lease-write.*'; ram_off; exit 1; }
   validate "$LB" >/dev/null
   ok "lease: with TMPDIR on another volume than the board, stake, the timer's renewal and release all write; a write landing while the temp file waits survives; no temp file is left"
@@ -3352,7 +3367,10 @@ L S-own stake "$LB" "$C11e" --model smoke >/dev/null; RC=0; L S-other release "$
 [ $RC = 1 ] && grep -qF 'lease.sh list' "$T/l11e.err" || { echo "11e: another session's release: rc $RC, $(cat "$T/l11e.err")"; exit 1; }
 ( : ) & DP=$!; wait "$DP"; sleep 600 </dev/null >/dev/null 2>&1 & LV=$!; LSP+=("$LV")
 DW="$LB/.lease-write.$C11e.$DP.lanework-tmp"; LW="$LB/.lease-write.$C11e.$LV.lanework-tmp"; : > "$DW"; : > "$LW"
+P1W="$LB/.lease-write.$C11e.1.lanework-tmp"; : > "$P1W"          # pid 1 is live but not signalable as this user (kill -0 fails with EPERM)
 L S-own renew "$LB" "$C11e" --model smoke >/dev/null
+[ -e "$P1W" ] || { echo "11e: sweep: a live pid this user may not signal (1) had its temp file deleted"; exit 1; }
+rm -f "$P1W"
 [ ! -e "$DW" ] && [ -e "$LW" ] || { echo "11e: sweep: dead file present=$([ -e "$DW" ] && echo y || echo n), live file present=$([ -e "$LW" ] && echo y || echo n)"; exit 1; }
 rm -f "$LW"; L S-own release "$LB" "$C11e" --model smoke >/dev/null; kill "$LV" 2>/dev/null || true
 ok "lease: a session id with a comma, closing brace or backslash is refused (exit 2) with no claim written; another session's release names lease.sh list; a write sweeps the temp file of a dead pid and leaves a live one"
