@@ -10,11 +10,11 @@
 # no hedging, a blank line after any list, every card it names linked (`lanework://<board-id>/<card-id>`
 # somewhere in the body for each bare eight-hex id), and, when it lists options, the standing line
 # `- Recap: Explain this in plain terms first` as the last of them (that line is left out of the word count). One line per violation on stdout and exit 1; silent exit 0
-# when clean.
+# when clean. Exit 2 (message on stderr): no argument, or <file> unreadable.
 set -u
 . "$(dirname "$0")/../../lanework/scripts/lib.sh"
 [ $# -ge 1 ] || { echo "usage: lint-ask.sh <file> [<board dir>]" >&2; exit 2; }; f=$1; board=${2:-}
-[ -r "$f" ] || { echo "no such file: $f"; exit 2; }
+[ -r "$f" ] || { echo "lint-ask.sh: no such file: $f" >&2; exit 2; }
 body=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {fm=0; next} !fm' "$f")
 strip='s/`[^`]*`//g; s/\]\([^)]*\)/]/g; s#[[:alpha:]][[:alnum:]+.-]*://[^[:space:]>)]*##g'   # code spans, link targets, URLs
 lead=$(printf '%s\n' "$body" | grep -v '^[[:space:]]*$' | head -1 | grep -o -E '^[[:space:]]*@[[:alnum:]_-]+' | sed 's/.*@//')   # a handle starting line 1 is an ask for that person
@@ -38,7 +38,7 @@ recap='- Recap: Explain this in plain terms first'
 lastopt=$(printf '%s\n' "$body" | grep -E '^[[:space:]]*- [A-Za-z][A-Za-z0-9 -]{0,20}: ' | tail -1)
 [ -z "$lastopt" ] || [ "$lastopt" = "$recap" ] || say "options must end with the standing line: $recap"
 words=$(printf '%s\n' "$body" | grep -v -x -F -e "$recap" | wc -w | tr -d ' ')
-[ "$words" -le 80 ] || say "$words words; an ask stays under 80"
+[ "$words" -lt 80 ] || say "$words words; an ask stays under 80"
 q=$(printf '%s\n' "$body" | grep -o '?' | wc -l | tr -d ' ')
 [ "$q" -le 1 ] || say "$q question marks; two asks are two comments"
 printf '%s\n' "$body" | grep -q -E '—|;' && say "a dash- or semicolon-chained sentence; one clause per sentence"

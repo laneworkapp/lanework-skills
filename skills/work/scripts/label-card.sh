@@ -12,7 +12,7 @@
 # Lease (lanework/references/writes.md § Lease): with CLAUDE_CODE_SESSION_ID set, `lease.sh check` first.
 # Exit 1, nothing written: not a board or card, CRLF line endings, an undefined kind, a value a closed kind does not list, a different
 # value of a `single` kind the card holds, the card changed meanwhile, the validator failed on the staged card.
-# Exit 2, nothing written: no model, no label, a bad flag. Exit 3: the lease is lost.
+# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), no label, a bad flag. Exit 3: the lease is lost.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE="label-card.sh <board> <card-index-or-dir> <label>... --model m [--name n] [--session s]"
