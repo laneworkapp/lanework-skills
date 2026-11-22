@@ -768,6 +768,7 @@ usage2 found-plan-board-bare "$PS/found-plan-board.sh"
 usage2 found-plan-board-labels "$PS/found-plan-board.sh" "$T/XU Plan.lanework" --model smoke --labels
 usage2 frontier-bare "$PS/frontier.sh"
 usage2 frontier-extra "$PS/frontier.sh" "$PL" --bogus
+usage2 frontier-leading-flag "$PS/frontier.sh" --bogus
 FRC=0; "$PS/frontier.sh" "$T/not-a-board" >/dev/null 2>&1 || FRC=$?
 [ "$FRC" -eq 1 ] || { echo "frontier.sh: not a board exits $FRC, want 1"; exit 1; }
 [ "$S5" = "$(sum "$D")" ] && [ "$S6" = "$(sum "$PL")" ] && [ ! -e "$T/XU Discovery.lanework" ] && [ ! -e "$T/XU Plan.lanework" ] || { echo "a usage-error call wrote something"; exit 1; }
@@ -1723,6 +1724,7 @@ uo=$(python3 "$MP" driver a b 2>&1 || true)
 { grep -q 'not a git repo: ' "$T/mhw/err" && grep -q '^usage:' <<<"$uo"; } || { echo "lanework-merge.py usage or not-a-repo message missing"; exit 1; }
 ok "lanework-merge.py: driver with fewer than 4 paths, resolve with --model last, and resolve or install on a non-repo exit 2 with no traceback"
 rc=0; "$MBS" >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh with no argument: rc=$rc"; exit 1; }
+rc=0; "$MBS" --bogus >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh leading unknown argument: rc=$rc"; exit 1; }
 rc=0; "$MBS" "$T/mhw/repo" --bogus >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh unknown argument: rc=$rc"; exit 1; }
 rc=0; "$MBS" "$T/mhw/repo" --model >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh --model with no value: rc=$rc"; exit 1; }
 rc=0; "$MBS" "$T/mhw/nope" >/dev/null 2>"$T/mhw/err" || rc=$?; { [ "$rc" = 1 ] && grep -q 'not a git repo' "$T/mhw/err"; } || { echo "merge-board.sh not a repo: rc=$rc"; exit 1; }
@@ -3896,7 +3898,7 @@ for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do kill "$p" 2>/dev/null || true; done; L
 waitfor '[ -z "$(pgrep -f "$LS _timer" || true)" ]' || { echo "timers left:"; pgrep -fl "$LS _timer"; exit 1; }
 validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
 
-# usage guard: every script run with no arguments exits 2 (64 for the heal scripts) and its header, first 60 lines, states that code.
+# usage guard: every script run with no arguments exits 2 (64 for the heal scripts) and its header states that code: in the comment lines (shell) or module docstring (.py) among the first 60 lines.
 # A script that needs no arguments is listed in NOARG with its code. Catches a new script with no stated usage code, and a code change
 # that leaves its header behind. A floor, not a proof: it does not check refusal codes. GUARD_DIR overrides the scanned skills dir (self-test).
 # NOARG: "name=code" words for a script that needs no arguments (bash 3.2 has no associative arrays); none yet
@@ -3907,7 +3909,12 @@ for ug_s in "${GUARD_DIR:-$SK}"/*/scripts/*; do
   for ug_e in $NOARG; do [ "${ug_e%%=*}" != "$ug_n" ] || ug_want=${ug_e#*=}; done
   ug_rc=0; env -u CLAUDE_MODEL -u CLAUDE_CODE_SESSION_ID -u CLAUDE_PID perl -e 'alarm 10; exec @ARGV' "$ug_s" </dev/null >/dev/null 2>&1 || ug_rc=$?
   [ "$ug_rc" = "$ug_want" ] || { echo "$ug_s with no arguments exits $ug_rc, want $ug_want"; exit 1; }
-  ug_hdr=$(head -60 "$ug_s"); grep -qi "exit $ug_want" <<<"$ug_hdr" || { echo "$ug_s: first 60 lines never say 'exit $ug_want'"; exit 1; }
+  # the header's prose only: comment lines of a shell script, the module docstring of a .py (code lines like `exit 2` do not count)
+  case "$ug_n" in
+    *.py) ug_hdr=$(head -60 "$ug_s" | awk '/"""/ { c += gsub(/"""/, "&") } c >= 1 { print } c >= 2 { exit }') ;;
+    *) ug_hdr=$(head -60 "$ug_s" | grep -E '^[[:space:]]*#' || true) ;;
+  esac
+  grep -qi "exit $ug_want" <<<"$ug_hdr" || { echo "$ug_s: first 60 lines never say 'exit $ug_want'"; exit 1; }
 done
 ok "usage guard: every script with no arguments exits 2 (64 for heal), and its header says so"
 

@@ -5,7 +5,7 @@
 # Titles and ids only, a card's `cite-as` before its title as `<citation>: <title>`; read the bodies next (references/reading.md).
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-# Exit: 0 read; 1 not a board; 2 usage (no argument, or an unknown argument).
+# Exit: exit 0 read; exit 1 not a board; exit 2 usage (no argument, or an unknown argument).
 [ $# -eq 1 ] && [ "${1#-}" = "$1" ] || { echo "usage: read-board.sh <board>" >&2; exit 2; }
 BOARD="$1"
 [ -f "$BOARD/index.md" ] || { echo "read-board.sh: not a board: $BOARD" >&2; exit 1; }

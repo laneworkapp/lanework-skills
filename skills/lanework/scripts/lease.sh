@@ -9,9 +9,9 @@
 #                                        "N min left" | "N min lapsed" | "-" (unreadable until), live | lapsed | voided, title
 #        lease.sh _timer  <board> <card-uuid> <session> <claude-pid>      internal: started detached by stake, check, renew
 # The holder is CLAUDE_CODE_SESSION_ID (never a flag); stake needs CLAUDE_PID, the session's process, which the timer
-# outlives by at most one poll. Exit: 0 ok (check: held), 1 refused (held by another, backed off, nothing to renew), 2 usage / no model (--model, else CLAUDE_MODEL) / no session id /
+# outlives by at most one poll. Exit: exit 0 ok (check: held); exit 1 refused (held by another, backed off, nothing to renew); exit 2 usage / no model (--model, else CLAUDE_MODEL) / no session id /
 # no CLAUDE_PID (stake) / a session id with a slash, backslash, quote, space, comma or closing brace / not a board / not exactly one card with that uuid,
-# 3 lost (or renew on another session's claim), 4 check: never held.
+# exit 3 lost (or renew on another session's claim); exit 4 check: never held.
 # Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<board key>/<card-uuid>, the board key
 # the first 16 hex of the shasum of the board's resolved path (`pwd -P`: a symlink or a trailing slash is the same board), so the
 # same card uuid on another copy of the board is never held there. A file in the older <session>/<card-uuid> layout is never
