@@ -476,6 +476,39 @@ ok "settle-question settles when a real owner answer follows the Recap: click"
 ok "settle-question settles a card with only a Recap: click when --record quotes the owner"
 "$SK/discovery/scripts/settle-question.sh" "$R" "$RD" --ruling "$T/r1.md" --model smoke >/dev/null
 ok "settle-question counts Recapitulate: A. (not the Recap: prefix) as an answer"
+# Recap: click edges: a BOM before the frontmatter or the body line, a 200 KB click, waiting cleared after a click, an agent comment starting Recap:
+rclick() { local d="$1/comments/$(uuidgen | tr A-Z a-z)" at; at=$(date -u -v+5S +%FT%TZ); mkdir -p "$d"   # rclick <card dir> <before frontmatter> <before body line> <body>: an owner comment
+  printf -- '%s---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: owner, kind: human}}\nmodified: {at: %s, by: {name: owner, kind: human}}\n---\n%s%s\n' "$2" "$at" "$at" "$3" "$4" > "$d/index.md"; }
+# agent_recap <card dir> <body>: an agent comment in reply to the card's ask whose body starts Recap: and holds a quote and a Given line
+agent_recap() { local d="$1/comments/$(uuidgen | tr A-Z a-z)" at ask; at=$(date -u -v+5S +%FT%TZ); mkdir -p "$d"; ask=$(sed -n 's/^waiting:.*comment: "\{0,1\}\([0-9a-f-]*\).*/\1/p' "$1/index.md" | head -1)
+  printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: claude, kind: agent, model: smoke}}\nmodified: {at: %s, by: {name: claude, kind: agent, model: smoke}}\nin-reply-to: %s\n---\n%s\n\n> Go with A.\n\n**Given**: chat, 2026-11-22\n' "$at" "$at" "$ask" "$2" > "$d/index.md"; }
+BOM=$(printf '\xef\xbb\xbf'); CLK="Recap: Explain this in plain terms first"
+RE=$(rq "Click BOM frontmatter"); RF=$(rq "Click BOM body"); RG=$(rq "Click 200KB"); RH=$(rq "Click waiting cleared"); RJ=$(rq "BOM answer")
+rclick "$(rcard "$RE")" "$BOM" "" "$CLK"
+rclick "$(rcard "$RF")" "" "$BOM" "$CLK"
+{ rclick "$(rcard "$RG")" "" "" "$CLK"; f=$(ls "$(rcard "$RG")"/comments/*/index.md | tail -1); head -c 200000 /dev/zero | tr "\0" x | { echo; cat; } >> "$f"; echo >> "$f"; }
+rclick "$(rcard "$RH")" "" "" "$CLK"
+perl -0pi -e 's/^waiting: [^\n]*\n//m' "$(rcard "$RH")/index.md"; ! grep -q '^waiting:' "$(rcard "$RH")/index.md"
+rclick "$(rcard "$RJ")" "$BOM" "" "A real answer behind a BOM"
+SR=$(sum "$R")
+for c in "$RE" "$RF" "$RG" "$RH"; do
+  RC=0; "$SK/discovery/scripts/settle-question.sh" "$R" "$c" --ruling "$T/r1.md" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+  [ "$RC" = 1 ] && grep -q -- '--record' "$T/err.txt" && [ "$(sum "$R")" = "$SR" ] || { echo "settle on a Recap: click ($c, BOM/200KB/waiting cleared): want exit 1, --record in the message, nothing written; got rc $RC"; cat "$T/err.txt"; exit 1; }
+done
+ok "settle-question refuses a lone Recap: click saved with a BOM (before the frontmatter, before the body line), as a 200 KB comment, and with waiting cleared: exit 1, message names --record, nothing written"
+# waiting cleared, a real owner answer after the ask still settles (a BOM before an answer does not make it a click)
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RJ" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question settles on a real owner answer that starts with a BOM"
+owner_comment "$(rcard "$RH")" "A."; "$SK/discovery/scripts/settle-question.sh" "$R" "$RH" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question settles a card whose waiting was cleared once a real owner answer follows the click"
+# who wrote it decides (created.by): an agent comment starting Recap: that holds a quote and a Given line is the card's record, not a click
+RK=$(rq "Agent Recap record"); RL=$(rq "Agent Recap and owner answer")
+agent_recap "$(rcard "$RK")" "Recap: the owner chose A"
+agent_recap "$(rcard "$RL")" "Recap: the owner chose A"; owner_comment "$(rcard "$RL")" "A."
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RK" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question settles on an agent-authored Recap: comment that quotes the owner (QUOTED), not read as a click"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RL" --ruling "$T/r1.md" --model smoke >/dev/null
+ok "settle-question settles a card with an agent Recap: comment beside a real owner answer"
 # --record with no --reply, CRLF line ends: in reply to waiting.comment, written LF, read QUOTED
 printf '**Owner ruled off the board.**\r\n\r\n> Later.\r\n\r\n**Given**: chat, 2026-09-27\r\n' > "$T/rec-crlf.md"; printf '**2026-09-27**: Parked. "Later."\r\n' > "$T/r-crlf.md"
 "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/r-crlf.md" --to parked --record "$T/rec-crlf.md" --model smoke >/dev/null

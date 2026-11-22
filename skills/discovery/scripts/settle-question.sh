@@ -5,9 +5,9 @@
 # Appends `## Ruling` + the --ruling text (templates/ruling.md), drops `waiting`, restamps,
 # posts --record (a `>` quote line and a `**Given**` line, else exit 2) as a comment (in reply to --reply, default the card's
 # `waiting.comment`), moves the card to the bottom of Settled or Parked. --ruling and --record are written with LF line ends.
-# `waiting` set: the staged card and its comments are run through work/scripts/lint-waiting-clears.sh first; a NO-QUOTE
-# (no owner comment answers the ask, and no record in reply to it) = exit 1, nothing written.
-# A `Recap:` click (a human comment whose first body line starts `Recap:`) is not an owner answer: it stays out of the lint's copy.
+# `waiting` set, or cleared with the lint present: the staged card and its comments are run through work/scripts/lint-waiting-clears.sh first; a NO-QUOTE
+# (no owner comment answers the newest ask, and no record in reply to it) = exit 1, nothing written. So a click that left `waiting` cleared still needs --record or a real answer.
+# A `Recap:` click (a human comment whose first body line starts `Recap:`, a UTF-8 BOM ignored; any size) is not an owner answer: it stays out of the lint's copy.
 # Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, an unreadable --ruling or --record, a --record without its quote and Given lines, a bad --to, no model (--model, else CLAUDE_MODEL)).
 # Exit 1, nothing written: no such lane or card, a NO-QUOTE, the lint missing or failing, the card moved during the settle, a brace in the stamp values.
 # Staged outside the board; the card path is re-resolved just before landing.
@@ -44,13 +44,14 @@ case "$TO" in settled) LANE_TITLE=Settled ;; parked) LANE_TITLE=Parked ;; *) ech
 DEST=$(lane_by_title "$BOARD" "$LANE_TITLE") || { echo "settle-question.sh: no lane titled $LANE_TITLE" >&2; exit 1; }
 
 # is_recap_click <comment index.md>: exit 0 when the first non-blank body line starts `Recap:` and `created.by` is not kind: agent (no `by` = human)
+# CRs and a UTF-8 BOM at any line start are dropped first; awk reads to the end (an early exit would break the pipe under pipefail on a large comment)
 is_recap_click() {
-  tr -d '\r' < "$1" | awk '
+  LC_ALL=C perl -pe 's/\r//g; s/^\xEF\xBB\xBF//' < "$1" | awk '
     NR == 1 && /^---[ \t]*$/ { fm = 1; next }
     fm && /^---[ \t]*$/ { fm = 0; body = 1; next }
     fm && /^[^ \t]/ { inc = ($0 ~ /^created:/) }
     fm && inc && /kind:[ \t]*["\x27]?agent/ { agent = 1 }
-    body && /[^ \t]/ { click = ($0 ~ /^[ \t]*Recap:/); done = 1; exit }
+    body && !done && /[^ \t]/ { click = ($0 ~ /^[ \t]*Recap:/); done = 1 }
     END { exit (done && click && !agent) ? 0 : 1 }'
 }
 
@@ -69,6 +70,8 @@ waiting_comment() {
 }
 WAITING=0; WCOMMENT=$(waiting_comment "$CARD/index.md") && WAITING=1 || true
 [ -n "$REPLY" ] || REPLY="$WCOMMENT"
+LINT=$WAITING   # waiting cleared by the app after a click: the lint still runs when it is there (a card with no ask is not listed by it)
+[ "$LINT" = 1 ] || [ ! -x "$LINT_CLEARS" ] || LINT=1
 if [ "$WAITING" = 1 ] && [ ! -e "$LINT_CLEARS" ]; then echo "settle-question.sh: waiting is set and $LINT_CLEARS is missing (install work beside discovery); nothing written" >&2; exit 1; fi
 if [ "$WAITING" = 1 ] && [ ! -x "$LINT_CLEARS" ]; then echo "settle-question.sh: waiting is set and $LINT_CLEARS is not executable; nothing written" >&2; exit 1; fi
 
@@ -92,7 +95,7 @@ if [ -n "$RECORD" ]; then
   COID=$(uuid); mkdir -p "$STAGE/comment"
   tr -d '\r' < "$RECORD" | comment_file "$STAGE/comment/index.md" "$NOW" "$BY" "$REPLY"
 fi
-if [ "$WAITING" = 1 ]; then   # the waiting-clear lint on the card as it will land: one lane, one card
+if [ "$LINT" = 1 ]; then   # the waiting-clear lint on the card as it will land: one lane, one card
   LC="$STAGE/lint/lane/$CID"; mkdir -p "$LC/comments"; cp "$STAGE/index.md" "$LC/index.md"
   for ci in "$CARD"/comments/*/index.md; do   # the lint reads only each comment's index.md: attachments stay out
     [ -f "$ci" ] || continue; ! is_recap_click "$ci" || continue; cd_=$(basename "$(dirname "$ci")"); mkdir -p "$LC/comments/$cd_"; cp "$ci" "$LC/comments/$cd_/index.md"
@@ -105,7 +108,7 @@ if [ "$WAITING" = 1 ]; then   # the waiting-clear lint on the card as it will la
                  NASK=$(printf '%s\n' "$LO" | awk '$1 == "NO-QUOTE" { print $3; exit }')
                  if [ -n "$NASK" ]; then echo "settle-question.sh: newest ask is $NASK and the record has no answer to it: the quote may be a bare > or sit inside a code fence, or --reply may name another ask; nothing written" >&2
                  else echo "settle-question.sh: the record does not answer the card's newest ask (--reply ${REPLY:-none}); nothing written" >&2; fi
-               else echo "settle-question.sh: waiting is set and no owner comment answers the ask: pass --record with the owner's words (templates/ruling.md); nothing written" >&2; fi
+               else echo "settle-question.sh: the card's newest ask has no owner answer (a Recap: click is none): pass --record with the owner's words (templates/ruling.md); nothing written" >&2; fi
                exit 1 ;;
     ""|QUOTED*) ;;
     *) echo "settle-question.sh: lint-waiting-clears.sh failed: $LO" >&2; exit 1 ;;

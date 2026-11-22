@@ -95,7 +95,7 @@ Measured with `wc -w` on 2026-10-10 (`plan` on 2026-11-17, `discovery` on 2026-1
 | `references/conduct.md` | 157 |
 | `references/corners.md` | 171 |
 | `references/records.md` | 573 |
-| `references/rounds.md` | 369 |
+| `references/rounds.md` | 377 |
 | `templates/fact-card.md` | 49 |
 | `templates/glossary.md` | 46 |
 | `templates/lanes.md` | 379 |
