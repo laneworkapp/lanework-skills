@@ -8,6 +8,10 @@ Dry run by default: one line per repair, `<file>: <code> <what>`, nothing writte
 `--apply` writes each repaired file (staged outside the board, then moved in). No `modified`
 is restamped: a heal is upkeep, not an edit (the app's own heal rule). `--name`/`--model`
 sign the records a heal posts. Idempotent: a second run finds nothing.
+`-h`/`--help` prints this text, exit 0.
+Exit 0 done (dry run or applied); exit 1 a card moved during the heal (message); exit 2 the board ships its own heal and
+`--ignore-board-copy` is absent; exit 64 usage (unknown argument, no board or not a board, `--apply` without `--model`,
+`--apply` with an empty or reserved `--name`).
 
 Definitions healed against: the built-in `text` kind, plus the board's own
 `config.labels`.
@@ -1202,7 +1206,7 @@ def main(argv):
             print("heal-board: unknown argument %s" % a, file=sys.stderr); return 64
     board = args["board"]
     if not board or not os.path.isfile(os.path.join(board, "index.md")):
-        print("usage: heal-board.py <board> [--apply --model M [--name N] [--session S]]", file=sys.stderr)
+        print("usage: heal-board.py <board> [--apply --model M [--name N] [--session S]] [--ignore-board-copy]", file=sys.stderr)
         return 64
     board = os.path.abspath(board)
     own = os.path.join(board, ".schema", "bin", "lanework-heal.py")
