@@ -24,12 +24,13 @@ MODEL=""; NAME="claude"; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)    NAME="${2-}"; shift 2 ;;
     --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
     *) echo "claim-ticket.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 require_model claim-ticket.sh "claim-ticket.sh <board> <card-uuid> --model m [--name n] [--session s]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -f "$BOARD/index.md" ] || { echo "claim-ticket.sh: not a board: $BOARD" >&2; exit 1; }
 [[ "$CID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || { echo "claim-ticket.sh: not a lowercase card uuid: $CID" >&2; exit 1; }
 FRONTIER=$(lane_by_title "$BOARD" Frontier) || { echo "claim-ticket.sh: no Frontier lane on $BOARD" >&2; exit 1; }
@@ -78,7 +79,8 @@ refuse_unless_frontier
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL" "$SESSION"); ORDER=$(next_order "$DEST")
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/plan-claim.XXXXXX")
 # order and modified rewritten in place; every other line (claimed included, flow or block) copied as the stake left it
-awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" '
+LW_O="order: $ORDER" LW_M="modified: {at: $NOW, by: $BY}" awk '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
+  BEGIN { o = ENVIRON["LW_O"]; m = ENVIRON["LW_M"] }
   /^---[ \t]*$/ { n++ }
   n==1 && /^order:/ { print o; next }
   n==1 && /^modified:/ { print m; next }

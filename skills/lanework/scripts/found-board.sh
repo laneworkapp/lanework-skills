@@ -26,11 +26,12 @@ while [ $# -gt 0 ]; do
     --var)   v="${2:?--var needs key=value}"; VARS+=("${v%%=*}" "${v#*=}"); shift 2 ;;
     --labels) LABELS="$(merge_kinds "$LABELS" "$HAVE_LABELS" "${2?--labels needs a kind list}")"; HAVE_LABELS=1; shift 2 ;;
     --model) MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)  NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)  NAME="${2-}"; shift 2 ;;
     *) echo "found-board.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
 require_model found-board.sh "found-board.sh <board> --index F --lanes F --model m [--title T] [--var k=v]... [--labels k,...] [--name n]"
+stamp_args_ok "$NAME" "$MODEL"
 [ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
 [ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
@@ -65,11 +66,12 @@ fi
 
 NOW=$(now_utc); BY=$(by_of "$NAME" "$MODEL"); BOARD_ID=$(uuid)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/lanework-found.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
-mkdir -p "$BOARD"
 
 render "$INDEX" title "$(flat_str "$TITLE")" title_yaml "\"$(title_str "$TITLE")\"" id "$BOARD_ID" \
   stamp "{at: $NOW, by: $BY}" labels "$LABELS_YAML" label_entries "$LABEL_ENTRIES" ${VARS[@]+"${VARS[@]}"} > "$STAGE/index.md"
 compact_fm "$STAGE/index.md"
+stamp_lines_ok "$STAGE/index.md" created modified || { echo "found-board.sh: a brace in the stamp (--model or --name); nothing written" >&2; exit 1; }
+mkdir -p "$BOARD"
 mv "$STAGE/index.md" "$BOARD/index.md"
 
 awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 6; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 "\037" $6 }' "$LANES" |
@@ -86,6 +88,7 @@ while IFS=$'\037' read -r ORDER LANE COLLAPSED ICON LBODY; do
     printf 'modified: {at: %s, by: %s}\n' "$NOW" "$BY"
     printf '%s\n' '---' "$LBODY"
   } > "$STAGE/lane.md"
+  stamp_lines_ok "$STAGE/lane.md" created modified || { rm -rf "$BOARD"; echo "found-board.sh: a brace in a lane stamp; nothing written" >&2; exit 1; }
   mv "$STAGE/lane.md" "$BOARD/$LANE_ID/index.md"
 done
 

@@ -26,12 +26,13 @@ while [ $# -gt 0 ]; do
     --depends) DEPENDS+=("${2:?--depends needs a link}"); shift 2 ;;
     --why)     WHY="${2:?--why needs text}"; shift 2 ;;
     --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)    NAME="${2-}"; shift 2 ;;
     --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
     *) echo "file-question.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
 require_model file-question.sh "file-question.sh <board> <title> --round N --body F --model m [...]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -n "$ROUND" ] || { echo "file-question.sh: --round is required" >&2; exit 1; }
 [ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-question.sh: --body must name a readable file" >&2; exit 1; }
 [ -z "$ASK_FILE" ] || [ -r "$ASK_FILE" ] || { echo "file-question.sh: --ask must name a readable file" >&2; exit 1; }

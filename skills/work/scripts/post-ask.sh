@@ -35,6 +35,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model post-ask.sh "$USAGE"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -n "$BODY" ] || { echo "post-ask.sh: no --body" >&2; echo "usage: $USAGE" >&2; exit 2; }
 [ -n "$FOR" ] || { echo "post-ask.sh: no --for: name the handle the ask addresses (anyone, or a person's)" >&2; echo "usage: $USAGE" >&2; exit 2; }
 [[ "$FOR" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "post-ask.sh: --for is one handle, no @: $FOR" >&2; exit 2; }
@@ -82,7 +83,8 @@ SINCE=$(sed -n 's/^created: *{at: \([^,}]*\).*/\1/p' "$CARD/comments/$COID/index
 BY=$(by_of "$NAME" "$MODEL" "$SESSION"); NOW=$(now_utc)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-ask.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
 # frontmatter only: any waiting (and its block lines) dropped, modified rewritten whole, the new waiting just before it
-awk -v w="waiting: {for: $FOR, since: $SINCE, comment: $COID}" -v m="modified: {at: $NOW, by: $BY}" '
+LW_W="waiting: {for: $FOR, since: $SINCE, comment: $COID}" LW_M="modified: {at: $NOW, by: $BY}" awk '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
+  BEGIN { w = ENVIRON["LW_W"]; m = ENVIRON["LW_M"] }
   NR == 1 && $0 == "---" { fm = 1; print; next }
   fm && drop && /^[ \t]/ { next }
   fm { drop = 0 }

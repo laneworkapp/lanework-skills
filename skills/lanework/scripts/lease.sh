@@ -96,7 +96,8 @@ write_card() {
         [ "$CL_SESS" = "$CLEAR_SESS" ] || { rm -rf "$stage"; echo "lease.sh: ${CID:0:8} is held by ${CL_SESS:-none} meanwhile; nothing released" >&2; return 1; } ;;
     esac
     now=$(now_utc); by=$(by_of "$NAME" "$MODEL" "$SESSION"); until=""; [ "$1" = clear ] || until=$(now_utc "$LEASE_SECS")
-    awk -v m="modified: {at: $now, by: $by}" -v set="$1" -v b="  by: $by" -v u="  until: $until" '
+    LW_M="modified: {at: $now, by: $by}" LW_B="  by: $by" LW_U="  until: $until" awk -v set="$1" '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
+      BEGIN { m = ENVIRON["LW_M"]; b = ENVIRON["LW_B"]; u = ENVIRON["LW_U"] }
       NR == 1 && $0 == "---" { fm = 1; print; next }
       fm && drop && /^[ \t]/ { next }
       fm { drop = 0 }
@@ -284,6 +285,7 @@ done
 require_model lease.sh "$USAGE"
 SESSION="${CLAUDE_CODE_SESSION_ID:-}"
 [ -n "$SESSION" ] || usage "no CLAUDE_CODE_SESSION_ID: no session id, no lease"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 case "$SESSION" in */*|*\"*|*[[:space:]]*|*\\*|*,*|*\}*) usage "session id with a slash, backslash, quote, space, comma or closing brace: $SESSION" ;; esac
 [ "$SUB" != stake ] || [ -n "${CLAUDE_PID:-}" ] || usage "no CLAUDE_PID: the timer exits with the session's process"
 [[ "$CID" =~ $UUID_RE ]] || usage "not a lowercase card uuid: $CID"

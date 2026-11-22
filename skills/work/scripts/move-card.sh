@@ -36,6 +36,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model move-card.sh "$USAGE"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [[ "$PREFIX" =~ ^[0-9a-f-]{8,36}$ ]] || { echo "move-card.sh: want a lowercase card uuid or a prefix of 8+ characters, got: '$PREFIX'" >&2; exit 2; }
 [ -f "$BOARD/index.md" ] || { echo "move-card.sh: not a board: $BOARD" >&2; exit 1; }
 [ -z "$COMMENT" ] || [ -r "$COMMENT" ] || { echo "move-card.sh: cannot read --comment $COMMENT" >&2; exit 1; }
@@ -102,7 +103,8 @@ STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-move.XXXXXX"); trap 'rm -rf "$STAGE"' EX
 CARD=$(find_card)   # fresh, in the same command as the write
 # frontmatter only: order and modified rewritten whole (block-form continuation lines dropped), waiting dropped on --clear-waiting;
 # a missing order or modified is added before the closing ---
-awk -v o="order: $ORDER" -v m="modified: {at: $NOW, by: $BY}" -v clear="$CLEAR" '
+LW_O="order: $ORDER" LW_M="modified: {at: $NOW, by: $BY}" awk -v clear="$CLEAR" '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
+  BEGIN { o = ENVIRON["LW_O"]; m = ENVIRON["LW_M"] }
   NR == 1 && $0 == "---" { fm = 1; print; next }
   fm && drop && /^[ \t]/ { next }
   fm { drop = 0 }

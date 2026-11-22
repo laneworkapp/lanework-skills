@@ -35,6 +35,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model post-comment.sh "$USAGE"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -n "$BODY" ] || { echo "post-comment.sh: no --body" >&2; echo "usage: $USAGE" >&2; exit 2; }
 case "$AHEAD" in ''|*[!0-9]*) echo "post-comment.sh: --ahead needs whole seconds, 0-30" >&2; exit 2 ;; esac
 [ "$AHEAD" -le 30 ] || { echo "post-comment.sh: --ahead $AHEAD is over the 30 s cap: a stamp comes from the clock" >&2; exit 2; }

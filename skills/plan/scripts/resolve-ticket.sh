@@ -28,12 +28,13 @@ while [ $# -gt 0 ]; do
     --to)         TO="${2:?--to needs a value}"; shift 2 ;;
     --resolution) RESOLUTION="${2:?--resolution needs a file}"; shift 2 ;;
     --model)      MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)       NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)       NAME="${2-}"; shift 2 ;;
     --session)    SESSION="${2:?--session needs a value}"; shift 2 ;;
     *) echo "resolve-ticket.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 require_model resolve-ticket.sh "resolve-ticket.sh <board> <card-uuid> --resolution F --model m [...]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -r "${RESOLUTION:-}" ] || { echo "resolve-ticket.sh: --resolution must name a readable file" >&2; exit 2; }
 case "$TO" in
   resolved)     LANE_TITLE=Resolved; FROM="Working" ;;
@@ -52,7 +53,8 @@ deps_of() {  # deps_of <card index.md>: card uuids linked under "## Depends on"
     grep -oE 'lanework://[^/)]+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | sed 's#.*/##' || true
 }
 restamp() {  # restamp <src> <order> <dest> [claimed]: fresh order + modified, waiting dropped, and claimed with "claimed"
-  awk -v o="order: $2" -v m="modified: {at: $NOW, by: $BY}" -v cl="${4:-}" '
+  LW_O="order: $2" LW_M="modified: {at: $NOW, by: $BY}" awk -v cl="${4:-}" '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
+    BEGIN { o = ENVIRON["LW_O"]; m = ENVIRON["LW_M"] }
     /^---[ \t]*$/ { n++ }
     n==1 && drop && /^[ \t]/ { next }          # its block lines, where the compact form opened it out
     { drop = 0 }

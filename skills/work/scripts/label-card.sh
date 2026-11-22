@@ -29,6 +29,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model label-card.sh "$USAGE"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ ${#LABELS[@]} -gt 0 ] || { echo "label-card.sh: no label" >&2; echo "usage: $USAGE" >&2; exit 2; }
 [ -f "$BOARD/index.md" ] || { echo "label-card.sh: not a board: $BOARD" >&2; exit 1; }
 F="${CARDARG%/}"; [ -d "$F" ] && F="$F/index.md"
@@ -60,7 +61,8 @@ cp "$F" "$STAGE/read" && cp "$F" "$STAGE/index.md"
 union_labels --strict "$STAGE/index.md" "$BOARD" "${LABELS[@]}" || { echo "label-card.sh: nothing written" >&2; exit 1; }
 cmp -s "$STAGE/read" "$STAGE/index.md" && exit 0     # every label already there
 BY=$(by_of "$NAME" "$MODEL" "$SESSION")
-awk -v m="modified: {at: $(now_utc), by: $BY}" '
+LW_M="modified: {at: $(now_utc), by: $BY}" awk '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
+  BEGIN { m = ENVIRON["LW_M"] }
   NR == 1 && $0 == "---" { fm = 1; print; next }
   fm && drop && /^[ \t]/ { next }
   fm { drop = 0 }

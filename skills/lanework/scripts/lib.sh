@@ -131,10 +131,41 @@ stamp_cite() {   # dies if the prefix gave no citation or the placeholder surviv
   printf '%s' "$c"
 }
 
-# by_of <name> <model> [session]: the stamp's `by` mapping.
+# yaml_scalar <v>: the one quoting rule for a stamp value; yaml_quote <v>: always double-quoted, \ and " escaped.
+# merge/scripts/lanework-merge.py signer() and heal/scripts/heal-descriptors.py scalar() apply the same rule.
+yaml_quote() {
+  local v=$1 bs='\' dq='"'
+  v=${v//"$bs"/"$bs$bs"}; v=${v//"$dq"/"$bs$dq"}; printf '"%s"' "$v"
+}
+# Bare only when the value reads back as the same string: [A-Za-z0-9._-]+ with at least one letter, not null/true/false/yes/no/on/off (any case)
+# and not number-shaped (sign, digits, `1e3`, `0x1F`, `0o17`, `.inf`, `.nan`). Anything else is quoted. Plain ids (`claude`, `claude-fable-5-2`) stay bare.
+YAML_NUM='^[-+]?(0[xob][0-9a-f_]+|[0-9._]+(e[-+]?[0-9]+)?|\.?(inf|nan))$'
+yaml_scalar() {
+  local v=$1 l
+  if [[ $v =~ ^[A-Za-z0-9._-]+$ ]] && [[ $v =~ [A-Za-z] ]]; then
+    l=$(printf '%s' "$v" | tr 'A-Z' 'a-z')
+    case $l in null|true|false|yes|no|on|off) yaml_quote "$v"; return ;; esac
+    if [[ $l =~ $YAML_NUM ]]; then yaml_quote "$v"; else printf '%s' "$v"; fi
+  else yaml_quote "$v"; fi
+}
+
+# by_of <name> <model> [session]: the stamp's `by` mapping. The one writer: name and model through yaml_scalar, session always yaml_quote'd.
 by_of() {
-  if [ -n "${3:-}" ]; then printf '{name: %s, kind: agent, model: %s, session: "%s"}' "$1" "$2" "$3"
-  else printf '{name: %s, kind: agent, model: %s}' "$1" "$2"; fi
+  local n m; n=$(yaml_scalar "$1"); m=$(yaml_scalar "$2")
+  if [ -n "${3:-}" ]; then printf '{name: %s, kind: agent, model: %s, session: %s}' "$n" "$m" "$(yaml_quote "$3")"
+  else printf '{name: %s, kind: agent, model: %s}' "$n" "$m"; fi
+}
+
+# stamp_args_ok <name> <model> [session]: call right after require_model. A value that is empty or holds a control character (newline, tab) cannot be
+# carried by any quoting: exit 2 "nothing written".
+stamp_args_ok() {
+  local w v i=0 LC_ALL=C   # bytes: a C1 control (U+0080-U+009F, UTF-8 C2 80-9F) is caught like the ASCII ones
+  for w in name model session; do
+    i=$((i + 1)); [ $i -le $# ] || break; v=${!i}
+    if [ -z "$v" ] && [ "$w" != session ]; then printf '%s: empty --%s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2; fi
+    if [ "$i" = 3 ] && [ -z "$v" ]; then continue; fi
+    case "$v" in *[[:cntrl:]]*|*$'\xc2'[$'\x80'-$'\x9f']*) printf '%s: control character in the stamp %s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2 ;; esac
+  done
 }
 
 # LEASE_LOST_PREFIX: the fixed opening of the "Lease lost" record. lease.sh writes it; a lint that counts losses greps for it.
@@ -324,14 +355,14 @@ EOF
 
 # stamp_lines_ok <file> <key>...: the guard for the stamp lines a script wrote. Reads the front matter only (line 2 to the closing ---, trailing
 # blanks allowed), keeps each top-level line whose key is listed plus its indented continuation lines, and returns 1 if the kept lines hold `}}}`
-# or unequal counts of `{` and `}` outside double-quoted strings (an unquoted stamp value that carries a brace: `n}`). Copied lines and the body legitimately end in `}}}` (a label whose
+# or unequal counts of `{` and `}` outside double-quoted strings (the last guard: by_of quotes what it must). Copied lines and the body legitimately end in `}}}` (a label whose
 # kind carries an icon, a JSON example), so never test a whole file.
 stamp_lines_ok() {
   local f=$1 keys; shift
   keys=$(IFS='|'; echo "$*")
   awk -v k="$keys" 'NR == 1 { next } /^---[ \t]*$/ { exit }
     /^[^ \t]/ { w = ($0 ~ ("^(" k "):")) }
-    w { q = $0; gsub(/"([^"\\]|\\.)*"/, "", q)   # double-quoted values (by_of quotes `session`) may hold any brace
+    w { q = $0; gsub(/"([^"\\]|\\.)*"/, "", q)   # double-quoted values (by_of quotes a value that needs it) may hold any brace
         if (q ~ /[}][}][}]/) bad = 1; o += gsub(/[{]/, "{", q); c += gsub(/[}]/, "}", q) }
     END { exit (bad || o != c) }' "$f"
 }

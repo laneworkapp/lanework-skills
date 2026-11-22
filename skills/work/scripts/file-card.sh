@@ -28,6 +28,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 require_model file-card.sh "$USAGE"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -n "$BODY" ] || { echo "file-card.sh: no --body" >&2; echo "usage: $USAGE" >&2; exit 2; }
 [ -n "$TITLE" ] || { echo "file-card.sh: empty title" >&2; echo "usage: $USAGE" >&2; exit 2; }
 [ -f "$BOARD/index.md" ] || { echo "file-card.sh: not a board: $BOARD" >&2; exit 1; }

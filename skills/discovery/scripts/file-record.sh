@@ -27,12 +27,13 @@ while [ $# -gt 0 ]; do
     --from)    FROM="${2:?--from needs a lane title}"; shift 2 ;;
     --supersedes) SUPERSEDES+=("${2:?--supersedes needs a record card uuid}"); shift 2 ;;
     --model)   MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)    NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name)    NAME="${2-}"; shift 2 ;;
     --session) SESSION="${2:?--session needs a value}"; shift 2 ;;
     *) echo "file-record.sh: unknown argument: $1" >&2; exit 1 ;;
   esac
 done
 require_model file-record.sh "file-record.sh <board> <question-uuid> --record ADR|PDR --title t --body F --model m [...]"
+stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 case "$KIND" in ADR) RANK=1 ;; PDR) RANK=2 ;; *) echo "file-record.sh: --record is ADR or PDR" >&2; exit 1 ;; esac
 [ -n "$TITLE" ] || { echo "file-record.sh: --title is required" >&2; exit 1; }
 [ -n "$BODY_FILE" ] && [ -r "$BODY_FILE" ] || { echo "file-record.sh: --body must name a readable file" >&2; exit 1; }
