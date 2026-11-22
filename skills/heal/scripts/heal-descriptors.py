@@ -2,13 +2,18 @@
 # heal-descriptors.py: bring a board's lane bodies and pipeline sheet up to the current templates. Python 3, standard library only.
 """heal-descriptors.py: check that a board's lane bodies name who acts on each lane and what starts it.
 
-    heal-descriptors.py <board>... [--skip LANE]... [--apply --model M [--name N] [--session S] [--expect DIGEST]]
+    heal-descriptors.py <board>... [--skip LANE]... [--apply --model M [--name N] [--session S] [--expect DIGEST]] [-h|--help]
 
 Dry run by default: one line per change, `<where>: <code> <what>`, nothing written.
 `--apply` writes each changed file (staged outside the board, then moved in) and restamps that
 file's `modified` whole with the running agent: `--model` is required (exit 2 without it,
 nothing written); `--name` defaults to `claude`, `--session` is optional. Idempotent: a
 second run finds nothing.
+
+Exit codes: exit 0 done (dry run or applied) or `-h`/`--help` (prints this text). exit 2 `--apply` with no `--model`.
+exit 3 `--expect` digest differs. exit 64 usage or setup, nothing written: a flag with no value, an unknown
+argument, no board, `--expect` without `--apply`, an empty or reserved `--name` (reserved: anyone, board,
+healer, shortcuts, tracker), a path that is not a board (no `index.md`), lane templates missing beside this script.
 
 Every run ends with `digest <hex>`, a hash of the full change list (each board, lane, code and new text).
 `--apply --expect <digest>` recomputes the list and refuses (exit 3, nothing written) when it differs, so only
@@ -507,7 +512,7 @@ def main(argv):
             boards.append(a)
         else:
             print("heal-descriptors: unknown argument %s" % a, file=sys.stderr); return 64
-    usage = "usage: heal-descriptors.py <board>... [--skip LANE]... [--apply --model M [--name N] [--session S] [--expect DIGEST]]"
+    usage = "usage: heal-descriptors.py <board>... [--skip LANE]... [--apply --model M [--name N] [--session S] [--expect DIGEST]] [-h|--help]"
     if not boards:
         print(usage, file=sys.stderr); return 64
     if expect and not apply_:

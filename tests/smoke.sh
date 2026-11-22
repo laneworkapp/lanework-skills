@@ -1676,6 +1676,26 @@ for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/n
 "$ROOT/tests/merge-case.sh" "$T" dirty >/dev/null; ok "merge case: uncommitted edits in a conflicted card are carried as ours, never erased"
 "$ROOT/tests/merge-case.sh" "$T" appside >/dev/null; ok "merge case: bytes the app wrote (tests/fixtures/app-writes) collide with scripted edits and resolve with no prompt"
 
+# merge, heal and watch headers card: usage errors exit 2 (64 for the heal scripts), no traceback, no silent exit 0
+MP="$SK/merge/scripts/lanework-merge.py"; MBS="$SK/merge/scripts/merge-board.sh"; mkdir -p "$T/mhw"; git init -q "$T/mhw/repo"
+for a in "resolve $T/mhw/repo --model" "driver a b" "driver --quiet a b c" "resolve $T/mhw/nope" "install $T/mhw/nope"; do
+  rc=0; python3 "$MP" $a >"$T/mhw/out" 2>"$T/mhw/err" </dev/null || rc=$?
+  { [ "$rc" = 2 ] && ! grep -q Traceback "$T/mhw/err"; } || { echo "lanework-merge.py $a: rc=$rc"; cat "$T/mhw/err"; exit 1; }
+done
+uo=$(python3 "$MP" driver a b 2>&1 || true)
+{ grep -q 'not a git repo: ' "$T/mhw/err" && grep -q '^usage:' <<<"$uo"; } || { echo "lanework-merge.py usage or not-a-repo message missing"; exit 1; }
+ok "lanework-merge.py: driver with fewer than 4 paths, resolve with --model last, and resolve or install on a non-repo exit 2 with no traceback"
+rc=0; "$MBS" >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh with no argument: rc=$rc"; exit 1; }
+rc=0; "$MBS" "$T/mhw/repo" --bogus >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh unknown argument: rc=$rc"; exit 1; }
+rc=0; "$MBS" "$T/mhw/repo" --model >/dev/null 2>"$T/mhw/err" || rc=$?; [ "$rc" = 2 ] || { echo "merge-board.sh --model with no value: rc=$rc"; exit 1; }
+rc=0; "$MBS" "$T/mhw/nope" >/dev/null 2>"$T/mhw/err" || rc=$?; { [ "$rc" = 1 ] && grep -q 'not a git repo' "$T/mhw/err"; } || { echo "merge-board.sh not a repo: rc=$rc"; exit 1; }
+ok "merge-board.sh: no argument, an unknown argument and --model with no value exit 2; a path that is not a repo stays exit 1"
+mkdir -p "$T/mhw/wb"; : > "$T/mhw/wb/index.md"; rc=0
+env PATH=/usr/bin:/bin perl -e 'alarm 10; exec @ARGV' /bin/zsh "$SK/watch/scripts/watch-boards.sh" "$T/mhw/snap" "$T/mhw/wb" >"$T/mhw/out" 2>"$T/mhw/err" </dev/null || rc=$?
+{ [ "$rc" = 2 ] && grep -q 'needs fswatch' "$T/mhw/err"; } || { echo "watch-boards.sh without fswatch on PATH: rc=$rc"; cat "$T/mhw/err"; exit 1; }
+[ ! -e "$T/mhw/snap" ] || { echo "watch-boards.sh took a snapshot before checking for fswatch"; exit 1; }
+ok "watch-boards.sh: with no fswatch on PATH it prints 'needs fswatch' and exits 2 before the first snapshot"
+
 # lane actors: every lane body names its actor and trigger; the lane -> actor table lives once; heal-descriptors brings old boards to currency
 lane_file() { grep -l "^title: \"$2\"\$" "$1"/*/index.md | head -1; }
 lane_body() { tail -1 "$(lane_file "$1" "$2")"; }
