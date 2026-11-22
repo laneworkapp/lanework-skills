@@ -5,7 +5,7 @@
 # Appends `## Ruling` + the --ruling text (templates/ruling.md), drops `waiting`, restamps,
 # posts --record (a `>` quote line and a `**Given**` line, else exit 2) as a comment (in reply to --reply, default the card's
 # `waiting.comment`), moves the card to the bottom of Settled or Parked. --ruling and --record are written with LF line ends.
-# `waiting` set, or cleared with the lint present: the staged card and its comments are run through work/scripts/lint-waiting-clears.sh first; a NO-QUOTE
+# `waiting` set, or cleared with a `Recap:` click on the card (and the lint present): the staged card and its comments are run through work/scripts/lint-waiting-clears.sh first; a NO-QUOTE
 # (no owner comment answers the newest ask, and no record in reply to it) = exit 1, nothing written. So a click that left `waiting` cleared still needs --record or a real answer.
 # A `Recap:` click (a human comment whose first body line starts `Recap:`, a UTF-8 BOM ignored; any size) is not an owner answer: it stays out of the lint's copy.
 # Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, an unreadable --ruling or --record, a --record without its quote and Given lines, a bad --to, no model (--model, else CLAUDE_MODEL)).
@@ -70,8 +70,10 @@ waiting_comment() {
 }
 WAITING=0; WCOMMENT=$(waiting_comment "$CARD/index.md") && WAITING=1 || true
 [ -n "$REPLY" ] || REPLY="$WCOMMENT"
-LINT=$WAITING   # waiting cleared by the app after a click: the lint still runs when it is there (a card with no ask is not listed by it)
-[ "$LINT" = 1 ] || [ ! -x "$LINT_CLEARS" ] || LINT=1
+LINT=$WAITING   # waiting cleared by the app after a click: the lint still runs, when it is there (a card with no waiting and no click settles as before)
+if [ "$LINT" = 0 ] && [ -x "$LINT_CLEARS" ]; then
+  for ci in "$CARD"/comments/*/index.md; do [ -f "$ci" ] && is_recap_click "$ci" && { LINT=1; break; }; done
+fi
 if [ "$WAITING" = 1 ] && [ ! -e "$LINT_CLEARS" ]; then echo "settle-question.sh: waiting is set and $LINT_CLEARS is missing (install work beside discovery); nothing written" >&2; exit 1; fi
 if [ "$WAITING" = 1 ] && [ ! -x "$LINT_CLEARS" ]; then echo "settle-question.sh: waiting is set and $LINT_CLEARS is not executable; nothing written" >&2; exit 1; fi
 
