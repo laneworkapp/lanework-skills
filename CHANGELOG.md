@@ -1,5 +1,27 @@
 **November 2026**
 
+Version 0.10.0: a wrong call to any script now exits 2 and a refusal exits 1, and every script's header states its exit codes.
+
+Agents can now add labels to a card with a new label-card script, and filing a card takes labels too.
+
+Moving a card no longer leaves a comment behind when the move is refused.
+
+Names, models and session ids holding quotes, braces, colons or backslashes are now written correctly, and unwritable values are refused before anything is saved.
+
+A lease write is no longer lost when a lease script is killed mid-write, and another user's write in progress is left alone.
+
+A card lease no longer stops renewing when the card is moved between lanes while it is held.
+
+Leases now refuse session ids they cannot store faithfully.
+
+Board checks now follow linked lanes, report each card once, and keep each finding on one line.
+
+Board commits that push now send a commit an interrupted run left behind and fail fast when git asks for a password.
+
+Settling a discovery question no longer takes your click on Recap for the answer, and a refused settle now says why.
+
+/lanework:watch now stops with a clear message when fswatch is not installed, instead of ending silently.
+
 Version 0.9.0: the dispatch skill is retired; use /lanework:watch instead, which now catches up when it starts.
 
 Sessions now take a lease on a card before working it, so two sessions no longer work the same card at once, and a lease left behind expires on its own.
