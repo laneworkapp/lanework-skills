@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "lease.sh leftovers 2: sweep and EPERM, temp file pid, two small wording fixes"
-order: 9216
+order: 3072
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T15:44:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T17:13:46Z}
+modified: {at: 2026-11-22T01:39:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 The lease write's temp-file sweep stops deleting a live writer's file, and a killed `lease.sh` no longer costs a concurrent write its temp file, with one duplicated sentence in `writes.md` merged.
 
