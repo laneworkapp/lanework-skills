@@ -3596,6 +3596,37 @@ RC=0; LW SW-solo "$SOLO/work/scripts/move-card.sh" "$LB" "$KS" Shaping --model s
 rm -rf "$T/solo"; validate "$LB" >/dev/null
 ok "post-comment.sh and move-card.sh with no lanework/scripts/lease.sh beside work skip the check with one note on stderr and write as today"
 
+# script headers (lanework group): found-board render failure, usage strings, and usage errors exit 2
+HB="$T/hdr-lw"; rm -rf "$HB"; mkdir -p "$HB"; HFB="$SK/lanework/scripts/found-board.sh"
+HFA=(--index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --model smoke)
+# item 3: a template with a slot no --var fills exits 2 and writes nothing; before the fix exit 255 and an empty folder. An existing folder stays.
+RC=0; HO=$("$HFB" "$HB/Slot.lanework" "${HFA[@]}" 2>&1) || RC=$?
+[ $RC = 2 ] && [ ! -e "$HB/Slot.lanework" ] && [[ "$HO" == *unfilled* ]] || { echo "unfilled slot: rc $RC, $(ls -d "$HB"/Slot* 2>&1): $HO"; exit 1; }
+mkdir "$HB/Pre.lanework"; RC=0; "$HFB" "$HB/Pre.lanework" "${HFA[@]}" >/dev/null 2>&1 || RC=$?
+[ $RC = 2 ] && [ -d "$HB/Pre.lanework" ] && [ -z "$(ls -A "$HB/Pre.lanework")" ] || { echo "unfilled slot, existing empty folder: rc $RC"; exit 1; }
+ok "found-board.sh: a template that fails to render exits 2 with its message and creates no folder; an existing empty folder is left as it was"
+# item 6: the non-board usage line names --ignore-board-copy
+HE=$(python3 -B "$SK/lanework/scripts/heal-board.py" "$HB" 2>&1 >/dev/null) || true
+[[ "$HE" == *--ignore-board-copy* ]] || { echo "heal-board usage: $HE"; exit 1; }
+ok "heal-board.py: the usage line printed for a non-board names --ignore-board-copy"
+# item 7: _timer with a wrong argument count says so; --force appears once in the usage
+HL="$SK/lanework/scripts/lease.sh"
+RC=0; HE=$("$HL" _timer a b 2>&1 >/dev/null) || RC=$?; [ $RC = 2 ] && [[ "$HE" == *"_timer is internal"* ]] || { echo "_timer a b: rc $RC: $HE"; exit 1; }
+RC=0; HE=$("$HL" bogus 2>&1 >/dev/null) || RC=$?; HU=${HE#*usage: }
+[ $RC = 2 ] && [ "$(grep -o -e '\[--force\]' <<<"$HU" | wc -l | tr -d ' ')" = 1 ] || { echo "lease usage: rc $RC: $HE"; exit 1; }
+ok "lease.sh: a wrong _timer argument count prints that it is internal and exits 2; the usage lists [--force] once, under release"
+# option C: usage errors exit 2 and write nothing (found-board.sh: unknown argument, a flag with no value, no argument; read-board.sh: no or unknown argument; not a board stays 1)
+for bad in "--bogus" "--index" "--lanes" "--title" "--var" "--labels" "--model" "--name"; do
+  rm -rf "$HB/Bad.lanework"; RC=0; "$HFB" "$HB/Bad.lanework" "${HFA[@]}" $bad >/dev/null 2>&1 || RC=$?
+  [ $RC = 2 ] && [ ! -e "$HB/Bad.lanework" ] || { echo "found-board.sh ... $bad: rc $RC"; exit 1; }
+done
+RC=0; "$HFB" >/dev/null 2>&1 || RC=$?; [ $RC = 2 ] || { echo "found-board.sh no argument: rc $RC"; exit 1; }
+HR="$SK/lanework/scripts/read-board.sh"
+RC=0; "$HR" >/dev/null 2>&1 || RC=$?; [ $RC = 2 ] || { echo "read-board.sh no argument: rc $RC"; exit 1; }
+RC=0; "$HR" "$LB" --bogus >/dev/null 2>&1 || RC=$?; [ $RC = 2 ] || { echo "read-board.sh unknown argument: rc $RC"; exit 1; }
+RC=0; "$HR" "$HB/none.lanework" >/dev/null 2>&1 || RC=$?; [ $RC = 1 ] || { echo "read-board.sh not a board: rc $RC"; exit 1; }
+ok "found-board.sh and read-board.sh: an unknown argument, a flag with no value or no argument exits 2 and writes nothing; read-board.sh on a non-board stays 1"
+
 # 9. the prose: under skills/work/ no START is read as a claim; START is defined once, in writing.md, and linked; the lease is named to subagents
 printf '%s\n' '- **A START / plan comment is a claim.**' | grep 'START' | grep -q -i 'claim' || lw_fail "the START-claim pattern misses the line it retired"
 SC=$(grep -rn 'START' "$SK/work" | grep -i 'claim' || true); [ -z "$SC" ] || lw_fail "a START read as a claim under skills/work/: $SC"

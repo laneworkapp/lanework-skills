@@ -9,8 +9,9 @@
 #                                        "N min left" | "N min lapsed" | "-" (unreadable until), live | lapsed | voided, title
 #        lease.sh _timer  <board> <card-uuid> <session> <claude-pid>      internal: started detached by stake, check, renew
 # The holder is CLAUDE_CODE_SESSION_ID (never a flag); stake needs CLAUDE_PID, the session's process, which the timer
-# outlives by at most one poll. Exit: 0 ok (check: held), 1 refused (held by another, backed off, nothing to renew), 2 usage / no model / no session id / no CLAUDE_PID /
-# a session id with a slash, backslash, quote, space, comma or closing brace, not exactly one card with that uuid, 3 lost, 4 check: never held.
+# outlives by at most one poll. Exit: 0 ok (check: held), 1 refused (held by another, backed off, nothing to renew), 2 usage / no model (--model, else CLAUDE_MODEL) / no session id /
+# no CLAUDE_PID (stake) / a session id with a slash, backslash, quote, space, comma or closing brace / not a board / not exactly one card with that uuid,
+# 3 lost (or renew on another session's claim), 4 check: never held.
 # Memory of the cards this session staked: ${TMPDIR:-/tmp}/lanework-lease/<session>/<board key>/<card-uuid>, the board key
 # the first 16 hex of the shasum of the board's resolved path (`pwd -P`: a symlink or a trailing slash is the same board), so the
 # same card uuid on another copy of the board is never held there. A file in the older <session>/<card-uuid> layout is never
@@ -30,7 +31,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; SELF="$HERE/lease.sh"
 . "$HERE/lib.sh"
-USAGE="lease.sh stake|renew|check|release <board> <card-uuid> --model m [--name n] [--force] | lease.sh list <board>"
+USAGE="lease.sh stake|renew|check <board> <card-uuid> --model m [--name n] | lease.sh release <board> <card-uuid> --model m [--name n] [--force] | lease.sh list <board>"
 LEASE_SECS=1800; GUARD_SECS=2100
 STAKE_WAIT="${LEASE_TEST_STAKE_WAIT:-1}"; NOTICE_WAIT="${LEASE_TEST_NOTICE_WAIT:-120}"
 POLL="${LEASE_TEST_POLL:-60}"; RENEW_EVERY="${LEASE_TEST_RENEW_EVERY:-15}"; WRITE_PAUSE="${LEASE_TEST_WRITE_PAUSE:-0}"
@@ -267,7 +268,7 @@ SUB="${1:-}"; [ $# -gt 0 ] && shift
 case "$SUB" in
   list) [ $# -eq 1 ] || usage "list takes one board"; BOARD="$1"; [ -f "$BOARD/index.md" ] || usage "not a board: $BOARD"; list; exit 0 ;;
   _timer)
-    [ $# -eq 4 ] || exit 2; BOARD="$1"; CID="$2"; SESSION="$3"; TCPID="$4"; MODEL=""; NAME=claude
+    [ $# -eq 4 ] || { echo "lease.sh: _timer is internal (started by stake, check, renew)" >&2; exit 2; }; BOARD="$1"; CID="$2"; SESSION="$3"; TCPID="$4"; MODEL=""; NAME=claude
     R="${TMPDIR:-/tmp}"; MEMD="${R%/}/lanework-lease/$SESSION/$(board_key "$BOARD")"; MEM="$MEMD/$CID"; timer; exit 0 ;;
   stake|renew|check|release) ;;
   *) usage "unknown subcommand: ${SUB:-none}" ;;
