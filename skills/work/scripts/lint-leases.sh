@@ -59,8 +59,9 @@ done
 S1='
 function emit(   rel, n, p, card, t, s, a, u, k) {
   if (st < 2) return
-  rel = substr(cur, length(board) + 2); gsub(/[\t\n]/, " ", rel)   # a newline or tab in a folder name would split split() and the records: it reads as a space
-  n = split(rel, p, "/"); card = show "/" p[1] "/" p[2]
+  rel = show_name(substr(cur, length(board) + 2))   # escaped before the split: no name part can then hold a newline, which split() on "/" also splits at
+  n = split(rel, p, "/")
+  card = show_name(show) "/" p[1] "/" p[2]   # printed escaped (lib.sh show_name): a tab or newline would split the records
   if (n == 3 && p[3] == "index.md" && kind == "card" && ltext != "") {
     u = ""
     if (match(ltext, /until:[ \t]*["\x27]?[^",}\x27 \t\n]*/)) { u = substr(ltext, RSTART, RLENGTH); sub(/^until:[ \t]*["\x27]?/, "", u) }
@@ -163,7 +164,7 @@ out=$(
   i=1
   while [ "$i" -le "$nb" ]; do
     eval "b=\$board_$i"
-    [ ! -s "$FD/$i" ] || LL_BOARD="$b" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$S1" < "$FD/$i"
+    [ ! -s "$FD/$i" ] || LL_BOARD="$b" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$SHOW_NAME_AWK$S1" < "$FD/$i"
     i=$((i + 1))
   done | awk -v since="$since" -v first="$first" -v window="$window" -v grace="$grace" -v now="$nowe" "$S2" | sort
 )

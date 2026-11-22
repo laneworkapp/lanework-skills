@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "A hand-written card label lands as a block list, which heal flags every run"
-order: 7168
+order: 94208
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T12:03:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2}}
-modified: {at: 2026-11-21T13:22:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-21T19:23:19Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 An agent that adds a label to a card, new or existing, runs one script instead of writing frontmatter, so `labels` lands in the compact form and a heal dry run has nothing to repair.
 
