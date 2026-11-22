@@ -4,13 +4,25 @@
 usage:
   lanework-merge.py driver [--quiet] <base> <ours> <theirs> <path>   git merge driver (%O %A %B %P)
   lanework-merge.py resolve <repo> [--model M]   placement pass over unmerged board paths, then report
-  lanework-merge.py install <repo>               .gitattributes rule + this clone's driver
+  lanework-merge.py install <repo>               .gitattributes rule + this clone's drivers
 
 python3, stdlib only. Self-contained: install copies this file into the clone's git dir.
+install registers two drivers: merge.lanework (driver) and merge.lanework.recursive = lanework-inner
+(the driver with --quiet, for git's inner merge of merge bases).
 The driver never writes outside the file git hands it: when a merge would lose text it writes the
 merged file with no markers and exits 1, and the pass keeps the losing side in a merge comment.
 Merge comments are signed {name: claude, kind: agent, model: M, session: "merge"} when
 LANEWORK_MERGE_MODEL (or --model) names the agent's model, else {name: merge, ...}.
+
+Exit codes:
+  driver   exit 0 merged, file written. exit 1 stopped for the pass: text to keep, trash against a
+           later edit, a rename-paired card, a non-board path or an error (ours is kept, flagged).
+           --quiet writes the merged file and exits 0 even when one side's text would be lost;
+           it still exits 1 for a non-board path, a rename-paired card or an error.
+  resolve  exit 0 every unmerged board path resolved. exit 1 something is left or a touched board fails validation.
+  install  exit 0 done.
+  any      exit 2 usage (this text on stderr): unknown subcommand, too few arguments, `--model` with no value.
+           exit 2 too when <repo> is not a git repo (resolve, install): `lanework-merge: not a git repo: <path>`.
 """
 import datetime, json, os, re, shutil, subprocess, sys, tempfile, uuid as uuidlib
 
@@ -743,6 +755,9 @@ def foreign(b, o, t):
 def cmd_driver(argv):
     quiet = '--quiet' in argv
     argv = [a for a in argv if a != '--quiet']
+    if len(argv) < 4:
+        sys.stderr.write(__doc__)
+        return 2
     fb, fo, ft, path = argv[:4]
     repo = os.getcwd()
     rd = lambda f: open(f, 'rb').read()
@@ -1110,6 +1125,9 @@ def refresh_install(repo):
 
 
 def cmd_resolve(argv):
+    if '--model' in argv and argv.index('--model') + 1 >= len(argv):
+        sys.stderr.write(__doc__)
+        return 2
     repo = os.path.abspath(argv[0])
     model = argv[argv.index('--model') + 1] if '--model' in argv else None
     repo = git(repo, 'rev-parse', '--show-toplevel').decode().strip()
@@ -1257,6 +1275,12 @@ def main(argv):
     if not argv or argv[0] not in ('driver', 'resolve', 'install') or len(argv) < 2:
         sys.stderr.write(__doc__)
         return 2
+    if argv[0] in ('resolve', 'install'):
+        try:
+            git(os.path.abspath(argv[1]), 'rev-parse', '--show-toplevel')
+        except RuntimeError:
+            sys.stderr.write('lanework-merge: not a git repo: %s\n' % argv[1])
+            return 2
     return {'driver': cmd_driver, 'resolve': cmd_resolve, 'install': cmd_install}[argv[0]](argv[1:])
 
 

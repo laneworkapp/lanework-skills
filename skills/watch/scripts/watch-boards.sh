@@ -2,6 +2,12 @@
 # Watch board watcher: fswatch-triggered snapshot diff over one or more boards.
 #
 # Usage: watch-boards.sh [--skills <skills-root>] <state-file> <board-path>...
+# Needs zsh and fswatch (brew install fswatch).
+#
+# Exit 2 = nothing watched: usage (no state file or board, `--skills` with no value), a bad --skills
+# root (see below), a path that is not a board, two boards sharing a folder name, or fswatch missing
+# (`watch-boards.sh: needs fswatch (brew install fswatch)`, checked before the first snapshot).
+# Otherwise it runs until fswatch ends.
 #
 # Per burst, per board: `CHANGED <Board>.lanework/<path>` for each changed file, or
 # `BULK: <n> files changed in <Board>.lanework` when more than 20 changed.
@@ -12,7 +18,7 @@
 # a root with no watch/SKILL.md is refused, exit 2):
 # fingerprint of the rule files a watch reads (watch/**/*.md, work/SKILL.md,
 # work/references/*.md, lanework/references/{authority,board-kinds}.md) kept in
-# <state-file>.skills; the root joins fswatch. A different fingerprint, on a burst or
+# <state-file>.skills; the resolved watch, work and lanework folders join fswatch. A different fingerprint, on a burst or
 # at start against the stored one, emits one `SKILLS CHANGED`. No stored value yet =
 # store it, emit nothing. Without --skills nothing changes.
 #
@@ -78,6 +84,7 @@ skills_check() {
   [[ -z $old ]] || echo "SKILLS CHANGED"
 }
 
+command -v fswatch >/dev/null || { echo "watch-boards.sh: needs fswatch (brew install fswatch)" >&2; exit 2 }
 snap > "$STATE"
 skills_check
 fswatch -r -o -l 0.5 "${BOARDS[@]}" "${SKDIRS[@]}" | while IFS= read -r _; do
