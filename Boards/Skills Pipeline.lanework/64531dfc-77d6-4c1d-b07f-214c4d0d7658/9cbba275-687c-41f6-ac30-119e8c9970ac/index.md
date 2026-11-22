@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Guide moved to v119: bump the stamp; only the Ready-made skills paragraph changed"
-order: 3072
+order: 4096
 labels: [{text: "repo", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T21:00:58Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T21:00:58Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-22T22:35:16Z}
 ---
 The app moved this board's agent guide from v118 to v119, and the skills are still stamped v118 in the repo's `CLAUDE.md`.
 

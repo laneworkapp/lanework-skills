@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "An owner-pasted comment holds an email address in the public repo: left as is"
-order: 2048
+order: 3072
 labels: [{text: "repo", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T20:04:16Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T20:04:16Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-22T22:35:16Z}
 ---
 A comment on this board, in the public repo, carries the owner's git email address in a pasted `Author:` line. The owner's ruling: no big deal, leave it be. This card records it so it is not raised again.
 

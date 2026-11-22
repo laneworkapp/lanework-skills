@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Review leftovers 3: Recap-click edges, lease memory file, commit-board setsid, smoke guard"
-order: 1024
+order: 2048
 labels: [{text: "discovery", kind: {type: "skill", text: "Skill"}}, {text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "work", kind: {type: "skill", text: "Skill"}}, {text: "repo", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T19:23:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-21T19:23:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-22T22:35:16Z}
 ---
 Reviewer notes left open when four cards closed on 2026-11-21, none blocking, each from a reviewer's read or run and not yet re-checked.
 

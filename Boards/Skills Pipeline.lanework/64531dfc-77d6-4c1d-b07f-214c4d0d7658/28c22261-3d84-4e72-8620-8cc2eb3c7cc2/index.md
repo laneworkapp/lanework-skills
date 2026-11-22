@@ -2,9 +2,9 @@
 schema: 1
 kind: card
 title: "Fix the merge script dropping a kept card's unedited files"
-order: 4096
+order: 5120
 created:  {at: 2026-11-22T22:20:35Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
-modified: {at: 2026-11-22T22:20:35Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-22T22:35:16Z}
 ---
 The board merge script keeps an edited card that the other side deleted, but drops every file in it that was not edited: its comments, attachments and relations.
 
