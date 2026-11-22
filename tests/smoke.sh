@@ -3896,6 +3896,20 @@ for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do kill "$p" 2>/dev/null || true; done; L
 waitfor '[ -z "$(pgrep -f "$LS _timer" || true)" ]' || { echo "timers left:"; pgrep -fl "$LS _timer"; exit 1; }
 validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
 
+# usage guard: every script run with no arguments exits 2 (64 for the heal scripts) and its header, first 60 lines, states that code.
+# A script that needs no arguments is listed in NOARG with its code. Catches a new script with no stated usage code, and a code change
+# that leaves its header behind. A floor, not a proof: it does not check refusal codes. GUARD_DIR overrides the scanned skills dir (self-test).
+declare -A NOARG=()   # name -> exit code of a script that needs no arguments; none yet
+for ug_s in "${GUARD_DIR:-$SK}"/*/scripts/*; do
+  ug_n=$(basename "$ug_s"); [ "$ug_n" != lib.sh ] || continue
+  case "$ug_n" in heal-board.py|heal-descriptors.py) ug_want=64 ;; *) ug_want=2 ;; esac
+  ug_want=${NOARG[$ug_n]:-$ug_want}
+  ug_rc=0; env -u CLAUDE_MODEL -u CLAUDE_CODE_SESSION_ID -u CLAUDE_PID perl -e 'alarm 10; exec @ARGV' "$ug_s" </dev/null >/dev/null 2>&1 || ug_rc=$?
+  [ "$ug_rc" = "$ug_want" ] || { echo "$ug_s with no arguments exits $ug_rc, want $ug_want"; exit 1; }
+  ug_hdr=$(head -60 "$ug_s"); grep -qi "exit $ug_want" <<<"$ug_hdr" || { echo "$ug_s: first 60 lines never say 'exit $ug_want'"; exit 1; }
+done
+ok "usage guard: every script with no arguments exits 2 (64 for heal), and its header says so"
+
 # plugin: the manifest agrees with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
 import json, os, sys
