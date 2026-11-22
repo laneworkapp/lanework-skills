@@ -2770,6 +2770,34 @@ rm -f "$PP"
 [ "$(cat "$G/ttyres" 2>/dev/null)" = tty-closed ] && [ "$(cat "$G/ttyrc" 2>/dev/null)" = 0 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s)" = "B: no tty" ] \
   || { echo "commit-board: the push under a pty (hook: $(cat "$G/ttyres" 2>/dev/null), rc $(cat "$G/ttyrc" 2>/dev/null)):"; cat "$G/tty.out"; exit 1; }
 ok "commit-board.sh: under a pty the push has no terminal (a pre-push hook cannot open /dev/tty), and it lands"
+# work: headers card. move-card.sh posts --comment only after every refusal, and passes a lost lease from post-comment.sh through as exit 3;
+# lint-ask.sh sends its unreadable-file message to stderr and fails an ask of exactly 80 words
+HM="$T/HdrWork.lanework"; cp -R "$P" "$HM"; cp -R "$VAL" "$HM/.schema"
+HMI=$(dirname "$(lane_of "$HM" Ideas)"); HMA=$(dirname "$(lane_of "$HM" Active)")
+HC1=feed0000-0000-4000-8000-000000000001; mkdir -p "$HMI/$HC1"
+printf 'no frontmatter here\n' > "$HMI/$HC1/index.md"; printf 'A note.\n' > "$T/hm-c.md"
+rc=0; O=$(env -u CLAUDE_CODE_SESSION_ID "$MC" "$HM" "${HC1:0:8}" Active --model smoke --comment "$T/hm-c.md" 2>&1) || rc=$?
+[ "$rc" -eq 1 ] && grep -q 'no frontmatter; nothing written' <<<"$O" && [ ! -e "$HMI/$HC1/comments" ] && [ -f "$HMI/$HC1/index.md" ] && [ ! -e "$HMA/$HC1" ] \
+  || { echo "move-card --comment on a card with no frontmatter (rc $rc): want exit 1 and no comment left: $O"; ls -R "$HMI/$HC1"; exit 1; }
+ok "move-card.sh --comment: a card with no frontmatter is refused with the comment not posted (before the fix, one comment was left)"
+HMS="$T/hm-skills"; cp -R "$SK" "$HMS"; HC2=beef0000-0000-4000-8000-000000000002; mkdir -p "$HMI/$HC2"
+printf -- '---\nschema: 1\nkind: card\ntitle: "Lease race"\norder: 2048\ncreated: {at: 2026-10-01T00:00:00Z}\nmodified: {at: 2026-10-01T00:00:00Z}\n---\nBody.\n' > "$HMI/$HC2/index.md"
+printf '#!/bin/bash\nn="$0.calls"; c=$(cat "$n" 2>/dev/null || echo 0); echo $((c+1)) > "$n"; [ "$c" -eq 0 ] && exit 4; exit 3\n' > "$HMS/lanework/scripts/lease.sh"; chmod +x "$HMS/lanework/scripts/lease.sh"
+rc=0; O=$(CLAUDE_CODE_SESSION_ID=s-hm-test "$HMS/work/scripts/move-card.sh" "$HM" "${HC2:0:8}" Active --model smoke --comment "$T/hm-c.md" 2>&1) || rc=$?
+[ "$rc" -eq 3 ] && grep -q 'move-card.sh: this session.s lease on beef0000 is lost' <<<"$O" && [ -d "$HMI/$HC2" ] && [ ! -e "$HMI/$HC2/comments" ] \
+  || { echo "move-card --comment, lease lost at the comment (rc $rc): want exit 3 and the card not moved: $O"; exit 1; }
+ok "move-card.sh --comment: a lease lost between the move's check and the comment's exits 3 with its own line, the card unmoved (before the fix, exit 1 'the comment was refused')"
+rc=0; O=$("$SK/work/scripts/lint-ask.sh" "$T/no-such-ask.md" 2>/dev/null) || rc=$?
+[ "$rc" -eq 2 ] && [ -z "$O" ] || { echo "lint-ask, an unreadable file: want exit 2 and nothing on stdout (rc $rc): $O"; exit 1; }
+rc=0; O=$("$SK/work/scripts/lint-ask.sh" "$T/no-such-ask.md" 2>&1 >/dev/null) || rc=$?
+[ "$rc" -eq 2 ] && [ "$O" = "lint-ask.sh: no such file: $T/no-such-ask.md" ] || { echo "lint-ask, an unreadable file: want the message on stderr (rc $rc): $O"; exit 1; }
+{ printf '@owner Which engine?'; for _ in $(seq 1 77); do printf ' word'; done; printf '\n'; } > "$T/ask-80.md"
+{ printf '@owner Which engine?'; for _ in $(seq 1 76); do printf ' word'; done; printf '\n'; } > "$T/ask-79.md"
+[ "$(wc -w < "$T/ask-80.md" | tr -d ' ')" -eq 80 ] || { echo "ask-80 fixture is not 80 words"; exit 1; }
+rc=0; O=$("$SK/work/scripts/lint-ask.sh" "$T/ask-80.md") || rc=$?
+[ "$rc" -eq 1 ] && grep -q '^80 words; an ask stays under 80' <<<"$O" || { echo "lint-ask, an 80-word ask: want exit 1 (rc $rc): $O"; exit 1; }
+"$SK/work/scripts/lint-ask.sh" "$T/ask-79.md" || { echo "lint-ask, a 79-word ask failed"; exit 1; }
+ok "lint-ask.sh: an unreadable file prints 'lint-ask.sh: no such file: <f>' on stderr only, exit 2; an ask of exactly 80 words fails, 79 passes (before the fix: stdout message, 80 passed)"
 
 # release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)

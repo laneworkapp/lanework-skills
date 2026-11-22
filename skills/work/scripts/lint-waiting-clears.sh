@@ -6,10 +6,11 @@
 # `in-reply-to` it, and the card has no `waiting` (flow or block form). One line per card on stdout:
 #   QUOTED <card> <ask uuid>      an agent comment `in-reply-to` the ask has a `>` line and a `**Given**` line
 #   NO-QUOTE <card> <ask uuid>    none does (also an ask that never got a mark: the two look alike)
+# then `QUOTED <n>, NO-QUOTE <m>` (listed cards only).
 # `--since <ts>` (UTC, 2026-11-14T15:30:00Z, as lint-leases.sh) lists only cards cleared at or after it: a card's clear time is the
 # newest created.at among its ask and the agent comments in-reply-to it (an ask with no record: its own time). The tally counts the
 # listed cards only. A stamp with fractional seconds is read to the whole second; an offset stamp is read as unreadable (UTC `Z` is the rule).
-# then `QUOTED <n>, NO-QUOTE <m>`. Silent exit 0 when nothing is listed; exit 1 when any NO-QUOTE; exit 2
+# Silent exit 0 when nothing is listed; exit 1 when any NO-QUOTE; QUOTED lines only: exit 0, not silent; exit 2
 # (message on stderr) on a missing path, a file, a bad flag, no argument or a path it could not read
 # (`lint-waiting-clears.sh: could not read <path>` on stderr, before the listed cards; what was read still lists). Skips .trash, .log, .schema and attachments.
 # An ask here is looser than lint-ask.sh's: that one needs the board's human handle (guide line, or the anyone handle)

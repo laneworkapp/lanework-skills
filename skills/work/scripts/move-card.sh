@@ -6,16 +6,20 @@
 # Rewrites `modified` whole (`at` from the clock, `by` from the caller, any old `by` replaced; a card
 # the owner filed has none) and `order`: the lane's max + 1024 (--bottom, the default), or half the
 # lane's lowest with --top (lowest - 1024 when that is 0 or less; 1024 in an empty lane). --clear-waiting
-# drops `waiting`; the default keeps it. Every other line stays byte for byte. --comment F posts F
-# through post-comment.sh with the same `by` first. Staged outside the board, then one `mv` of the
+# drops `waiting`; the default keeps it. Every other line stays byte for byte, except that the indented
+# continuation lines of a block-form `order`, `modified` or (with --clear-waiting) `waiting` go with their key.
+# --comment F posts F through post-comment.sh with the same `by`, only once every refusal below has passed
+# (just before the first `mv`); a validator failure after the `mv` leaves it posted. Staged outside the board, then one `mv` of the
 # card's folder, then the board's .schema validator on the card (skipped with a note when the board
 # has none). Prints the card's new path. No git, no commit.
-# Exit 2, nothing written: no model, a bad flag, no match or several. Exit 1, nothing written: not a
-# board, no such lane, the card already in that lane (a reorder rewrites `order` only), the comment
-# refused. Exit 1 after the `mv`: the validator failed on the card.
+# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), a bad flag, fewer than 3 arguments, no match or several. Exit 1, nothing written: not a
+# board, no such lane, the card already in that lane (a reorder rewrites `order` only), no frontmatter,
+# a triple brace after the restamp, the comment refused. Exit 1 after the `mv`: the validator failed on
+# the card, or printed a DEPRECATED line (counts as failure).
 # The lease (lanework/references/writes.md § Lease), after the refusals above and before anything is
 # written: with CLAUDE_CODE_SESSION_ID set (never --session), `lanework/scripts/lease.sh check`. Held or
-# never held: move. Lost: lease.sh posts the Lease lost record; nothing moved, no --comment, exit 3.
+# never held: move. Lost: lease.sh posts the Lease lost record; nothing moved, no --comment, exit 3
+# (also exit 3 when post-comment.sh reports the lease lost for --comment).
 # No session id, or no lanework/scripts/lease.sh beside work (one note on stderr): no check. Another
 # check failure: exit 1, nothing written. No release here.
 set -euo pipefail
@@ -93,10 +97,6 @@ elif [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
 fi
 
 BY=$(by_of "$NAME" "$MODEL" "$SESSION")
-if [ -n "$COMMENT" ]; then
-  "$(dirname "${BASH_SOURCE[0]}")/post-comment.sh" "$BOARD" "$CID" --body "$COMMENT" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null \
-    || { echo "move-card.sh: the comment was refused; card not moved" >&2; exit 1; }
-fi
 
 NOW=$(now_utc)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/work-move.XXXXXX"); trap 'rm -rf "$STAGE"' EXIT
@@ -116,6 +116,14 @@ LW_O="order: $ORDER" LW_M="modified: {at: $NOW, by: $BY}" awk -v clear="$CLEAR" 
 if ! stamp_lines_ok "$STAGE/index.md" order modified; then echo "move-card.sh: triple brace after the restamp; nothing written" >&2; exit 1; fi
 [ "$(head -1 "$STAGE/index.md")" = "---" ] || { echo "move-card.sh: $CARD/index.md has no frontmatter; nothing written" >&2; exit 1; }
 
+if [ -n "$COMMENT" ]; then
+  rc=0; "$(dirname "${BASH_SOURCE[0]}")/post-comment.sh" "$BOARD" "$CID" --body "$COMMENT" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null || rc=$?
+  case $rc in
+    0) ;;
+    3) echo "move-card.sh: this session's lease on ${CID:0:8} is lost; nothing moved" >&2; exit 3 ;;
+    *) echo "move-card.sh: the comment was refused; card not moved" >&2; exit 1 ;;
+  esac
+fi
 mv "$STAGE/index.md" "$CARD/index.md"
 mv "$CARD" "$DEST/$CID"
 VAL="$BOARD/.schema/bin/lanework-validate.py"

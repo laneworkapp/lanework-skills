@@ -4,16 +4,17 @@
 # F = a bare body, no frontmatter. Writes the comment (created, modified, by from `now_utc <ahead>`),
 # staged outside the board, card found by its `<uuid>/index.md` (exactly one) just before the `mv`.
 # Prints the new comment uuid (an ask's `waiting.comment` needs it). An ask goes one second after
-# its record: --ahead 1. --ahead is capped at 30 s (under lint-stamps.sh's 60 s slack).
+# its record: post-ask.sh waits for the clock; by hand, --ahead 1. --ahead is capped at 30 s (under lint-stamps.sh's 60 s slack).
 # Refuses (exit 1, nothing written) when a comment already on the card carries the same second (a
 # check, not a lock: posters started together can still collide) or the body fails lint-ask.sh.
-# Exit 2, nothing written: no model, bad flag or --ahead, no card or several with that uuid.
+# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), bad flag or --ahead, no card or several with that uuid.
 # The lease (lanework/references/writes.md § Lease), after every refusal above, just before the `mv`: with CLAUDE_CODE_SESSION_ID
 # set (never --session: that is a free stamp label), `lanework/scripts/lease.sh check`. Held (a lapsed own lease renewed) or
 # never held: write. Lost: lease.sh posts the Lease lost record itself; nothing else lands, the reason on stderr, exit 3. No
 # session id, or no lanework/scripts/lease.sh beside work (one note on stderr): no check, write as today. Another check
 # failure: exit 1, nothing written.
-# --release: after the comment lands, `lease.sh release`, only for a lease the check found held. Exit 1 after the comment
+# --release: after the comment lands, `lease.sh release`, only for a lease the check found held (never held: a
+# note on stderr, exit 0). Exit 1 after the comment
 # landed (its uuid printed): the release failed; release by hand.
 # Posting never restamps the card (a check that renews a lapsed lease does, through lease.sh).
 set -euo pipefail
