@@ -2,34 +2,36 @@
 # resolve-ticket.sh: record a ticket's resolution and move it; unblock what it was holding.
 # usage: resolve-ticket.sh <board> <card-uuid> --resolution F [--to resolved|out-of-scope] \
 #          --model m [--name n] [--session s]
-# Appends `## Resolution` + the --resolution text (templates/resolution.md), drops `waiting`,
+# Appends `## Resolution` + the --resolution text (templates/resolution.md), drops `waiting` and `claimed` (on every resolve, held lease or not),
 # restamps, moves the card to the bottom of Resolved (card must be in Working) or Out of scope
 # (card in Frontier, Blocked or Working). Then, only for resolved: every Blocked ticket whose
 # `## Depends on` links are all in Resolved moves to the bottom of Frontier (fresh order,
-# `modified` rewritten whole), one `unblocked <name>` line each (its citation; a card with none: the `T<n>` of a legacy `T<n>: ` title, else the title). Staged outside the board; each
-# card path is re-resolved just before landing. Prints the resolved card's link.
+# `modified` rewritten whole, `waiting` dropped like the resolved card's), one `unblocked <name>` line each (its citation; a card with none: the `T<n>` of a legacy `T<n>: ` title, else the title). Staged outside the board; each
+# card path is re-resolved just before landing. Prints `resolved <id> -> <lane> (order <n>)` first, then the `unblocked` lines, then the resolved card's link.
 # The lease (lanework/references/writes.md § Lease), after the refusals above and before anything is written: with
-# CLAUDE_CODE_SESSION_ID set (never --session), `lanework/scripts/lease.sh check`. Held: resolve, `claimed` dropped with
-# `waiting` in the same write, then `lease.sh release` once, which stops the timer. Lost: lease.sh posts the Lease lost
+# CLAUDE_CODE_SESSION_ID set (never --session), `lanework/scripts/lease.sh check`. Held: resolve, the write above
+# (it already dropped `claimed`), then `lease.sh release` once, which stops the timer. Lost: lease.sh posts the Lease lost
 # record; exit 1, nothing else written. Never held here, or no session id: a card with no lease (or a voided one) resolves
 # as before; another session's lease, live or lapsed, is exit 1, nothing written: stake it first (a lapsed one is taken
 # over). Another check failure: exit 1, nothing written. No lanework/scripts/lease.sh beside plan: one note, no check.
+# Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, no --resolution file, a bad --to, no model (--model, else CLAUDE_MODEL)).
 # Exit 1 after the card landed: the release failed; lease.sh release by hand.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 
-BOARD="${1:?usage: resolve-ticket.sh <board> <card-uuid> --resolution F [...]}"
-CID="${2:?usage: resolve-ticket.sh <board> <card-uuid> --resolution F [...]}"
+USAGE='resolve-ticket.sh <board> <card-uuid> --resolution F [--to resolved|out-of-scope] --model m [--name n] [--session s]'
+[ $# -ge 2 ] || { echo "usage: $USAGE" >&2; exit 2; }
+BOARD="$1"; CID="$2"
 shift 2
 TO="resolved"; RESOLUTION=""
 MODEL=""; NAME="claude"; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --to)         TO="${2:?--to needs a value}"; shift 2 ;;
-    --resolution) RESOLUTION="${2:?--resolution needs a file}"; shift 2 ;;
-    --model)      MODEL="${2:?--model needs a value}"; shift 2 ;;
-    --name)       NAME="${2-}"; shift 2 ;;
-    --session)    SESSION="${2:?--session needs a value}"; shift 2 ;;
+    --to)         need_value "$@"; TO="$2"; shift 2 ;;
+    --resolution) need_value "$@"; RESOLUTION="$2"; shift 2 ;;
+    --model)      need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)       [ $# -ge 2 ] || need_value "$@"; NAME="$2"; shift 2 ;;
+    --session)    need_value "$@"; SESSION="$2"; shift 2 ;;
     *) echo "resolve-ticket.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done

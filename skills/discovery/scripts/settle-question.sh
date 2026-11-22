@@ -8,25 +8,28 @@
 # `waiting` set: the staged card and its comments are run through work/scripts/lint-waiting-clears.sh first; a NO-QUOTE
 # (no owner comment answers the ask, and no record in reply to it) = exit 1, nothing written.
 # A `Recap:` click (a human comment whose first body line starts `Recap:`) is not an owner answer: it stays out of the lint's copy.
+# Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, an unreadable --ruling or --record, a --record without its quote and Given lines, a bad --to, no model (--model, else CLAUDE_MODEL)).
+# Exit 1, nothing written: no such lane or card, a NO-QUOTE, the lint missing or failing, the card moved during the settle, a brace in the stamp values.
 # Staged outside the board; the card path is re-resolved just before landing.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 LINT_CLEARS="$LIB_DIR/../../work/scripts/lint-waiting-clears.sh"
 
-BOARD="${1:?usage: settle-question.sh <board> <card-uuid> --ruling F [...]}"
-CID="${2:?usage: settle-question.sh <board> <card-uuid> --ruling F [...]}"
+USAGE='settle-question.sh <board> <card-uuid> --ruling F [--to settled|parked] [--record F [--reply <ask-uuid>]] --model m [--name n] [--session s]'
+[ $# -ge 2 ] || { echo "usage: $USAGE" >&2; exit 2; }
+BOARD="$1"; CID="$2"
 shift 2
 TO="settled"; REPLY=""; RULING=""; RECORD=""
 MODEL=""; NAME="claude"; SESSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --to)      TO="${2:?}"; shift 2 ;;
-    --reply)   REPLY="${2:?}"; shift 2 ;;
-    --ruling)  RULING="${2:?}"; shift 2 ;;
-    --record)  RECORD="${2:?}"; shift 2 ;;
-    --model)   MODEL="${2:?}"; shift 2 ;;
-    --name)    NAME="${2-}"; shift 2 ;;
-    --session) SESSION="${2:?}"; shift 2 ;;
+    --to)      need_value "$@"; TO="$2"; shift 2 ;;
+    --reply)   need_value "$@"; REPLY="$2"; shift 2 ;;
+    --ruling)  need_value "$@"; RULING="$2"; shift 2 ;;
+    --record)  need_value "$@"; RECORD="$2"; shift 2 ;;
+    --model)   need_value "$@"; MODEL="$2"; shift 2 ;;
+    --name)    [ $# -ge 2 ] || need_value "$@"; NAME="$2"; shift 2 ;;
+    --session) need_value "$@"; SESSION="$2"; shift 2 ;;
     *) echo "settle-question.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
