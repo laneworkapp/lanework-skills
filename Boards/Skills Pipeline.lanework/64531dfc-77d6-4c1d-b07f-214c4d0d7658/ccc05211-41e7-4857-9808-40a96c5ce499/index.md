@@ -5,7 +5,7 @@ title: "Pick the next card by priority"
 order: 1024
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-22T22:33:00Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-22T22:33:00Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-22T22:35:08Z}
 ---
 Owner's suggestion, in chat 2026-11-22: "use priority when picking next card to work on".
 
