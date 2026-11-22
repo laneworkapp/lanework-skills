@@ -80,10 +80,10 @@ status_of() {
 write_card() {
   local f f2 stage now by until="" try
   stage=$(mktemp -d "${TMPDIR:-/tmp}/lease-write.XXXXXX") || return 1
-  local sw sp                                                           # sweep the temp files of killed writes: the pid in the name is dead
+  local sw sp                                                           # sweep the temp files of killed writes: the pid in the name is dead (ps -p, not kill -0: a live pid of another user fails kill -0 with EPERM)
   for sw in "$BOARD"/.lease-write.*.*.lanework-tmp; do
     [ -f "$sw" ] || continue; sp=${sw%.lanework-tmp}; sp=${sp##*.}
-    [[ "$sp" =~ ^[0-9]+$ ]] && ! kill -0 "$sp" 2>/dev/null && rm -f "$sw"
+    [[ "$sp" =~ ^[0-9]+$ ]] && ! ps -p "$sp" >/dev/null 2>&1 && rm -f "$sw"
   done
   for try in 1 2 3 4 5; do
     f=$(find_card) || { rm -rf "$stage"; return 1; }
@@ -115,12 +115,12 @@ write_card() {
     f2=$(find_card) || continue                                         # fresh, just before the rename
     if [ "$f2" = "$f" ]; then
       # compare and rename in one process, no fork between them: 0 written, 3 changed (read again), 1 failed (nothing written).
-      # The stage on another volume than the board (EXDEV): the content is copied to <board>/.lease-write.<card>.<pid>.lanework-tmp,
+      # The stage on another volume than the board (EXDEV): the content is copied to <board>/.lease-write.<card>.<pid>.lanework-tmp (pid = perl's own, the process holding the file),
       # at the board root (no card folder: the app moves loose files there into attachments), compared again, then renamed over
       # the card. That temp file is removed on every failure path and on TERM, INT or HUP; a kill of this script leaves perl to
       # finish, and a KILL of perl leaves the file for the sweep at the top of write_card. The test pause, first try only, also holds the temp file before its compare.
       local r=0 p=0; [ "$try" != 1 ] || p=$WRITE_PAUSE
-      perl -e 'my ($rd, $nw, $f, $tmp, $p) = @ARGV; local $/;
+      perl -e 'my ($rd, $nw, $f, $pre, $p) = @ARGV; my $tmp = "$pre.$$.lanework-tmp"; local $/;
         sub same { open(my $a, "<", $rd) or return 0; open(my $b, "<", $f) or return 0; return <$a> eq <$b> }
         sub fail { unlink $tmp; exit $_[0] }
         same() or exit 3; rename($nw, $f) and exit 0; $!{EXDEV} or exit 1;
@@ -129,7 +129,7 @@ write_card() {
         open(my $o, ">", $tmp) or fail(1); print $o $c or fail(1); close $o or fail(1);
         select(undef, undef, undef, $p) if $p > 0;
         same() or fail(3); rename($tmp, $f) or fail(1); exit 0' \
-        "$stage/read" "$stage/index.md" "$f" "$BOARD/.lease-write.$CID.$$.lanework-tmp" "$p" || r=$?
+        "$stage/read" "$stage/index.md" "$f" "$BOARD/.lease-write.$CID" "$p" || r=$?
       if [ "$r" = 0 ]; then rm -rf "$stage"; WROTE_UNTIL="$until"; return 0; fi
       [ "$r" = 3 ] || { rm -rf "$stage"; echo "lease.sh: $f: the write failed; nothing written" >&2; return 1; }
     fi
