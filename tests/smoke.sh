@@ -818,15 +818,15 @@ for sv in "${SV[@]}"; do for k in name model session; do
   svcheck "resolve-ticket $k=$sv" "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$ST2" --resolution "$T/bres.md" "${F[@]}"
   # byte identity: the stamp's by is the same from a comment and from a card restamp
   SQ4=$(bq "SV same $k $sv"); SQD=$(dirname "$(bcard "$SQ4")"); ls "$SQD"/comments/*/index.md >/dev/null 2>&1 && C0=$(ls "$SQD"/comments/*/index.md) || C0=""
-  rc1=0; "$SK/work/scripts/post-comment.sh" "$BQ" "$SQ4" --body "$SVBODY" "${F[@]}" >/dev/null 2>&1 || rc1=$?
+  # --ahead 3: file-question stamps its comments one and two seconds ahead, so a bare post-comment right after it is refused (one distinct second per comment)
+  rc1=0; "$SK/work/scripts/post-comment.sh" "$BQ" "$SQ4" --body "$SVBODY" --ahead 3 "${F[@]}" >/dev/null 2>&1 || rc1=$?
   CN=$(comm -13 <(printf '%s\n' "$C0" | sort) <({ ls "$SQD"/comments/*/index.md 2>/dev/null || true; } | sort) | head -1); CB=$([ -n "$CN" ] && byof "$CN" || true)   # read before the move: it takes the card folder to another lane
   rc2=0; "$SK/work/scripts/move-card.sh" "$BQ" "$SQ4" Parked "${F[@]}" >/dev/null 2>&1 || rc2=$?
-  if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
-    [ -n "$CB" ] && [ "$CB" = "$(byof "$(bcard "$SQ4")")" ] || { echo "by differs between post-comment and move-card for $k=$sv: '$CB' vs '$(byof "$(bcard "$SQ4")")'"; exit 1; }
-    rc3=0; "$SK/work/scripts/label-card.sh" "$BQ" "$(bcard "$SQ4")" "Needs review" "${F[@]}" >/dev/null 2>&1 || rc3=$?
-    [ $rc3 -eq 0 ] && { [ "$CB" = "$(byof "$(bcard "$SQ4")")" ] || { echo "by differs after label-card for $k=$sv: '$CB' vs '$(byof "$(bcard "$SQ4")")'"; exit 1; }; }
-    validate "$BQ" >/dev/null || { echo "post-comment/move-card/label-card $k=$sv: board invalid"; exit 1; }
-  else svcheck "post-comment $k=$sv" "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$SQ4" --body "$SVBODY" "${F[@]}"; fi
+  rc3=0; "$SK/work/scripts/label-card.sh" "$BQ" "$(bcard "$SQ4")" "Needs review" "${F[@]}" >/dev/null 2>&1 || rc3=$?
+  # every value here is writable: a refusal would skip the comparison, so it fails the case
+  [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ] && [ $rc3 -eq 0 ] || { echo "post-comment rc $rc1, move-card rc $rc2, label-card rc $rc3 for $k=$sv: each must write"; exit 1; }
+  [ -n "$CB" ] && [ "$CB" = "$(byof "$(bcard "$SQ4")")" ] || { echo "by differs between post-comment and the card after move-card and label-card for $k=$sv: '$CB' vs '$(byof "$(bcard "$SQ4")")'"; exit 1; }
+  validate "$BQ" >/dev/null || { echo "post-comment/move-card/label-card $k=$sv: board invalid"; exit 1; }
 done; done
 ok "file-card, file-question, post-ask, settle-question, file-record, file-ticket, claim-ticket, resolve-ticket, post-comment and move-card, given {n}, a\"b, a\\, a\\\"}}}, 'x: y' and #x as --name, --model and --session: exit 0 and the board validates, or nothing written; the stamp's by is the same from a comment and a card"
 for sv in "${SV[@]}"; do for k in name model; do
@@ -843,9 +843,10 @@ SVQ=$(bq "SV refuse"); owner_comment "$(dirname "$(bcard "$SVQ")")" 'A.'
 # (stamp_args_ok runs before any state check, so an unclaimed ticket is refused with exit 2 by resolve-ticket.sh too)
 SBPL2="$BPL"; BPL="$T/sv-bpl2.lanework"; "$PS/found-plan-board.sh" "$BPL" --model smoke >/dev/null; cp -R "$VAL" "$BPL/.schema"
 SVT=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV refuse t" --type grilling --body "$T/bt.md" --model smoke); SVT2=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV refuse t2" --type grilling --body "$T/bt.md" --model smoke)
-FLS=(--name "$NLV" --model "$NLV" --session "$TBV" --name "")
+C1V=$'a\xc2\x85b'   # a C1 control (U+0085), UTF-8 C2 85
+FLS=(--name "$NLV" --model "$NLV" --session "$TBV" --name "" --name "$C1V" --model "$C1V" --session "$C1V")
 for ((i = 0; i < ${#FLS[@]}; i += 2)); do
-  FF=(--model smoke "${FLS[i]}" "${FLS[i+1]}"); [ "${FLS[i]}" = --model ] && FF=(--model "$NLV"); w=2; [ -z "${FLS[i+1]}" ] && w=any; fl="${FLS[i]}#$i"
+  FF=(--model smoke "${FLS[i]}" "${FLS[i+1]}"); [ "${FLS[i]}" = --model ] && FF=(--model "${FLS[i+1]}"); w=2; [ -z "${FLS[i+1]}" ] && w=any; fl="${FLS[i]}#$i"
   svrefused "file-card $fl" $w "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "R" --body "$SVBODY" "${FF[@]}"
   svrefused "post-comment $fl" $w "$BQ" "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ" --body "$SVBODY" "${FF[@]}"
   svrefused "post-ask $fl" $w "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$SVQ" --body "$SVBODY" --for anyone "${FF[@]}"
@@ -861,7 +862,7 @@ done
 for fl in --name --model; do
   rm -rf "$T/sv-found.lanework"; rc=0; "$FB" "$T/sv-found.lanework" "${FA[@]}" --model smoke "$fl" "$NLV" >/dev/null 2>&1 || rc=$?
   [ $rc -eq 2 ] && [ ! -e "$T/sv-found.lanework" ] || { echo "found-board $fl newline: exit $rc or a folder exists"; exit 1; }; done
-ok "a newline in --name or --model, a tab in --session: exit 2 and nothing written from every stamping script; an empty --name is refused too"
+ok "a newline or a C1 control in --name or --model, a tab or a C1 control in --session: exit 2 and nothing written from every stamping script; an empty --name is refused too"
 # values YAML would not read back as the same string (null, ~, a bool word, a number) are quoted: valid, and the same bytes from every script
 for nv in null '~' true 123 1e3; do for k in name model; do
   F=(--model smoke); case $k in model) F=(--model "$nv") ;; name) F+=(--name "$nv") ;; esac
