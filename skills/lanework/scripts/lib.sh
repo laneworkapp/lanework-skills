@@ -100,6 +100,34 @@ ask_handle() {
 # mint a citation and write a bare title; below it, or with no readable stamp (a board no app has opened), it files as before. ask_handle's gate.
 cite_enabled() { local v; v=$(guide_version "$1" || true); [ -n "$v" ] && [ "$v" -ge 117 ]; }
 
+# relations_enabled <board>: true when the board's guide line is new enough to have relations (guide § Relations) and its .schema a relation.json.
+# Below it, or with no readable stamp, a relation fails the board's own validator: a script writes none there. cite_enabled's shape.
+relations_enabled() { local v; v=$(guide_version "$1" || true); [ -n "$v" ] && [ "$v" -ge 111 ]; }
+
+# relation_file <card dir> <rel> <to> <at> <by>: the one relation writer. Writes <card dir>/relations/<uuid>/index.md in the guide's shape (schema,
+# kind, a one-line created, rel, to; no body) and prints the uuid. <by> = by_of's mapping, <to> written as given (the full link).
+relation_file() {
+  local id; id=$(uuid); mkdir -p "$1/relations/$id"
+  printf -- '---\nschema: 1\nkind: relation\ncreated: {at: %s, by: %s}\nrel: %s\nto: %s\n---\n' "$4" "$5" "$2" "$3" > "$1/relations/$id/index.md"
+  printf '%s\n' "$id"
+}
+
+# relation_canon <rel>: a rel as the app compares it: lower case, each `_` or space a `-` (`Depends_On`, `depends on` -> depends-on).
+relation_canon() { printf '%s' "$1" | tr 'A-Z_ ' 'a-z--'; }
+
+# relation_targets <card dir> <rel>: the `to` of each live relation on the card whose rel matches (relation_canon both sides), one per line, quotes
+# and surrounding blanks stripped. relations/.trash and every dot folder are skipped; a relation with no `to` prints nothing.
+relation_targets() {
+  local f r to want; want=$(relation_canon "$2")
+  for f in "$1"/relations/*/index.md; do
+    [ -f "$f" ] || continue
+    r=$(fm_value "$f" rel | sed -E "s/[[:space:]]+\$//; s/^[\"']//; s/[\"']\$//")
+    [ "$(relation_canon "$r")" = "$want" ] || continue
+    to=$(fm_value "$f" to | sed -E "s/[[:space:]]+\$//; s/^[\"']//; s/[\"']\$//")
+    [ -z "$to" ] || printf '%s\n' "$to"
+  done
+}
+
 # cite_of <index.md>: the card's `cite-as`, quotes stripped; empty when it has none.
 cite_of() { fm_value "$1" cite-as | sed -E "s/[[:space:]]+\$//; s/^[\"']//; s/[\"']\$//"; }
 

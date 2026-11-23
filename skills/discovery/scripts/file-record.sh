@@ -9,7 +9,7 @@
 # in the ruling (templates/ruling.md). Run before settle-question.sh: the question must still be
 # in Asked (a settled card is never edited), or in the --from lane (plan: Working). No waiting, no comments.
 # --supersedes <uuid> (repeatable): each must be a card in Decisions; the new card gets one `supersedes`
-# relation per target (relations/<uuid>/index.md). Nothing is written to the old card. Any bad target: exit 1, nothing written.
+# relation per target (lib.sh `relation_file`). Nothing is written to the old card. Any bad target: exit 1, nothing written.
 # Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, --record not ADR or PDR, no --title, an unreadable --body, no model (--model, else CLAUDE_MODEL)).
 # Exit 1, nothing written: not a board, no Decisions or --from lane, a bad question uuid or one not in the --from lane, a bad --supersedes, a brace in the frontmatter.
 set -euo pipefail
@@ -74,8 +74,7 @@ if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" "$KIND
 } > "$C/index.md"
 
 for S in ${SUPERSEDES[@]+"${SUPERSEDES[@]}"}; do
-  RD="$C/relations/$(uuid)"; mkdir -p "$RD"
-  printf -- '---\nschema: 1\nkind: relation\ncreated: {at: %s, by: %s}\nrel: supersedes\nto: lanework://%s/%s\n---\n' "$NOW" "$BY" "$BOARD_ID" "$S" > "$RD/index.md"
+  relation_file "$C" supersedes "lanework://$BOARD_ID/$S" "$NOW" "$BY" >/dev/null
 done
 
 DEC=$(lane_by_title "$BOARD" Decisions)
