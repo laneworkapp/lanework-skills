@@ -3293,8 +3293,11 @@ lease_cleanup() {
 trap lease_cleanup EXIT
 standin() { sleep 600 </dev/null >/dev/null 2>&1 & SP=$!; disown "$SP"; LSP+=("$SP"); }
 standin; LPID=$SP
+# RE and NW are L's per-call knobs (RE=5 L ...): an earlier section's RE (a card uuid) left set would end every timer at its first poll
+unset RE NW
 # L <session> <args...>: lease.sh as that session, under the stand-in CLAUDE_PID (LPID) and the test knobs
-L() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT="${NW:-1.5}" \
+L() { case "${RE:-1000}" in *[!0-9]*) echo "L: RE=$RE is no poll count" >&2; return 2 ;; esac
+  local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT="${NW:-1.5}" \
   LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY="${RE:-1000}" "$LS" "$@"; }
 LB="$T/Lease.lanework"; cp -R "$P" "$LB"; rm -rf "$LB/.schema"; cp -R "$VAL" "$LB/.schema"
 printf '<!-- lanework-agent-guide v118 -->\n\nThis machine'"'"'s human answers to `@owner`.\n' > "$LB/CLAUDE.md"
@@ -3338,6 +3341,7 @@ U=$(cuntil "$F1"); D=$(( $(epoch "$U") - $(date -u +%s) ))
 grep -q '^modified: {at: [0-9TZ:-]*, by: {name: claude, kind: agent, model: smoke, session: "'"$SID1"'"}}$' "$F1" || { echo "stake did not restamp modified"; cat "$F1"; exit 1; }
 validate "$LB" >/dev/null; HO=$(python3 "$LB/.schema/bin/lanework-heal.py" "$LB"); grep -q '^0 repairs' <<<"$HO" || { echo "heal dry run after stake: $HO"; exit 1; }
 [ -f "$(mem $SID1 "$C1")" ] && alive "$(mpid $SID1 "$C1")" || { echo "stake: no memory file or no live timer"; exit 1; }
+sleep 0.7; alive "$(mpid $SID1 "$C1")" || { echo "stake: the timer died within its first polls"; exit 1; }   # a bad knob ends it at poll 1
 ok "lease: stake writes claimed with by.session and until 30 minutes ahead; the board validates and the heal dry run lists nothing"
 
 # 2. no session id, no CLAUDE_PID, no model: exit 2, nothing written
