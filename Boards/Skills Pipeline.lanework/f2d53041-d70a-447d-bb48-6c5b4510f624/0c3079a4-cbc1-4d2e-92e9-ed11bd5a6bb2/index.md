@@ -2,9 +2,9 @@
 schema: 1
 kind: card
 title: "The smoke suite shares variables and process patterns across sections, so new cases break it only in a full run"
-order: 3072
+order: 9216
 created:  {at: 2026-11-23T12:33:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-23T16:49:27Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-23T16:49:36Z}
 ---
 Make `tests/smoke.sh` safe to extend: each section runs in a scope of its own, the suite handles its lease timers by pid, and one section can be run alone by name.
 
