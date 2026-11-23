@@ -57,9 +57,10 @@ ok "no skill folder or plugin.json entry is named pitlane, pitwall or dispatch"
 
 # early-closing readers: no script under test pipes into head or grep -q/-m here. The reader closes after its first match and a
 # later write of the script dies of a broken pipe, rc 141 under pipefail. Capture the output whole (bfirst). The pattern matches a sample
-EC='(scripts/[a-z-]+|\$PS/[a-z-]+)\.sh"[^|]*\| *(head|grep -[a-zA-Z]*[qm])'
+EC='(scripts/[a-z-]+|\$PS/[a-z-]+)\.sh"[^|]*\| *\{? *(head|grep -[a-zA-Z]*[qm]|sed (-n )?.?[0-9]*q|awk .*exit|read -r)'
 ec1='X=$("$PS/file-ticket'; ec1+='.sh" "$B" t | head -1)'; ec2='"$SK/x/scripts/a-b'; ec2+='.sh" 2>&1 | grep -qF y'   # split: no self-match
-[ "$(printf '%s\n' "$ec1" "$ec2" | grep -cE "$EC")" = 2 ] || { echo "the early-reader pattern misses its samples"; exit 1; }
+ec3='"$SK/x/scripts/a-b'; ec3+='.sh" | sed 1q'; ec4='"$SK/x/scripts/a-b'; ec4+='.sh" | awk "NR==1{print; exit}"'; ec5='"$SK/x/scripts/a-b'; ec5+='.sh" | { read -r l; }'
+[ "$(printf '%s\n' "$ec1" "$ec2" "$ec3" "$ec4" "$ec5" | grep -cE "$EC")" = 5 ] || { echo "the early-reader pattern misses its samples"; exit 1; }
 hits=$(grep -nE "$EC" "$ROOT/tests/smoke.sh" || true); [ -z "$hits" ] || { echo "a script's output piped into an early-closing reader:"; echo "$hits"; exit 1; }
 ok "no script under test pipes its output into head or grep -q/-m in smoke"
 
@@ -851,7 +852,8 @@ bsnap() { (cd "$1" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do 
 # bholds <before copy> <after file>: the labels line and the whole old body are as they were (a body only grew by an appended ruling)
 bholds() { [ "$(grep -m1 '^labels:' "$1")" = "$(grep -m1 '^labels:' "$2")" ] && [[ "$(bodyof "$2")" == "$(bodyof "$1")"* ]]; }
 printf 'Is brace safe?\n\n## Options\n\n- A: yes\n- B: no\n\n## Recommended\n\nA. Simple.\n' > "$T/bq.md"
-bq() { local o; o=$("$SK/discovery/scripts/file-question.sh" "$BQ" "$1" --round 1 --body "$T/bq.md" --model smoke 2>&1); head -1 <<<"$o" | sed 's#.*/##'; }
+bq() { bfirst "$SK/discovery/scripts/file-question.sh" "$BQ" "$1" --round 1 --body "$T/bq.md" --model smoke 2>/dev/null; }
+! (BQ="$T/no-such-board.lanework"; bq "Self-check" >/dev/null) || { echo "bq hides a failing file-question.sh"; exit 1; }
 BQM=$(bq "Brace move"); BQA=$(bq "Brace ask"); BQS=$(bq "Brace settle"); BQR=$(bq "Brace record")
 bcard() { ls "$BQ"/*/"$1"/index.md; }
 for c in "$BQM" "$BQA" "$BQS" "$BQR"; do bracecard "$(bcard "$c")"; done
