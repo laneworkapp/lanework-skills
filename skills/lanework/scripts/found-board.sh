@@ -9,10 +9,11 @@
 #   Repeated --labels accumulate (a kind repeated across flags is written once); a kind twice in one list -> exit 2.
 # Lanes table rows: | order | title | collapsed (yes) | icon (YAML flow mapping, or empty) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
-# Exit: 0 founded; 1 refused (non-empty folder, unreadable --index or --lanes, missing label-kinds.md, a brace in the stamp values), nothing written;
+# Exit: 0 founded; 1 refused (non-empty folder, a folder that cannot be created, unreadable --index or --lanes, missing label-kinds.md, a brace in the stamp values), nothing written;
 #   2 usage, nothing written (no argument, unknown argument, a flag with no value, no model (--model, else CLAUDE_MODEL), empty or control-character --name or --model,
 #   blank flattened --title, reserved --var, a template with {{label_entries}} but no --labels, --labels with no slot, bad label kind, a template that fails to render, e.g. a {{slot}} no --var fills).
-# The folder is created only after the template renders, so a failed run leaves no folder.
+# The folder is created only after the template renders, so a failed run leaves no folder; a lane that fails after that
+# removes the folder only when this run created it, and from an empty folder that was there only what this run wrote.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
@@ -77,13 +78,18 @@ render "$INDEX" title "$(flat_str "$TITLE")" title_yaml "\"$(title_str "$TITLE")
   { echo "found-board.sh: the template did not render; nothing written" >&2; exit 2; }
 compact_fm "$STAGE/index.md"
 stamp_lines_ok "$STAGE/index.md" created modified || { echo "found-board.sh: a brace in the stamp (--model or --name); nothing written" >&2; exit 1; }
-mkdir -p "$BOARD"
+# CREATED: this run made the folder (mkdir, not -p, so a folder made meanwhile by another is never counted as ours).
+# undo takes back what this run wrote: the whole folder only when CREATED, else its index.md and the lane folders it made
+mkdir -p "$(dirname "$BOARD")"; CREATED=""
+if mkdir "$BOARD" 2>/dev/null; then CREATED=1; else [ -d "$BOARD" ] || { echo "found-board.sh: cannot create $BOARD" >&2; exit 1; }; fi
+undo() { local l; if [ -n "$CREATED" ]; then rm -rf "$BOARD"; else rm -f "$BOARD/index.md"; for l in $1; do rm -rf "${BOARD:?}/$l"; done; fi; }
 mv "$STAGE/index.md" "$BOARD/index.md"
 
+MADE=""   # the lane folders made so far (uuids), for undo; the loop runs in one subshell, so it accumulates there
 awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 6; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 "\037" $6 }' "$LANES" |
 # \037, not tab: tab is IFS whitespace, so an empty collapsed or icon cell would merge away and shift body.
 while IFS=$'\037' read -r ORDER LANE COLLAPSED ICON LBODY; do
-  LANE_ID=$(uuid); mkdir -p "$BOARD/$LANE_ID"
+  LANE_ID=$(uuid); mkdir -p "$BOARD/$LANE_ID"; MADE="$MADE $LANE_ID"
   {
     printf '%s\n' '---' 'schema: 1' 'kind: lane'
     printf 'title: %s\n' "\"$(title_str "$LANE")\""
@@ -94,7 +100,7 @@ while IFS=$'\037' read -r ORDER LANE COLLAPSED ICON LBODY; do
     printf 'modified: {at: %s, by: %s}\n' "$NOW" "$BY"
     printf '%s\n' '---' "$LBODY"
   } > "$STAGE/lane.md"
-  stamp_lines_ok "$STAGE/lane.md" created modified || { rm -rf "$BOARD"; echo "found-board.sh: a brace in a lane stamp; nothing written" >&2; exit 1; }
+  stamp_lines_ok "$STAGE/lane.md" created modified || { undo "$MADE"; echo "found-board.sh: a brace in a lane stamp; nothing written" >&2; exit 1; }
   mv "$STAGE/lane.md" "$BOARD/$LANE_ID/index.md"
 done
 
