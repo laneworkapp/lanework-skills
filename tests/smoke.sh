@@ -3758,9 +3758,11 @@ C12q=$(lcard "Quoted one"); QN='a, b "c" \ d}'; L S-quo stake "$LB" "$C12q" --mo
 [ "$("$LS" list "$LB" | awk -F'\t' -v c="$C12q" '$1==c {print $2}')" = "$QN (S-quo)" ] || { echo "list cut a quoted name short: $("$LS" list "$LB" | awk -F'\t' -v c="$C12q" '$1==c')"; exit 1; }
 L S-quo release "$LB" "$C12q" --model smoke >/dev/null
 # an opening quote never closed (and no later quote on the claimed lines): the bare reading (text up to the next , or }), not an empty name
-C12r=$(lcard "Unclosed one"); L S-unq stake "$LB" "$C12r" --model smoke >/dev/null; cp "$(lcf "$C12r")" "$T/unq.bak"; perl -pi -e 's/^claimed: .*(until: \S+?)\}$/claimed: {by: {name: "open, kind: agent}, $1}/' "$(lcf "$C12r")"
+# (the claim is rewritten only after the release: a live timer would read the rewritten by as a lost lease)
+C12r=$(lcard "Unclosed one"); L S-unq stake "$LB" "$C12r" --model smoke >/dev/null; cp "$(lcf "$C12r")" "$T/unq.claimed"; L S-unq release "$LB" "$C12r" --model smoke >/dev/null
+cp "$(lcf "$C12r")" "$T/unq.bak"; cp "$T/unq.claimed" "$(lcf "$C12r")"; perl -pi -e 's/^claimed: .*(until: \S+?)\}$/claimed: {by: {name: "open, kind: agent}, $1}/' "$(lcf "$C12r")"; grep -q '^claimed: {by: {name: "open, kind: agent}, until: ' "$(lcf "$C12r")" || { echo "the unclosed-name rewrite did not land"; exit 1; }
 [ "$("$LS" list "$LB" | awk -F'\t' -v c="$C12r" '$1==c {print $2}')" = '"open (?)' ] || { echo "list on an unclosed quoted name: $("$LS" list "$LB" | awk -F'\t' -v c="$C12r" '$1==c')"; exit 1; }
-cp "$T/unq.bak" "$(lcf "$C12r")"; L S-unq release "$LB" "$C12r" --model smoke >/dev/null
+cp "$T/unq.bak" "$(lcf "$C12r")"
 ok "lease: list prints a stake name holding a comma, quotes, a backslash and a brace whole, and an unclosed quoted name by the bare reading"
 
 # work: the card-writing scripts check the lease first (post-comment, move-card, post-ask), on the lease board, before 13 releases
