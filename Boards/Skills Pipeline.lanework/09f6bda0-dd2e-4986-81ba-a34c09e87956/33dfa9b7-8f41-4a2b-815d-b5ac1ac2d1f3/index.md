@@ -2,10 +2,13 @@
 schema: 1
 kind: card
 title: "Plan: record ticket dependencies as depends-on relations"
-order: 7168
+order: 4096
 labels: [{text: "plan", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T16:34:08Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Scratch"}}
-modified: {at: 2026-11-23T16:49:36Z}
+modified: {at: 2026-11-23T16:50:04Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-23T17:20:03Z
 ---
 Plan tickets record their dependencies as a `## Depends on` list in the body, which the app treats as plain links, while the guide has a typed `depends-on` relation for exactly this. This card makes `file-ticket.sh` write one relation per dependency and makes `frontier.sh` and `resolve-ticket.sh` read relations, so a dependency shows on both tickets in the app and one the owner adds or removes there is obeyed.
 
