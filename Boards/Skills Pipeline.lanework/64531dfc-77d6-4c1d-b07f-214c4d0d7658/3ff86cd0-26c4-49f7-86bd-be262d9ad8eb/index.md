@@ -5,7 +5,8 @@ title: "Merge: a delete against an added comment leaves a folder with no index.m
 order: 2048
 labels: [{text: "merge", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T00:30:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-23T16:45:11Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+waiting: {for: anyone, since: 2026-11-23T16:45:22Z, comment: fab914f5-f609-4861-9c47-13986e171371}
+modified: {at: 2026-11-23T16:45:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Two merges still lose or strand a card the other side deleted for good. If the other side only added a comment or an attachment, git merges with no conflict and leaves those files in a folder with no `index.md`. If the other side only moved the card, the pass sees no edit and drops the card. Both reproduce on throwaway repos, both ways, and the board validator passes both broken results. One change in `lanework-merge.py` for each, verified on a prototype copy.
 
