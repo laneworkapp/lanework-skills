@@ -29,7 +29,8 @@
 # Reads git (branch, `git --no-optional-locks status --porcelain`) for the loss record; never writes the repo, stages or commits.
 # Test-only knobs, read by tests/smoke.sh: LEASE_TEST_STAKE_WAIT (seconds, default 1), LEASE_TEST_NOTICE_WAIT (120),
 # LEASE_TEST_POLL (60), LEASE_TEST_RENEW_EVERY (polls between renewals, 15), LEASE_TEST_WRITE_PAUSE (0: a write's first try waits this
-# long between its read and its compare). Fractional seconds are fine.
+# long between its read and its compare), LEASE_TEST_PIDLOG (none: a file each started timer's pid is appended to, so a test
+# stops its own timers by pid). Fractional seconds are fine.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; SELF="$HERE/lease.sh"
 . "$HERE/lib.sh"
@@ -204,7 +205,9 @@ ensure_timer() {
   if is_timer "$M_PID"; then return 0; fi
   if [ -z "$cp" ] || ! kill -0 "$cp" 2>/dev/null; then echo "lease.sh: no live CLAUDE_PID; no timer for ${CID:0:8}" >&2; return 0; fi
   nohup "$SELF" _timer "$BOARD" "$CID" "$SESSION" "$cp" </dev/null >/dev/null 2>&1 &
-  M_PID=$!; M_CPID=$cp; mem_save
+  M_PID=$!; M_CPID=$cp
+  if [ -n "${LEASE_TEST_PIDLOG:-}" ]; then { echo "$M_PID" >> "$LEASE_TEST_PIDLOG"; } 2>/dev/null || true; fi
+  mem_save
 }
 # lose <the other session, or none>: once per card and session, the loss record, and the memory marked lost.
 # The .lost directory is the once-guard (mkdir: one caller wins). A record that fails to land takes the mark back, so the

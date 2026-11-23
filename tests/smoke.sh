@@ -8,6 +8,7 @@ unset CLAUDE_CODE_SESSION_ID CLAUDE_PID
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Boards/Skills Pipeline.lanework/.schema"
 T="${1:-$(mktemp -d "${TMPDIR:-/tmp}/lanework-smoke.XXXXXX")}"
+echo "smoke: pid $$, scratch $T" >&2   # first line, on stderr (release.sh hides stdout): stop a run with kill <pid>, never by pattern
 pass=0
 ok() { pass=$((pass+1)); echo "ok $pass - $1"; }
 validate() {
@@ -15,6 +16,25 @@ validate() {
   grep -q '^failures    0 ' <<<"$out" && ! grep -q DEPRECATED <<<"$out" || { echo "$out"; return 1; }
   grep -o 'documents   [0-9]*' <<<"$out"
 }
+
+# lease timers, by pid: every timer lease.sh starts in this run appends its pid to this run's log (LEASE_TEST_PIDLOG), whatever
+# its TMPDIR. A timer is never found or killed by a pattern, which would reach another run's timers from the same checkout.
+mkdir -p "$T"; TR=$(cd "$T" && pwd -P)
+export LEASE_TEST_PIDLOG="$TR/timers.pids"; : > "$LEASE_TEST_PIDLOG"
+# timer_alive <pid> [<text>]: a live lease timer of this run (its command line names a board under this run's scratch dir),
+# whose command line also holds the text; a reused pid or a zombie is never taken for one
+timer_alive() { local c; [ -n "$1" ] || return 1; c=$(ps -ww -p "$1" -o command= 2>/dev/null) || return 1
+  [[ "$c" == *"lease.sh _timer $TR/"* && "$c" == *"${2:-}"* ]]; }
+# timers_logged: how many pids the log holds, the mark a case takes before it starts and passes to timers_left after
+timers_logged() { if [ -s "$LEASE_TEST_PIDLOG" ]; then wc -l < "$LEASE_TEST_PIDLOG" | tr -d ' '; else echo 0; fi; }
+# timers_left [<mark>] [<text>]: the logged pids past the mark (default 0, the whole log) that are live timers holding the text
+timers_left() { local p n=0; [ -s "$LEASE_TEST_PIDLOG" ] || return 0
+  while read -r p; do n=$((n + 1)); if [ "$n" -gt "${1:-0}" ] && timer_alive "$p" "${2:-}"; then echo "$p"; fi; done < "$LEASE_TEST_PIDLOG"; }
+# timers_show <pid...>: each pid and its command line, for a wait that cannot finish
+timers_show() { local p; for p in "$@"; do echo "  $p: $(ps -ww -p "$p" -o command= 2>/dev/null || echo '(gone)')"; done; }
+# stop_standin <pid>: end a stand-in CLAUDE_PID (a sleep 600 this run started) only while the pid is still that sleep
+stop_standin() { local c; [ -n "${1:-}" ] || return 0; c=$(ps -ww -p "$1" -o command= 2>/dev/null) || return 0
+  if [ "$c" = "sleep 600" ]; then kill "$1" 2>/dev/null || true; fi; }
 
 # flowed <file>: the frontmatter's config and labels, each on one unquoted flow line (a "#" string quoted), whatever
 # layout the compact form gave them, so a check can grep a catalog row or a template's entry as written there
@@ -65,6 +85,15 @@ ecn='"$SK/x/scripts/a-b'; ecn+='.sh" | awk "{print}" || { echo bad; exit 1; }'; 
 [ "$(printf '%s\n' "$ec1" "$ec2" "$ec3" "$ec4" "$ec5" "$ec6" "$ec7" | grep -cE "$EC")" = 7 ] && ! grep -qE "$EC" <<<"$ecn" || { echo "the early-reader pattern misses its samples or hits a later exit"; exit 1; }
 hits=$(grep -nE "$EC" "$ROOT/tests/smoke.sh" || true); [ -z "$hits" ] || { echo "a script's output piped into an early-closing reader:"; echo "$hits"; exit 1; }
 ok "no script under test pipes its output into head or grep -q/-m in smoke"
+
+# kills and waits by pattern: nothing under tests/ finds a process by its command line (pkill or pgrep with -f) or kills all by name, which reaches
+# every run's processes from the same checkout. By pid only (timers_left); pkill -P, a pid's children, stays allowed. The pattern matches a sample
+KP='(pk[i]ll|pg[r]ep)( +-[a-zA-Z0-9]+)* +-[a-zA-Z]*f|kil[l]all'
+kp1='pk'; kp1+='ill -f "$LS _timer"'; kp2='[ -z "$(pg'; kp2+='rep -f "$LS _timer $PBR " || true)" ]'; kp3='pg'; kp3+='rep -fl "$LS _timer"'
+kp4='pk'; kp4+='ill -9 -f x'; kp5='kil'; kp5+='lall sleep'; kpn='pk'; kpn+='ill -P "$WP" 2>/dev/null || true'   # split: no self-match
+[ "$(printf '%s\n' "$kp1" "$kp2" "$kp3" "$kp4" "$kp5" | grep -cE "$KP")" = 5 ] && ! grep -qE "$KP" <<<"$kpn" || { echo "the kill-pattern guard misses its samples or hits pkill -P"; exit 1; }
+hits=$(grep -rnE "$KP" "$ROOT/tests" || true); [ -z "$hits" ] || { echo "a process found or killed by pattern under tests/:"; echo "$hits"; exit 1; }
+ok "nothing under tests/ kills or waits on a process by pattern (pkill or pgrep with -f, or by name); pkill -P is allowed"
 
 # folder convention: Lanework/ first, then Boards/, then legacy Pitlane/; the legacy name lives only in finding.md
 hits=$(grep -rn Pitlane "$SK" || true)
@@ -740,6 +769,11 @@ if PE "$PS/claim-ticket.sh" "$PL" "$T1" --model smoke 2>"$T/err.txt"; then echo 
 grep -q 'is in Working, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1; }
 if PE "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/t.md" --model smoke 2>/dev/null; then echo "resolved an unclaimed ticket"; exit 1; fi
 ok "claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one"
+# the run's first timer is in its pid log: a lease.sh without LEASE_TEST_PIDLOG fails here, before any wait could pass on an empty log
+PTP=$(sed -n 's/^pid=//p' "$(ls "$PT"/lanework-lease/*/*/"$T1")")
+[ -n "$PTP" ] && grep -qx "$PTP" "$LEASE_TEST_PIDLOG" && timer_alive "$PTP" " $T1 S-plan " \
+  || { echo "the claim's timer ($PTP) is not a live timer in the pid log $LEASE_TEST_PIDLOG (lease.sh without LEASE_TEST_PIDLOG?):"; cat "$LEASE_TEST_PIDLOG"; timers_show $PTP; exit 1; }
+ok "lease timers by pid: the plan claim's timer pid is in the run's pid log, and its command line names the card"
 # a Working ticket wearing waiting loses it on resolve; one of two deps resolved keeps T3 Blocked, unblocks T4
 WBLOCK='waiting:\n  for: [rzen, bobsmith, carol, dave]\n  since: 2026-10-10T00:00:00Z\n  comment: 11111111-1111-4111-8111-111111111111'   # past 120 characters: a block (awk -v reads the \n)
 TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$TF1" > "$T/w.md"; mv "$T/w.md" "$TF1"; grep -q '^  for: \[rzen, bobsmith' "$TF1"
@@ -3284,12 +3318,15 @@ ok "heal-descriptors replaces the v0.8.0 discovery Brief and Decisions bodies wo
 
 # lanework: lease.sh. A copy of the pipeline board with the borrowed .schema; fake session ids; stand-in CLAUDE_PIDs (sleeps this
 # smoke starts and kills); per-session memory under a TMPDIR of its own, never the real one; the test knobs keep it to seconds.
-# Every timer started here is killed on exit, and case 13 checks none outlives the cases.
+# Every timer this run logged is killed on exit, by pid, and case 13 checks none outlives the cases.
 LS="$SK/lanework/scripts/lease.sh"; LT=$(mktemp -d "$T/lease-tmp.XXXXXX"); LSP=()
+# lease_cleanup: the stand-ins and this run's live logged timers, nothing else; then the lint-unreadable restore, which this trap
+# replaced as the EXIT trap
 lease_cleanup() {
-  local p; for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do kill "$p" 2>/dev/null || true; done
-  pkill -f "$LS _timer" 2>/dev/null || true
+  local p; for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do stop_standin "$p"; done
+  for p in $(timers_left); do kill "$p" 2>/dev/null || true; done
   [ -z "${LB:-}" ] || chmod -R u+w "$LB" 2>/dev/null || true   # a case makes a comments folder read-only
+  if type unr_restore >/dev/null 2>&1; then unr_restore; fi
 }
 trap lease_cleanup EXIT
 standin() { sleep 600 </dev/null >/dev/null 2>&1 & SP=$!; disown "$SP"; LSP+=("$SP"); }
@@ -3366,15 +3403,15 @@ ok "lease: two racing stakes leave one holder"
 
 # 3b. a stake held between its read and its write (LEASE_TEST_WRITE_PAUSE, a TMPDIR of its own) while another session's stake lands:
 # the held stake writes only over the claimed it read, so it backs off: exit 1, nothing written, no memory, no timer
-C3b=$(lcard "Three b"); F3b=$(lcf "$C3b"); LSA=$(mktemp -d "$T/lease-stake-a.XXXXXX")
+C3b=$(lcard "Three b"); F3b=$(lcf "$C3b"); LSA=$(mktemp -d "$T/lease-stake-a.XXXXXX"); M3b=$(timers_logged)
 ( RC=0; CLAUDE_CODE_SESSION_ID=S-held CLAUDE_PID="$LPID" TMPDIR="$LSA" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 \
   LEASE_TEST_WRITE_PAUSE=1.5 "$LS" stake "$LB" "$C3b" --model smoke >/dev/null 2>"$T/s3b.err" || RC=$?; echo "$RC" > "$T/s3b.rc" ) & S3P=$!
 waitfor '[ -n "$(ls "$LSA"/lease-write.*/read 2>/dev/null)" ]' || { echo "3b: the held stake never read the card"; exit 1; }
 L S-first stake "$LB" "$C3b" --model smoke >/dev/null || { echo "3b: the stake landing during the pause failed"; exit 1; }
 H3b=$(shasum < "$F3b"); wait "$S3P"
 [ "$(cat "$T/s3b.rc")" = 1 ] && [ "$(csess "$F3b")" = S-first ] && [ "$H3b" = "$(shasum < "$F3b")" ] && grep -q 'staked by S-first meanwhile; backing off' "$T/s3b.err" \
-  && [ ! -e "$LSA/lanework-lease/S-held" ] && [ -z "$(pgrep -f "$LS _timer $(cd "$LB" && pwd -P) $C3b S-held " || true)" ] \
-  || { echo "3b: held stake rc $(cat "$T/s3b.rc"), holder $(csess "$F3b"), err: $(cat "$T/s3b.err")"; cat "$F3b"; exit 1; }
+  && [ ! -e "$LSA/lanework-lease/S-held" ] && [ -z "$(timers_left "$M3b" " $C3b S-held ")" ] \
+  || { echo "3b: held stake rc $(cat "$T/s3b.rc"), holder $(csess "$F3b"), err: $(cat "$T/s3b.err")"; cat "$F3b"; timers_show $(timers_left "$M3b"); exit 1; }
 L S-first release "$LB" "$C3b" --model smoke >/dev/null
 ok "lease: a stake held through another session's stake backs off (exit 1), writes nothing over it, and keeps no memory or timer"
 
@@ -4012,14 +4049,14 @@ PLS S-pholder "$LS" release "$PB" "$PC2" --model smoke
 ok "plan claim backs off a Frontier ticket another session holds: exit 1, the holder on stderr, the board byte for byte"
 
 # P2b. a claim ended (TERM) during its stake: the stake lands, then the claim's trap releases it. A long stake wait opens the window
-PC2b=$(ptk "Ended"); F=$(pf "$PC2b")
+PC2b=$(ptk "Ended"); F=$(pf "$PC2b"); M2b=$(timers_logged)
 env CLAUDE_CODE_SESSION_ID=S-pterm CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=3 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 \
   "$PS/claim-ticket.sh" "$PB" "$PC2b" --model smoke >/dev/null 2>"$T/pl-err.txt" & CLP=$!
 waitfor 'grep -q "^claimed" "$F"' || pl_fail "plan claim TERM: the stake never wrote claimed"
 kill -TERM "$CLP"; RC=0; wait "$CLP" 2>/dev/null || RC=$?
 [ "$RC" != 0 ] && [ "$(plb "$PC2b")" = Frontier ] && ! grep -q -E '^(claimed:|  (by|until):)' "$(pf "$PC2b")" && [ ! -e "$(pmem S-pterm "$PC2b")" ] \
-  && waitfor '[ -z "$(pgrep -f "$LS _timer $PBR $PC2b " || true)" ]' && [ "$(pcount "$PC2b" '**Claimed**')" = 0 ] && [ "$(pcount "$PC2b" "**Lease lost**")" = 0 ] \
-  || pl_fail "plan claim TERM during the stake: rc $RC, lane $(plb "$PC2b"), session '$(csess "$(pf "$PC2b")")', err: $(cat "$T/pl-err.txt")"
+  && waitfor '[ -z "$(timers_left "$M2b" " $PC2b ")" ]' && [ "$(pcount "$PC2b" '**Claimed**')" = 0 ] && [ "$(pcount "$PC2b" "**Lease lost**")" = 0 ] \
+  || pl_fail "plan claim TERM during the stake: rc $RC, lane $(plb "$PC2b"), session '$(csess "$(pf "$PC2b")")', err: $(cat "$T/pl-err.txt"), timers: $(timers_show $(timers_left "$M2b"))"
 ok "plan claim ended during its stake releases what the stake left: Frontier, no claimed, no timer, no memory, no Claimed comment"
 
 # P2c. a claim ended once its own move has put the card in Working has landed: it keeps the lease. Shims on that one claim's
@@ -4140,14 +4177,34 @@ TP=$(pmpid S-pnext "$PC8b"); RC=0; pres S-pnext "$PC8b" >/dev/null || RC=$?
 validate "$PB" >/dev/null; ok "plan resume stakes a Working ticket without moving it: refused while the lease is live, staked after a release, and a dead session's lapsed lease taken after the notice"
 
 # every plan case released what it staked: no lease on the board, no timer for it
-[ -z "$("$LS" list "$PB")" ] && waitfor '[ -z "$(pgrep -f "$LS _timer $PBR " || true)" ]' || pl_fail "plan cases left a lease or a timer: $("$LS" list "$PB")"
+[ -z "$("$LS" list "$PB")" ] && waitfor '[ -z "$(timers_left 0 "_timer $PBR ")" ]' || pl_fail "plan cases left a lease or a timer: $("$LS" list "$PB") $(timers_show $(timers_left 0 "_timer $PBR "))"
 ok "plan cases leave no lease and no timer on their board"
+
+# 12z. every wrapper that can start a timer logs its pid: a stake through each adds one live timer to the log, the one its memory
+# names, and its release ends it. LLL (its stand-in already ended), LN (no session) and LX (the RAM disk, gone) cannot start one here
+LWD=$(mktemp -d "$T/lease-log-tmp.XXXXXX")
+for zw in L L1 LW LWP LRP PLS PE; do
+  zc=$(lcard "Logged $zw"); zs="S-log-$zw"; zd=$LT; zm=$(timers_logged)
+  case $zw in
+    L|L1) "$zw" "$zs" stake "$LB" "$zc" --model smoke >/dev/null ;;
+    LW) LW "$zs" "$LS" stake "$LB" "$zc" --model smoke >/dev/null ;;
+    LWP) zd=$LWD; LWP "$zd" "$zs" "$LS" stake "$LB" "$zc" --model smoke >/dev/null ;;
+    LRP) zd=$LWD; LRP "$zd" "$zs" stake "$LB" "$zc" || { echo "12z: LRP never read the card"; exit 1; }; wait "$LRPP" ;;
+    PLS) PCP="" PLS "$zs" "$LS" stake "$LB" "$zc" --model smoke >/dev/null ;;
+    PE) zd=$PT; zs=S-plan; PE "$LS" stake "$LB" "$zc" --model smoke >/dev/null ;;
+  esac
+  zp=$(timers_left "$zm" " $zc $zs "); zq=$(sed -n 's/^pid=//p' "$zd/lanework-lease/$zs"/*/"$zc" 2>/dev/null || true)
+  [ -n "$zp" ] && [ "$zp" = "$zq" ] || { echo "12z: $zw's timer is not logged: logged '$zp', memory '$zq'"; timers_show $zq; exit 1; }
+  CLAUDE_CODE_SESSION_ID="$zs" TMPDIR="$zd" "$LS" release "$LB" "$zc" --model smoke >/dev/null
+  waitfor '! timer_alive "$zp"' || { echo "12z: $zw's timer outlived its release:"; timers_show "$zp"; exit 1; }
+done
+ok "lease timers by pid: a stake through each wrapper (L, L1, LW, LWP, LRP, PLS, PE) logs exactly its memory's timer pid, and the release ends it"
 
 # 13. nothing left: release what is held, end the stand-ins; every timer must be gone within a poll
 for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
   s=$(csess "$(lcf "$c")"); L "$s" release "$LB" "$c" --model smoke >/dev/null || true; done
-for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do kill "$p" 2>/dev/null || true; done; LSP=()
-waitfor '[ -z "$(pgrep -f "$LS _timer" || true)" ]' || { echo "timers left:"; pgrep -fl "$LS _timer"; exit 1; }
+for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do stop_standin "$p"; done; LSP=()
+waitfor '[ -z "$(timers_left)" ]' || { echo "timers left:"; timers_show $(timers_left); exit 1; }
 validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
 
 # usage guard: every script run with no arguments exits 2 (64 for the heal scripts) and its header states that code: in the comment lines (shell) or module docstring (.py) among the first 60 lines.
