@@ -109,6 +109,14 @@ for fl in index lanes; do
     --lanes "$SK/lanework/templates/$([ $fl = lanes ] && echo no-such-lanes.md || echo pipeline-lanes.md)" --var project=x --var verified=x --model smoke >/dev/null 2>&1 || RC=$?
   [ "$RC" = 2 ] && [ ! -e "$T/Unreadable $fl.lanework" ] || { echo "found-board, unreadable --$fl: want exit 2 and no folder, got $RC"; exit 1; }
 done; ok "found-board.sh: an unreadable --index or --lanes exits 2, nothing written"
+# a lane that fails mid-loop: a uuidgen stand-in on PATH hands the second lane the name index.md/x, whose parent is the board's own index.md (a file), so its mkdir fails.
+# The run exits 1 with the lanes made so far undone: a folder this run created is gone, one that was there empty is left empty
+mkdir -p "$T/fl-bin"; printf '#!/bin/bash\nn=$(cat "%s/n" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "%s/n"\nif [ "$n" = 3 ]; then echo index.md/x; else /usr/bin/uuidgen; fi\n' "$T/fl-bin" "$T/fl-bin" > "$T/fl-bin/uuidgen"; chmod +x "$T/fl-bin/uuidgen"
+for pre in new empty; do
+  FLB="$T/LaneFail $pre.lanework"; [ $pre = new ] || mkdir "$FLB"; rm -f "$T/fl-bin/n"; RC=0
+  PATH="$T/fl-bin:$PATH" "$SK/lanework/scripts/found-board.sh" "$FLB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --model smoke >/dev/null 2>"$T/fl.err" || RC=$?
+  [ "$RC" = 1 ] && grep -q 'cannot create a lane folder' "$T/fl.err" && { [ $pre = new ] && [ ! -e "$FLB" ] || { [ $pre = empty ] && [ -z "$(ls -A "$FLB")" ]; }; } || { echo "found-board.sh lane failure ($pre): rc $RC, left: $(ls -A "$FLB" 2>&1)"; cat "$T/fl.err"; exit 1; }
+done; ok "found-board.sh: a lane that fails after the first exits 1 and undoes what the run wrote (a new folder removed, a folder that was empty left empty)"
 
 # an unknown flag: exit 2, the unknown-argument line and the usage line on stderr, in every script that takes flags after its positionals
 for s in plan/scripts/file-ticket plan/scripts/claim-ticket plan/scripts/resolve-ticket discovery/scripts/file-record discovery/scripts/file-question discovery/scripts/settle-question merge/scripts/merge-board; do

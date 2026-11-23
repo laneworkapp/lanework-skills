@@ -13,7 +13,8 @@
 #   2 usage, nothing written (no argument, unknown argument, a flag with no value, an unreadable --index or --lanes, no model (--model, else CLAUDE_MODEL), empty or control-character --name or --model,
 #   blank flattened --title, reserved --var, a template with {{label_entries}} but no --labels, --labels with no slot, bad label kind, a template that fails to render, e.g. a {{slot}} no --var fills).
 # The folder is created only after the template renders, so a failed run leaves no folder; a lane that fails after that
-# removes the folder only when this run created it, and from an empty folder that was there only what this run wrote.
+# (its folder, its file, its stamp) is undone and exits 1: the folder removed only when this run created it, and from an
+# empty folder that was there only what this run wrote.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
@@ -85,11 +86,13 @@ if mkdir "$BOARD" 2>/dev/null; then CREATED=1; else [ -d "$BOARD" ] || { echo "f
 undo() { local l; if [ -n "$CREATED" ]; then rm -rf "$BOARD"; else rm -f "$BOARD/index.md"; for l in $1; do rm -rf "${BOARD:?}/$l"; done; fi; }
 mv "$STAGE/index.md" "$BOARD/index.md"
 
-MADE=""   # the lane folders made so far (uuids), for undo; the loop runs in one subshell, so it accumulates there
+MADE=""   # the lane folders made so far (uuids), for undo; the loop runs in one pipeline subshell, so lane_fail undoes and exits there (pipefail + set -e carry the 1 out)
 awk -F'|' '/^\| *[0-9]/ { for (i = 2; i <= 6; i++) { gsub(/^ +| +$/, "", $i) } print $2 "\037" $3 "\037" $4 "\037" $5 "\037" $6 }' "$LANES" |
 # \037, not tab: tab is IFS whitespace, so an empty collapsed or icon cell would merge away and shift body.
 while IFS=$'\037' read -r ORDER LANE COLLAPSED ICON LBODY; do
-  LANE_ID=$(uuid); mkdir -p "$BOARD/$LANE_ID"; MADE="$MADE $LANE_ID"
+  lane_fail() { undo "$MADE"; echo "found-board.sh: $1; nothing written" >&2; exit 1; }
+  LANE_ID=$(uuid) || lane_fail "no uuid for a lane"
+  MADE="$MADE $LANE_ID"; mkdir -p "$BOARD/$LANE_ID" || lane_fail "cannot create a lane folder"
   {
     printf '%s\n' '---' 'schema: 1' 'kind: lane'
     printf 'title: %s\n' "\"$(title_str "$LANE")\""
@@ -99,9 +102,9 @@ while IFS=$'\037' read -r ORDER LANE COLLAPSED ICON LBODY; do
     printf 'created:  {at: %s, by: %s}\n' "$NOW" "$BY"
     printf 'modified: {at: %s, by: %s}\n' "$NOW" "$BY"
     printf '%s\n' '---' "$LBODY"
-  } > "$STAGE/lane.md"
-  stamp_lines_ok "$STAGE/lane.md" created modified || { undo "$MADE"; echo "found-board.sh: a brace in a lane stamp; nothing written" >&2; exit 1; }
-  mv "$STAGE/lane.md" "$BOARD/$LANE_ID/index.md"
+  } > "$STAGE/lane.md" || lane_fail "cannot write a lane"
+  stamp_lines_ok "$STAGE/lane.md" created modified || lane_fail "a brace in a lane stamp"
+  mv "$STAGE/lane.md" "$BOARD/$LANE_ID/index.md" || lane_fail "cannot move a lane into the board"
 done
 
 printf 'founded %s\nboard id %s\n' "$BOARD" "$BOARD_ID"
