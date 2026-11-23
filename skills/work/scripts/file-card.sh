@@ -8,11 +8,11 @@
 # form. Staged outside the board, one `mv` in, then the board's .schema validator on the card
 # (skipped with a note when the board has none). Prints the card's path.
 # No founding comment (post one with post-comment.sh), no git. `waiting` is written by hand.
-# Exit 1, nothing written: not a board, no such lane, unreadable body or one with frontmatter,
+# Exit 1, nothing written: not a board, no such lane, a body with frontmatter,
 # a malformed card-defaults, a --label with an undefined kind, a value a closed kind does not list or two values
 # of one `single` kind (union_labels --strict), a brace in the stamp values (--model, --name, --session). Exit 1 after
 # the `mv`: the validator failed on the card, or printed a DEPRECATED line (counts as failure).
-# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), no --body, no title, a bad flag.
+# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), no --body or an unreadable one, no title, a bad flag.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 USAGE="file-card.sh <board> <lane-title> <title> --body F --model m [--name n] [--session s] [--label Text[:kind]]..."
@@ -34,7 +34,7 @@ stamp_args_ok "$NAME" "$MODEL" "$SESSION"
 [ -n "$BODY" ] || { echo "file-card.sh: no --body" >&2; echo "usage: $USAGE" >&2; exit 2; }
 [ -n "$TITLE" ] || { echo "file-card.sh: empty title" >&2; echo "usage: $USAGE" >&2; exit 2; }
 [ -f "$BOARD/index.md" ] || { echo "file-card.sh: not a board: $BOARD" >&2; exit 1; }
-[ -r "$BODY" ] || { echo "file-card.sh: cannot read --body $BODY" >&2; exit 1; }
+[ -r "$BODY" ] || { echo "file-card.sh: cannot read --body $BODY" >&2; exit 2; }
 [ "$(head -1 "$BODY")" != "---" ] || { echo "file-card.sh: --body is a bare body: no frontmatter" >&2; exit 1; }
 LANE=$(lane_by_title "$BOARD" "$LANE_TITLE") || { echo "file-card.sh: no lane \"$LANE_TITLE\" on $BOARD" >&2; exit 1; }
 

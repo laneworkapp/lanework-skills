@@ -9,8 +9,8 @@
 #   Repeated --labels accumulate (a kind repeated across flags is written once); a kind twice in one list -> exit 2.
 # Lanes table rows: | order | title | collapsed (yes) | icon (YAML flow mapping, or empty) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
-# Exit: 0 founded; 1 refused (non-empty folder, a folder that cannot be created, unreadable --index or --lanes, missing label-kinds.md, a brace in the stamp values), nothing written;
-#   2 usage, nothing written (no argument, unknown argument, a flag with no value, no model (--model, else CLAUDE_MODEL), empty or control-character --name or --model,
+# Exit: 0 founded; 1 refused (non-empty folder, a folder that cannot be created, missing label-kinds.md, a brace in the stamp values), nothing written;
+#   2 usage, nothing written (no argument, unknown argument, a flag with no value, an unreadable --index or --lanes, no model (--model, else CLAUDE_MODEL), empty or control-character --name or --model,
 #   blank flattened --title, reserved --var, a template with {{label_entries}} but no --labels, --labels with no slot, bad label kind, a template that fails to render, e.g. a {{slot}} no --var fills).
 # The folder is created only after the template renders, so a failed run leaves no folder; a lane that fails after that
 # removes the folder only when this run created it, and from an empty folder that was there only what this run wrote.
@@ -38,8 +38,8 @@ while [ $# -gt 0 ]; do
 done
 require_model found-board.sh "$USAGE"
 stamp_args_ok "$NAME" "$MODEL"
-[ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 1; }
-[ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 1; }
+[ -r "$INDEX" ] || { echo "found-board.sh: --index must name a readable template" >&2; exit 2; }
+[ -r "$LANES" ] || { echo "found-board.sh: --lanes must name a readable table" >&2; exit 2; }
 [ -n "$TITLE" ] || TITLE=$(basename "$BOARD" .lanework)
 [ -n "$(flat_str "$TITLE" | tr -d '[:space:]')" ] || { echo "found-board.sh: --title is blank once its line breaks are flattened" >&2; exit 2; }
 # the slot names and the built-in keys are the script's: a --var can't overwrite them

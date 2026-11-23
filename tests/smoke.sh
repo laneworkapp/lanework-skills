@@ -103,6 +103,11 @@ if validate "$X" >/dev/null 2>&1; then echo "validator passed a broken board"; e
 if "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
   --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --model smoke 2>/dev/null; then exit 1; fi
 ok "refuses a non-empty board folder"
+for fl in index lanes; do
+  RC=0; "$SK/lanework/scripts/found-board.sh" "$T/Unreadable $fl.lanework" --index "$SK/lanework/templates/$([ $fl = index ] && echo no-such-index.md || echo pipeline-index.md)" \
+    --lanes "$SK/lanework/templates/$([ $fl = lanes ] && echo no-such-lanes.md || echo pipeline-lanes.md)" --var project=x --var verified=x --model smoke >/dev/null 2>&1 || RC=$?
+  [ "$RC" = 2 ] && [ ! -e "$T/Unreadable $fl.lanework" ] || { echo "found-board, unreadable --$fl: want exit 2 and no folder, got $RC"; exit 1; }
+done; ok "found-board.sh: an unreadable --index or --lanes exits 2, nothing written"
 
 # an unknown flag: exit 2, the unknown-argument line and the usage line on stderr, in every script that takes flags after its positionals
 for s in plan/scripts/file-ticket plan/scripts/claim-ticket plan/scripts/resolve-ticket discovery/scripts/file-record discovery/scripts/file-question discovery/scripts/settle-question merge/scripts/merge-board; do
@@ -2496,6 +2501,8 @@ refused file-card "$FC" "$WB" Approved "x" --body "$T/fc.md"
 setdef "$DP" Frontier nope; rc=0; "$FC" "$DP" Frontier "x" --body "$T/fc.md" --model smoke >/dev/null 2>&1 || rc=$?; setdef "$DP" Frontier -
 [ "$rc" -eq 1 ] && [ "$S9" = "$(sum "$WB")" ] && [ "$S9D" = "$(sum "$DP")" ] || { echo "a refused file-card wrote something (rc $rc)"; exit 1; }
 ok "file-card.sh: a missing lane and a malformed card-defaults exit 1, no --body and no --model exit 2, a body with frontmatter exits 1; nothing written"
+rc=0; "$FC" "$WB" Approved "x" --body "$T/no-such-body.md" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] && [ "$S9" = "$(sum "$WB")" ] || { echo "file-card, unreadable --body: want exit 2 and nothing written, got $rc"; exit 1; }
+ok "file-card.sh: an unreadable --body exits 2 (as in the other scripts that read one), nothing written"
 
 # label-card: a hand-written label would land as a block list the heal flags (H17); the script writes the compact form
 LC="$SK/work/scripts/label-card.sh"
