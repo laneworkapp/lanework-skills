@@ -1500,6 +1500,12 @@ rm -rf "$NL/f7000000-0000-4000-8000-000000000007" "$NB/zz-sibling"
 ln -s "$(basename "$NL")" "$NB/zz-sibling"; sent_card "$NL" "$NLN" "$NLC"
 for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$NLN" "$NLC"; done
 rm -rf "$NL/$NLN" "$NB/zz-sibling"
+# the same board under CDPATH with a relative path: the fallback's cd must print nothing, or a folder is listed twice
+ln -s "$(basename "$NL")" "$NB/zz-sibling"; sent_card "$NL" "$NLN" "$NLC"
+for U in "$LS" "$LL" "$WL"; do UR=0; UO=$(cd "$T" && CDPATH=.: "$U" NewCases.lanework 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err")
+  case "$(basename "$U")" in lint-leases.sh) [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] && [ -z "$UO" ] ;; *) [ "$(grep -c '' <<<"$UO")" -le 2 ] && [ "$(grep -c 'f3000000' <<<"$UO")" = 1 ] ;; esac \
+    || unr_fail "$(basename "$U") with CDPATH set, a relative board path, a card named with a newline and a lane linked to a sibling: want the card once"; done
+rm -rf "$NL/$NLN" "$NB/zz-sibling"
 # a real \001 byte in a name prints as \001 in all three lints, one finding per line
 SOH=f8000000-0000-4000-8000-000000000008$'\001'y; sent_card "$NL" "$SOH" $'\001'z
 for U in "$LS" "$LL" "$WL"; do unr_run "$U" "$NB"; sent_check "$U" "$NB" "$NL" "$SOH" $'\001'z; done

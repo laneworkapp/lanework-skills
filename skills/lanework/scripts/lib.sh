@@ -433,9 +433,9 @@ board_index_files() {
     sort -z "$o" > "$tmp.s"
     while IFS= read -r -d '' q; do printf '%s\0' "${pre}${q%/*}"; done < "$tmp.s" | xargs -0 realpath 2>/dev/null | awk '{ print (seen[$0]++) ? 0 : 1 }' > "$tmp.f"   # one pass; 1 = first of its real folder
     n1=$(tr -cd '\0' < "$tmp.s" | wc -c); n2=$(wc -l < "$tmp.f")
-    if [ "$n1" -eq "$n2" ]; then
+    if [ "$n1" -eq "$n2" ] && [ "$(tr -cd '\n' < "$tmp.s" | wc -c)" -eq 0 ]; then
       while IFS= read -r -d '' q <&3 && IFS= read -r f <&4; do [ "$f" = 1 ] && printf '%s\0' "$q"; done 3< "$tmp.s" 4< "$tmp.f" > "$tmp"
-    else   # a newline in a name shifts realpath's lines (or a path vanished): one folder at a time
+    else   # a newline in any name (it shifts realpath's lines, and a vanished path could cancel that out in the count) or a path that vanished: one folder at a time
       local seen=$'\n' ph
       while IFS= read -r -d '' q; do
         ph=$(cd -- "${pre}${q%/*}" >/dev/null 2>&1 && pwd -P; echo x); ph=$(show_name "${ph%x}")
