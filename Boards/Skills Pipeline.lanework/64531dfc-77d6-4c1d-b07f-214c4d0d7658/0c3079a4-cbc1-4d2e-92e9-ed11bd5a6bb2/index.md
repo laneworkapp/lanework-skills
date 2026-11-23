@@ -4,8 +4,8 @@ kind: card
 title: "The smoke suite shares variables and process patterns across sections, so new cases break it only in a full run"
 order: 3072
 created:  {at: 2026-11-23T12:33:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-23T16:43:54Z, comment: 58bf3853-1b5f-4362-bd78-c9afccb4c549}
-modified: {at: 2026-11-23T16:43:54Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+waiting: {for: anyone, since: 2026-11-23T16:45:42Z, comment: eb9ad338-9597-42cc-b59f-ec0b3b49b7a2}
+modified: {at: 2026-11-23T16:45:42Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Make `tests/smoke.sh` safe to extend: each section runs in a scope of its own, the suite handles its lease timers by pid, and one section can be run alone by name.
 
