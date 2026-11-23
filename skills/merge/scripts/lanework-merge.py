@@ -906,6 +906,16 @@ def prune(repo, d):
             os.rmdir(root)
 
 
+def lane_gone(repo, board, loc):
+    """A card location in a lane with no index.md (the lane deleted or trashed on the winning side)."""
+    return bool(loc) and len(loc) == 2 and not is_trash(loc) and not os.path.isfile(os.path.join(repo, board, loc[0], 'index.md'))
+
+
+def trashed_lane(repo, board, loc):
+    """The card's place in its lane's trashed copy, or None."""
+    return ('.trash', loc[0], loc[1]) if os.path.isfile(os.path.join(repo, board, '.trash', loc[0], 'index.md')) else None
+
+
 def process_card(repo, trees, revs, board, card, model, notes, um):
     base, ours, theirs = revs
     (lb, fb), (lo, fo), (lt, ft) = (trees.card(r, board, card) for r in revs)
@@ -942,11 +952,8 @@ def process_card(repo, trees, revs, board, card, model, notes, um):
             L = locs[win]
     else:
         L = locs[win]
-    if L and len(L) == 2 and not is_trash(L) and not os.path.isfile(os.path.join(repo, board, L[0], 'index.md')):
-        if os.path.isfile(os.path.join(repo, board, '.trash', L[0], 'index.md')):
-            L = ('.trash', L[0], card)
-        else:
-            L = lo or lt
+    if lane_gone(repo, board, L):
+        L = trashed_lane(repo, board, L) or lo or lt
     old = [l for l in {lb, lo, lt} if l]
     old_dirs = ['/'.join([board] + list(l)) for l in old]
     final_dir = '/'.join([board] + list(L)) if L else None
@@ -1128,7 +1135,7 @@ def rehome_card(repo, board, card, locs, held, notes, model):
         return
     if not homes and not index_homes:
         if len(orphans) == 1:
-            restore_deleted(repo, board, card, orphans[0], notes, model)
+            restore_deleted(repo, board, card, orphans[0], locs[orphans[0]], notes, model)
         else:
             notes['unrestored'].append('%s (no index.md anywhere, and its files sit in %d folders)' % (card[:8], len(orphans)))
         return
@@ -1159,7 +1166,7 @@ def survivor(repo, board, card):
     ps = git(repo, 'rev-list', '--parents', '-n', '1', 'HEAD', check=False).decode().split()[1:]
     cands = [theirs, 'HEAD'] if how else ps if len(ps) > 1 else []
     d = git(repo, 'log', '-1', '--format=%H', '--diff-filter=D', 'HEAD', '--',
-            ':(glob)%s/**/%s/index.md' % (board, card), check=False).decode().strip()
+            ':(glob)%s/**/%s/index.md' % (re.sub(r'([][*?\\])', r'\\\1', board), card), check=False).decode().strip()
     if d:
         cands.append(d + '^')
     for r in cands:
@@ -1169,13 +1176,23 @@ def survivor(repo, board, card):
     return trees, {}
 
 
-def restore_deleted(repo, board, card, loc, notes, model):
-    """Restore the survivor's whole card into the one folder holding its added files. Never overwrites a file."""
+def restore_deleted(repo, board, card, loc, paths, notes, model):
+    """Restore the survivor's whole card into the one folder holding its added files. Never overwrites a file.
+    Its lane gone: the lane's trashed copy, as process_card places it, else the trash alone (no lane to show it in)."""
     trees, f = survivor(repo, board, card)
     if not f:
         notes['unrestored'].append('%s (no index.md for this card in any tree to restore it from)' % card[:8])
         return
-    home = '/'.join([board] + list(loc))
+    home, where = '/'.join([board] + list(loc)), ''
+    if lane_gone(repo, board, loc):
+        dst = '/'.join([board] + list(trashed_lane(repo, board, loc) or ('.trash', card)))
+        for p in paths:
+            q = dst + p[len(home):]
+            if os.path.exists(os.path.join(repo, p)) and not os.path.exists(os.path.join(repo, q)):
+                os.makedirs(os.path.dirname(os.path.join(repo, q)), exist_ok=True)
+                git(repo, 'mv', '-k', '--', p, q)
+        prune(repo, '/'.join([board, loc[0]]))
+        home, where = dst, ', to the trash: its lane was deleted'
     added = []
     for w, (mode, objsha) in sorted(f.items()):
         p = home + '/' + w
@@ -1186,11 +1203,11 @@ def restore_deleted(repo, board, card, loc, notes, model):
             os.chmod(os.path.join(repo, p), 0o755)
         added.append(p)
     n = len(added)
-    added.append(post_losses(repo, home, [{'line': 'The other side deleted this card for good; a comment or attachment '
-                                                   'was added on this side, so the whole card is kept.'}], model))
+    added.append(post_losses(repo, home, [{'line': 'One side deleted this card for good; the other added a comment, '
+                                                   'attachment or relation to it, so the whole card is kept.'}], model))
     git(repo, 'add', '-f', '--', *added)
     title = title_of(open(os.path.join(repo, home, 'index.md'), encoding='utf-8', errors='replace').read())
-    notes['restored'].append('"%s" (%d file%s)' % (title, n, '' if n == 1 else 's'))
+    notes['restored'].append('"%s" (%d file%s%s)' % (title, n, '' if n == 1 else 's', where))
 
 
 def refresh_install(repo):

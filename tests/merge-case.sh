@@ -113,10 +113,11 @@ full() { # <repo> <id> <tag>: a card in Ideas with every kind of child
   printf -- '---\nschema: 1\nkind: attachment\ntitle: "shot"\nextension: png\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n' "$T0" "$BY0" "$T0" "$BY0" > "$a/index.md"
   relation "$d" "$(uuid)" "$T0" "$BY0" "$3 base relation."
 }
-allbase() { (cd "$O/$BN/$IDEAS/$1" && find . -type f | sed 's#^\./##' | sort); }
+bdir() { dirname "$(cardfile "$O" "$1")"; }  # the card's folder in the base
+allbase() { (cd "$(bdir "$1")" && find . -type f | sed 's#^\./##' | sort); }
 whole() { # <card dir> <id> <what>: every base file of the card there, byte for byte, and one merge comment
   local f; [ -f "$1/index.md" ] || fail "$3: no index.md in ${1#$W/}"
-  for f in $(allbase "$2"); do cmp -s "$O/$BN/$IDEAS/$2/$f" "$1/$f" || fail "$3: ${2:0:8}/$f is not the base file, byte for byte"; done
+  for f in $(allbase "$2"); do cmp -s "$(bdir "$2")/$f" "$1/$f" || fail "$3: ${2:0:8}/$f is not the base file, byte for byte"; done
   [ "$(mcount "$1")" = 1 ] || fail "$3: want 1 merge comment, got $(mcount "$1")"
 }
 case "$MODE" in
@@ -311,8 +312,9 @@ delete)
 deleteadd)
   # a whole card deleted on one side, a comment, attachment or relation only added on the other: git finishes (or stops
   # elsewhere) with the new file in a folder with no index.md; the pass restores the whole card around it
-  # E1: rm ours, comment theirs; E2: the mirror; E3: rm ours, attachment theirs; E4: rm ours, relation theirs; E5: as E1, git stopping on Y1
-  for n in E1 E2 E3 E4 E5; do eval "$n=$(uuid)"; full "$O" "${!n}" "$n"; done
+  # E1: rm ours, comment theirs; E2: the mirror; E3: rm ours, attachment theirs; E4: rm ours, relation theirs; E5: as E1, git stopping on Y1;
+  # E6, in Approved: ours removes the whole lane, theirs comments on the card: restored whole into the trash, no ghost lane
+  for n in E1 E2 E3 E4 E5 E6; do eval "$n=$(uuid)"; full "$O" "${!n}" "$n"; done; mv "$O/$BN/$IDEAS/$E6" "$O/$BN/$APPROVED/$E6"
   cm "$O" delbase; validate_board "$O" "deleteadd base"; G "$A" pull -q; G "$B" pull -q
   for n in E1 E3 E4; do G "$A" rm -rq "$BN/$IDEAS/${!n}"; done; G "$B" rm -rq "$BN/$IDEAS/$E2"
   EC1=$(uuid); comment "$B/$BN/$IDEAS/$E1" "$EC1" "$TB" "$BYB" "E1 added TOKEN_B_E1."
@@ -320,35 +322,50 @@ deleteadd)
   EA3=$(uuid); mkdir -p "$B/$BN/$IDEAS/$E3/attachments/$EA3"; printf 'E3-new-bytes' > "$B/$BN/$IDEAS/$E3/attachments/$EA3/blob.png"
   printf -- '---\nschema: 1\nkind: attachment\ntitle: "new"\nextension: png\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n' "$TB" "$BYB" "$TB" "$BYB" > "$B/$BN/$IDEAS/$E3/attachments/$EA3/index.md"
   ER4=$(uuid); relation "$B/$BN/$IDEAS/$E4" "$ER4" "$TB" "$BYB" "E4 added TOKEN_B_E4."
+  G "$A" rm -rq "$BN/$APPROVED"; EC6=$(uuid); comment "$B/$BN/$APPROVED/$E6" "$EC6" "$TB" "$BYB" "E6 added TOKEN_B_E6."
   cm "$A" a1; cm "$B" b1
   ADDED="$E1:comments/$EC1/index.md $E2:comments/$EC2/index.md $E3:attachments/$EA3/blob.png $E4:relations/$ER4/index.md"
-  restored() { # <card id:added path>...: the report, then each card whole in Ideas with its addition ($PH names the phase)
+  restored() { # <card id:added path>...: the report, then each card whole in Ideas with its addition ($PH names the phase), HEAD as it was ($H0)
     local x id
+    [ "$(G "$M" rev-parse HEAD)" = "$H0" ] || fail "$PH: the pass moved HEAD"
     grep -q 'Restored whole against a delete: ' <<<"$OUT" || { echo "$OUT"; fail "$PH: no Restored whole sentence"; }
     if grep -q 'Not re-homed' <<<"$OUT"; then echo "$OUT"; fail "$PH: a Not re-homed line"; fi
     for x in "$@"; do
       id=${x%%:*}; whole "$D/$IDEAS/$id" "$id" "$PH ${id:0:8}"; [ -f "$D/$IDEAS/$id/${x#*:}" ] || fail "$PH: ${id:0:8}'s added ${x#*:} is gone"
-      grep -rqF 'a comment or attachment was added on this side, so the whole card is kept' "$D/$IDEAS/$id/comments" || fail "$PH: ${id:0:8}'s merge comment doesn't name the delete"
+      grep -rqF 'One side deleted this card for good; the other added a comment, attachment or relation to it, so the whole card is kept.' "$D/$IDEAS/$id/comments" || fail "$PH: ${id:0:8}'s merge comment doesn't name the delete"
     done
+  }
+  trashed() { # E6: whole in .trash/, its added comment with it, no folder left in the deleted lane, the report says why
+    whole "$D/.trash/$E6" "$E6" "$PH E6"; [ -f "$D/.trash/$E6/comments/$EC6/index.md" ] || fail "$PH: E6's added comment is not in the trash"
+    [ ! -e "$D/$APPROVED" ] || fail "$PH: a ghost lane folder is left: $(cd "$D/$APPROVED" && find . -type f)"
+    grep -qF '"E6 base" (6 files, to the trash: its lane was deleted)' <<<"$OUT" || { echo "$OUT"; fail "$PH: the report doesn't say E6 went to the trash"; }
   }
   # phase 1: a merge git finishes alone
   mclone; PH=merge
   G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1 || fail "merge: git should finish by itself"
-  pass "$PH"; restored $ADDED; G "$M" commit -qm "Restore"; clean_status "$PH"; validate_board "$M" "$PH"
+  H0=$(G "$M" rev-parse HEAD); pass "$PH"; restored $ADDED; trashed; G "$M" commit -qm "Restore"; clean_status "$PH"; validate_board "$M" "$PH"
   # phase 2: the same in a rebase of side A onto side B
   RM=$M; M="$W/R"; D="$M/$BN"; git clone -q "$A" "$M"; G "$M" config user.email r@t; G "$M" config user.name r
   python3 "$MRG" install "$M" >/dev/null; G "$M" fetch -q "$B" main; PH=rebase
   G "$M" rebase -q FETCH_HEAD >/dev/null 2>&1 || fail "rebase: git should finish by itself"
-  pass "$PH"; restored $ADDED; G "$M" commit -qm "Restore"; clean_status "$PH"; validate_board "$M" "$PH"
+  H0=$(G "$M" rev-parse HEAD); pass "$PH"; restored $ADDED; trashed; G "$M" commit -qm "Restore"; clean_status "$PH"; validate_board "$M" "$PH"
   # phase 3: git stops on Y1's body; one run resolves Y1 and restores E5
   M=$RM; D="$M/$BN"; PH=stopped
   G "$M" rm -rq "$BN/$IDEAS/$E5"; card "$M" "$IDEAS" "$Y1" "Y1 base" "$TA" "$BYA" "Y1 body TOKEN_A_Y1."; cm "$M" m2
   EC5=$(uuid); comment "$B/$BN/$IDEAS/$E5" "$EC5" "$TB" "$BYB" "E5 added TOKEN_B_E5."; card "$B" "$IDEAS" "$Y1" "Y1 base" "$TB" "$BYB" "Y1 body TOKEN_B_Y1."; cm "$B" b2
   G "$M" fetch -q "$B" main
   if G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1; then fail "stopped: the merge should stop on Y1"; fi
-  pass "$PH"; [ -z "$(G "$M" diff --name-only --diff-filter=U)" ] || fail "stopped: unmerged paths left"
+  H0=$(G "$M" rev-parse HEAD); pass "$PH"; [ -z "$(G "$M" diff --name-only --diff-filter=U)" ] || fail "stopped: unmerged paths left"
   restored "$E5:comments/$EC5/index.md"; grep -q TOKEN_B_Y1 "$D/$IDEAS/$Y1/index.md" || fail "stopped: Y1 not resolved"
   G "$M" commit -q --no-edit; clean_status "$PH"; validate_board "$M" "$PH"; echo "$OUT"
+  # a board whose name holds glob characters, restored from history (the parent of the commit that deleted K1's index.md)
+  QB="Lanework/Q[1]*.lanework"; G "$M" mv "$BN" "$QB"; G "$M" commit -qm "rename board"
+  G "$M" rm -q "$QB/$IDEAS/$K1/index.md"; G "$M" commit -qm "delete K1's index.md"; H0=$(G "$M" rev-parse HEAD)
+  OUT=$("$SK/merge/scripts/merge-board.sh" "$M" </dev/null) || { echo "$OUT"; fail "glob board: merge-board.sh exited non-zero"; }
+  grep -qF 'Restored whole against a delete: "K1 base"' <<<"$OUT" || { echo "$OUT"; fail "glob board: K1 not restored from history"; }
+  cmp -s "$O/$BN/$IDEAS/$K1/index.md" "$M/$QB/$IDEAS/$K1/index.md" || fail "glob board: K1's index.md is not the base file"
+  [ "$(G "$M" rev-parse HEAD)" = "$H0" ] || fail "glob board: the pass moved HEAD"
+  G "$M" commit -qm "Restore K1"; G "$M" mv "$QB" "$BN"; G "$M" commit -qm "rename back"; clean_status "glob board"
   # what the pass can't restore is named with its reason: no tree ever held the card's index.md; its files in two folders
   EN=$(uuid); comment "$D/$IDEAS/$EN" "$(uuid)" "$TA" "$BYA" "No card."; ET=$(uuid)
   comment "$D/$IDEAS/$ET" "$(uuid)" "$TA" "$BYA" "Two one."; comment "$D/$DONE/$ET" "$(uuid)" "$TA" "$BYA" "Two two."; cm "$M" orphans
