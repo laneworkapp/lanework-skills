@@ -161,7 +161,8 @@ done
 push_bounded() {
   perl -mPOSIX -e 'my $t = shift; my $old = POSIX::SigSet->new; my $set = POSIX::SigSet->new(&POSIX::SIGINT, &POSIX::SIGTERM, &POSIX::SIGHUP);
     POSIX::sigprocmask(&POSIX::SIG_BLOCK, $set, $old) or exit 125; my $pid = fork; defined $pid or exit 125;
-    if (!$pid) { POSIX::setsid() or POSIX::_exit(126); POSIX::sigprocmask(&POSIX::SIG_SETMASK, $old) or POSIX::_exit(126); exec @ARGV; POSIX::_exit(127) }
+    if (!$pid) { POSIX::setsid() or do { syswrite STDERR, "commit-board.sh: push not run: setsid failed: $!\n"; POSIX::_exit(126) };
+      POSIX::sigprocmask(&POSIX::SIG_SETMASK, $old) or do { syswrite STDERR, "commit-board.sh: push not run: signal mask restore failed: $!\n"; POSIX::_exit(126) }; exec @ARGV; POSIX::_exit(127) }
     $SIG{$_} = sub { kill $_[0], -$pid or kill $_[0], $pid } for qw(INT TERM HUP);
     POSIX::sigprocmask(&POSIX::SIG_SETMASK, $old);
     $SIG{ALRM} = sub { kill "KILL", -$pid; waitpid $pid, 0; exit 124 };
