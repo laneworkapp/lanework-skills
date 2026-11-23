@@ -6,7 +6,7 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 
 | skill | what it's for |
 |---|---|
-| `lanework` | the base the others build on: what a board is, reading one, the write rules every board shares, the card lease that marks a card one session is working, healing a damaged board, the default lane sets, and founding a new board with a catalog of common label kinds (priority, component, type, size, platform, round, release, epic) to pick from |
+| `lanework` | the base the others build on: what a board is, reading one, picking the next card by priority, the write rules every board shares, the card lease that marks a card one session is working, healing a damaged board, the default lane sets, and founding a new board with a catalog of common label kinds (priority, component, type, size, platform, round, release, epic) to pick from |
 | `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `watch` | a standing watch on one or more boards, responding to changes as they arrive. At start-up it catches up on what happened while no watch ran: comments left unanswered, cards waiting in agent lanes, cards another session holds and leases that have lapsed. It stakes a card before it works one. After its conversation is compacted it re-reads the boards instead of trusting its summary |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce, filed as cards in a Decisions lane beside the questions |

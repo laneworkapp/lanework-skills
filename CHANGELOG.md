@@ -1,5 +1,27 @@
 **November 2026**
 
+Version 0.11.0: agents now pick the highest-priority card first when choosing what to work on next, then go by lane order.
+
+Reading a board now shows each card's priority beside it.
+
+Healing a board brings the Approved lane's description up to date with priority picking, and leaves a description you edited alone.
+
+Merging a board no longer drops files from a card that one side deleted and the other side edited.
+
+An interrupted board merge no longer loses uncommitted edits, and running it again finishes the job.
+
+A Recap click saved with a byte-order mark or Windows line endings is no longer mistaken for an answer when settling a discovery question.
+
+Lease renewal now keeps working through a temporarily unwritable memory folder.
+
+A board founding that fails partway now removes only what it created.
+
+More scripts print their usage after an unknown option, and filing a card or founding a board exits 2 for an unreadable file.
+
+A shaping start written as "START: shaping: …" is no longer reported as a double start on a card.
+
+The skills now follow version 120 of the in-board agent guide.
+
 Version 0.10.0: a wrong call to any script now exits 2 and a refusal exits 1, and every script's header states its exit codes.
 
 Agents can now add labels to a card with a new label-card script, and filing a card takes labels too.
