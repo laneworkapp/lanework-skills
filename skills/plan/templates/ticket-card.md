@@ -10,6 +10,4 @@ modified: {{stamp}}
 ---
 <The question, one paragraph, above the first ##. Sharp enough to answer in one session.>
 
-## Depends on
-
-- [T<n>](lanework://<board>/<card>)
+<Dependencies are `depends-on` relations written by `scripts/file-ticket.sh` (guide § Relations), never body text.>

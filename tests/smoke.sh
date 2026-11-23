@@ -35,6 +35,8 @@ timers_show() { local p; for p in "$@"; do echo "  $p: $(ps -ww -p "$p" -o comma
 # stop_standin <pid>: end a stand-in CLAUDE_PID (a sleep 600 this run started) only while the pid is still that sleep
 stop_standin() { local c; [ -n "${1:-}" ] || return 0; c=$(ps -ww -p "$1" -o command= 2>/dev/null) || return 0
   if [ "$c" = "sleep 600" ]; then kill "$1" 2>/dev/null || true; fi; }
+# mkguide <board> <n>: stamp the board's guide line at version n, as the app writes it (the gates read it: lib.sh guide_version)
+mkguide() { mkdir -p "$1"; printf '<!-- lanework-agent-guide v%s - app guide -->\n\n**This board'"'"'s human answers to `@kim` right now**\n' "$2" > "$1/CLAUDE.md"; }
 
 # flowed <file>: the frontmatter's config and labels, each on one unquoted flow line (a "#" string quoted), whatever
 # layout the compact form gave them, so a check can grep a catalog row or a template's entry as written there
@@ -739,6 +741,7 @@ validate "$T/PL2.lanework" >/dev/null
 for bad in ticket '""' nonsense; do rm -rf "$T/PL3.lanework"; rc=0; eval "\"\$PS/found-plan-board.sh\" \"\$T/PL3.lanework\" --labels $bad --model smoke" >/dev/null 2>&1 || rc=$?
   [ "$rc" -eq 2 ] && [ ! -e "$T/PL3.lanework" ] || { echo "plan --labels $bad: rc=$rc"; exit 1; }; done
 ok "found-plan-board.sh --labels adds catalog kinds after ticket; a kind outside the catalog or an empty list exits 2 and writes nothing"
+mkguide "$PL" 116   # a guide line with relations (file-ticket.sh --depends writes them) and before cite-as: titles keep their T<n>: prefix
 PBID=$(sed -n 's/^id: //p' "$PL/index.md"); plane() { sed -n 's/^title: "\(.*\)"$/\1/p' "$(dirname "$(ls -d "$PL"/*/"$1")")/index.md"; }
 printf 'Where does the engine run?\n' > "$T/t.md"
 TO1=$("$PS/file-ticket.sh" "$PL" "Engine: placement" --type grilling --body "$T/t.md" --model smoke); TL1=$(head -1 <<<"$TO1"); T1=${TL1##*/}
@@ -749,10 +752,11 @@ TO4=$("$PS/file-ticket.sh" "$PL" "After one" --type prototype --body "$T/t.md" -
   grep -q '^T3 -> Blocked$' <<<"$TO3" && grep -q '^short id ' <<<"$TO1" && [ "$TL1" = "lanework://$PBID/$T1" ]; } || { echo "tickets not landed Frontier/Blocked by dependency: $TO1 $TO3"; exit 1; }
 TF3="$(ls "$PL"/*/"$T3"/index.md)"
 { grep -qxF 'title: "T3: Both [x] \"q\""' "$TF3" && grep -qx 'labels: \[{text: Task, rank: 4, icon: {glyph: checklist}, kind: {type: ticket, text: Ticket}}\]' "$TF3" &&
-  grep -qxF -- "- [T1: Engine: placement]($TL1)" "$TF3" && grep -qxF -- "- [T2: Rate limits]($TL2)" "$TF3" && grep -qx '## Depends on' "$TF3" &&
+  [ "$(cat "$(dirname "$TF3")"/relations/*/index.md | grep -c '^rel: depends-on$')" -eq 2 ] && grep -qxF "to: $TL1" "$(dirname "$TF3")"/relations/*/index.md &&
+  grep -qxF "to: $TL2" "$(dirname "$TF3")"/relations/*/index.md && ! grep -q 'Depends on' "$TF3" && [ ! -e "$(dirname "$(ls "$PL"/*/"$T1"/index.md)")/relations" ] &&
   grep -qx '\*\*Charted.\*\*' "$(ls "$PL"/*/"$T1"/comments/*/index.md)" && grep -qx '\*\*Waits on the engine.\*\*' "$(ls "$PL"/*/"$T4"/comments/*/index.md)"; } || { echo "ticket card shape wrong:"; cat "$TF3"; exit 1; }
 validate "$PL" >/dev/null; [ "$(python3 "$SK/lanework/scripts/heal-board.py" "$PL" | tail -1)" = "0 repairs in 0 files" ] || { echo "heal-board finds repairs on fresh tickets"; exit 1; }
-ok "file-ticket.sh mints T1..T4, flattened Ticket label, Depends on as named links, Frontier when free and Blocked while a dependency is open; validates, heal finds nothing"
+ok "file-ticket.sh mints T1..T4, flattened Ticket label, one depends-on relation per dependency (none on the target, no body list), Frontier when free and Blocked while a dependency is open; validates, heal finds nothing"
 S3=$(sum "$PL")
 for dep in "lanework://other/$T1" "[T1]($TL1)" "lanework://$PBID/00000000-0000-4000-8000-000000000000"; do
   if "$PS/file-ticket.sh" "$PL" "Bad" --type grilling --body "$T/t.md" --depends "$dep" --model smoke 2>/dev/null; then echo "accepted bad dependency $dep"; exit 1; fi
@@ -799,7 +803,8 @@ ok "resolve-ticket.sh --to out-of-scope moves a Frontier ticket; file-ticket.sh 
 TO5=$("$PS/file-ticket.sh" "$PL" "Five" --type grilling --body "$T/t.md" --depends "lanework://$PBID/$T3" --model smoke); T5=$(head -1 <<<"$TO5" | sed 's#.*/##')
 FO=$("$PS/frontier.sh" "$PL" 2>"$T/drift.txt")
 { [ "$(grep -c '^== ' <<<"$FO")" -eq 3 ] && grep -q "^T3: Both \[x\] \"q\"  \[${T3:0:8}\](lanework://$PBID/$T3)\$" <<<"$FO" && grep -qx '    waits on T3: Both \[x\] "q" (Frontier)' <<<"$FO" && [ ! -s "$T/drift.txt" ]; } || { echo "frontier.sh output wrong:"; echo "$FO"; cat "$T/drift.txt"; exit 1; }
-TF5="$(ls "$PL"/*/"$T5"/index.md)"; printf -- '- [T4](lanework://%s/%s)\n' "$PBID" "$T4" >> "$TF5"
+TF5="$(ls "$PL"/*/"$T5"/index.md)"; mkdir -p "$(dirname "$TF5")/relations/a4a4a4a4-0000-4000-8000-000000000004"   # a relation added by hand, as the owner would in the app
+printf -- '---\nschema: 1\nkind: relation\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: kim, kind: human}}\nrel: depends-on\nto: lanework://%s/%s\n---\n' "$PBID" "$T4" > "$(dirname "$TF5")/relations/a4a4a4a4-0000-4000-8000-000000000004/index.md"
 BL=$(dirname "$(dirname "$TF5")"); FR=$(dirname "$(dirname "$(ls "$PL"/*/"$T3"/index.md)")")
 mv "$FR/$T3" "$BL/$T3"   # hand-made drift: T3 Blocked with every dep Resolved; T5 depends on an out-of-scope card
 "$PS/frontier.sh" "$PL" >/dev/null 2>"$T/drift.txt" || { echo "frontier.sh exited non-zero"; exit 1; }
@@ -832,6 +837,95 @@ refused resolve-ticket "$PS/resolve-ticket.sh" "$PL" "$T3" --resolution "$T/res1
 refused found-plan-board "$PS/found-plan-board.sh" "$T/NoModel Plan.lanework"
 [ "$S4" = "$(sum "$PL")" ] && [ ! -e "$T/NoModel Plan.lanework" ] || { echo "a refused plan call wrote something"; exit 1; }
 ok "file-ticket, claim-ticket, resolve-ticket and found-plan-board exit 2 with usage and write nothing when no model is given"
+# plan dependencies are depends-on relations (guide § Relations): written by file-ticket.sh, read by frontier.sh and resolve-ticket.sh (plan/scripts/deps.sh)
+DXB="$T/Rel Plan.lanework"; "$PS/found-plan-board.sh" "$DXB" --model smoke >/dev/null; mkguide "$DXB" 120; DXID=$(sed -n 's/^id: //p' "$DXB/index.md")
+dxf() { local o; o=$("$PS/file-ticket.sh" "$DXB" "$@" --body "$T/t.md" --model smoke) || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
+dxd() { ls -d "$DXB"/*/"$1"; }
+dxlane() { sed -n 's/^title: "\(.*\)"$/\1/p' "$(dirname "$(dxd "$1")")/index.md"; }
+dxrel() {  # dxrel <card> <relations/ subpath> <rel as written> <to as written>: a relation written by hand, as the owner would in the app
+  mkdir -p "$(dxd "$1")/relations/$2"
+  printf -- '---\nschema: 1\nkind: relation\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: kim, kind: human}}\nrel: %s\nto: %s\n---\n' "$3" "$4" > "$(dxd "$1")/relations/$2/index.md"; }
+DX1=$(dxf "Rel one" --type grilling); DX2=$(dxf "Rel two" --type research)
+DX3=$(dxf "Rel both" --type task --depends "lanework://$DXID/$DX1" --depends "lanework://$DXID/$DX2")
+DXBY=$(. "$SK/lanework/scripts/lib.sh"; by_of claude smoke)
+DXR=("$(dxd "$DX3")"/relations/*/index.md); [ "${#DXR[@]}" -eq 2 ] || { echo "two --depends did not give two relations: ${DXR[*]}"; exit 1; }
+DXTO=""
+for f in "${DXR[@]}"; do
+  [[ "$(basename "$(dirname "$f")")" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || { echo "relation dir is not a lowercase uuid: $f"; exit 1; }
+  to=$(sed -n 's/^to: //p' "$f"); DXTO="$DXTO$to "
+  [ "$(sed -E 's/^created: \{at: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z, /created: {at: AT, /' "$f")" = "$(printf -- '---\nschema: 1\nkind: relation\ncreated: {at: AT, by: %s}\nrel: depends-on\nto: %s\n---' "$DXBY" "$to")" ] \
+    || { echo "relation is not exactly the guide's shape:"; cat "$f"; exit 1; }
+done
+[ "$(tr ' ' '\n' <<<"$DXTO" | grep . | sort)" = "$(printf 'lanework://%s/%s\n' "$DXID" "$DX1" "$DXID" "$DX2" | sort)" ] || { echo "relations name the wrong targets: $DXTO"; exit 1; }
+{ [ ! -e "$(dxd "$DX1")/relations" ] && [ ! -e "$(dxd "$DX2")/relations" ] && [ "$(dxlane "$DX3")" = Blocked ] && ! grep -q 'Depends on' "$(dxd "$DX3")/index.md"; } \
+  || { echo "a target got relations, the ticket is not Blocked, or a body list was written"; exit 1; }
+validate "$DXB" >/dev/null; [ "$(python3 "$SK/lanework/scripts/heal-board.py" "$DXB" | tail -1)" = "0 repairs in 0 files" ] || { echo "heal-board finds repairs on depends-on relations"; exit 1; }
+ok "file-ticket.sh --depends twice on a board at the targeted guide line: two relations on the dependent ticket only, exactly schema, kind, a one-line created from by_of, rel: depends-on, the full to; no body list; Blocked; validates, heal finds nothing"
+# the bad-dependency refusals on that board: nothing written, relations/ included
+DXS=$(sum "$DXB")
+for dep in "lanework://other/$DX1" "[T1](lanework://$DXID/$DX1)" "lanework://$DXID/00000000-0000-4000-8000-000000000000" "lanework://${DXID:0:8}/$DX1"; do
+  if "$PS/file-ticket.sh" "$DXB" "Bad" --type grilling --body "$T/t.md" --depends "lanework://$DXID/$DX1" --depends "$dep" --model smoke 2>/dev/null; then echo "accepted bad dependency $dep"; exit 1; fi
+done
+[ "$DXS" = "$(sum "$DXB")" ] || { echo "a refused --depends wrote something"; exit 1; }
+ok "file-ticket.sh refuses another board's link, a non-link, a missing card and a short link after a good --depends, and writes nothing, relations included"
+# the gate: below the guide line that brought relations, or with no stamp, --depends is refused whole; without it the ticket files
+for g in 110 none 111; do
+  DXG="$T/RelGate$g Plan.lanework"; "$PS/found-plan-board.sh" "$DXG" --model smoke >/dev/null; [ "$g" = none ] || mkguide "$DXG" "$g"
+  DXG1=$("$PS/file-ticket.sh" "$DXG" "Free" --type grilling --body "$T/t.md" --model smoke) || { echo "guide $g: a ticket with no dependency was refused"; exit 1; }
+  DXGS=$(sum "$DXG"); rc=0
+  "$PS/file-ticket.sh" "$DXG" "Needs free" --type task --body "$T/t.md" --depends "$(head -1 <<<"$DXG1")" --model smoke >/dev/null 2>"$T/dx-err.txt" || rc=$?
+  if [ "$g" = 111 ]; then
+    [ "$rc" -eq 0 ] && [ "$(ls "$DXG"/*/*/relations/*/index.md | wc -l | tr -d ' ')" = 1 ] || { echo "guide 111: --depends refused or no relation: rc=$rc"; cat "$T/dx-err.txt"; exit 1; }
+  else
+    [ "$rc" -eq 1 ] && [ "$DXGS" = "$(sum "$DXG")" ] && grep -q 'predates' "$T/dx-err.txt" || { echo "guide $g: --depends not refused whole: rc=$rc"; cat "$T/dx-err.txt"; exit 1; }
+  fi
+  validate "$DXG" >/dev/null
+done
+ok "file-ticket.sh --depends on a board whose guide predates relations, or with no stamp, exits 1 and writes nothing; the same ticket without it files, and the first guide line with relations accepts it"
+# owner-written shapes, trash and other rels, drift, and an old body list; then resolving unblocks from relations only
+DX4=$(dxf "Rel after one" --type task --depends "lanework://$DXID/$DX1")
+DXBL=$(dirname "$(dxd "$DX3")"); DXFR=$(dirname "$(dxd "$DX1")")
+DX5=$(dxf "Owner shapes" --type task); mv "$(dxd "$DX5")" "$DXBL/"
+dxrel "$DX5" d5000000-0000-4000-8000-000000000001 '"Depends_On"' "'lanework://${DXID:0:8}/${DX2:0:8}'"
+dxrel "$DX5" d5000000-0000-4000-8000-000000000002 'depends on' "\"lanework://$DXID/$DX1\""
+DX6=$(dxf "Only trash" --type task); mv "$(dxd "$DX6")" "$DXBL/"
+dxrel "$DX6" .trash/d6000000-0000-4000-8000-000000000001 depends-on "lanework://$DXID/$DX1"
+dxrel "$DX6" d6000000-0000-4000-8000-000000000002 traces-to "lanework://$DXID/$DX1"
+DX7=$(dxf "Drifting" --type task); mv "$(dxd "$DX7")" "$DXBL/"
+DX8=$(dxf "Ruled out" --type task); PE "$PS/resolve-ticket.sh" "$DXB" "$DX8" --resolution "$T/oos.md" --to out-of-scope --model smoke >/dev/null
+for n in 1 2; do mkdir -p "$DXFR/abcdabcd-0000-4000-8000-00000000000$n"; printf -- '---\nschema: 1\nkind: card\ntitle: "Twin %s"\norder: 9000\ncreated: {at: 2026-01-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: 2026-01-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nx\n' "$n" > "$DXFR/abcdabcd-0000-4000-8000-00000000000$n/index.md"; done
+dxrel "$DX7" d7000000-0000-4000-8000-000000000001 depends-on "lanework://$DXID/00000000-0000-4000-8000-000000000000"
+dxrel "$DX7" d7000000-0000-4000-8000-000000000002 depends-on "lanework://ffffffff-0000-4000-8000-000000000000/$DX1"
+dxrel "$DX7" d7000000-0000-4000-8000-000000000003 depends-on "lanework://$DXID/$DX8"
+dxrel "$DX7" d7000000-0000-4000-8000-000000000004 depends-on "lanework://$DXID/abcdabcd"
+DX9=$(dxf "Old list" --type task); mv "$(dxd "$DX9")" "$DXBL/"; printf -- '\n## Depends on\n\n- [T1](lanework://%s/%s)\n' "$DXID" "$DX1" >> "$(dxd "$DX9")/index.md"
+DXO=$("$PS/frontier.sh" "$DXB" 2>"$T/dx-drift.txt") || { echo "frontier.sh exited non-zero on drift"; exit 1; }
+DXT3=$(awk '/^T3: /{f=1; next} f && /^    waits on /{print; next} {f=0}' <<<"$DXO" | sort)
+DXT5=$(awk '/^T5: /{f=1; next} f && /^    waits on /{print; next} {f=0}' <<<"$DXO" | sort)
+{ [ "$DXT3" = "$(printf '    waits on T1 (Frontier)\n    waits on T2 (Frontier)')" ] && [ "$DXT5" = "$DXT3" ] && grep -q '^T4: ' <<<"$DXO" && grep -qx '    waits on T1 (Frontier)' <<<"$DXO"; } \
+  || { echo "frontier.sh does not read waits on from relations (owner shapes included):"; echo "$DXO"; exit 1; }
+{ grep -qxF 'frontier.sh: drift: T6 is Blocked but names no dependency: move it to Frontier' "$T/dx-drift.txt" &&
+  grep -qxF "frontier.sh: drift: T7 depends on a missing card lanework://$DXID/00000000-0000-4000-8000-000000000000" "$T/dx-drift.txt" &&
+  grep -qF "frontier.sh: drift: T7 depends on lanework://ffffffff-0000-4000-8000-000000000000/$DX1, another board's card" "$T/dx-drift.txt" &&
+  grep -qF 'frontier.sh: drift: T7 depends on T8, which is Out of scope' "$T/dx-drift.txt" &&
+  grep -qF "frontier.sh: drift: T7 depends on lanework://$DXID/abcdabcd, a short link matching several cards" "$T/dx-drift.txt" &&
+  grep -qxF 'frontier.sh: drift: T9 is Blocked but names no dependency: move it to Frontier; its ## Depends on list is not read: re-enter those as depends-on relations (guide § Relations)' "$T/dx-drift.txt" &&
+  ! grep -q -e 'T3 ' -e 'T4 ' -e 'T5 ' "$T/dx-drift.txt"; } || { echo "frontier.sh drift on relations wrong:"; cat "$T/dx-drift.txt"; exit 1; }
+ok "frontier.sh reads waits on from depends-on relations: quoted rel and to, a short link and rel Depends_On or depends on all read; a trashed or traces-to relation does not count; a missing card, another board's card, an Out of scope card and an ambiguous short link are drift; an old body list is not read and gets the hint; exit 0"
+PE "$PS/claim-ticket.sh" "$DXB" "$DX1" --model smoke >/dev/null; DXO1=$(PE "$PS/resolve-ticket.sh" "$DXB" "$DX1" --resolution "$T/res1.md" --model smoke)
+{ [ "$(grep '^unblocked' <<<"$DXO1")" = "unblocked T4" ] && [ "$(dxlane "$DX4")" = Frontier ] && [ "$(dxlane "$DX3")" = Blocked ] && [ "$(dxlane "$DX5")" = Blocked ] &&
+  [ "$(dxlane "$DX9")" = Blocked ] && [ "$(dxlane "$DX6")" = Blocked ]; } || { echo "resolving T1 unblocked the wrong tickets: $DXO1"; exit 1; }
+PE "$PS/claim-ticket.sh" "$DXB" "$DX2" --model smoke >/dev/null; DXO2=$(PE "$PS/resolve-ticket.sh" "$DXB" "$DX2" --resolution "$T/res1.md" --model smoke)
+{ [ "$(grep '^unblocked' <<<"$DXO2" | sort)" = "$(printf 'unblocked T3\nunblocked T5')" ] && [ "$(dxlane "$DX3")" = Frontier ] && [ "$(dxlane "$DX5")" = Frontier ] &&
+  [ "$(dxlane "$DX9")" = Blocked ] && [ "$(dxlane "$DX7")" = Blocked ]; } || { echo "resolving T2 unblocked the wrong tickets: $DXO2"; exit 1; }
+[ -z "$("$SK/lanework/scripts/lease.sh" list "$DXB")" ] || { echo "the relation cases left a lease"; exit 1; }
+validate "$DXB" >/dev/null; ok "resolve-ticket.sh unblocks from relations: a one-dependency ticket when it resolves, two-dependency ones (owner shapes too) only after both; an old body list or no live dependency never unblocks"
+# one relation writer: relation_file writes exactly the bytes file-record.sh wrote inline before it
+( . "$SK/lanework/scripts/lib.sh"; mkdir -p "$T/dx-rf"
+  id=$(relation_file "$T/dx-rf" supersedes "lanework://b0/c0" 2026-01-01T00:00:00Z "$(by_of claude smoke)")
+  printf -- '---\nschema: 1\nkind: relation\ncreated: {at: %s, by: %s}\nrel: supersedes\nto: lanework://%s/%s\n---\n' 2026-01-01T00:00:00Z "$(by_of claude smoke)" b0 c0 > "$T/dx-rf.want"
+  cmp -s "$T/dx-rf/relations/$id/index.md" "$T/dx-rf.want" && [ "$(ls "$T/dx-rf/relations")" = "$id" ] || { echo "relation_file output differs from the inline writer"; exit 1; } )
+ok "relation_file prints the uuid and writes byte for byte what file-record.sh wrote inline"
 
 # usage errors exit 2 (option C): a bad flag, a flag with no value, or a missing positional exits 2 and writes nothing. Before, each of
 # these exited 1 (file-question, file-record, file-ticket: every bad-argument path; the other six: a ${N:?} path)
@@ -1099,7 +1193,6 @@ rc=0; "$SK/work/scripts/lint-ask.sh" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] |
 "$SK/work/scripts/lint-ask.sh" "$T/opt-79.md"; ok "lint-ask leaves the Recap line out of the 80-word count"
 
 # guide v117+: asks address @anyone; the board's own stamp gates it (ask_handle), older boards keep the handle
-mkguide() { mkdir -p "$1"; printf '<!-- lanework-agent-guide v%s - app guide -->\n\n**This board'"'"'s human answers to `@kim` right now**\n' "$2" > "$1/CLAUDE.md"; }
 G118="$T/G118.lanework"; G117="$T/G117.lanework"; G116="$T/G116.lanework"; G114="$T/G114.lanework"; GNONE="$T/GNone.lanework"
 mkguide "$G118" 118; mkguide "$G117" 117; mkguide "$G116" 116; mkguide "$G114" 114; mkdir -p "$GNONE"
 gv() { ( . "$SK/lanework/scripts/lib.sh"; guide_version "$1" ) || true; }
@@ -2459,7 +2552,7 @@ nothing_to_heal "$DD" || { echo "file-question: board not clean"; exit 1; }
 ok "file-question.sh: 'urgent' is added, 'ROUND 1' of the same kind is not repeated; the ask lints clean and waiting stays; validates, heal finds nothing"
 
 # 3. file-ticket: kinded entries stamped from config.labels; Blocked has no defaults
-DP="$T/Defaults Plan.lanework"; "$SK/plan/scripts/found-plan-board.sh" "$DP" --labels priority --model smoke >/dev/null
+DP="$T/Defaults Plan.lanework"; "$SK/plan/scripts/found-plan-board.sh" "$DP" --labels priority --model smoke >/dev/null; mkguide "$DP" 116   # --depends needs a guide with relations
 setdef "$DP" Frontier '{labels: [{text: Grilling, kind: {type: ticket}}, {text: urgent, kind: {type: priority}}, extra]}'
 DT1=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "Rates" --type research --body "$T/t.md" --model smoke)
 DT2=$(bfirst "$SK/plan/scripts/file-ticket.sh" "$DP" "After rates" --type task --body "$T/t.md" --depends "lanework://$(sed -n 's/^id: //p' "$DP/index.md")/$DT1" --model smoke)
@@ -3215,13 +3308,13 @@ RB=$("$SK/lanework/scripts/read-board.sh" "$CL"); grep -qE "^   [0-9.]+ +Q1: Pri
 CP="$T/CiteD Plan.lanework"; "$PS/found-plan-board.sh" "$CP" --model smoke >/dev/null; mkguide "$CP" 117; PBID=$(sed -n 's/^id: //p' "$CP/index.md")
 LT1=$(cc "$("$PS/file-ticket.sh" "$CP" "Engine: placement" --type grilling --body "$T/ct.md" --model smoke)"); LT2=$(cc "$("$PS/file-ticket.sh" "$CP" "Rate limits" --type research --body "$T/ct.md" --model smoke)")
 LT3=$(cc "$("$PS/file-ticket.sh" "$CP" "Both" --type task --body "$T/ct.md" --depends "lanework://$PBID/$LT1" --depends "lanework://$PBID/$LT2" --model smoke)")
-{ grep -qxF -- "- [T1](lanework://$PBID/$LT1)" "$CP"/*/"$LT3"/index.md && grep -qxF -- "- [T2](lanework://$PBID/$LT2)" "$CP"/*/"$LT3"/index.md; } || { echo "Depends on lines are not citation links:"; cat "$CP"/*/"$LT3"/index.md; exit 1; }
+{ grep -qxF "to: lanework://$PBID/$LT1" "$CP"/*/"$LT3"/relations/*/index.md && grep -qxF "to: lanework://$PBID/$LT2" "$CP"/*/"$LT3"/relations/*/index.md; } || { echo "dependencies are not two depends-on relations:"; cat "$CP"/*/"$LT3"/relations/*/index.md; exit 1; }
 FO=$("$PS/frontier.sh" "$CP" 2>"$T/cdrift.txt")
 { grep -qxF "T1: Engine: placement  [${LT1:0:8}](lanework://$PBID/$LT1)" <<<"$FO" && grep -qxF "T3: Both  [${LT3:0:8}](lanework://$PBID/$LT3)" <<<"$FO" && grep -qxF '    waits on T1 (Frontier)' <<<"$FO" && [ ! -s "$T/cdrift.txt" ]; } || { echo "frontier.sh does not show the citation:"; echo "$FO"; cat "$T/cdrift.txt"; exit 1; }
 # a Blocked ticket moved to Frontier by hand while its dependencies are open: the drift warning names the citation
 mv "$(ls -d "$CP"/*/"$LT3")" "$(dirname "$(ls -d "$CP"/*/"$LT1")")/"; "$PS/frontier.sh" "$CP" >/dev/null 2>"$T/cdrift.txt"
 grep -qxF 'frontier.sh: drift: T3 is on the Frontier with a dependency open: T1 (Frontier) T2 (Frontier)' "$T/cdrift.txt" || { echo "frontier.sh warning does not name the citations:"; cat "$T/cdrift.txt"; exit 1; }
-ok "cite links: Depends on lines and a record's first line are [T1](…) and [Q1](…); frontier.sh and read-board.sh print the citation before the title, and its listing and drift warning name the citation"
+ok "cite links: dependencies are depends-on relations to the full links, a record's first line is [Q1](…); frontier.sh and read-board.sh print the citation before the title, and its listing and drift warning name the citation"
 # cite-as: resolving a ticket with a bare title names the citation, not the title
 printf 'Where does the engine run?\n' > "$T/ct.md"; printf '**2026-11-17**: Done.\n' > "$T/cres.md"
 cc() { head -1 <<<"$1" | sed 's#.*/##'; }

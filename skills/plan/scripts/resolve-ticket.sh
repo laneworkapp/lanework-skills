@@ -4,8 +4,8 @@
 #          --model m [--name n] [--session s]
 # Appends `## Resolution` + the --resolution text (templates/resolution.md), drops `waiting` and `claimed` (on every resolve, held lease or not),
 # restamps, moves the card to the bottom of Resolved (card must be in Working) or Out of scope
-# (card in Frontier, Blocked or Working). Then, only for resolved: every Blocked ticket whose
-# `## Depends on` links are all in Resolved moves to the bottom of Frontier (fresh order,
+# (card in Frontier, Blocked or Working). Then, only for resolved: every Blocked ticket with a dependency (a `depends-on` relation, deps.sh)
+# and every one in Resolved moves to the bottom of Frontier (fresh order,
 # `modified` rewritten whole, `waiting` dropped like the resolved card's), one `unblocked <name>` line each (its citation; a card with none: the `T<n>` of a legacy `T<n>: ` title, else the title). Staged outside the board; each
 # card path is re-resolved just before landing. Prints `resolved <id> -> <lane> (order <n>)` first, then the `unblocked` lines, then the resolved card's link.
 # The lease (lanework/references/writes.md § Lease), after the refusals above and before anything is written: with
@@ -18,6 +18,7 @@
 # Exit 1 after the card landed: the release failed; lease.sh release by hand.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/deps.sh"
 
 USAGE='resolve-ticket.sh <board> <card-uuid> --resolution F [--to resolved|out-of-scope] --model m [--name n] [--session s]'
 [ $# -ge 2 ] || { echo "usage: $USAGE" >&2; exit 2; }
@@ -48,12 +49,6 @@ esac
 DEST=$(lane_by_title "$BOARD" "$LANE_TITLE") || { echo "resolve-ticket.sh: no lane titled $LANE_TITLE" >&2; exit 1; }
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
 
-card_of() { ls -d "$BOARD"/*/"$1" 2>/dev/null | head -1 || true; }
-lane_of() { local d; d=$(card_of "$1"); [ -n "$d" ] && strip_quotes "$(fm_value "$(dirname "$d")/index.md" title)"; }
-deps_of() {  # deps_of <card index.md>: card uuids linked under "## Depends on"
-  awk '/^## Depends on[ \t]*$/ { f=1; next } f && /^## / { exit } f' "$1" |
-    grep -oE 'lanework://[^/)]+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | sed 's#.*/##' || true
-}
 restamp() {  # restamp <src> <order> <dest> [claimed]: fresh order + modified, waiting dropped, and claimed with "claimed"
   LW_O="order: $2" LW_M="modified: {at: $NOW, by: $BY}" awk -v cl="${4:-}" '   # ENVIRON, not -v: awk -v interprets backslash escapes in a stamp value
     BEGIN { o = ENVIRON["LW_O"]; m = ENVIRON["LW_M"] }
@@ -68,9 +63,9 @@ restamp() {  # restamp <src> <order> <dest> [claimed]: fresh order + modified, w
   if ! stamp_lines_ok "$3" order modified; then echo "resolve-ticket.sh: triple brace after restamp; aborting" >&2; exit 1; fi
 }
 
-CARD=$(card_of "$CID")
+CARD=$(card_of "$BOARD" "$CID" || true)
 [ -n "$CARD" ] && [ -f "$CARD/index.md" ] || { echo "resolve-ticket.sh: no card $CID on the board" >&2; exit 1; }
-HERE_LANE=$(lane_of "$CID")
+HERE_LANE=$(lane_of "$BOARD" "$CID")
 case " $FROM " in *" $HERE_LANE "*) ;; *)
   if [ "$TO" = resolved ]; then echo "resolve-ticket.sh: ${CID:0:8} is in $HERE_LANE, not Working: claim it first (claim-ticket.sh)" >&2
   else echo "resolve-ticket.sh: ${CID:0:8} is in $HERE_LANE: only a Frontier, Blocked or Working ticket goes out of scope" >&2; fi
@@ -98,8 +93,8 @@ STAGE=$(mktemp -d "${TMPDIR:-/tmp}/plan-resolve.XXXXXX"); trap 'rm -rf "$STAGE"'
 restamp "$CARD/index.md" "$ORDER" "$STAGE/index.md" claimed
 { printf '\n## Resolution\n\n'; cat "$RESOLUTION"; } >> "$STAGE/index.md"
 
-CARD=$(card_of "$CID")
-[ -n "$CARD" ] && [ -f "$CARD/index.md" ] && [ "$(lane_of "$CID")" = "$HERE_LANE" ] || { echo "resolve-ticket.sh: card $CID moved during resolve; nothing written" >&2; exit 1; }
+CARD=$(card_of "$BOARD" "$CID" || true)
+[ -n "$CARD" ] && [ -f "$CARD/index.md" ] && [ "$(lane_of "$BOARD" "$CID")" = "$HERE_LANE" ] || { echo "resolve-ticket.sh: card $CID moved during resolve; nothing written" >&2; exit 1; }
 mv "$STAGE/index.md" "$CARD/index.md"
 [ "$CARD" = "$DEST/$CID" ] || mv "$CARD" "$DEST/$CID"
 printf 'resolved %s -> %s (order %s)\n' "${CID:0:8}" "$LANE_TITLE" "$ORDER"
@@ -115,8 +110,8 @@ if [ "$TO" = resolved ]; then
   BLOCKED=$(lane_by_title "$BOARD" Blocked || true); FRONTIER=$(lane_by_title "$BOARD" Frontier || true)
   if [ -n "$BLOCKED" ] && [ -n "$FRONTIER" ]; then
     while IFS= read -r f; do
-      deps=$(deps_of "$f"); [ -n "$deps" ] || continue
-      all=1; for d in $deps; do [ "$(lane_of "$d" || true)" = Resolved ] || { all=0; break; }; done
+      deps=$(deps_of "$BOARD" "$(dirname "$f")"); [ -n "$deps" ] || continue
+      all=1; while IFS= read -r d; do [ "$(lane_of "$BOARD" "$d" || true)" = Resolved ] || { all=0; break; }; done <<<"$deps"
       [ "$all" -eq 1 ] || continue
       bid=$(basename "$(dirname "$f")")
       restamp "$f" "$(next_order "$FRONTIER")" "$STAGE/u.md"

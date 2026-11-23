@@ -4,15 +4,16 @@
 #          --body F --model m [--depends <link>]... [--why T] [--name n] [--session s]
 # On a board whose app draws `cite-as` (lib.sh `cite_enabled`) mints `cite-as: T<n>` (lanework/references/writes.md) and files a bare title; on any other
 # board the title is `T<n>: <title>` from the highest across all lanes, as before. Frontmatter from templates/ticket-card.md (flattened
-# `Ticket` label), body from --body, `## Depends on` appended from --depends: each a
-# lanework://<this board's id>/<card-uuid> link to any card already on the board, in any lane (only its uuid is checked), written as
-# `- [<citation, else title>](<link>)`. Only a dependency in Out of scope is refused (rule the dependent out too,
+# `Ticket` label), body from --body. Each --depends is a lanework://<this board's id>/<card-uuid> link to any card already on the board, in any lane
+# (only its uuid is checked), written as one `depends-on` relation on the new ticket (lib.sh `relation_file`, guide § Relations), staged with the card
+# and landing in its one move. Nothing is ever written on the target. Only a dependency in Out of scope is refused (rule the dependent out too,
 # or drop it). Lands at the bottom of Frontier when every dependency is in Resolved (or none),
 # else the bottom of Blocked. The destination lane's card-defaults labels are unioned in. One founding comment (--why, default "**Charted.**"). No waiting.
 # Prints the card's link, its short id and the lane it landed in.
 # Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, no model (--model, else CLAUDE_MODEL), a bad --type, an
 # unreadable --body, a --depends that is not this board's link). Exit 1, nothing written: not a board, no Frontier or Blocked lane, a --depends card not
-# on the board or Out of scope, a brace in the stamp values or the frontmatter.
+# on the board or Out of scope, --depends on a board whose guide predates relations or has no readable stamp (lib.sh `relations_enabled`: open
+# the board in the app so it upgrades), a brace in the stamp values or the frontmatter. A ticket with no --depends files on any board.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 TEMPLATES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../templates" && pwd)"
@@ -51,7 +52,7 @@ BLOCKED=$(lane_by_title "$BOARD" Blocked) || { echo "file-ticket.sh: no Blocked 
 BOARD_ID=$(fm_value "$BOARD/index.md" id)
 
 # ---- dependencies: this board's links to existing tickets; any not in Resolved -> Blocked ----
-DEP_LINES=(); OPEN=0
+OPEN=0
 for link in ${DEPENDS[@]+"${DEPENDS[@]}"}; do
   [[ "$link" =~ ^lanework://$BOARD_ID/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$ ]] \
     || { echo "file-ticket.sh: --depends wants lanework://$BOARD_ID/<card-uuid>, got: $link" >&2; exit 2; }
@@ -64,8 +65,10 @@ for link in ${DEPENDS[@]+"${DEPENDS[@]}"}; do
     Resolved) ;;
     *) OPEN=1 ;;
   esac
-  DEP_LINES+=("- [$dtitle]($link)")
 done
+if [ "${#DEPENDS[@]}" -gt 0 ] && ! relations_enabled "$BOARD"; then
+  echo "file-ticket.sh: --depends writes depends-on relations, which this board's guide predates (or it has no readable guide stamp): open the board in the Lanework app so it upgrades, then file again; nothing written" >&2; exit 1
+fi
 if [ "$OPEN" -eq 1 ]; then DEST="$BLOCKED"; DEST_TITLE=Blocked; else DEST="$FRONTIER"; DEST_TITLE=Frontier; fi
 
 # ---- an older board: next global T number from the title prefixes, every lane, dot-folders excluded ----
@@ -96,10 +99,8 @@ if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" T); fi
 {
   cat "$STAGE/fm.out"
   cat "$BODY_FILE"
-  if [ "${#DEP_LINES[@]}" -gt 0 ]; then
-    printf '\n## Depends on\n\n'; printf '%s\n' "${DEP_LINES[@]}"
-  fi
 } > "$C/index.md"
+for link in ${DEPENDS[@]+"${DEPENDS[@]}"}; do relation_file "$C" depends-on "$link" "$NOW" "$BY" >/dev/null; done
 printf '%s\n' "$WHY" | comment_file "$C/comments/$FOUND_ID/index.md" "$(now_utc 1)" "$BY"
 
 DEST=$(lane_by_title "$BOARD" "$DEST_TITLE")

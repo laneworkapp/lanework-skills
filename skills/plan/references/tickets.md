@@ -19,7 +19,9 @@ Ticket = one question whose resolution is a decision, sized to one session. Card
 
 ## Depends on
 
-- `## Depends on` = tickets that must resolve first. `file-ticket.sh --depends <link>` writes it and files into Blocked until all are Resolved.
+- Dependency = a ticket that must resolve first = one `depends-on` relation on the dependent ticket (shape: guide § Relations), never on the target. Body text is not read.
+- `file-ticket.sh --depends <link>` writes them and files into Blocked until all are Resolved. Board whose guide predates relations → refused: the owner opens it in the app to upgrade.
+- Add one later by hand, same shape. Drop one: move its folder into `relations/.trash/`. Then `scripts/frontier.sh`, fix the drift it names.
 - File dependencies first: a `--depends` target must exist. Topological order: no cycles, no second pass.
 - Dependency in Out of scope → refused: rule the dependent out too, or drop the dependency.
 
@@ -47,5 +49,5 @@ Mis-scoped ticket → `resolve-ticket.sh --to out-of-scope` (from Frontier, Bloc
 
 ## Editing
 
-- Unclaimed Frontier / Blocked body: may be rewritten while sharpening (restamp `modified`). Depends on changed → `scripts/frontier.sh`, fix the drift it names.
+- Unclaimed Frontier / Blocked body: may be rewritten while sharpening (restamp `modified`). Dependencies live in relations, not the body.
 - Working: the lease's holder only. Resolved: never edited.

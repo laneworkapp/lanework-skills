@@ -32,11 +32,11 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | `work` | 16 | 488 | 8,012 |
 | `watch` | 4 | 182 | 2,096 |
 | `discovery` | 14 | 510 | 3,022 |
-| `plan` | 9 | 467 | 2,855 |
+| `plan` | 9 | 467 | 2,926 |
 | `merge` | 2 | 362 | 1,864 |
 | `heal` | 2 | 311 | 897 |
 
-Measured with `wc -w` on 2026-10-10 (`plan` on 2026-11-17, `discovery` on 2026-11-20, `lanework`, `work` and `watch` on 2026-11-22, `merge` on 2026-11-23), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `work` and `watch` on 2026-11-22, `merge` and `plan` on 2026-11-23), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -114,12 +114,12 @@ Measured with `wc -w` on 2026-10-10 (`plan` on 2026-11-17, `discovery` on 2026-1
 | `references/board.md` | 344 |
 | `references/map.md` | 316 |
 | `references/sessions.md` | 427 |
-| `references/tickets.md` | 593 |
-| `templates/lanes.md` | 414 |
+| `references/tickets.md` | 649 |
+| `templates/lanes.md` | 421 |
 | `templates/map-card.md` | 101 |
 | `templates/resolution.md` | 144 |
-| `templates/ticket-card.md` | 49 |
-| **total** | **2,855** |
+| `templates/ticket-card.md` | 57 |
+| **total** | **2,926** |
 
 #### `merge`
 
