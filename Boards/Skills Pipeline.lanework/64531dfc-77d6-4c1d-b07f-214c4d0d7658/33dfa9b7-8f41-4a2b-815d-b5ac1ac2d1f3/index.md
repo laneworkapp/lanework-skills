@@ -6,7 +6,7 @@ order: 1024
 labels: [{text: "plan", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T16:34:08Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Scratch"}}
 waiting: {for: anyone, since: 2026-11-23T16:44:17Z, comment: f7bd264e-0cbe-4005-923d-eabf0d6eae32}
-modified: {at: 2026-11-23T16:44:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+modified: {at: 2026-11-23T16:46:02Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Plan tickets record their dependencies as a `## Depends on` list in the body, which the app treats as plain links, while the guide has a typed `depends-on` relation for exactly this. This card makes `file-ticket.sh` write one relation per dependency and makes `frontier.sh` and `resolve-ticket.sh` read relations, so a dependency shows on both tickets in the app and one the owner adds or removes there is obeyed.
 
@@ -62,6 +62,7 @@ Plan tickets record their dependencies as a `## Depends on` list in the body, wh
 - **The target is never touched.** No inverse, no comment, no restamp, as the guide says and as `file-record.sh` already does.
 - **Readers follow the app's leniency**: short links, quoted values and `rel` in any case or with `_` or spaces all read. `file-ticket.sh` still accepts and writes only the full link.
 - **One relation writer.** `file-record.sh` moves onto `relation_file` in this card, because two copies of the shape would drift.
+- **Relations are the only record** (owner ruled A, 2026-11-23). A ticket filed on a v111+ board carries no `## Depends on` body section.
 - **`suspect` is not in scope.** Plan has no event that changes a dependency after it resolves (Evidence, last bullet). A follow-on card is filed only if the owner wants an overturning ticket to flag the tickets that relied on the old one.
 
 ## Out of scope
@@ -110,5 +111,4 @@ Minor: new behavior in three scripts. One CHANGELOG entry.
 
 ## Open calls
 
-- **Open call, body section**: A: relations only (recommended). B: relation plus a body copy for display, with only the relation read. C: both, and the readers take the union.
 - **Open call, plan boards already charted**: A: read both shapes, with the body section still written below v111 (recommended). B: relations only, plus a migration script for live tickets, and `--depends` refused below v111. C: read both now and ship the migration script as an opt-in.
