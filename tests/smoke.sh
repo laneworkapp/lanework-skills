@@ -1236,6 +1236,11 @@ lint "$LLB"
   && [ "$LE" = "leased cards: 4, lease lost: 0, two STARTs: 2, lapsed: 0" ] || llfail "lint-leases two STARTs: want D tagged, E plain, F (one session) and G (3000 s apart) passed"
 lint "$LLB" --window 4000; [ "$(grep -c . <<<"$LO")" = 3 ] && grep -q "/$LG: two STARTs .* 3000s apart\$" <<<"$LO" || llfail "--window 4000 should add G"
 ok "lint-leases finds two STARTs from two sessions inside the window, tags first session wrote again, and passes two from one session and two from sessions farther apart than the window (--window widens it)"
+# a shaper's START (shaping) then the lead's START, two sessions inside the window: a handoff, not two builders; the card still counts as leased
+llfresh; llcard $LD
+llcom $LD c3100000-0000-4000-8000-000000000001 "$(llago 1000)" S-a '**START (shaping): reading the ruling**'; llcom $LD c3100000-0000-4000-8000-000000000002 "$(llago 120)" S-b '**START: build**'
+lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on a START (shaping) then a START: want silent exit 0, the card tallied as leased"
+ok "lint-leases passes a START (shaping) followed by the lead's START from another session: no two-STARTs finding"
 
 # 4. a lapsed claimed
 llfresh
