@@ -4,7 +4,7 @@
 # Missing `order` sorts last and prints as 999999999. A card id prints as its first 8 characters. Dot-folders (.schema, .log, .trash) are skipped.
 # Titles and ids only, a card's `cite-as` before its title as `<citation>: <title>`; read the bodies next (references/reading.md).
 # A card with a `priority` label ends its line with `  priority: <text> (<rank>)` (its lowest rank; `(-)` = no readable rank); a card with none
-# prints as before. Cards still print by `order`, never re-sorted by priority: apply the pick order (references/reading.md) from the ranks.
+# prints as before. Cards still print by `order`, never re-sorted by priority; apply the pick order (references/reading.md) from the ranks.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # Exit: exit 0 read; exit 1 not a board; exit 2 usage (no argument, or an unknown argument).

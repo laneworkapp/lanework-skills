@@ -2235,7 +2235,8 @@ WA="$SK/watch/references/arming.md"
 ok "watch arming runs scripts/arm-pass.sh (its own section, a row in SKILL.md) and carries the compaction rule, the answer-then-arm clause, the full lane-title list and where a stale report goes"
 
 # format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)
-H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top-level)|(root|top-level)[^.]*(priority|component)' "$SK" || true; } | grep -v -i 'reserved' || true)
+# (read-board.sh's printed `priority: <text> (<rank>)` suffix is a display line, not a key)
+H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top-level)|(root|top-level)[^.]*(priority|component)' "$SK" || true; } | grep -v -i 'reserved' | grep -v -E 'priority: (<text>|%s) \(' || true)
 [ -z "$H" ] || { echo "a skill prescribes priority/component as a card key (they are labels entries, see the guide): $H"; exit 1; }
 ok "no skill prescribes priority: or component: as a card key"
 

@@ -15,7 +15,7 @@ Among the cards waiting in one lane you act on: build-blockers first (a red gate
 - Within one lane only: the lane says who acts.
 - A card in Active is finished or released before a higher-priority Approved card is started; a lapsed Active card counts as in progress.
 - Plan and discovery boards: out of scope (they keep their own order).
-- Never assign or change a priority: the owner's call.
+- Never assign or change a priority; the owner's call.
 - `read-board.sh` still prints in `order`; a card with a priority ends its line `  priority: <text> (<rank>)` (`(-)` = no readable rank). Apply the rule from those ranks.
 
 ## Rules
