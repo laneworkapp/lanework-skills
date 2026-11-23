@@ -5,8 +5,7 @@ title: "Merge: a delete against an added comment leaves a folder with no index.m
 order: 2048
 labels: [{text: "merge", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T00:30:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-23T16:45:22Z, comment: fab914f5-f609-4861-9c47-13986e171371}
-modified: {at: 2026-11-23T16:45:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-23T16:47:50Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Two merges still lose or strand a card the other side deleted for good. If the other side only added a comment or an attachment, git merges with no conflict and leaves those files in a folder with no `index.md`. If the other side only moved the card, the pass sees no edit and drops the card. Both reproduce on throwaway repos, both ways, and the board validator passes both broken results. One change in `lanework-merge.py` for each, verified on a prototype copy.
 
@@ -71,23 +70,18 @@ In a new `tests/merge-case.sh` mode, `deleteadd` (`delete` needs git to stop, an
 ## Done when
 
 - [ ] A delete against an added comment, attachment or relation ends with the whole card back, never a folder without `index.md`. That holds after a merge git finished, a rebase, and a merge stopped on another path, both ways.
-- [ ] A delete against a bare move ends as the open call below rules, both ways.
+- [ ] A delete against a bare move ends with the whole card in the moved lane and a merge comment, both ways, a bare move into `.trash/` included.
 - [ ] A folder the pass still can't restore is named in the report with its real reason.
 - [ ] `deleteadd` and the new `delete` rows are in `tests/merge-case.sh` and called from `tests/smoke.sh`. Each fails on the current script, and `tests/smoke.sh` passes.
 - [ ] `rules.md` Placement and Limits match the new behavior.
 - [ ] The fix ships as a plugin release.
 
-## Decision in this proposal
+## Decisions in this proposal
 
 An added comment or attachment brings back a card the other side deleted, whole. The owner approved this on card `28c22261` ("Decision in this proposal"). It went undelivered only because the pass never saw the case. It is not reopened here.
+
+A delete against a bare move keeps the whole card where the mover put it, with a merge comment (owner ruled A, 2026-11-23). A bare move into `.trash/` is kept in `.trash/` like any other.
 
 ## Release
 
 Patch: fixes only. Both bugs lose or strand board data in a shipped skill.
-
-## Open calls
-
-- Open call: a delete for good against a bare move (no restamp).
-  - **A (recommended):** keep the whole card where the mover put it, with a merge comment. This is what a stamped move already gets. It holds to "when in doubt, keep both edits", and the only cost is deleting it again.
-  - B: the delete wins, and the report names the dropped card. No merge comment is possible because there is no card to hold one.
-  - C: as A, except a bare move into `.trash/` lets the delete win, since both sides meant to remove it.
