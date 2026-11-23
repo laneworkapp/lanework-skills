@@ -1742,7 +1742,7 @@ for l in fm.splitlines():
     skip = False; out.append(l)
 open(p, "w").write("---\n" + "\n".join(out) + "\n---\n" + body)
 PY
-grep -q '^labels: \[{' "$PH"; RO2=$("$RBS" "$PB" | sed -n '/^== Ideas/,/^== /p')
+grep -q '^labels: \[{' "$PH" || { echo "the flow-form rewrite of High's labels did not land"; exit 1; }; RO2=$("$RBS" "$PB" | sed -n '/^== Ideas/,/^== /p')
 [ "$RO2" = "$RO" ] || { echo "block and flow form read differently:"; diff <(echo "$RO") <(echo "$RO2"); exit 1; }
 ok "read-board.sh: the block form and the app's one-line flow form of a priority print the same"
 # several priority entries on one card: the lowest rank prints
@@ -1786,7 +1786,31 @@ UB="$T/Unranked Pipeline.lanework"
 U1=$(PFB="$UB" pfile Approved "First"); PFB="$UB" pfile Approved "Second" >/dev/null
 [ "$("$AP2" "$UB" | awk -F'\t' '$1 == "arm" { print $3 }')" = "$(pid "$U1")" ] || { echo "unranked Approved:"; "$AP2" "$UB"; exit 1; }
 ok "arm-pass.sh: Approved cards with no priority arm the first by order, as before"
-validate "$PB" >/dev/null; validate "$NB" >/dev/null; ok "the pick-order fixture boards validate"
+# a rank that overflows ("1e400") is no readable rank and stops nothing; a huge finite rank still sorts before an unranked card
+XB="$T/Overflow Pipeline.lanework"
+"$SK/lanework/scripts/found-board.sh" "$XB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=X --var verified=make --labels priority --model smoke >/dev/null
+xlabel() { python3 - "$1" "$2" <<'PY'
+import sys
+p, lab = sys.argv[1:]; head, fm, body = open(p).read().split("---\n", 2)
+open(p, "w").write("---\n".join([head, fm.rstrip("\n") + "\nlabels: [" + lab + "]\n", body]))
+PY
+}
+X1=$(PFB="$XB" pfile Approved "Overflow first"); X2=$(PFB="$XB" pfile Approved "Normal second"); X3=$(PFB="$XB" pfile Approved "Huge third")
+xlabel "$X1" '{text: "Big", rank: "1e400", kind: {type: "priority"}}'; xlabel "$X2" '{text: "High", rank: 1, kind: {type: "priority"}}'
+RX=$("$RBS" "$XB"); grep -qE "^   [0-9.]+ +Overflow first  \[$(pid "$X1" | cut -c1-8)\]  priority: Big \(-\)$" <<<"$RX" && grep -qE "^   [0-9.]+ +Normal second  \[$(pid "$X2" | cut -c1-8)\]  priority: High \(1\)$" <<<"$RX" \
+  || { echo "rank 1e400 then a normal rank:"; echo "$RX"; exit 1; }
+ok "read-board.sh: a card with rank 1e400 prints (-) and the card after it still prints its priority"
+xlabel "$X3" '{text: "Far", rank: 1e300, kind: {type: "priority"}}'; xlabel "$X2" '{text: "High", rank: 5, kind: {type: "priority"}}'
+AXI=$("$AP2" "$XB" | awk -F'\t' '$1 == "arm" && $4 == "Approved" { print $3 }')
+[ "$AXI" = "$(pid "$X2")" ] || { echo "arm-pass.sh with rank 5, rank 1e300 and rank 1e400:"; echo "$AXI"; exit 1; }
+xlabel "$X2" '{text: "Far", rank: 1e300, kind: {type: "priority"}}'; sed -i '' '/^labels:/d' "$X2"; xlabel "$X2" '{text: "x", kind: {type: "text"}}'
+[ "$("$AP2" "$XB" | awk -F'\t' '$1 == "arm" && $4 == "Approved" { print $3 }')" = "$(pid "$X3")" ] || { echo "arm-pass.sh: a rank of 1e300 must sort before an unranked card:"; "$AP2" "$XB"; exit 1; }
+ok "arm-pass.sh: a rank of 1e300 still sorts before unranked cards, and a rank of 1e400 counts as unranked"
+# an existing board whose Approved lane body still says "top first" is still armed (arm-pass.sh reads no lane body)
+AL=$(lane_of "$XB" Approved); sed -i '' '$d' "$AL"; echo 'The build queue, top first. Approval is the go-ahead: an agent takes the top card into Active unasked. The spec is frozen: a scope change bounces the card to Shaping.' >> "$AL"
+[ -n "$("$AP2" "$XB" | awk -F'\t' '$1 == "arm" && $4 == "Approved" { print $3 }')" ] || { echo "arm-pass.sh stopped arming a board with the old Approved wording"; exit 1; }
+ok "arm-pass.sh: a board whose Approved lane body still has the old 'top first' wording is still armed"
+validate "$PB" >/dev/null; validate "$XB" >/dev/null; validate "$NB" >/dev/null; ok "the pick-order fixture boards validate"
 
 # merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
 for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/null; ok "merge case: every row resolves with no prompt, as a $m"; done
@@ -1828,7 +1852,7 @@ for b in "$P" "$T/design-loop.lanework" "$T/datapoint.lanework" "$D" "$PL"; do
   done
 done
 ok "every lane of a founded pipeline, design-loop, datapoint, discovery and plan board has a body of two sentences or more"
-grep -q 'unasked' <<<"$(lane_body "$P" Approved)" || { echo "the Approved body must say an agent takes the top card unasked"; exit 1; }
+grep -q 'unasked' <<<"$(lane_body "$P" Approved)" || { echo "the Approved body must say an agent takes the first card unasked"; exit 1; }
 for l in Ideas Issues Tasks; do b=$(lane_body "$P" $l)
   ! grep -qiE 'unasked|without waiting|agents? (act|build|shape|fix)|builds? (it|them)|shapes? (it|them)' <<<"$b" || { echo "$l is a holding lane: its body must not have agents act unasked: $b"; exit 1; }
 done

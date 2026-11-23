@@ -455,18 +455,18 @@ board_index_files() {
 priorities_of() {
   [ $# -gt 0 ] || return 0
   python3 -B - "$LIB_DIR/heal-board.py" "$@" <<'EOF2'   # -B: no __pycache__ in the skill tree
-import importlib.util, sys
+import importlib.util, math, sys
 spec = importlib.util.spec_from_file_location("heal_board", sys.argv[1]); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
-for path in sys.argv[2:]:
+def one(path):
     try:
         doc = hb.Doc(path)
         items = doc.get("labels") if doc.has("labels") else None
     except Exception:
-        continue
+        return
     if isinstance(items, (str, dict)):
         items = [items]
     if not isinstance(items, list):
-        continue
+        return
     best = None
     first = None
     for item in items:
@@ -477,18 +477,25 @@ for path in sys.argv[2:]:
         if not hb.entry_of(e) or hb.canon(e["kind"]["type"]) != "priority":
             continue
         r = hb.numeric_rank(e.get("rank"))
+        if r is not None and not math.isfinite(r):
+            r = None   # "1e400" overflows to inf: no readable rank
         if first is None:
             first = e
         if r is not None and (best is None or r < best[0]):
             best = (r, e)
     if first is None:
-        continue
+        return
     text = " ".join(str(first["text"] if best is None else best[1]["text"]).split()).replace("\t", " ")
     if best is None:
         print("%s\t%s\t-" % (path, text))
     else:
         r = best[0]
-        print("%s\t%s\t%s" % (path, text, int(r) if r == int(r) else repr(r)))
+        print("%s\t%s\t%s" % (path, text, int(r) if r == int(r) and abs(r) < 1e15 else repr(r)))
+for path in sys.argv[2:]:
+    try:
+        one(path)
+    except Exception:
+        pass   # one bad card never stops the others
 EOF2
 }
 

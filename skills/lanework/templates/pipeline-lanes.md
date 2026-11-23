@@ -9,6 +9,6 @@ Read by `scripts/found-board.sh`. `collapsed`: `yes` starts collapsed. `icon`: t
 | 1792 | Tasks | | {glyph: checklist} | Small, clear chores that need no shaping. Each waits here until the owner moves it to Approved. Agents file the chores they find in Ideas, never here. |
 | 2048 | Shaping | | {glyph: pencil.and.ruler} | Where the owner puts a card to be shaped. An agent develops it into a proposal with scope, risks and a recommendation, and moves it to Proposed once its open questions are answered. |
 | 3072 | Proposed | | {glyph: hand.raised, color: smokey-tangerine} | The review gate. The owner approves each card, bounces it to Shaping, or rejects it; agents only move finished proposals in. |
-| 4096 | Approved | | {glyph: checkmark.seal} | The build queue, top first. Approval is the go-ahead: an agent takes the top card into Active unasked. The spec is frozen: a scope change bounces the card to Shaping. |
+| 4096 | Approved | | {glyph: checkmark.seal} | The build queue: highest priority first, then in lane order. Approval is the go-ahead: an agent takes the first card into Active unasked. The spec is frozen: a scope change bounces the card to Shaping. |
 | 5120 | Active | | {glyph: hammer} | Work in progress. An agent moves a card in as it starts, holds it with a lease while it works, and moves it to Done when its done-when is met. |
 | 6144 | Done | | {glyph: checkmark.circle} | Shipped work. The agent that built a card moves it in, with a closing comment carrying the evidence. |

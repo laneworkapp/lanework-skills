@@ -92,6 +92,7 @@ OLD_BODIES = {
         "Approved": [
             "The ready-to-build queue, ranked in build order, top is next. The spec is frozen, so a scope change bounces the card back to Shaping.",
             "The ready-to-build queue, ranked in build order, top is next. Approving a card is the go-ahead: an agent takes the top card into Active without waiting to be asked. The spec is frozen, so a scope change bounces the card back to Shaping.",
+            "The build queue, top first. Approval is the go-ahead: an agent takes the top card into Active unasked. The spec is frozen: a scope change bounces the card to Shaping.",
         ],
         "Active": [
             "The build lane. One session holds a card at a time, claiming it with a comment naming the session and the branch.",

@@ -77,9 +77,11 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
     topcard=$(for card in "$lane"/*/; do
       card="${card%/}"; [ -f "$card/index.md" ] || continue
       co=$(fm_value "$card/index.md" order)
-      rk=; [ -z "$PRI" ] || rk=$(printf '%s\n' "$PRI" | awk -F'\t' -v p="$card/index.md" '$1 == p && $3 != "-" { print $3; exit }')
-      printf '%s\t%s\t%s\n' "${rk:-999999999}" "${co:-999999999}" "$card"
-    done | sort -t "$(printf '\t')" -k1,1n -k2,2n -k3 | head -1 | cut -f3)
+      rk=-; [ -z "$PRI" ] || rk=$(printf '%s\n' "$PRI" | awk -F'\t' -v p="$card/index.md" '$1 == p && $3 != "-" { print $3; found = 1; exit } END { if (!found) print "-" }')
+      printf '%s\t%s\t%s\n' "$rk" "${co:-999999999}" "$card"
+    done | awk -F'\t' '{ r = ($1 == "-") ? 1 : 0; k = $1 + 0; o = $2 + 0   # ranked before unranked, compared explicitly: no sentinel a big rank could pass
+      if (!n || r < br || (r == br && (k < bk || (k == bk && (o < bo || (o == bo && $3 < bc)))))) { n = 1; br = r; bk = k; bo = o; bc = $3 } }
+      END { print bc }')
   fi
   for card in "$lane"/*/; do
     card="${card%/}"; [ -f "$card/index.md" ] || continue
