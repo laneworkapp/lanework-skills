@@ -1,14 +1,22 @@
 #!/bin/bash
 # smoke.sh: run every skill script against throwaway boards; validate with a board's schema.
-# usage: tests/smoke.sh [<scratch dir>]   (default: a fresh mktemp dir, removed on success)
+# usage: tests/smoke.sh [--list | --only <section>[,<section>...]] [<scratch dir>]   (default: a fresh mktemp dir, removed on success)
+#   --list prints the section names, one per line. --only runs those sections, in file order, after the prelude; its last line
+#   names them. A section is a function sec_<name>, one row in SECTIONS at the end; a board it reads from another section
+#   comes from a `needs fixture_<name>` line at its head. No argument: every section, last line `smoke: <n> passed`.
 # The validator is borrowed from the Skills Pipeline board's app-installed .schema/.
 set -euo pipefail
 # the session running smoke is no session of the cases: the card-writing scripts check a lease only under a session id, set per case
 unset CLAUDE_CODE_SESSION_ID CLAUDE_PID
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Boards/Skills Pipeline.lanework/.schema"
-T="${1:-$(mktemp -d "${TMPDIR:-/tmp}/lanework-smoke.XXXXXX")}"
-echo "smoke: pid $$, scratch $T" >&2   # first line, on stderr (release.sh hides stdout): stop a run with kill <pid>, never by pattern
+# start_run: the scratch dir, the pid line and the timer pid log; the runner at the end calls it once the arguments are checked
+start_run() {
+  T="${SCRATCH:-$(mktemp -d "${TMPDIR:-/tmp}/lanework-smoke.XXXXXX")}"
+  echo "smoke: pid $$, scratch $T" >&2   # first line, on stderr (release.sh hides stdout): stop a run with kill <pid>, never by pattern
+  mkdir -p "$T"; TR=$(cd "$T" && pwd -P)
+  export LEASE_TEST_PIDLOG="$TR/timers.pids"; : > "$LEASE_TEST_PIDLOG"
+}
 pass=0
 ok() { pass=$((pass+1)); echo "ok $pass - $1"; }
 validate() {
@@ -19,8 +27,6 @@ validate() {
 
 # lease timers, by pid: every timer lease.sh starts in this run appends its pid to this run's log (LEASE_TEST_PIDLOG), whatever
 # its TMPDIR. A timer is never found or killed by a pattern, which would reach another run's timers from the same checkout.
-mkdir -p "$T"; TR=$(cd "$T" && pwd -P)
-export LEASE_TEST_PIDLOG="$TR/timers.pids"; : > "$LEASE_TEST_PIDLOG"
 # timer_alive <pid> [<text>]: a live lease timer of this run (its command line names a board under this run's scratch dir),
 # whose command line also holds the text; a reused pid or a zombie is never taken for one
 timer_alive() { local c; [ -n "$1" ] || return 1; c=$(ps -ww -p "$1" -o command= 2>/dev/null) || return 1
@@ -65,6 +71,199 @@ sys.exit(0 if a == b else 1)
 PY
 }
 
+# shared helpers and constants, read by several sections (each moved here from the section that first used it)
+PS="$SK/plan/scripts"; HEAL="$SK/lanework/scripts/heal-board.py"
+STAMP='{at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}'
+WBLOCK='waiting:\n  for: [rzen, bobsmith, carol, dave]\n  since: 2026-10-10T00:00:00Z\n  comment: 11111111-1111-4111-8111-111111111111'   # past 120 characters: a block (awk -v reads the \n)
+RECAP='- Recap: Explain this in plain terms first'
+# fm_parses <file>: the frontmatter parses as YAML (a mapping)
+fm_parses() { python3 -c 'import sys, yaml; d = yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1]); sys.exit(not isinstance(d, dict))' "$1" 2>/dev/null; }
+lane_of() { grep -l "^title: \"$2\"$" "$1"/*/index.md; }
+sum() { find "$1" -type f -print0 | sort -z | xargs -0 shasum | shasum; }
+layout_board() {
+  local B="$1" L="$1/aaaa0000-0000-4000-8000-0000000000a1"; mkdir -p "$L"
+  printf -- '---\nschema: 1\nkind: board\ntitle: "Layout"\nid: aaaa0000-0000-4000-8000-0000000000a0\nconfig:   # the owner'"'"'s note\n  show-card-body: 3\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$B/index.md"
+  printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$STAMP" "$STAMP" > "$L/index.md"
+  lcard() { mkdir -p "$L/$1"; { printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: 1024\n' "$2"; cat; printf -- '---\nBody.\n'; } > "$L/$1/index.md"; }
+  lcard c0000000-0000-4000-8000-0000000000a1 "Verbose labels" <<EOF
+labels:
+  - text: "Low"
+    kind:
+      type: "text"
+      text: "Text"
+      icon: {glyph: "tag"}
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a2 "Stamp over lines" <<EOF
+created:
+  at: 2026-10-01T00:00:00Z
+  by: {name: claude, kind: agent, model: "on", session: "Yes"}
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a3 "Comment inside" <<EOF
+labels:
+  # kept as written
+  - {text: "a", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a4 "Block scalar" <<EOF
+notes: |
+  one
+  two
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a5 "Already compact" <<EOF
+labels: [{text: "a", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]   # trailing note
+created:  $STAMP
+modified: $STAMP
+EOF
+  lcard c0000000-0000-4000-8000-0000000000a6 "Plain time in a collection" <<EOF
+waiting:
+  for: rzen
+  since: 2026-10-01T00:00:00Z
+  comment: "c0000000-0000-4000-8000-0000000000ff"
+created:  $STAMP
+modified: $STAMP
+EOF
+}
+# owner_comment <card dir> <text>: an owner (kind human) comment five seconds ahead, so it is newer than the card's ask
+owner_comment() { local d="$1/comments/$(uuidgen | tr A-Z a-z)" at; at=$(date -u -v+5S +%FT%TZ); mkdir -p "$d"
+  printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: owner, kind: human}}\nmodified: {at: %s, by: {name: owner, kind: human}}\n---\n%s\n' "$at" "$at" "$2" > "$d/index.md"; }
+refused() { local n="$1"; shift; local rc=0; env -u CLAUDE_MODEL "$@" >/dev/null 2>"$T/err.txt" || rc=$?
+  [ "$rc" -eq 2 ] && grep -q "usage" "$T/err.txt" || { echo "$n: want exit 2 with usage, got $rc"; cat "$T/err.txt"; exit 1; }; }
+# bfirst <script...>: the last path segment of the script's first output line. The output is read whole first: a reader that
+# closes after one line (head -1) can break the script's later writes, rc 141 under pipefail
+bfirst() { local o; o=$("$@") || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
+gv() { ( . "$SK/lanework/scripts/lib.sh"; guide_version "$1" ) || true; }
+pid() { basename "$(dirname "$1")"; }
+lane_file() { grep -l "^title: \"$2\"\$" "$1"/*/index.md | head -1; }
+lane_body() { tail -1 "$(lane_file "$1" "$2")"; }
+# setdef <board> <lane title> <yaml value|->: set (or, with -, remove) the lane's card-defaults line
+setdef() { SK="$SK" python3 -B - "$(lane_of "$1" "$2")" "$3" <<'PY'
+import importlib.util, os, sys, yaml
+spec = importlib.util.spec_from_file_location("hb", os.environ["SK"] + "/lanework/scripts/heal-board.py"); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
+p, v = sys.argv[1:]; A = open(p).read().split("\n"); end = A.index("---", 1); L = []; skip = False
+for l in A[1:end]:
+    if l.startswith("card-defaults:"): skip = True; continue
+    if skip and l[:1] == " ": continue
+    skip = False; L.append(l)
+if v[:1] == "=": L.append("card-defaults: " + v[1:])   # verbatim, as an owner types it
+elif v != "-": L += hb.emit_key("card-defaults", yaml.safe_load(v))
+open(p, "w").write("\n".join(["---"] + L + A[end:]))
+PY
+}
+labels_of() { local f; f="$(ls "$1"/*/"$2"/index.md)"; fm_parses "$f" || { echo "$f does not parse"; return 1; }; flowed "$f" | grep '^labels:'; }
+nothing_to_heal() { validate "$1" >/dev/null && [ "$(python3 "$SK/lanework/scripts/heal-board.py" "$1" | tail -1)" = "0 repairs in 0 files" ]; }
+TXT='kind: {type: text, text: Text, icon: {glyph: tag}}'
+# moved <card> <dest lane dir>: the card's body and every frontmatter line but order, modified and waiting are unchanged from <saved copy>
+moved() { diff <(grep -v -E '^(order|modified|waiting):' "$3") <(grep -v -E '^(order|modified|waiting):' "$2/$1/index.md") >/dev/null; }
+
+# fixtures. A section that reads a board (or a body file) another section builds says so at its head: `needs fixture_<name>`.
+# A fixture builds that board under $T, at the path its own section uses, only when it is not there yet. In a full run the
+# owning section has run first, so the fixture does nothing and every case sees what it saw before; run alone (--only), the
+# board is new and holds only what the fixture puts in it, which is what the needing sections read (never the owner's end state).
+needs() { "$@"; }
+# fixture_pipeline: P, the Acme pipeline board (founding)
+fixture_pipeline() {
+  if [ -n "${P:-}" ] && [ -d "$P" ]; then return 0; fi
+  P="$T/Acme Pipeline.lanework"
+  "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
+    --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified='`make check`' --model smoke >/dev/null
+}
+# fixture_template_boards: the design-loop and datapoint boards founded from their templates (founding)
+fixture_template_boards() { local k b
+  for k in design-loop datapoint; do b="$T/$k.lanework"; [ ! -d "$b" ] || continue
+    sed 's/<SF Symbol>/square.grid.2x2/; s/^<.*>$/Test board./; s/^- <.*>$/- Test rule./' "$SK/lanework/templates/index.md" > "$T/fx-idx.md"
+    "$SK/lanework/scripts/found-board.sh" "$b" --index "$T/fx-idx.md" --lanes "$SK/lanework/templates/$k-lanes.md" --model smoke >/dev/null
+  done
+}
+# fixture_heal_block: H3, a board whose one lane matches no known lane set (heal_board builds it around a block-scalar card)
+fixture_heal_block() { local l
+  if [ -n "${H3:-}" ] && [ -d "$H3" ]; then return 0; fi
+  H3="$T/Block.lanework"; l="$H3/aaaa0000-0000-4000-8000-000000000001"; mkdir -p "$l"
+  printf -- '---\nschema: 1\nkind: board\ntitle: "Block"\nid: aaaa0000-0000-4000-8000-000000000000\ncreated:  %s\nmodified: %s\n---\nBoard body.\n' "$STAMP" "$STAMP" > "$H3/index.md"
+  printf -- '---\nschema: 1\nkind: lane\ntitle: "Ideas"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane body.\n' "$STAMP" "$STAMP" > "$l/index.md"
+}
+# fixture_discovery: D, the Sync: v2 discovery board (discovery), with C1 asked, C2 settled (out of Asked) and C4 asked
+fixture_discovery() {
+  if [ -n "${D:-}" ] && [ -d "$D" ]; then return 0; fi
+  D="$T/Sync: v2 Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$D" --model smoke >/dev/null
+  printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/fx-q.md"; printf '**2026-09-27**: A, as recommended.\n' > "$T/fx-r.md"
+  C1=$(bfirst "$SK/discovery/scripts/file-question.sh" "$D" "Pricing" --round 1 --body "$T/fx-q.md" --model smoke)
+  C2=$(bfirst "$SK/discovery/scripts/file-question.sh" "$D" "Engine: placement" --round 1 --body "$T/fx-q.md" --model smoke)
+  owner_comment "$(dirname "$(ls "$D"/*/"$C2"/index.md)")" 'A.'
+  "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/fx-r.md" --model smoke >/dev/null
+  C4=$(bfirst "$SK/discovery/scripts/file-question.sh" "$D" "Open one" --round 2 --body "$T/fx-q.md" --model smoke)
+}
+# fixture_plan: PL, the Sync: v2 plan board (plan), with the guide line plan stamps on it
+fixture_plan() {
+  if [ -n "${PL:-}" ] && [ -d "$PL" ]; then return 0; fi
+  PL="$T/Sync: v2 Plan.lanework"; "$PS/found-plan-board.sh" "$PL" --model smoke >/dev/null; mkguide "$PL" 116
+}
+# fixture_plan_session: PE, the plan scripts as session S-plan (plan builds it first; braces, cite-as and lease use PE or PSP)
+fixture_plan_session() {
+  if [ -n "${PSP:-}" ]; then return 0; fi
+# claim-ticket.sh stakes through lanework/scripts/lease.sh, so the plan scripts run as a session: PE, as session S-plan under a
+# stand-in CLAUDE_PID (a sleep ended by its pid on exit and before the lease cases' last check), a TMPDIR of their own, the test knobs
+PT=$(mktemp -d "$T/plan-tmp.XXXXXX"); sleep 600 </dev/null >/dev/null 2>&1 & PSP=$!; disown "$PSP"; trap 'kill "$PSP" 2>/dev/null || true' EXIT
+PE() { CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1000 "$@"; }
+}
+# fixture_sentinel: the lints' sentinel card (lint-stamps builds it first, at this point in the run, so SENT_TS is ten minutes ahead of then)
+fixture_sentinel() {
+  if [ -n "${SENT_TS:-}" ]; then return 0; fi
+# sentinel card for the lints: sent_card <lane dir> <card folder> [comment folder suffix] writes a card every lint finds something in, so a silent run
+# on a board that holds it proves the lint read the cards: a modified.at 10 minutes ahead (lint-stamps), an agent ask with no waiting (lint-waiting-clears
+# NO-QUOTE), a START with a session (lint-leases: one leased card). sent_check <script> <board as given> <lane dir as given> <card folder> [suffix]: the
+# lint's run on <board> (rc UR, stdout UO, stderr UE, from unr_run) must be exactly that card's findings, nothing else.
+SENT_TS=$(date -u -v+600S +%FT%TZ); SENT_ASK=f0000000-0000-4000-8000-00000000000a; SENT_START=f0000000-0000-4000-8000-00000000000b
+sent_card() { local d="$1/$2" x="${3:-}"; mkdir -p "$d/comments/$SENT_ASK$x" "$d/comments/$SENT_START$x"
+  printf -- '---\nschema: 1\nkind: card\ntitle: "Sentinel"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: %s, by: {name: kim, kind: human}}\n---\nBody.\n' "$SENT_TS" > "$d/index.md"
+  printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T10:00:00Z, by: {name: claude, kind: agent, model: smoke}}\n---\n@anyone Which route?\n' > "$d/comments/$SENT_ASK$x/index.md"
+  printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T10:00:05Z, by: {name: claude, kind: agent, model: smoke, session: "S-sent"}}\n---\nSTART: sentinel\n' > "$d/comments/$SENT_START$x/index.md"; }
+esc() ( . "$SK/lanework/scripts/lib.sh"; show_name "$1" )   # the escaped form a lint prints for a name (lanework/scripts/lib.sh show_name)
+sent_check() { local want x="${5:-}"
+  case "$(basename "$1")" in
+    lint-stamps.sh) want="$(esc "$3/$4/index.md"): modified.at $SENT_TS is Ns ahead"; [ "$UR" = 1 ] && [ "$(sed -E 's/is [0-9]+s ahead/is Ns ahead/' <<<"$UO")" = "$want" ] ;;
+    lint-waiting-clears.sh) want="NO-QUOTE $(esc "$4") $(esc "${SENT_ASK}${x}")"$'\n'"QUOTED 0, NO-QUOTE 1"; [ "$UR" = 1 ] && [ "$UO" = "$want" ] ;;
+    lint-leases.sh) want="leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0"; [ "$UR" = 0 ] && [ -z "$UO" ] && [ "$UE" = "$want" ] ;;
+  esac || unr_fail "$(basename "$1") on $2: want exactly the sentinel card's finding (${want:-})"; }
+}
+# fixture_defaults_plan: DP, the Defaults Plan board (filing-defaults)
+fixture_defaults_plan() {
+  if [ -n "${DP:-}" ] && [ -d "$DP" ]; then return 0; fi
+  DP="$T/Defaults Plan.lanework"; "$SK/plan/scripts/found-plan-board.sh" "$DP" --labels priority --model smoke >/dev/null; mkguide "$DP" 116
+}
+# fixture_compact_boards: the other boards the compact-form case reads: the layout seed (heal-board), PL2 (plan), and the
+# label-kinds discovery board and seven-kind board (label-kinds)
+fixture_compact_boards() {
+  [ -e "$T/layout-seed" ] || layout_board "$T/layout-seed"
+  [ -e "$T/PL2.lanework" ] || "$PS/found-plan-board.sh" "$T/PL2.lanework" --labels priority --labels priority,size --model smoke >/dev/null
+  [ -e "$T/label-kinds/D Discovery.lanework" ] || { mkdir -p "$T/label-kinds"; "$SK/discovery/scripts/found-discovery-board.sh" "$T/label-kinds/D Discovery.lanework" --model smoke >/dev/null; }
+  [ -e "$T/label-kinds/All.lanework" ] || { mkdir -p "$T/label-kinds"; "$SK/lanework/scripts/found-board.sh" "$T/label-kinds/All.lanework" --index "$SK/lanework/templates/pipeline-index.md" \
+    --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified=x --labels priority,component,type,size,platform,round,release,epic --model smoke >/dev/null; }
+}
+# fixture_bodies <file...>: the named body files under $T, each written as the section that first writes it does, unless there
+fixture_bodies() { local f
+  for f in "$@"; do [ ! -e "$T/$f" ] || continue
+    case "$f" in
+      q5.md) printf 'Is it escaped?\n\n## Options\n\n- A: yes\n- B: no\n\n## Recommended\n\nA. Simple.\n' ;;
+      adr.md) printf 'Sync is free for every user, because a paid tier would split the support load.\n\n## Considered options\n\n- Paid tier: rejected.\n' ;;
+      r1.md) printf '**2026-09-27**: A, as recommended.\n' ;;
+      t.md) printf 'Where does the engine run?\n' ;;
+      res1.md) printf '**2026-10-10**: In the app, as recommended. "Yes."\n' ;;
+      pc.md) printf 'Checked the clock rule.\n\n**Evidence**: none yet.\n' ;;
+      fm.md) printf -- '---\nkind: comment\n---\nx\n' ;;
+      ask1.md) printf '@anyone Ship the thing today?\n\nOptions:\n- A: Ship it.\n- B: Hold it.\n- Recap: Explain this in plain terms first\n\nWhy now: it is ready.\nIf no answer: blocked.\nContext: the comment above.\n' ;;
+      *) echo "fixture_bodies: no body named $f" >&2; exit 1 ;;
+    esac > "$T/$f"
+  done
+}
+
+sec_static() {
 for s in "$SK"/*/scripts/*.sh "$ROOT"/scripts/*.sh; do case "$(head -1 "$s")" in *zsh*) zsh -n "$s" ;; *) bash -n "$s" ;; esac; done
 for s in "$SK"/*/scripts/*.py; do [ -e "$s" ] || continue; python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])' "$s"; done
 ok "syntax check on every script, by its shebang"
@@ -88,13 +287,15 @@ ecn='"$SK/x/scripts/a-b'; ecn+='.sh" | awk "{print}" || { echo bad; exit 1; }'; 
 hits=$(grep -nE "$EC" "$ROOT/tests/smoke.sh" || true); [ -z "$hits" ] || { echo "a script's output piped into an early-closing reader:"; echo "$hits"; exit 1; }
 ok "no script under test pipes its output into head or grep -q/-m in smoke"
 
-# kills and waits by pattern: nothing under tests/ finds a process by its command line (pkill or pgrep with -f) or kills all by name, which reaches
-# every run's processes from the same checkout. By pid only (timers_left); pkill -P, a pid's children, stays allowed. The pattern matches a sample
-KP='(pk[i]ll|pg[r]ep)( +-[a-zA-Z0-9]+)* +-[a-zA-Z]*f|kil[l]all'
+# kills and waits by pattern: nothing under tests/ finds a process by its command line (the -f, --full or --list-full flag of pkill
+# and pgrep, after any other words) or kills all by name, which reaches every run's processes from the same checkout. By pid only
+# (timers_left); pkill -P, a pid's children, stays allowed. The pattern matches a sample of each form
+KILLPAT='(pk[i]ll|pg[r]ep)( +[^ |;&]+)* +(-[a-zA-Z]*f[a-zA-Z]*|--full|--list-full)( |$)|kil[l]all'
 kp1='pk'; kp1+='ill -f "$LS _timer"'; kp2='[ -z "$(pg'; kp2+='rep -f "$LS _timer $PBR " || true)" ]'; kp3='pg'; kp3+='rep -fl "$LS _timer"'
 kp4='pk'; kp4+='ill -9 -f x'; kp5='kil'; kp5+='lall sleep'; kpn='pk'; kpn+='ill -P "$WP" 2>/dev/null || true'   # split: no self-match
-[ "$(printf '%s\n' "$kp1" "$kp2" "$kp3" "$kp4" "$kp5" | grep -cE "$KP")" = 5 ] && ! grep -qE "$KP" <<<"$kpn" || { echo "the kill-pattern guard misses its samples or hits pkill -P"; exit 1; }
-hits=$(grep -rnE "$KP" "$ROOT/tests" || true); [ -z "$hits" ] || { echo "a process found or killed by pattern under tests/:"; echo "$hits"; exit 1; }
+kp6='pk'; kp6+='ill --full x'; kp7='pg'; kp7+='rep --full x'; kp8='pg'; kp8+='rep --list-full x'; kp9='pk'; kp9+='ill -P 1 -f x'
+[ "$(printf '%s\n' "$kp1" "$kp2" "$kp3" "$kp4" "$kp5" "$kp6" "$kp7" "$kp8" "$kp9" | grep -cE "$KILLPAT")" = 9 ] && ! grep -qE "$KILLPAT" <<<"$kpn" || { echo "the kill-pattern guard misses its samples or hits pkill -P"; exit 1; }
+hits=$(grep -rnE "$KILLPAT" "$ROOT/tests" || true); [ -z "$hits" ] || { echo "a process found or killed by pattern under tests/:"; echo "$hits"; exit 1; }
 ok "nothing under tests/ kills or waits on a process by pattern (pkill or pgrep with -f, or by name); pkill -P is allowed"
 
 # folder convention: Lanework/ first, then Boards/, then legacy Pitlane/; the legacy name lives only in finding.md
@@ -107,16 +308,23 @@ l=$(grep -n 'Lanework/' "$F" | head -1 | cut -d: -f1); b=$(grep -n 'Boards/' "$F
 [ "$(grep -o 'for f in [A-Za-z ]*;' "$F" | head -1)" = "for f in Lanework Boards Pitlane;" ] || { echo "finding.md's find loop must run Lanework Boards Pitlane in that order"; exit 1; }
 ok "legacy folder name only in finding.md, which lists Lanework/ first, in the table and the find loop"
 
-# fm_parses <file>: the frontmatter parses as YAML (a mapping)
-fm_parses() { python3 -c 'import sys, yaml; d = yaml.safe_load(open(sys.argv[1]).read().split("---\n")[1]); sys.exit(not isinstance(d, dict))' "$1" 2>/dev/null; }
+# the runner: --list names every section once, in SECTIONS order; an unknown --only name is a usage error, exit 2, before anything
+# runs (no pid line, no scratch dir). Neither call runs a section, so this never recurses into a run
+SL=$("$ROOT/tests/smoke.sh" --list) || { echo "smoke --list failed"; exit 1; }
+[ "$SL" = "$(printf '%s\n' $SECTIONS)" ] && [ -z "$(sort <<<"$SL" | uniq -d)" ] && [ "$(grep -c . <<<"$SL")" -ge 20 ] || { echo "smoke --list: want each of SECTIONS once, in order:"; echo "$SL"; exit 1; }
+rc=0; SO=$("$ROOT/tests/smoke.sh" --only static,no_such_section "$T/only-scratch" 2>&1) || rc=$?
+[ "$rc" = 2 ] && [ ! -e "$T/only-scratch" ] && grep -q 'unknown section: no_such_section' <<<"$SO" && ! grep -q '^smoke: pid' <<<"$SO" \
+  || { echo "smoke --only with an unknown name: want exit 2 naming it, before the pid line or a scratch dir (rc $rc): $SO"; exit 1; }
+ok "smoke runner: --list names every section once, in order; --only with an unknown section name exits 2 before anything runs"
+}
 
+sec_founding() {
 # lanework: pipeline founding + reading
 P="$T/Acme Pipeline.lanework"
 "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
   --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified='`make check`' --model smoke >/dev/null
 [ "$("$SK/lanework/scripts/read-board.sh" "$P" | grep -c '^== ')" -eq 8 ]; ok "pipeline founded, 8 lanes read"
 grep -q 'Verified means\*\* `make check`, run on the current head' "$P/index.md"; ok "pipeline vars rendered"
-lane_of() { grep -l "^title: \"$2\"$" "$1"/*/index.md; }
 [ "$(grep -x 'icon: .*' "$(lane_of "$P" Issues)")" = 'icon: {glyph: exclamationmark.triangle, color: carnation}' ] && [ "$(grep '^icon:' "$(lane_of "$P" Ideas)")" = 'icon: {glyph: lightbulb}' ] \
   && [ "$(grep -l '^icon: ' "$P"/*/index.md | grep -c .)" -eq 8 ]; ok "pipeline lanes carry their template icons (Issues tinted, Ideas plain, all 8 set)"
 validate "$P" >/dev/null; ok "pipeline board validates"
@@ -157,10 +365,11 @@ for s in plan/scripts/file-ticket plan/scripts/claim-ticket plan/scripts/resolve
   [ "$RC" = 2 ] && grep -q 'unknown argument' "$T/uf.err" && grep -q '^usage: ' "$T/uf.err" || { echo "${s##*/} --bogus: want exit 2, the unknown argument and a usage: line on stderr; got rc $RC"; cat "$T/uf.err"; exit 1; }
 done
 ok "seven scripts print the usage line after an unknown flag, exit 2"
+}
 
+sec_heal_board() {
 # lanework: heal-board, one card per kind of damage, on a board with no .schema/
-H="$T/Damaged.lanework"; HL="$H/aaaa0000-0000-4000-8000-000000000001"; HEAL="$SK/lanework/scripts/heal-board.py"
-STAMP='{at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}'
+H="$T/Damaged.lanework"; HL="$H/aaaa0000-0000-4000-8000-000000000001"
 mkdir -p "$HL"
 cat > "$H/index.md" <<EOF
 ---
@@ -291,7 +500,6 @@ created:  $STAMP
 modified: $STAMP
 EOF
 cp -R "$H" "$T/heal-seed"
-sum() { find "$1" -type f -print0 | sort -z | xargs -0 shasum | shasum; }
 if validate "$H" >/dev/null 2>&1; then echo "seeded damage passed the validator"; exit 1; fi
 S0=$(sum "$H"); O=$("$HEAL" "$H")
 for k in stale-label single-kind bare-labels string-kind root-key root-key-dropped text-kind bare-glyph bare-stamp title-quote definition bare-icon retired-key; do   # added-definition: the Solo case below
@@ -364,55 +572,6 @@ if "$HEAL" "$H" 2>/dev/null; then echo "skill copy ran where the board ships its
 ok "heal defers to the board's own .schema/bin/lanework-heal.py"
 
 # heal-board compact-collection (the board heal's H17): one card per layout case
-layout_board() {
-  local B="$1" L="$1/aaaa0000-0000-4000-8000-0000000000a1"; mkdir -p "$L"
-  printf -- '---\nschema: 1\nkind: board\ntitle: "Layout"\nid: aaaa0000-0000-4000-8000-0000000000a0\nconfig:   # the owner'"'"'s note\n  show-card-body: 3\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$B/index.md"
-  printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$STAMP" "$STAMP" > "$L/index.md"
-  lcard() { mkdir -p "$L/$1"; { printf -- '---\nschema: 1\nkind: card\ntitle: "%s"\norder: 1024\n' "$2"; cat; printf -- '---\nBody.\n'; } > "$L/$1/index.md"; }
-  lcard c0000000-0000-4000-8000-0000000000a1 "Verbose labels" <<EOF
-labels:
-  - text: "Low"
-    kind:
-      type: "text"
-      text: "Text"
-      icon: {glyph: "tag"}
-created:  $STAMP
-modified: $STAMP
-EOF
-  lcard c0000000-0000-4000-8000-0000000000a2 "Stamp over lines" <<EOF
-created:
-  at: 2026-10-01T00:00:00Z
-  by: {name: claude, kind: agent, model: "on", session: "Yes"}
-modified: $STAMP
-EOF
-  lcard c0000000-0000-4000-8000-0000000000a3 "Comment inside" <<EOF
-labels:
-  # kept as written
-  - {text: "a", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}
-created:  $STAMP
-modified: $STAMP
-EOF
-  lcard c0000000-0000-4000-8000-0000000000a4 "Block scalar" <<EOF
-notes: |
-  one
-  two
-created:  $STAMP
-modified: $STAMP
-EOF
-  lcard c0000000-0000-4000-8000-0000000000a5 "Already compact" <<EOF
-labels: [{text: "a", kind: {type: "text", text: "Text", icon: {glyph: "tag"}}}]   # trailing note
-created:  $STAMP
-modified: $STAMP
-EOF
-  lcard c0000000-0000-4000-8000-0000000000a6 "Plain time in a collection" <<EOF
-waiting:
-  for: rzen
-  since: 2026-10-01T00:00:00Z
-  comment: "c0000000-0000-4000-8000-0000000000ff"
-created:  $STAMP
-modified: $STAMP
-EOF
-}
 HY="$T/Layout.lanework"; layout_board "$HY"; cp -R "$HY" "$T/layout-seed"; HYL="$HY/aaaa0000-0000-4000-8000-0000000000a1"
 O=$("$HEAL" "$HY")
 for w in 'index.md: compact-collection config written in the compact form, 2 lines to 1' \
@@ -435,11 +594,10 @@ diff <(cd "$HY" && find . -type f | sort | xargs sed -E 's/^(created|modified): 
   <(cd "$HZ" && find . -type f | sort | xargs sed -E 's/^(created|modified): +/\1: /') >/dev/null \
   || { echo "skill heal and the board's lanework-heal.py disagree on compact-collection"; exit 1; }
 ok "heal's compact-collection matches the board's own heal (H17) byte for byte, stamp spacing aside"
+}
 
+sec_discovery() {
 # discovery: found, file, settle, park
-# owner_comment <card dir> <text>: an owner (kind human) comment five seconds ahead, so it is newer than the card's ask
-owner_comment() { local d="$1/comments/$(uuidgen | tr A-Z a-z)" at; at=$(date -u -v+5S +%FT%TZ); mkdir -p "$d"
-  printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: owner, kind: human}}\nmodified: {at: %s, by: {name: owner, kind: human}}\n---\n%s\n' "$at" "$at" "$2" > "$d/index.md"; }
 D="$T/Sync: v2 Discovery.lanework"
 "$SK/discovery/scripts/found-discovery-board.sh" "$D" --model smoke >/dev/null
 grep -q '^title: "Sync: v2 Discovery"$' "$D/index.md" && grep -q '^Discovery on Sync: v2:' <(sed -n '/^# /,$p' "$D/index.md" | sed -n 3p)
@@ -669,8 +827,6 @@ ok "file-record.sh --supersedes writes one supersedes relation per target on the
 
 # a model is required: each of the four scripts, no --model and no CLAUDE_MODEL, exits 2 and writes nothing
 S2=$(sum "$D"); NB="$T/NoModel.lanework"; printf 'r\n' > "$T/rl.md"
-refused() { local n="$1"; shift; local rc=0; env -u CLAUDE_MODEL "$@" >/dev/null 2>"$T/err.txt" || rc=$?
-  [ "$rc" -eq 2 ] && grep -q "usage" "$T/err.txt" || { echo "$n: want exit 2 with usage, got $rc"; cat "$T/err.txt"; exit 1; }; }
 refused file-question "$SK/discovery/scripts/file-question.sh" "$D" "Nomodel" --round 2 --body "$T/q5.md"
 refused settle-question "$SK/discovery/scripts/settle-question.sh" "$D" "$C4" --ruling "$T/r1.md"
 refused file-record "$SK/discovery/scripts/file-record.sh" "$D" "$C4" --record ADR --title x --body "$T/adr.md"
@@ -722,14 +878,14 @@ for blank in $'\n' $' \r\n ' '   '; do
   [ "$rc" -eq 2 ] && [ ! -e "$T/Blank.lanework" ] || { echo "blank title: rc=$rc"; exit 1; }
 done
 ok "a title with a line break and a '## ' cannot open a body section (heading and the discovery topic line stay on one line); a title blank once flattened exits 2 and writes nothing"
+}
 
+sec_plan() {
 # plan: found, file, claim, resolve, unblock, out of scope, frontier, records from Working
-PS="$SK/plan/scripts"; PL="$T/Sync: v2 Plan.lanework"
-# claim-ticket.sh stakes through lanework/scripts/lease.sh, so the plan scripts run as a session: PE, as session S-plan under a
-# stand-in CLAUDE_PID (a sleep ended by its pid on exit and before the lease cases' last check), a TMPDIR of their own, the test knobs
-PT=$(mktemp -d "$T/plan-tmp.XXXXXX"); sleep 600 </dev/null >/dev/null 2>&1 & PSP=$!; disown "$PSP"; trap 'kill "$PSP" 2>/dev/null || true' EXIT
-PE() { CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 \
-  LEASE_TEST_RENEW_EVERY=1000 "$@"; }
+needs fixture_discovery
+needs fixture_bodies q5.md adr.md r1.md
+PL="$T/Sync: v2 Plan.lanework"
+needs fixture_plan_session
 "$PS/found-plan-board.sh" "$PL" --model smoke >/dev/null
 grep -q '^title: "Sync: v2 Plan"$' "$PL/index.md" && grep -q '^A plan for Sync: v2:' "$PL/index.md" && ! grep -q '{{' "$PL/index.md" || { echo "plan board title or topic not rendered"; exit 1; }
 [ "$(grep -l '^icon: ' "$PL"/*/index.md | grep -c .)" -eq 7 ] && grep -qx 'collapsed: true' "$(grep -l '^title: "Out of scope"$' "$PL"/*/index.md)" || { echo "plan lanes missing icons or Out of scope not collapsed"; exit 1; }
@@ -774,12 +930,11 @@ grep -q 'is in Working, not Frontier' "$T/err.txt" || { cat "$T/err.txt"; exit 1
 if PE "$PS/resolve-ticket.sh" "$PL" "$T2" --resolution "$T/t.md" --model smoke 2>/dev/null; then echo "resolved an unclaimed ticket"; exit 1; fi
 ok "claim-ticket.sh moves Frontier to Working with a Claimed comment and a restamp; refuses a Blocked or already-claimed ticket; resolve refuses an unclaimed one"
 # the run's first timer is in its pid log: a lease.sh without LEASE_TEST_PIDLOG fails here, before any wait could pass on an empty log
-PTP=$(sed -n 's/^pid=//p' "$(ls "$PT"/lanework-lease/*/*/"$T1")")
+PTP=$(sed -n 's/^pid=//p' "$(ls "$PT"/lanework-lease/*/*/"$T1" || true)" || true)   # no memory file: the message below, not a silent set -e exit
 [ -n "$PTP" ] && grep -qx "$PTP" "$LEASE_TEST_PIDLOG" && timer_alive "$PTP" " $T1 S-plan " \
   || { echo "the claim's timer ($PTP) is not a live timer in the pid log $LEASE_TEST_PIDLOG (lease.sh without LEASE_TEST_PIDLOG?):"; cat "$LEASE_TEST_PIDLOG"; timers_show $PTP; exit 1; }
 ok "lease timers by pid: the plan claim's timer pid is in the run's pid log, and its command line names the card"
 # a Working ticket wearing waiting loses it on resolve; one of two deps resolved keeps T3 Blocked, unblocks T4
-WBLOCK='waiting:\n  for: [rzen, bobsmith, carol, dave]\n  since: 2026-10-10T00:00:00Z\n  comment: 11111111-1111-4111-8111-111111111111'   # past 120 characters: a block (awk -v reads the \n)
 TF1="$(ls "$PL"/*/"$T1"/index.md)"; awk -v w="$WBLOCK" '{print} /^order:/ {print w}' "$TF1" > "$T/w.md"; mv "$T/w.md" "$TF1"; grep -q '^  for: \[rzen, bobsmith' "$TF1"
 printf '**2026-10-10**: In the app, as recommended. "Yes."\n' > "$T/res1.md"
 RO1=$(PE "$PS/resolve-ticket.sh" "$PL" "$T1" --resolution "$T/res1.md" --model smoke)
@@ -964,9 +1119,13 @@ FRC=0; "$PS/frontier.sh" "$T/not-a-board" >/dev/null 2>&1 || FRC=$?
 [ "$FRC" -eq 1 ] || { echo "frontier.sh: not a board exits $FRC, want 1"; exit 1; }
 [ "$S5" = "$(sum "$D")" ] && [ "$S6" = "$(sum "$PL")" ] && [ ! -e "$T/XU Discovery.lanework" ] && [ ! -e "$T/XU Plan.lanework" ] || { echo "a usage-error call wrote something"; exit 1; }
 ok "file-question, file-record, settle-question, file-ticket, claim-ticket, resolve-ticket, found-discovery-board, found-plan-board and frontier exit 2 on a bad flag, a flag with no value or a missing positional, and write nothing; frontier's not-a-board stays 1"
+}
 
+sec_braces() {
 # triple closing brace: the guard reads only the stamp lines a script wrote (lanework/scripts/lib.sh stamp_lines_ok), so a card whose
 # labels line (an iconed kind) or body (a JSON example) holds `}}}` is still written, and a `}}}` in a stamp the script writes is still refused
+needs fixture_plan_session
+FB="$SK/lanework/scripts/found-board.sh"; FA=(--index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x)   # as the discovery section sets them
 BQ="$T/Brace Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$BQ" --model smoke >/dev/null
 cp -R "$VAL" "$BQ/.schema"; printf '<!-- lanework-agent-guide v118 -->\n\nThis machine'"'"'s human answers to `@owner`.\n' > "$BQ/CLAUDE.md"
 BLAB='{text: Low, rank: 3, icon: {glyph: arrow.down}, kind: {type: priority, text: Priority, icon: {glyph: flag}}}'
@@ -981,9 +1140,6 @@ else: lines.insert(len(lines) - 1, "labels: [" + lab + "]")
 open(p, "w").write(head + "---\n" + "\n".join(lines) + "---\n" + body.rstrip("\n") + '\n\n```json\n{"a": {"b": {"c": 1}}}\n```\n')
 PY
 }
-# bfirst <script...>: the last path segment of the script's first output line. The output is read whole first: a reader that
-# closes after one line (head -1) can break the script's later writes, rc 141 under pipefail
-bfirst() { local o; o=$("$@") || return; o=${o%%$'\n'*}; printf '%s\n' "${o##*/}"; }
 ! bfirst false >/dev/null || { echo "bfirst hides a failing script"; exit 1; }
 bodyof() { awk 'n >= 2 { print } /^---$/ { n++ }' "$1"; }
 bsnap() { (cd "$1" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do shasum "$f"; done) | shasum; }
@@ -1171,13 +1327,15 @@ grep -qxF 'modified: {"a": {"b": {"c": 1}}}' "$(bcard "$BQT")" || { echo "settle
 ok "a card whose closing --- has trailing spaces: the guard stops at it, so a body line starting like a stamp key is not read (settle-question.sh exits 0, line unchanged)"
 if grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:' | grep -q .; then echo "a script still greps a whole file for a triple brace:"; grep -rn "grep -q '}}}'" "$SK" | grep -v '/lib.sh:'; exit 1; fi
 ok "no script outside lib.sh greps a whole file for a triple brace"
+}
 
+sec_lint_ask() {
 # work: lint-ask
+needs fixture_discovery
 printf '@owner Should we ship it?\n\nIf no answer: blocked.\nContext: the comment above.\n' > "$T/good.md"
 printf '@owner maybe ship it; worth a try? and also this?\n' > "$T/bad.md"
 "$SK/work/scripts/lint-ask.sh" "$T/good.md"; ok "lint-ask passes a clean ask"
 if "$SK/work/scripts/lint-ask.sh" "$T/bad.md" >/dev/null; then exit 1; fi; ok "lint-ask fails a hedged, chained ask"
-RECAP='- Recap: Explain this in plain terms first'
 printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n\nIf no answer: blocked.\nContext: body.\n' > "$T/opt-bare.md"
 printf '@owner Which engine?\n\nOptions:\n- A: app\n- B: service\n%s\n\nIf no answer: blocked.\nContext: body.\n' "$RECAP" > "$T/opt-recap.md"
 W=$(grep -v -x -F -e "$RECAP" "$T/opt-recap.md" | wc -w | tr -d ' ')
@@ -1195,7 +1353,6 @@ rc=0; "$SK/work/scripts/lint-ask.sh" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] |
 # guide v117+: asks address @anyone; the board's own stamp gates it (ask_handle), older boards keep the handle
 G118="$T/G118.lanework"; G117="$T/G117.lanework"; G116="$T/G116.lanework"; G114="$T/G114.lanework"; GNONE="$T/GNone.lanework"
 mkguide "$G118" 118; mkguide "$G117" 117; mkguide "$G116" 116; mkguide "$G114" 114; mkdir -p "$GNONE"
-gv() { ( . "$SK/lanework/scripts/lib.sh"; guide_version "$1" ) || true; }
 ah() { ( . "$SK/lanework/scripts/lib.sh"; ask_handle "$1" ) || true; }
 { [ "$(gv "$G118")" = 118 ] && [ "$(gv "$G114")" = 114 ] && [ -z "$(gv "$GNONE")" ] \
   && [ "$(ah "$G118")" = anyone ] && [ "$(ah "$G117")" = anyone ] && [ "$(ah "$G116")" = kim ] && [ "$(ah "$G114")" = kim ] && [ -z "$(ah "$GNONE")" ]; } \
@@ -1256,24 +1413,12 @@ for s in "$SK/lanework/scripts/heal-board.py" "$SK/heal/scripts/heal-descriptors
   [ "$rc" -eq 64 ] && grep -q 'anyone is reserved for the app' "$T/anyone.err" && [ "$S0" = "$(sum "$AB")" ] || { echo "$s --name anyone: rc=$rc"; cat "$T/anyone.err"; exit 1; }
 done
 ok "heal-board and heal-descriptors refuse --name anyone, writing nothing"
+}
 
-# sentinel card for the lints: sent_card <lane dir> <card folder> [comment folder suffix] writes a card every lint finds something in, so a silent run
-# on a board that holds it proves the lint read the cards: a modified.at 10 minutes ahead (lint-stamps), an agent ask with no waiting (lint-waiting-clears
-# NO-QUOTE), a START with a session (lint-leases: one leased card). sent_check <script> <board as given> <lane dir as given> <card folder> [suffix]: the
-# lint's run on <board> (rc UR, stdout UO, stderr UE, from unr_run) must be exactly that card's findings, nothing else.
-SENT_TS=$(date -u -v+600S +%FT%TZ); SENT_ASK=f0000000-0000-4000-8000-00000000000a; SENT_START=f0000000-0000-4000-8000-00000000000b
-sent_card() { local d="$1/$2" x="${3:-}"; mkdir -p "$d/comments/$SENT_ASK$x" "$d/comments/$SENT_START$x"
-  printf -- '---\nschema: 1\nkind: card\ntitle: "Sentinel"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: %s, by: {name: kim, kind: human}}\n---\nBody.\n' "$SENT_TS" > "$d/index.md"
-  printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T10:00:00Z, by: {name: claude, kind: agent, model: smoke}}\n---\n@anyone Which route?\n' > "$d/comments/$SENT_ASK$x/index.md"
-  printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-17T10:00:05Z, by: {name: claude, kind: agent, model: smoke, session: "S-sent"}}\n---\nSTART: sentinel\n' > "$d/comments/$SENT_START$x/index.md"; }
-esc() ( . "$SK/lanework/scripts/lib.sh"; show_name "$1" )   # the escaped form a lint prints for a name (lanework/scripts/lib.sh show_name)
-sent_check() { local want x="${5:-}"
-  case "$(basename "$1")" in
-    lint-stamps.sh) want="$(esc "$3/$4/index.md"): modified.at $SENT_TS is Ns ahead"; [ "$UR" = 1 ] && [ "$(sed -E 's/is [0-9]+s ahead/is Ns ahead/' <<<"$UO")" = "$want" ] ;;
-    lint-waiting-clears.sh) want="NO-QUOTE $(esc "$4") $(esc "${SENT_ASK}${x}")"$'\n'"QUOTED 0, NO-QUOTE 1"; [ "$UR" = 1 ] && [ "$UO" = "$want" ] ;;
-    lint-leases.sh) want="leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0"; [ "$UR" = 0 ] && [ -z "$UO" ] && [ "$UE" = "$want" ] ;;
-  esac || unr_fail "$(basename "$1") on $2: want exactly the sentinel card's finding (${want:-})"; }
+sec_lint_stamps() {
 # work: lint-stamps (a copy of the discovery board, so the board under test is never edited in place)
+needs fixture_discovery
+needs fixture_sentinel
 LS="$SK/work/scripts/lint-stamps.sh"; SB="$T/Stamps.lanework"; cp -R "$D" "$SB"
 SC=$(ls "$SB"/*/*/index.md | head -1)
 # setstamp <card file> modified|waiting <seconds-ahead>: set that stamp from the clock, ahead by N seconds
@@ -1331,8 +1476,11 @@ rc=0; perl -e 'alarm 5; exec @ARGV' "$LS" "$SB2" --slack >/dev/null 2>&1 || rc=$
 rc=0; "$LS" >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "no arguments: want exit 2, got $rc"; exit 1; }
 [ -z "$("$LS" "$T/no-such-board" 2>/dev/null)" ] || { echo "'no such path' went to stdout"; exit 1; }
 ok "lint-stamps: --slack with no value and no arguments exit 2, and the error goes to stderr"
+}
 
+sec_lint_leases() {
 # work: lint-leases (a copy of the discovery board with its cards removed and the comments, claimed keys and START records seeded here; read-only, so the tree is byte-identical after)
+needs fixture_discovery
 LL="$SK/work/scripts/lint-leases.sh"; LLB="$T/LeaseLint.lanework"; LLBASE="$T/LeaseLintBase.lanework"; cp -R "$D" "$LLBASE"
 LLN=$(basename "$(dirname "$(ls "$LLBASE"/*/index.md | sed -n 2p)")"); rm -rf "${LLBASE:?}"/*/*/
 LLPRE=$(. "$SK/lanework/scripts/lib.sh"; printf '%s' "$LEASE_LOST_PREFIX")
@@ -1475,8 +1623,11 @@ LLREC=$(grep -l -F 'Lease lost' "$LLB/$LLN/$LA"/comments/*/index.md); LLID=$(bas
 [ "$LLR" = 3 ] && [ "$(awk 'f && NF {print; exit} /^---$/ {n++; if (n == 2) f = 1}' "$LLREC" | cut -c1-${#LLPRE})" = "$LLPRE" ] || llfail "case 7: lease.sh check rc $LLR; the record does not open with LEASE_LOST_PREFIX: $(cat "$LLREC")"
 lint "$LLB"; [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 1 ] && grep -qE "/$LA: lease lost $LLID 20[0-9-]+T[0-9:]+Z\$" <<<"$LO" && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0" ] || llfail "case 7: the lint did not find the real loss record"
 ok "lint-leases finds the real lease-lost record lease.sh posts on a throwaway board, which opens with LEASE_LOST_PREFIX"
+}
 
+sec_lint_waiting() {
 # work: lint-waiting-clears (the discovery board with its cards removed, so only the cards built here count; read-only, so the tree is byte-identical after)
+needs fixture_discovery
 WL="$SK/work/scripts/lint-waiting-clears.sh"; WB="$T/Clears.lanework"; cp -R "$D" "$WB"
 WLANE=$(dirname "$(ls "$WB"/*/index.md | sed -n 2p)"); rm -rf "$WB"/*/*/
 WC=c0000000-0000-4000-8000-00000000000; WA=a0000000-0000-4000-8000-00000000000; WH=b0000000-0000-4000-8000-00000000000   # card, agent comment, human comment ids, last digit appended
@@ -1563,8 +1714,14 @@ wl_reset; wl_card 1; wl_com 1 ${WA}1 10:00:00 agent - "$WASK"; printf 'waiting: 
 wl_expect 1 "NO-QUOTE ${WC}1 ${WA}1\nQUOTED 0, NO-QUOTE 1"
 ok "lint-waiting-clears: a waiting: line in the card body is not the frontmatter key, the card is still listed"
 wl_reset
+}
 
+sec_lint_symlinks() {
 # work: the lints follow a symlinked board and exit 2 with `could not read <path>` when part of it is unreadable (lanework/scripts/lib.sh board_index_files)
+needs fixture_discovery
+needs fixture_sentinel
+needs fixture_plan_session   # PSP: the exit trap below ends it
+LS="$SK/work/scripts/lint-stamps.sh"; LL="$SK/work/scripts/lint-leases.sh"; WL="$SK/work/scripts/lint-waiting-clears.sh"   # the three lints, as their sections set them
 UB="$T/Unread.lanework"; cp -R "$D" "$UB"; UL=$(dirname "$(ls "$UB"/*/index.md | sed -n 2p)"); rm -rf "$UB"/*/*/   # no cards but the one built here
 UC="$UL/e0000000-0000-4000-8000-000000000001"; UI="$UC/index.md"; mkdir -p "$UC/comments/e1000000-0000-4000-8000-000000000001"
 printf -- '---\nschema: 1\nkind: card\ntitle: "Unread"\norder: 1024\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\nmodified: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nBody.\n' > "$UI"
@@ -1693,8 +1850,11 @@ ok "lint-stamps prints a - board's paths as given, and lint-waiting-clears names
 P1='PR=$UR; PN=$(grep -c . <<<"$UO" '; P2='|| true)'   # split, so this line does not match itself
 grep -qF "$P1$P2" "$0" || unr_fail "the dash case's PN line must keep || true: a silent plain run must reach its message"
 ok "a grep -c that counts nothing does not stop smoke before its message"
+}
 
+sec_post_comment() {
 # work: post-comment (a second copy of the discovery board, whose founding comments sit 1-2 s ahead, so posts go --ahead 10 and up; stamps from the clock, never typed)
+needs fixture_discovery
 PC="$SK/work/scripts/post-comment.sh"; PB="$T/Posts.lanework"; cp -R "$D" "$PB"
 PCARD=$(basename "$(dirname "$(ls "$PB"/*/*/index.md | head -1)")")
 printf 'Checked the clock rule.\n\n**Evidence**: none yet.\n' > "$T/pc.md"
@@ -1757,8 +1917,12 @@ rm -rf "$DUP" "$GH"
 ok "post-comment.sh caps --ahead at 30 s (exit 2 above it, negative or not a number), finds the card by its index.md past an index-less folder, and refuses two cards with one uuid"
 refuse_same_second flow 21; refuse_same_second block 22
 ok "post-comment.sh's same-second check reads a created line with one space and no by, and in block form"
+}
 
+sec_watch() {
 # watch: two boards, one watcher; a comment posted by renaming .draft/ is reported with its board
+needs fixture_pipeline
+needs fixture_discovery
 if command -v fswatch >/dev/null; then
   C=$(ls -d "$D"/*/"$C1"); W="$T/watch.log"
   "$SK/watch/scripts/watch-boards.sh" "$T/snap" "$P" "$D" > "$W" 2>&1 & WP=$!
@@ -1826,7 +1990,9 @@ if command -v fswatch >/dev/null; then
 else
   echo "skip - fswatch not installed"
 fi
+}
 
+sec_arm_pass() {
 # arm-pass.sh: the arming pass classes each card from its files and the card leases (read through lease.sh list); Done is never swept,
 # a held or lapsed lease is reported and never worked, a START comment is no claim
 AB="$T/Arm Pipeline.lanework"; AN="${AB##*/}"
@@ -1949,7 +2115,6 @@ p = sys.argv[1]; s = open(p).read().split("---\n", 2)
 s[1] = s[1].rstrip("\n") + '\nlabels: [{text: "Zed", kind: {type: "priority", text: "Priority"}}]\n'
 open(p, "w").write("---\n".join(s))
 PY
-pid() { basename "$(dirname "$1")"; }
 RO=$("$RBS" "$PB" | sed -n '/^== Ideas/,/^== /p')
 grep -qE "^   [0-9.]+ +Card High  \[$(pid "$PH" | cut -c1-8)\]  priority: High \(1\)$" <<<"$RO" \
   && grep -qE "^   [0-9.]+ +Card Low  \[$(pid "$PLO" | cut -c1-8)\]  priority: Low \(3\)$" <<<"$RO" \
@@ -2038,7 +2203,9 @@ AL=$(lane_of "$XB" Approved); sed -i '' '$d' "$AL"; echo 'The build queue, top f
 [ -n "$("$AP2" "$XB" | awk -F'\t' '$1 == "arm" && $4 == "Approved" { print $3 }')" ] || { echo "arm-pass.sh stopped arming a board with the old Approved wording"; exit 1; }
 ok "arm-pass.sh: a board whose Approved lane body still has the old 'top first' wording is still armed"
 validate "$PB" >/dev/null; validate "$XB" >/dev/null; validate "$NB" >/dev/null; ok "the pick-order fixture boards validate"
+}
 
+sec_merge() {
 # merge: one scratch repo, two clones, every rule row; driver + pass as a merge and as a rebase, and the pass alone
 for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/null; ok "merge case: every row resolves with no prompt, as a $m"; done
 "$ROOT/tests/merge-case.sh" "$T" clean >/dev/null; ok "merge case: git finishes a lossless merge alone, stops on a loss, and a comment left by a move is re-homed"
@@ -2070,10 +2237,15 @@ env PATH=/usr/bin:/bin perl -e 'alarm 10; exec @ARGV' /bin/zsh "$SK/watch/script
 { [ "$rc" = 2 ] && grep -q 'needs fswatch' "$T/mhw/err"; } || { echo "watch-boards.sh without fswatch on PATH: rc=$rc"; cat "$T/mhw/err"; exit 1; }
 [ ! -e "$T/mhw/snap" ] || { echo "watch-boards.sh took a snapshot before checking for fswatch"; exit 1; }
 ok "watch-boards.sh: with no fswatch on PATH it prints 'needs fswatch' and exits 2 before the first snapshot"
+}
 
+sec_lane_actors() {
 # lane actors: every lane body names its actor and trigger; the lane -> actor table lives once; heal-descriptors brings old boards to currency
-lane_file() { grep -l "^title: \"$2\"\$" "$1"/*/index.md | head -1; }
-lane_body() { tail -1 "$(lane_file "$1" "$2")"; }
+needs fixture_pipeline
+needs fixture_template_boards
+needs fixture_discovery
+needs fixture_plan
+needs fixture_heal_block
 for b in "$P" "$T/design-loop.lanework" "$T/datapoint.lanework" "$D" "$PL"; do
   for f in "$b"/*/index.md; do
     lb=$(tail -1 "$f"); { [ -n "$lb" ] && [ "$lb" != --- ] && grep -qE '[.!?] [A-Z`]' <<<"$lb"; } || { echo "lane body missing or one sentence: $f"; exit 1; }
@@ -2244,8 +2416,11 @@ done
 "$HD" "$D5" --apply --name fixer --model test >/dev/null; validate "$D5" >/dev/null
 { [ "$(grep -cF "$STALE" "$D5/index.md")" = 2 ] && grep -q '^- Kept\.$' "$D5/index.md" && grep -q '^0 changes' <<<"$("$HD" "$D5")"; } || { echo "mixed fixture: the fence and quote hits must stay, the bullet hit must go"; tail -12 "$D5/index.md"; exit 1; }
 ok "heal-descriptors drop-stale: removes an own bullet whole and an inline hit alone, never edits a fence or a quote, and a later real hit still goes"
+}
 
+sec_label_kinds() {
 # label kinds: found-board.sh --labels splices catalog rows into config.labels; heal-board.py reads its suggested kinds from the same file
+HD="$SK/heal/scripts/heal-descriptors.py"   # as the lane-actors section sets it
 LK="$SK/lanework/templates/label-kinds.md"; LD="$T/label-kinds"; mkdir -p "$LD"; FB="$SK/lanework/scripts/found-board.sh"
 sed 's/<SF Symbol>/square.grid.2x2/; s/^<.*>$/Test board./; s/^- <.*>$/- Test rule./' "$SK/lanework/templates/index.md" > "$LD/idx.md"
 norm_index() { sed -E 's/^id: .*/id: ID/; s/^(created|modified): .*/\1: STAMP/' "$1"; }
@@ -2461,7 +2636,9 @@ WA="$SK/watch/references/arming.md"
   && grep -qi 'compact' "$WA" && grep -q 'from `ls`, never from memory' "$WA" \
   && grep -q 'Either way, then carry on as `arm`' "$WA" && grep -q 'every agent lane title' "$WA" && grep -q 'arming message' "$WA"; } || { echo "watch arming lacks the arm-pass section, its script, the compaction rule, the answer-then-arm clause, the full lane-title list or the stale report place"; exit 1; }
 ok "watch arming runs scripts/arm-pass.sh (its own section, a row in SKILL.md) and carries the compaction rule, the answer-then-arm clause, the full lane-title list and where a stale report goes"
+}
 
+sec_versions() {
 # format rules: skills point at the guide, never prescribe priority/component as card keys (retired, guide v82)
 # (read-board.sh's printed `priority: <text> (<rank>)` suffix is a display line, not a key)
 H=$({ grep -rn -i -E '\b(priority|component):|(priority|component)[^.]*(root|top-level)|(root|top-level)[^.]*(priority|component)' "$SK" || true; } | grep -v -i 'reserved' | grep -v -E 'priority: (<text>|%s) \(' || true)
@@ -2500,9 +2677,15 @@ sed -E 's/^[[:space:]]*#.*$//' "$SK/lanework/scripts/lib.sh" > "$T/gv-lib/lib.sh
 got=$(names_guide_version "$T/gv-lib")
 [ -z "$got" ] || { echo "guide-version lib.sh control: flagged: $got"; exit 1; }
 ok "the guide-version check does not flag the code of lib.sh, comments aside"
+}
 
+sec_compact_form() {
 # compact form: what the skill scripts write is no repair for the board's own heal (H17), on boards founded
 # with catalog kinds and filed by the plan and discovery scripts; the layout seed is the positive control
+needs fixture_pipeline
+needs fixture_discovery
+needs fixture_plan
+needs fixture_compact_boards
 h17() { python3 "$VAL/bin/lanework-heal.py" "$1" | grep ' H17 ' || true; }
 [ -n "$(h17 "$T/layout-seed")" ] || { echo "compact-form control: the board's heal found nothing on the layout seed"; exit 1; }
 for b in "$T/Acme Pipeline.lanework" "$T/PL2.lanework" "$T/Sync: v2 Plan.lanework" "$T/Sync: v2 Discovery.lanework" "$T/label-kinds/D Discovery.lanework"; do
@@ -2511,25 +2694,11 @@ done
 hits=$(h17 "$T/label-kinds/All.lanework" | grep '^index.md:' || true); [ -z "$hits" ] || { echo "All.lanework: $hits"; exit 1; }
 [ -z "$(find "$SK" -name __pycache__)" ] || { echo "a script left __pycache__ in the skill tree"; exit 1; }
 ok "founded boards, tickets and records are written in the compact form: the board's heal finds no H17 (control: the layout seed), and no __pycache__ in skills/"
-
-# filing scripts: the destination lane's card-defaults.labels are unioned into a card at birth (lib.sh union_lane_defaults)
-# setdef <board> <lane title> <yaml value|->: set (or, with -, remove) the lane's card-defaults line
-setdef() { SK="$SK" python3 -B - "$(lane_of "$1" "$2")" "$3" <<'PY'
-import importlib.util, os, sys, yaml
-spec = importlib.util.spec_from_file_location("hb", os.environ["SK"] + "/lanework/scripts/heal-board.py"); hb = importlib.util.module_from_spec(spec); spec.loader.exec_module(hb)
-p, v = sys.argv[1:]; A = open(p).read().split("\n"); end = A.index("---", 1); L = []; skip = False
-for l in A[1:end]:
-    if l.startswith("card-defaults:"): skip = True; continue
-    if skip and l[:1] == " ": continue
-    skip = False; L.append(l)
-if v[:1] == "=": L.append("card-defaults: " + v[1:])   # verbatim, as an owner types it
-elif v != "-": L += hb.emit_key("card-defaults", yaml.safe_load(v))
-open(p, "w").write("\n".join(["---"] + L + A[end:]))
-PY
 }
-labels_of() { local f; f="$(ls "$1"/*/"$2"/index.md)"; fm_parses "$f" || { echo "$f does not parse"; return 1; }; flowed "$f" | grep '^labels:'; }
-nothing_to_heal() { validate "$1" >/dev/null && [ "$(python3 "$SK/lanework/scripts/heal-board.py" "$1" | tail -1)" = "0 repairs in 0 files" ]; }
-TXT='kind: {type: text, text: Text, icon: {glyph: tag}}'
+
+sec_filing_defaults() {
+# filing scripts: the destination lane's card-defaults.labels are unioned into a card at birth (lib.sh union_lane_defaults)
+needs fixture_bodies t.md
 printf 'Sync is free.\n' > "$T/dadr.md"; printf 'Is it free?\n\n## Options\n\n- A: yes\n- B: no\n\n## Recommended\n\nA. Simple.\n' > "$T/dq.md"
 DD="$T/Defaults Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$DD" --model smoke >/dev/null
 
@@ -2630,9 +2799,14 @@ assert by["Critical"]["kind"]["type"] == "priority" and by["Odd"]["kind"]["type"
 PYEND
 setdef "$DP" Frontier -
 ok "card-defaults: a kinded entry's rank stays an integer on the card (listed-kind and undefined-kind alike), while bare 2026 and {text: 1.10} still read as typed names"
+}
 
+sec_board_writes() {
 # work: the board-write helpers. file-card, move-card and post-ask on a copy of the pipeline board with a v118 guide line and the
 # borrowed .schema copied in (each script validates through the board's own validator); commit-board in a temp repo with a bare origin
+needs fixture_pipeline
+needs fixture_defaults_plan
+needs fixture_bodies pc.md
 FC="$SK/work/scripts/file-card.sh"; MC="$SK/work/scripts/move-card.sh"; PA="$SK/work/scripts/post-ask.sh"; LST="$SK/work/scripts/lint-stamps.sh"
 WB="$T/Helpers.lanework"; cp -R "$P" "$WB"; cp -R "$VAL" "$WB/.schema"
 printf '<!-- lanework-agent-guide v118 -->\n\nThis machine'"'"'s human answers to `@owner`.\n' > "$WB/CLAUDE.md"
@@ -2775,8 +2949,6 @@ for c in $OW1 $OW2; do mkdir -p "$IDEAS/$c"; printf -- '---\nschema: 1\nkind: ca
 perl -pi -e "s/^modified:/waiting: {for: anyone, since: 2026-10-01T00:00:00Z, comment: $AQ}\nmodified:/" "$IDEAS/$OW2/index.md"
 ISS=$(basename "$("$FC" "$WB" Issues "Broken" --body "$T/fc.md" --model smoke)")
 ACT=$(lanedir "$WB" Active); validate "$WB" >/dev/null
-# moved <card> <dest lane dir>: the card's body and every frontmatter line but order, modified and waiting are unchanged from <saved copy>
-moved() { diff <(grep -v -E '^(order|modified|waiting):' "$3") <(grep -v -E '^(order|modified|waiting):' "$2/$1/index.md") >/dev/null; }
 S10=$(others "$WB" "$(rel "$AP/$C1F")" "$(rel "$ACT/$C1F")"); cp "$AP/$C1F/index.md" "$T/mv1.md"; t0=$(date -u +%FT%TZ)
 M1=$("$MC" "$WB" "${C1F:0:8}" Active --model smoke --name fixer --session smoke) || { echo "move-card from Approved failed"; exit 1; }
 t1=$(date -u +%FT%TZ); MF="$ACT/$C1F/index.md"
@@ -2834,8 +3006,11 @@ rc=0; "$PA" "$WB" "${C2F:0:8}" --body "$T/ask1.md" --for anyone --model smoke >/
 refused post-ask "$PA" "$WB" "$C2F" --body "$T/ask1.md" --for anyone
 [ "$S12" = "$(sum "$WB")" ] && ! grep -q '^waiting:' "$ACT/$C2F/index.md" || { echo "a refused post-ask wrote something"; exit 1; }
 ok "post-ask.sh: a body failing lint-ask (for a person, and for anyone), --for not on line 1, a prefix uuid exit 1; no --for and no model exit 2; nothing written, waiting unset"
+}
 
+sec_commit_board() {
 # commit-board: a temp repo with a bare origin and a second clone; global and system git config shut out, identity set in each repo
+FC="$SK/work/scripts/file-card.sh"; MC="$SK/work/scripts/move-card.sh"; PA="$SK/work/scripts/post-ask.sh"   # as the board-write section sets them
 CB="$SK/work/scripts/commit-board.sh"; G="$T/cb"; mkdir -p "$G"
 gx() { GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git "$@"; }; g() { gx -C "$G/work" "$@"; }; go() { gx -C "$G/other" "$@"; }
 cb() { (cd "$G/work" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$CB" "$@"); }
@@ -3175,8 +3350,13 @@ rm -f "$PP"
 [ "$(cat "$G/ttyres" 2>/dev/null)" = tty-closed ] && [ "$(cat "$G/ttyrc" 2>/dev/null)" = 0 ] && [ "$(gx --git-dir="$G/origin.git" rev-parse main)" = "$(g rev-parse HEAD)" ] && [ "$(g log -1 --format=%s)" = "B: no tty" ] \
   || { echo "commit-board: the push under a pty (hook: $(cat "$G/ttyres" 2>/dev/null), rc $(cat "$G/ttyrc" 2>/dev/null)):"; cat "$G/tty.out"; exit 1; }
 ok "commit-board.sh: under a pty the push has no terminal (a pre-push hook cannot open /dev/tty), and it lands"
+}
+
+sec_headers() {
 # work: headers card. move-card.sh posts --comment only after every refusal, and passes a lost lease from post-comment.sh through as exit 3;
 # lint-ask.sh sends its unreadable-file message to stderr and fails an ask of exactly 80 words
+needs fixture_pipeline
+MC="$SK/work/scripts/move-card.sh"   # as the board-write section sets it
 HM="$T/HdrWork.lanework"; cp -R "$P" "$HM"; cp -R "$VAL" "$HM/.schema"
 HMI=$(dirname "$(lane_of "$HM" Ideas)"); HMA=$(dirname "$(lane_of "$HM" Active)")
 HC1=feed0000-0000-4000-8000-000000000001; mkdir -p "$HMI/$HC1"
@@ -3203,8 +3383,11 @@ rc=0; O=$("$SK/work/scripts/lint-ask.sh" "$T/ask-80.md") || rc=$?
 [ "$rc" -eq 1 ] && grep -q '^80 words; an ask stays under 80' <<<"$O" || { echo "lint-ask, an 80-word ask: want exit 1 (rc $rc): $O"; exit 1; }
 "$SK/work/scripts/lint-ask.sh" "$T/ask-79.md" || { echo "lint-ask, a 79-word ask failed"; exit 1; }
 ok "lint-ask.sh: an unreadable file prints 'lint-ask.sh: no such file: <f>' on stderr only, exit 2; an ask of exactly 80 words fails, 79 passes (before the fix: stdout message, 80 passed)"
+}
 
+sec_release_gate() {
 # release gate (advisory): the Skills Pipeline board's guide and schema newer than the stamp is a note, never a failure
+S=$({ grep -o -E 'lanework-agent-guide v[0-9]+' "$ROOT/CLAUDE.md" || true; }); SV=$({ grep -o -E 'lanework-schema v[0-9]+' "$ROOT/CLAUDE.md" || true; })   # the stamp, as the versions section reads it
 BG=$(head -1 "$VAL/../CLAUDE.md" | grep -o -E 'lanework-agent-guide v[0-9]+' | grep -o -E '[0-9]+$' || true)
 BS=$(head -1 "$VAL/VERSION" | tr -d '\r' | grep -o -E 'lanework-schema v[0-9]+ *$' | grep -o -E '[0-9]+' || true)
 if [ -z "$BG" ] || [ -z "$BS" ]; then
@@ -3233,9 +3416,12 @@ git -C "$R" rm -q -r --cached "Boards" >/dev/null && git -C "$R" -c user.name=sm
 W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no board folder: $W"; exit 1; }
 rm -f "$R/CLAUDE.md"; W=$(rw); { ! grep -q -i 'warning\|line [0-9]\|No such' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no CLAUDE.md: $W"; exit 1; }
 ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp, stays quiet when not, and exits the same either way"
+}
 
+sec_cite_as() {
 # cite-as: scripts mint a citation and write a bare title only on a board whose guide line reads v117 or later (cite_enabled); the throwaway boards state their stamp
 # cite-as: on a board whose guide line reads v117 or later the filing scripts mint a citation and write a bare title
+needs fixture_plan_session
 printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/cq.md"; printf 'Sync is free.\n' > "$T/cr.md"; printf 'Where does the engine run?\n' > "$T/ct.md"
 cq() { "$SK/discovery/scripts/file-question.sh" "$1" "$2" --round 1 --body "$T/cq.md" --model smoke 2>&1; }
 cc() { head -1 <<<"$1" | sed 's#.*/##'; }
@@ -3394,6 +3580,9 @@ PQO=$("$SK/discovery/scripts/file-question.sh" "$NP" "Why is CITEPENDING left in
 PTO=$("$PS/file-ticket.sh" "$NPP" "CITEPENDING in a title" --type grilling --body "$T/ct.md" --model smoke 2>&1) || { echo "file-ticket.sh refused a CITEPENDING title: $PTO"; exit 1; }
 grep -qx 'cite-as: Q1' "$NP"/*/"$(cc "$PQO")"/index.md && grep -qx 'cite-as: T1' "$NPP"/*/"$(cc "$PTO")"/index.md || { echo "CITEPENDING-titled cards not stamped Q1 and T1"; exit 1; }
 ok "a question and a ticket whose title holds CITEPENDING are filed and stamped Q1 and T1 on a gated board"
+}
+
+sec_heal_descriptors() {
 # heal-descriptors: the v0.8.0 discovery Brief and Decisions bodies are replaced; an edited body is not
 HB='The two standing references: the Topic card (scope) and the Discovery map card (every decision, by corner of the space). The agent rewrites the map at the close of each round, and a resuming session reads it first.'
 HDN="One card per ADR or PDR, titled \`ADR:\` or \`PDR:\`, with \`Record\` and \`Status\` labels and line 1 linking its question. The agent files it from a question's ruling, before the question settles. Cards never leave; an overturned decision gets the \`superseded\` status and a dated comment linking its replacement."
@@ -3408,10 +3597,15 @@ O=$("$SK/heal/scripts/heal-descriptors.py" "$HE"); if grep -q 'replace-body' <<<
 "$SK/heal/scripts/heal-descriptors.py" "$HE" --apply --model smoke >/dev/null
 { grep -q 'rewrites quietly' "$(lane_file "$HE" Brief)" && grep -q 'Cards stay' "$(lane_file "$HE" Decisions)"; } || { echo "an edited body lost its own text"; exit 1; }
 ok "heal-descriptors replaces the v0.8.0 discovery Brief and Decisions bodies word for word and keeps an edited body's own text"
+}
 
+sec_lease() {
 # lanework: lease.sh. A copy of the pipeline board with the borrowed .schema; fake session ids; stand-in CLAUDE_PIDs (sleeps this
 # smoke starts and kills); per-session memory under a TMPDIR of its own, never the real one; the test knobs keep it to seconds.
 # Every timer this run logged is killed on exit, by pid, and case 13 checks none outlives the cases.
+needs fixture_pipeline
+needs fixture_plan_session   # PSP: lease_cleanup and case 13 end it
+needs fixture_bodies pc.md fm.md ask1.md t.md res1.md
 LS="$SK/lanework/scripts/lease.sh"; LT=$(mktemp -d "$T/lease-tmp.XXXXXX"); LSP=()
 # lease_cleanup: the stand-ins and this run's live logged timers, nothing else; then the lint-unreadable restore, which this trap
 # replaced as the EXIT trap
@@ -4300,7 +4494,9 @@ for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
 for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do stop_standin "$p"; done; LSP=()
 waitfor '[ -z "$(timers_left)" ]' || { echo "timers left:"; timers_show $(timers_left); exit 1; }
 validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
+}
 
+sec_usage_guard() {
 # usage guard: every script run with no arguments exits 2 (64 for the heal scripts) and its header states that code: in the comment lines (shell) or module docstring (.py) among the first 60 lines.
 # A script that needs no arguments is listed in NOARG with its code. Catches a new script with no stated usage code, and a code change
 # that leaves its header behind. A floor, not a proof: it does not check refusal codes. GUARD_DIR overrides the scanned skills dir (self-test).
@@ -4320,7 +4516,9 @@ for ug_s in "${GUARD_DIR:-$SK}"/*/scripts/*; do
   grep -qi "exit $ug_want" <<<"$ug_hdr" || { echo "$ug_s: first 60 lines never say 'exit $ug_want'"; exit 1; }
 done
 ok "usage guard: every script with no arguments exits 2 (64 for heal), and its header says so"
+}
 
+sec_plugin() {
 # plugin: the manifest agrees with the skills folders; one version, in plugin.json
 python3 - "$ROOT/.claude-plugin" "$SK" <<'EOF'
 import json, os, sys
@@ -4339,6 +4537,63 @@ if command -v claude >/dev/null; then
   [ -z "$W" ] || { echo "$V"; echo "plugin validate: unexpected warning"; exit 1; }
 fi
 ok "plugin manifests match the skills folders and validate"
+}
 
-echo "smoke: $pass passed"
-[ -n "${1:-}" ] || rm -rf "$T"
+# the sections, in run order: one row each. --list prints them; --only runs the named ones in this order, after the prelude
+SECTIONS='
+static
+founding
+heal_board
+discovery
+plan
+braces
+lint_ask
+lint_stamps
+lint_leases
+lint_waiting
+lint_symlinks
+post_comment
+watch
+arm_pass
+merge
+lane_actors
+label_kinds
+versions
+compact_form
+filing_defaults
+board_writes
+commit_board
+headers
+release_gate
+cite_as
+heal_descriptors
+lease
+usage_guard
+plugin
+'
+usage() { echo "smoke: $1" >&2; echo "usage: tests/smoke.sh [--list | --only <section>[,<section>...]] [<scratch dir>]" >&2; exit 2; }
+SCRATCH=""; LISTING=""; ONLY=""; ONLYSET=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --list) LISTING=1 ;;
+    --only) [ $# -ge 2 ] || usage "--only needs a section name"; ONLY=$2; ONLYSET=1; shift ;;
+    --only=*) ONLY=${1#--only=}; ONLYSET=1 ;;
+    -*) usage "unknown argument: $1" ;;
+    *) [ -z "$SCRATCH" ] || usage "one scratch dir only: $SCRATCH, $1"; SCRATCH=$1 ;;
+  esac
+  shift
+done
+[ -z "$LISTING" ] || [ -z "$ONLYSET" ] || usage "--list and --only do not go together"
+if [ -n "$LISTING" ]; then printf '%s\n' $SECTIONS; exit 0; fi
+RUN=$SECTIONS
+if [ -n "$ONLYSET" ]; then
+  [ -n "$ONLY" ] || usage "--only needs a section name"
+  for n in $(tr ',' ' ' <<<"$ONLY"); do
+    case " $(echo $SECTIONS) " in *" $n "*) ;; *) usage "unknown section: $n (tests/smoke.sh --list names them)" ;; esac
+  done
+  RUN=""; for n in $SECTIONS; do case ",$ONLY," in *",$n,"*) RUN="$RUN $n" ;; esac; done
+fi
+start_run
+for n in $RUN; do "sec_$n"; done
+if [ -n "$ONLYSET" ]; then echo "smoke: $pass passed (sections: $(echo $RUN | sed 's/ /, /g'))"; else echo "smoke: $pass passed"; fi
+[ -n "$SCRATCH" ] || rm -rf "$T"
