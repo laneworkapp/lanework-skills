@@ -1918,7 +1918,8 @@ for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/n
 "$ROOT/tests/merge-case.sh" "$T" rebasemove >/dev/null; ok "merge case: a rebase with a later move leaves no orphaned folder"
 "$ROOT/tests/merge-case.sh" "$T" dirty >/dev/null; ok "merge case: uncommitted edits in a conflicted card are carried as ours, never erased"
 "$ROOT/tests/merge-case.sh" "$T" appside >/dev/null; ok "merge case: bytes the app wrote (tests/fixtures/app-writes) collide with scripted edits and resolve with no prompt"
-"$ROOT/tests/merge-case.sh" "$T" delete >/dev/null; ok "merge case: a card kept against a whole-card delete keeps the survivor's whole tree, both ways"
+"$ROOT/tests/merge-case.sh" "$T" delete >/dev/null; ok "merge case: a card kept against a whole-card delete keeps the survivor's whole tree, both ways, a bare move included"
+"$ROOT/tests/merge-case.sh" "$T" deleteadd >/dev/null; ok "merge case: a comment, attachment or relation added against a whole-card delete brings the whole card back, after a merge, a rebase or a stop elsewhere"
 "$ROOT/tests/merge-case.sh" "$T" stamps >/dev/null; ok "merge case: a zone-less or loosely written stamp reads as UTC and never aborts the pass"
 "$ROOT/tests/merge-case.sh" "$T" interrupt >/dev/null; ok "merge case: a pass interrupted at its first write loses no uncommitted edit, and a rerun finishes"
 

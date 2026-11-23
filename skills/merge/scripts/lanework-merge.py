@@ -924,10 +924,11 @@ def process_card(repo, trees, revs, board, card, model, notes, um):
     elif lo is None or lt is None:
         side = 'ours' if lo else 'theirs'
         present = fo if lo else ft
-        if lb is None or present != fb:
+        if lb is None or present != fb or locs[side] != lb:  # a bare move counts as a change
             L = locs[side]
             if lb is not None:
-                losses.append({'line': 'The other side deleted this card for good; the edited card is kept.'})
+                losses.append({'line': 'The other side deleted this card for good; the %s card is kept.'
+                               % ('edited' if present != fb else 'moved')})
         else:
             L = None
     elif lo == lt:
@@ -1083,9 +1084,10 @@ def is_git_conflict_output(data):
     return bool(CONFLICT.search(data))
 
 
-def rehome(repo, notes):
+def rehome(repo, notes, model):
     """A comment or attachment added on one side of a card the other side moved stays at the old path:
-    git sees no conflict. Move every tracked file in a card folder with no index.md into its card."""
+    git sees no conflict. Move every tracked file in a card folder with no index.md into its card.
+    Added against a delete, the card has no index.md anywhere: restore the survivor's whole card there."""
     out = git(repo, 'ls-files', '-z').decode().split('\0')
     held = {(c['board'], c['card']) for c in map(classify, unmerged(repo)) if c and c['cls'] == 'card'}
     items = {}
@@ -1095,7 +1097,7 @@ def rehome(repo, notes):
             items.setdefault((c['board'], c['card']), {}).setdefault(c['loc'], []).append(p)
     for (board, card), locs in items.items():
         try:
-            rehome_card(repo, board, card, locs, held, notes)
+            rehome_card(repo, board, card, locs, held, notes, model)
         except Exception as e:  # one card's trouble never stops the rest
             notes['skipped'].append('%s (%s)' % (card[:8], e))
 
@@ -1116,13 +1118,19 @@ def disk_homes(repo, board, card):
     return out
 
 
-def rehome_card(repo, board, card, locs, held, notes):
+def rehome_card(repo, board, card, locs, held, notes, model):
     if (board, card) in held:
         return
     index_homes = {l for l, ps in locs.items() if '/'.join([board] + list(l) + ['index.md']) in ps}
     homes = disk_homes(repo, board, card)
     orphans = [l for l in locs if l not in index_homes]
     if not orphans:
+        return
+    if not homes and not index_homes:
+        if len(orphans) == 1:
+            restore_deleted(repo, board, card, orphans[0], notes, model)
+        else:
+            notes['unrestored'].append('%s (no index.md anywhere, and its files sit in %d folders)' % (card[:8], len(orphans)))
         return
     if homes != index_homes or len(homes) != 1:
         notes['skipped'].append('%s (git and the disk disagree on where the card is: commit the move first)' % card[:8])
@@ -1141,6 +1149,48 @@ def rehome_card(repo, board, card, locs, held, notes):
         prune(repo, src)
     if moved:
         notes['rehomed'].append('%d file%s of "%s"' % (len(moved), '' if len(moved) == 1 else 's', title))
+
+
+def survivor(repo, board, card):
+    """The first tree holding the card's index.md: the other side of an operation in progress, then HEAD;
+    else a parent of a merge HEAD; else the parent of the last commit that deleted it. -> (Trees, files)."""
+    trees = Trees(repo)
+    how, _, theirs = op_state(repo)
+    ps = git(repo, 'rev-list', '--parents', '-n', '1', 'HEAD', check=False).decode().split()[1:]
+    cands = [theirs, 'HEAD'] if how else ps if len(ps) > 1 else []
+    d = git(repo, 'log', '-1', '--format=%H', '--diff-filter=D', 'HEAD', '--',
+            ':(glob)%s/**/%s/index.md' % (board, card), check=False).decode().strip()
+    if d:
+        cands.append(d + '^')
+    for r in cands:
+        f = trees.card(r, board, card)[1]
+        if 'index.md' in f:
+            return trees, f
+    return trees, {}
+
+
+def restore_deleted(repo, board, card, loc, notes, model):
+    """Restore the survivor's whole card into the one folder holding its added files. Never overwrites a file."""
+    trees, f = survivor(repo, board, card)
+    if not f:
+        notes['unrestored'].append('%s (no index.md for this card in any tree to restore it from)' % card[:8])
+        return
+    home = '/'.join([board] + list(loc))
+    added = []
+    for w, (mode, objsha) in sorted(f.items()):
+        p = home + '/' + w
+        if os.path.exists(os.path.join(repo, p)):
+            continue
+        write_atomic(repo, p, trees.blob(objsha))
+        if mode == '100755':
+            os.chmod(os.path.join(repo, p), 0o755)
+        added.append(p)
+    n = len(added)
+    added.append(post_losses(repo, home, [{'line': 'The other side deleted this card for good; a comment or attachment '
+                                                   'was added on this side, so the whole card is kept.'}], model))
+    git(repo, 'add', '-f', '--', *added)
+    title = title_of(open(os.path.join(repo, home, 'index.md'), encoding='utf-8', errors='replace').read())
+    notes['restored'].append('"%s" (%d file%s)' % (title, n, '' if n == 1 else 's'))
 
 
 def refresh_install(repo):
@@ -1162,7 +1212,7 @@ def cmd_resolve(argv):
     how, base, theirs = op_state(repo)
     revs = (base, 'HEAD', theirs)
     trees = Trees(repo)
-    notes = {'placed': [], 'comments': [], 'leftover': [], 'beside': [], 'carried': [], 'rehomed': [], 'skipped': [], 'paths': 0}
+    notes = {'placed': [], 'comments': [], 'leftover': [], 'beside': [], 'carried': [], 'rehomed': [], 'skipped': [], 'restored': [], 'unrestored': [], 'paths': 0}
     um = {p: s for p, s in unmerged(repo).items() if classify(p)} if how else {}
     boards = {classify(p)['board'] for p in um}
     cards, others = {}, []
@@ -1214,7 +1264,7 @@ def cmd_resolve(argv):
         if arts:
             git(repo, 'add', '-f', '--', *arts)
     staged_before = set(git(repo, 'diff', '--cached', '--name-only', '-z').decode().split('\0')) - {''} if not how else set()
-    rehome(repo, notes)
+    rehome(repo, notes, model)
     boards |= {classify(p)['board'] for p in git(repo, 'diff', '--cached', '--name-only', '-z').decode().split('\0')
                if p and classify(p)}
     # validate
@@ -1237,19 +1287,24 @@ def cmd_resolve(argv):
     other = [p for p in unmerged(repo) if not classify(p)]
     # report: one paragraph
     s = []
-    if not how and not notes['rehomed']:
-        s.append('No merge, rebase or cherry-pick in progress%s.' % ('' if notes['skipped'] else ', and no file left behind by a move: nothing to resolve'))
+    restored = 'Restored whole against a delete: %s.' % ', '.join(notes['restored'])
+    if not how and not notes['rehomed'] and not notes['restored']:
+        s.append('No merge, rebase or cherry-pick in progress%s.' % ('' if notes['skipped'] or notes['unrestored'] else ', and no file left behind by a move: nothing to resolve'))
     elif not how:
-        s.append('Re-homed into their moved cards: %s. Staged, not committed: commit it.' % ', '.join(notes['rehomed']))
+        if notes['rehomed']:
+            s.append('Re-homed into their moved cards: %s. Staged, not committed: commit it.' % ', '.join(notes['rehomed']))
+        if notes['restored']:
+            s.append(restored + ' Staged, not committed: commit it.')
         if staged_before:
-            s.append('Other changes were already staged (%d path%s); the re-home is staged alongside them, so commit the re-home paths alone if they are not yours to commit.' % (len(staged_before), '' if len(staged_before) == 1 else 's'))
+            what = ' and '.join(x for x, y in (('re-home', notes['rehomed']), ('restore', notes['restored'])) if y)
+            s.append('Other changes were already staged (%d path%s); the %s is staged alongside them, so commit the %s paths alone if they are not yours to commit.' % (len(staged_before), '' if len(staged_before) == 1 else 's', what, what))
     else:
         s.append('Board merge%s: %d unmerged board path%s resolved.' % (' (%s)' % how if how else '', notes['paths'], '' if notes['paths'] == 1 else 's'))
         if notes['placed']:
             s.append('Placed by the later stamp: %s.' % ', '.join(notes['placed']))
         if notes['comments']:
             s.append('Merge comments on %d card%s: %s.' % (len(notes['comments']), '' if len(notes['comments']) == 1 else 's', '; '.join(notes['comments'])))
-        else:
+        elif not notes['restored']:
             s.append('Nothing was lost, so no merge comment.')
         if notes['leftover']:
             s.append('Kept ours for %s.' % ', '.join(notes['leftover']))
@@ -1257,10 +1312,14 @@ def cmd_resolve(argv):
             s.append(' '.join(notes['beside']))
         if notes['rehomed']:
             s.append('Re-homed into their moved cards: %s.' % ', '.join(notes['rehomed']))
+        if notes['restored']:
+            s.append(restored)
         if notes['carried']:
             s.append('Uncommitted edits carried into the merge as ours, and staged: %s.' % '; '.join(notes['carried']))
     if notes['skipped']:
         s.append('Not re-homed: %s.' % '; '.join(notes['skipped']))
+    if notes['unrestored']:
+        s.append('Not restored against a delete: %s.' % '; '.join(notes['unrestored']))
     if vals:
         s.append(' '.join(v + '.' for v in vals))
     if other:
