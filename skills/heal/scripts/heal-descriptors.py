@@ -12,7 +12,7 @@ second run finds nothing.
 
 Exit codes: exit 0 done (dry run or applied) or `-h`/`--help` (prints this text). exit 2 `--apply` with no `--model`.
 exit 3 `--expect` digest differs. exit 64 usage or setup, nothing written: a flag with no value, an unknown
-argument, no board, `--expect` without `--apply`, an empty or reserved `--name` (reserved: anyone, board,
+argument, no board, `--expect` without `--apply`, with `--apply` only an empty or reserved `--name` (reserved: anyone, board,
 healer, shortcuts, tracker), a path that is not a board (no `index.md`), lane templates missing beside this script.
 
 Every run ends with `digest <hex>`, a hash of the full change list (each board, lane, code and new text).

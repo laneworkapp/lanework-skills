@@ -12,8 +12,8 @@
 # (just before the first `mv`); a validator failure after the `mv` leaves it posted. Staged outside the board, then one `mv` of the
 # card's folder, then the board's .schema validator on the card (skipped with a note when the board
 # has none). Prints the card's new path. No git, no commit.
-# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), a bad flag, fewer than 3 arguments, no match or several. Exit 1, nothing written: not a
-# board, no such lane, the card already in that lane (a reorder rewrites `order` only), no frontmatter,
+# Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), a bad flag, fewer than 3 arguments, an id that is not a lowercase uuid or a prefix of 8+ characters, no match or several. Exit 1, nothing written: not a
+# board, an unreadable --comment, no such lane, the card already in that lane (a reorder rewrites `order` only), a card folder of that id already in the destination, no frontmatter,
 # a triple brace after the restamp, the comment refused. Exit 1 after the `mv`: the validator failed on
 # the card, or printed a DEPRECATED line (counts as failure).
 # The lease (lanework/references/writes.md § Lease), after the refusals above and before anything is

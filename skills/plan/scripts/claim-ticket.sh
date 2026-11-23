@@ -5,7 +5,7 @@
 # Frontier, then moves it to the bottom of Working (fresh order, `modified` rewritten whole, `claimed` carried as the stake
 # left it) and posts "**Claimed** by <name>[, session <s>]" (the `, session` part only with --session). The holder is CLAUDE_CODE_SESSION_ID, never --session (a stamp label).
 # Exit 2, nothing written: usage (a missing positional, flag or flag value, an unknown flag, an empty --name, no model (--model, else CLAUDE_MODEL)).
-# Exit 1, nothing written: the card not in Frontier (claimed by another session, blocked, resolved); no
+# Exit 1, nothing written: not a board, not a lowercase card uuid, no Frontier or Working lane; the card not in Frontier (claimed by another session, blocked, resolved); no
 # CLAUDE_CODE_SESSION_ID or no CLAUDE_PID (no session, no lease); no lanework/scripts/lease.sh beside plan; the stake
 # refused or lost (lease.sh names the holder on stderr; a takeover notice it posted stays). After the stake, the card
 # leaving Frontier, the lease no longer this session's, or any other abort, a TERM during the stake included: exit 1

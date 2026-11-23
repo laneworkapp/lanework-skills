@@ -9,7 +9,7 @@ Dry run by default: one line per repair, `<file>: <code> <what>`, nothing writte
 is restamped: a heal is upkeep, not an edit (the app's own heal rule). `--name`/`--model`
 sign the records a heal posts. Idempotent: a second run finds nothing.
 `-h`/`--help` prints this text, exit 0.
-Exit 0 done (dry run or applied); exit 1 a card moved during the heal (message); exit 2 the board ships its own heal and
+Exit 0 done (dry run or applied); exit 1 a card moved during the heal (message), or, at start, `templates/label-kinds.md` has no row for a reserved kind or a row that does not parse (message); exit 2 the board ships its own heal and
 `--ignore-board-copy` is absent; exit 64 usage (unknown argument, no board or not a board, `--apply` without `--model`,
 `--apply` with an empty or reserved `--name`).
 
