@@ -7,11 +7,12 @@
 # (guide § Stamping: every write to a card; `at` from the clock, the caller's `by`), validates with the board's
 # .schema validator (skipped with a note when the board has none), then one `mv` in. The card must be unchanged
 # since it was read (compared just before the rename: a window of a few instructions remains between that compare and the
-# `mv`, and no lock is shared with the app or other writers; LABEL_CARD_TEST_HOLD=<dir> holds the script there until <dir>/release exists, for tests).
+# `mv`, and no lock is shared with the app or other writers; LABEL_CARD_TEST_HOLD=<dir> holds the script there until <dir>/release exists, for tests; no release after
+# about 20 s: "hold expired", exit 1, nothing written).
 # A card with CRLF line endings, or an index.md under an attachments/ or dot folder, is refused (exit 1). A label the card already has (text and kind, case aside) is a no-op: exit 0, nothing written.
 # Lease (lanework/references/writes.md § Lease): with CLAUDE_CODE_SESSION_ID set, `lease.sh check` first.
 # Exit 1, nothing written: not a board or card, CRLF line endings, an undefined kind, a value a closed kind does not list, a different
-# value of a `single` kind the card holds, the card changed meanwhile, the validator failed on the staged card.
+# value of a `single` kind the card holds, the card changed meanwhile, the validator failed on the staged card, a test hold expired.
 # Exit 2, nothing written: no model (--model, else CLAUDE_MODEL), no label, a bad flag. Exit 3: the lease is lost.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
@@ -82,6 +83,7 @@ fi
 
 if [ -n "${LABEL_CARD_TEST_HOLD:-}" ]; then   # tests only: say "held", wait for "release"
   : > "$LABEL_CARD_TEST_HOLD/held"; n=0; while [ ! -e "$LABEL_CARD_TEST_HOLD/release" ] && [ $n -lt 400 ]; do sleep 0.05; n=$((n+1)); done
+  [ -e "$LABEL_CARD_TEST_HOLD/release" ] || { echo "label-card.sh: LABEL_CARD_TEST_HOLD: hold expired (no release after 400 polls of 0.05 s); nothing written" >&2; exit 1; }
 fi
 # compare against the card as read, then rename into place
 cmp -s "$F" "$STAGE/read" || { echo "label-card.sh: the card changed while it was staged; nothing written, run again" >&2; exit 1; }
