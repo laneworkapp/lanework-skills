@@ -1253,6 +1253,18 @@ llfresh; llcard $LD
 llcom $LD c3100000-0000-4000-8000-000000000001 "$(llago 1000)" S-a '**START (shaping): reading the ruling**'; llcom $LD c3100000-0000-4000-8000-000000000002 "$(llago 120)" S-b '**START: build**'
 lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on a START (shaping) then a START: want silent exit 0, the card tallied as leased"
 ok "lint-leases passes a START (shaping) followed by the lead's START from another session: no two-STARTs finding"
+# the form writing.md prescribes (`START: shaping: <plan>`, bold or not, any case, also `shaping to ...`) is skipped too; a lead START naming shaping later, or a START that merely claims shaping, is not
+for SH in '**START: shaping: reading the ruling**' 'START: Shaping to the board bar' '**START: shaping**'; do
+  llfresh; llcard $LD
+  llcom $LD c3200000-0000-4000-8000-000000000001 "$(llago 1000)" S-a "$SH"; llcom $LD c3200000-0000-4000-8000-000000000002 "$(llago 120)" S-b '**START: build**'
+  lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on [$SH] then a START: want silent exit 0, the card tallied as leased"
+done
+for NS in 'START: shape this card' '**START: claimed for shaping by S-a**' 'START: build, after shaping'; do
+  llfresh; llcard $LD
+  llcom $LD c3300000-0000-4000-8000-000000000001 "$(llago 1000)" S-a "$NS"; llcom $LD c3300000-0000-4000-8000-000000000002 "$(llago 120)" S-b '**START: build**'
+  lint "$LLB"; [ "$LR" = 1 ] && grep -q ": two STARTs " <<<"$LO" || llfail "lint-leases on [$NS] then a START: want a two-STARTs finding"
+done
+ok "lint-leases skips START: shaping (any case, bold or not) as a handoff, and still reports START: shape this card, a claimed-for-shaping START and a lead START that mentions shaping later"
 
 # 4. a lapsed claimed
 llfresh

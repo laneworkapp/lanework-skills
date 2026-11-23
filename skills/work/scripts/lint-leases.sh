@@ -9,7 +9,7 @@
 # a lease-lost record is a comment whose first line begins LEASE_LOST_PREFIX (lib.sh). Cards are lane/card folders.
 #   <card>: lease lost <comment id> <time>
 #   <card>: two STARTs <id> <id> <n>s apart [first session wrote again]   (two sessions, <= --window apart, default 1800;
-#       a START without a session is skipped, and so is one whose first line begins `START (shaping)` (a handoff to the lead, not a second builder); the tag = the earlier session posted any comment after the later START)
+#       a START without a session is skipped, and so is one whose plan line begins `shaping` (`START: shaping`, bold or not, any case, or the older `START (shaping)`; a handoff to the lead, not a second builder); the tag = the earlier session posted any comment after the later START)
 #   <card>: claimed until <ts> is <n>s lapsed   (until more than --grace seconds past, default 900; the whole board
 #       counts, flow or block form. A voided claim (until unreadable or over 35 min ahead) is not lapsed: skipped)
 # A card is leased when it has a START (a session-less one too), or a lease-lost record, created at or after --since
@@ -76,7 +76,7 @@ function emit(   rel, n, p, card, t, s, a, u, k) {
       a = substr(t, RSTART, RLENGTH); sub(/^.*at:[ \t]*["\x27]?/, "", a); sub(/\.[0-9]+Z$/, "Z", a)
     }
     k = "OTHER"
-    if (first ~ /^(\*\*)?START/) k = (first ~ /^(\*\*)?START \(shaping\)/) ? "SHAPE" : "START"
+    if (first ~ /^(\*\*)?START/) { f2 = tolower(first); k = (f2 ~ /^(\*\*)?start \(shaping\)/ || f2 ~ /^(\*\*)?start:[ \t]*shaping/) ? "SHAPE" : "START" }
     if (lost != "" && index(first, lost) == 1) k = "LOST"
     printf "C\t%s\t%s\t%s\t%s\t%s\n", card, p[4], a, s, k
   }
