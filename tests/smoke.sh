@@ -104,6 +104,13 @@ if "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pi
   --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=x --var verified=x --model smoke 2>/dev/null; then exit 1; fi
 ok "refuses a non-empty board folder"
 
+# an unknown flag: exit 2, the unknown-argument line and the usage line on stderr, in every script that takes flags after its positionals
+for s in plan/scripts/file-ticket plan/scripts/claim-ticket plan/scripts/resolve-ticket discovery/scripts/file-record discovery/scripts/file-question discovery/scripts/settle-question merge/scripts/merge-board; do
+  RC=0; "$SK/${s%%/*}/scripts/${s##*/}.sh" b u --bogus >"$T/uf.out" 2>"$T/uf.err" || RC=$?
+  [ "$RC" = 2 ] && grep -q 'unknown argument' "$T/uf.err" && grep -q '^usage: ' "$T/uf.err" || { echo "${s##*/} --bogus: want exit 2, the unknown argument and a usage: line on stderr; got rc $RC"; cat "$T/uf.err"; exit 1; }
+done
+ok "seven scripts print the usage line after an unknown flag, exit 2"
+
 # lanework: heal-board, one card per kind of damage, on a board with no .schema/
 H="$T/Damaged.lanework"; HL="$H/aaaa0000-0000-4000-8000-000000000001"; HEAL="$SK/lanework/scripts/heal-board.py"
 STAMP='{at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}'

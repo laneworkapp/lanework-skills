@@ -17,7 +17,7 @@ MODEL="${LANEWORK_MERGE_MODEL:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) [ $# -ge 2 ] || { echo "$USAGE" >&2; exit 2; }; MODEL="$2"; shift 2 ;;
-    *) echo "merge-board.sh: unknown argument: $1" >&2; exit 2 ;;
+    *) echo "merge-board.sh: unknown argument: $1" >&2; echo "$USAGE" >&2; exit 2 ;;
   esac
 done
 git -C "$REPO" rev-parse --show-toplevel >/dev/null 2>&1 || { echo "merge-board.sh: not a git repo: $REPO" >&2; exit 1; }

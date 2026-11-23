@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
     --model)      need_value "$@"; MODEL="$2"; shift 2 ;;
     --name)       [ $# -ge 2 ] || need_value "$@"; NAME="$2"; shift 2 ;;
     --session)    need_value "$@"; SESSION="$2"; shift 2 ;;
-    *) echo "resolve-ticket.sh: unknown argument: $1" >&2; exit 2 ;;
+    *) echo "resolve-ticket.sh: unknown argument: $1" >&2; echo "usage: $USAGE" >&2; exit 2 ;;
   esac
 done
 require_model resolve-ticket.sh "resolve-ticket.sh <board> <card-uuid> --resolution F --model m [...]"
