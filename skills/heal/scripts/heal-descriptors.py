@@ -404,6 +404,8 @@ def check_board(board, sets, perm):
     rows = {t.lower(): b for t, b in sets[kind]}
     info.append("lane set: %s" % kind)
     olds = {t.lower(): {norm(b) for b in bs} for t, bs in OLD_BODIES.get(kind, {}).items()}
+    # an earlier template's actor sentence counts as present: an owner-edited body that carries it is left alone, never given the new one beside it
+    old_actors = {t.lower(): [actor_sentence(b) for b in bs] for t, bs in OLD_BODIES.get(kind, {}).items()}
     for d in lanes:
         title = d.title()
         cur = rows.get(title.lower())
@@ -418,7 +420,7 @@ def check_board(board, sets, perm):
             continue
         elif norm(body) in olds.get(title.lower(), ()):
             changes.append((d, where, "replace-body", "an older template's body: the current one", cur + "\n"))
-        elif sentence and not says(body, sentence):
+        elif sentence and not says(body, sentence) and not any(o and says(body, o) for o in old_actors.get(title.lower(), ())):
             changes.append((d, where, "insert-actor", "customised: add \"%s\" after its first sentence" % sentence,
                             insert_after_first_sentence(d.body, sentence).rstrip("\n") + "\n"))
     if kind == "pipeline":

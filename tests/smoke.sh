@@ -1898,6 +1898,13 @@ validate "$X" >/dev/null
 Z0=$(sum "$X"); O=$("$HD" "$X")
 { grep -q '^lane Approved: replace-body ' <<<"$O" && grep -q '^lane Tasks: insert-actor ' <<<"$O" && grep -q '^lane Shaping: fill-body ' <<<"$O" && grep -q '^lane Active: replace-body ' <<<"$O" && grep -q '^4 changes in 4 files' <<<"$O"; } || { echo "$O"; exit 1; }
 [ "$Z0" = "$(sum "$X")" ]; ok "heal-descriptors dry run lists the old-template, customised and empty lane bodies and writes nothing"
+# an owner-edited Approved body that carries the previous actor sentence ("takes the top card into Active unasked") is no repair: no second actor sentence beside it
+OA="$T/Heal Old Actor.lanework"
+"$SK/lanework/scripts/found-board.sh" "$OA" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=OA --var verified='`make`' --model smoke >/dev/null
+OAF=$(lane_file "$OA" Approved); sed -i '' '$d' "$OAF"; printf '%s\n' 'Mine: the queue. Approval is the go-ahead: an agent takes the top card into Active unasked. Extra owner text.' >> "$OAF"
+O=$("$HD" "$OA"); { grep -q '^0 changes in 0 files' <<<"$O" && ! grep -q 'insert-actor' <<<"$O"; } || { echo "heal-descriptors on a body with the previous actor sentence:"; echo "$O"; exit 1; }
+"$HD" "$OA" --apply --model smoke >/dev/null; [ "$(grep -c 'takes the' "$OAF")" -eq 1 ] || { echo "the Approved body gained a second actor sentence:"; tail -1 "$OAF"; exit 1; }
+ok "heal-descriptors leaves an owner-edited Approved body that carries the previous actor sentence alone: 0 changes, no second sentence"
 if "$HD" "$X" --apply >/dev/null 2>&1; then echo "--apply ran without --model"; exit 1; else [ $? -eq 2 ]; fi; [ "$Z0" = "$(sum "$X")" ]
 ok "heal-descriptors --apply without --model exits 2 and writes nothing"
 IDLE=$(lane_file "$X" Ideas); IDLE_SUM=$(shasum "$IDLE")
