@@ -2,13 +2,10 @@
 schema: 1
 kind: card
 title: "Merge: a delete against an added comment leaves a folder with no index.md; a delete against a bare move drops the card"
-order: 3072
+order: 108544
 labels: [{text: "merge", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T00:30:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-23T16:50:02Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-claimed:
-  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
-  until: 2026-11-23T17:20:01Z
+modified: {at: 2026-11-23T18:47:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Two merges still lose or strand a card the other side deleted for good. If the other side only added a comment or an attachment, git merges with no conflict and leaves those files in a folder with no `index.md`. If the other side only moved the card, the pass sees no edit and drops the card. Both reproduce on throwaway repos, both ways, and the board validator passes both broken results. One change in `lanework-merge.py` for each, verified on a prototype copy.
 
