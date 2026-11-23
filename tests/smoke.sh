@@ -57,10 +57,12 @@ ok "no skill folder or plugin.json entry is named pitlane, pitwall or dispatch"
 
 # early-closing readers: no script under test pipes into head or grep -q/-m here. The reader closes after its first match and a
 # later write of the script dies of a broken pipe, rc 141 under pipefail. Capture the output whole (bfirst). The pattern matches a sample
-EC='(scripts/[a-z-]+|\$PS/[a-z-]+)\.sh"[^|]*\| *\{? *(head|grep -[a-zA-Z]*[qm]|sed (-n )?.?[0-9]*q|awk .*exit|read -r)'
+EC='(scripts/[a-z-]+|\$PS/[a-z-]+)\.sh"[^|]*\| *\{? *(head|grep -[a-zA-Z]*[qm]|sed (-n )?.?[0-9]*q|awk +("[^"]*exit[^"]*"|'"'"'[^'"'"']*exit[^'"'"']*'"'"')|read -r|while +(IFS=[^ ]+ +)?read)'
 ec1='X=$("$PS/file-ticket'; ec1+='.sh" "$B" t | head -1)'; ec2='"$SK/x/scripts/a-b'; ec2+='.sh" 2>&1 | grep -qF y'   # split: no self-match
 ec3='"$SK/x/scripts/a-b'; ec3+='.sh" | sed 1q'; ec4='"$SK/x/scripts/a-b'; ec4+='.sh" | awk "NR==1{print; exit}"'; ec5='"$SK/x/scripts/a-b'; ec5+='.sh" | { read -r l; }'
-[ "$(printf '%s\n' "$ec1" "$ec2" "$ec3" "$ec4" "$ec5" | grep -cE "$EC")" = 5 ] || { echo "the early-reader pattern misses its samples"; exit 1; }
+ec6='"$SK/x/scripts/a-b'; ec6+='.sh" | while read -r l; do :; done'   # a reader directly after the pipe
+ecn='"$SK/x/scripts/a-b'; ecn+='.sh" | awk "{print}" || { echo bad; exit 1; }'; ec7='"$SK/x/scripts/a-b'; ec7+=".sh\" | awk 'NR==1{exit}'"   # an exit after the awk program, past ||: no hit
+[ "$(printf '%s\n' "$ec1" "$ec2" "$ec3" "$ec4" "$ec5" "$ec6" "$ec7" | grep -cE "$EC")" = 7 ] && ! grep -qE "$EC" <<<"$ecn" || { echo "the early-reader pattern misses its samples or hits a later exit"; exit 1; }
 hits=$(grep -nE "$EC" "$ROOT/tests/smoke.sh" || true); [ -z "$hits" ] || { echo "a script's output piped into an early-closing reader:"; echo "$hits"; exit 1; }
 ok "no script under test pipes its output into head or grep -q/-m in smoke"
 
