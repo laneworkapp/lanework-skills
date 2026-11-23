@@ -29,9 +29,9 @@ A Lanework board is just a folder of plain directories and Markdown files that t
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
 | `lanework` | 10 | 382 | 5,611 |
-| `work` | 16 | 488 | 7,988 |
+| `work` | 16 | 488 | 8,012 |
 | `watch` | 4 | 182 | 2,096 |
-| `discovery` | 14 | 510 | 3,010 |
+| `discovery` | 14 | 510 | 3,022 |
 | `plan` | 9 | 467 | 2,855 |
 | `merge` | 2 | 362 | 1,702 |
 | `heal` | 2 | 311 | 897 |
@@ -68,13 +68,13 @@ Measured with `wc -w` on 2026-10-10 (`plan` on 2026-11-17, `discovery` on 2026-1
 | `references/team.md` | 532 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
-| `references/writing.md` | 1,782 |
+| `references/writing.md` | 1,806 |
 | `templates/ask.md` | 306 |
 | `templates/farmed-prompt.md` | 228 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **7,988** |
+| **total** | **8,012** |
 
 #### `watch`
 
@@ -95,7 +95,7 @@ Measured with `wc -w` on 2026-10-10 (`plan` on 2026-11-17, `discovery` on 2026-1
 | `references/conduct.md` | 157 |
 | `references/corners.md` | 171 |
 | `references/records.md` | 573 |
-| `references/rounds.md` | 377 |
+| `references/rounds.md` | 381 |
 | `templates/fact-card.md` | 49 |
 | `templates/glossary.md` | 46 |
 | `templates/lanes.md` | 379 |
@@ -104,7 +104,7 @@ Measured with `wc -w` on 2026-10-10 (`plan` on 2026-11-17, `discovery` on 2026-1
 | `templates/record.md` | 91 |
 | `templates/ruling.md` | 84 |
 | `templates/topic-card.md` | 66 |
-| **total** | **3,010** |
+| **total** | **3,022** |
 
 #### `plan`
 
