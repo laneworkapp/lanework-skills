@@ -3,7 +3,7 @@ schema: 1
 title: "Spike: is lanework@lanework skill compatible with AI other than claude? if not, what would it take to make it compatible with all frontier LLMs?"
 order: 1024
 created: {at: 2026-11-23T16:56:31Z}
-modified: {at: 2026-11-23T17:37:21Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+modified: {at: 2026-11-23T17:38:26Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 kind: card
 ---
 ## Summary
@@ -42,13 +42,13 @@ kind: card
 **Plan**: 9 work packages (WP1 to WP9).
 
 - WP1 to WP5 and WP7 change nothing under Claude Code.
-- WP6 removes `plan`, which is a major version bump.
+- WP6 removes `plan`. The owner ruled no bump to 1.0, so it ships in a 0.x release.
 - WP8 (the eval) needs the owner's accounts and budget.
 - WP9 runs only if the eval shows it is needed.
 
 ## Rulings
 
-The owner ruled all five calls on this card on 2026-11-23. The After matrices below already follow them.
+The owner ruled all five calls on this card on 2026-11-23, and added one on the version. The After matrices below already follow them.
 
 | call | ruling |
 |---|---|
@@ -57,6 +57,7 @@ The owner ruled all five calls on this card on 2026-11-23. The After matrices be
 | `watch` without Monitor | A one-shot wait the agent loops, keeping the session busy |
 | The `plan` name | Neither rename nor keep: "lets remove plan for now, i'll bring it back (maybe) under a different name." |
 | Distribution | A generated root plugin manifest, a Codex marketplace entry, an installer script and README lines |
+| Version | "no version bump, we're far from 1.0 still": removing `plan` does not take the version to 1.0 |
 
 ## Harnesses in scope
 
@@ -276,7 +277,7 @@ Each design has alternatives where the choice is the owner's; the ask number (C1
 | **Lead and fixer channel** | Use the harness's messaging when it has one. Otherwise the fixer returns at each phase and the lead starts the next phase as a new run. The card thread is already the durable record | — | — |
 | **`watch` without Monitor** | Add a `watch-boards.sh --next <state> --timeout <s>` mode (the prototype works): the snapshot carries over between runs, so no event is lost. Arming chooses: Monitor when the harness has it, a background `--next` where the harness notifies on exit (OpenCode), otherwise a foreground `--next` loop with a timeout under the harness's shell limit | (B) `watch` stays Claude Code and OpenCode only, and is documented as such | C5 |
 | **Slash-only guard** | Each of the 4 slash-only `SKILL.md` files opens with a text guard ("Runs only when the user asked for it by name; otherwise stop"), and gets an `agents/openai.yaml` with `allow_implicit_invocation: false` for Codex. The README gets a table of how each harness invokes a skill | — | — |
-| **`plan` against the spec** | Ruled: remove the skill for now. Delete `skills/plan/`, its `plugin.json` entry, its README row and install lines, its smoke cases and every citation of it (`check-refs.sh`), and retire the board's `Skill` label value. Major bump to 1.0.0. It may return later under another name | Rename to `lanework-plan`, keep `plan`, or another name: all set aside by the ruling | ruled |
+| **`plan` against the spec** | Ruled: remove the skill for now. Delete `skills/plan/`, its `plugin.json` entry, its README row and install lines, its smoke cases and every citation of it (`check-refs.sh`), and retire the board's `Skill` label value. No bump to 1.0 (ruled). It may return later under another name | Rename to `lanework-plan`, keep `plan`, or another name: all set aside by the ruling | ruled |
 | **Distribution** | `scripts/release.sh` writes an Agent Plugins `plugin.json` at the repo root from `.claude-plugin/plugin.json`, so the version keeps one source. `lanework-marketplace` gains a Codex `.agents/plugins/marketplace.json`. A repo-root `scripts/install-skills.sh` links the skills into `~/.agents/skills`, and optionally `~/.claude/skills` and `~/.kiro/skills`. The README gives one install line per harness. WP7 tries the Copilot and Codex installs on a scratch machine profile | (B) Documentation and the installer only, relying on harnesses that read `.claude-plugin/`. (C) Option A plus listings in vendor registries (Antigravity official plugins, Kiro Powers) | C7 |
 
 ## Work packages
@@ -290,7 +291,7 @@ These become the follow-on cards, in this order. "Safe under CC" means no behavi
 | WP3 | Prose that does not depend on the harness: capability wording, tier vocabulary, the lead and fixer fallback, the worktree folder, "ask on the card, never assume" | `tiers.md`, `team.md`, `companions.md`, `sweep.md`, `lead.md`, `fixer.md`, `farmed-prompt.md`, `discovery/SKILL.md`, `plan/SKILL.md` (~9) | M | — | Use f → r3; Perform GPT M → L to M | yes, if the Claude names stay in the mapping | C4 |
 | WP4 | Slash-only guard: text line and `agents/openai.yaml` | 4 `SKILL.md`, 4 new yaml files (8) | S | — | Use i | yes | — |
 | WP5 | `watch --next` mode and arming that picks the mode per harness | `watch-boards.sh`, `arming.md`, `events.md`, `watch/SKILL.md`, smoke case (~5) | M | WP3 | Use h → r4, r5 | yes (the Monitor path is unchanged) | ruled |
-| WP6 | Remove `plan` | `skills/plan/` deleted, `plugin.json`, `README.md`, `CHANGELOG.md`, the citing references, the `plan` smoke cases, the board label (~15) | M | — | Install d; the `plan` rows leave both matrices | **no**: the skill and its command go; major bump | ruled |
+| WP6 | Remove `plan` | `skills/plan/` deleted, `plugin.json`, `README.md`, `CHANGELOG.md`, the citing references, the `plan` smoke cases, the board label (~15) | M | — | Install d; the `plan` rows leave both matrices | **no**: the skill and its command go. Ships as 0.x, not 1.0 (ruled) | ruled |
 | WP7 | Distribution: root `plugin.json` written by `release.sh`, Codex marketplace entry, `install-skills.sh`, per-harness README, install trials | `release.sh`, `README.md`, a new root `plugin.json`, a new `scripts/install-skills.sh`, plus `lanework-marketplace` (cross-repo) (~5) | M | WP6 | Install a, b, c | yes, if Claude Code ignores a root `plugin.json` (NV, to be tested) | ruled |
 | WP8 | The eval: tasks, scorer and runs | a new `tests/eval/` (~15), outside `skills/` | L | WP1 to WP5 | Perform: predicted → measured | yes | C8 |
 | WP9 | Read less (only on WP8 evidence): contents lists on references over 100 lines, guide sections read on demand | `writes.md`, `writing.md`, `authority.md` (~3) | S | WP8 | Perform for small open-weight models | yes | — |
@@ -310,5 +311,5 @@ Two app-side items for a `lanework-app` card:
 ## Recommendation
 
 - Approve the findings.
-- Build in this order: WP4 and WP2 first (small and safe), then WP1, WP3 and WP5, then WP6 and WP7 together as 1.0.0, then WP8 before any claim of "compatible".
+- Build in this order: WP4 and WP2 first (small and safe), then WP1, WP3 and WP5, then WP6 and WP7, then WP8 before any claim of "compatible".
 - One card is affected now: `33dfa9b7` (plan dependencies as relations) is built and in test. Whether it still lands is asked on that card.
