@@ -1714,7 +1714,7 @@ PB="$T/Prio Pipeline.lanework"
 # pfile <lane> <title> [file-card flags]: files on $PB (or $PFB), prints the card's index.md
 pfile() { local c; c=$("$FC" "${PFB:-$PB}" "$1" "$2" --body "$T/arm.body" --model smoke "${@:3}" 2>/dev/null) || return 1; echo "${c%/}/index.md"; }
 printf 'Body.\n' > "$T/arm.body"
-PH=$(pfile Ideas "Card High" --label High:priority); PL=$(pfile Ideas "Card Low" --label Low:priority); PN=$(pfile Ideas "Card None")
+PH=$(pfile Ideas "Card High" --label High:priority); PLO=$(pfile Ideas "Card Low" --label Low:priority); PN=$(pfile Ideas "Card None")
 PZ=$(pfile Ideas "Card Zed"); PM=$(pfile Ideas "Card Multi" --label Medium:priority)
 python3 - "$PZ" <<'PY'
 import sys
@@ -1725,7 +1725,7 @@ PY
 pid() { basename "$(dirname "$1")"; }
 RO=$("$RBS" "$PB" | sed -n '/^== Ideas/,/^== /p')
 grep -qE "^   [0-9.]+ +Card High  \[$(pid "$PH" | cut -c1-8)\]  priority: High \(1\)$" <<<"$RO" \
-  && grep -qE "^   [0-9.]+ +Card Low  \[$(pid "$PL" | cut -c1-8)\]  priority: Low \(3\)$" <<<"$RO" \
+  && grep -qE "^   [0-9.]+ +Card Low  \[$(pid "$PLO" | cut -c1-8)\]  priority: Low \(3\)$" <<<"$RO" \
   && grep -qE "^   [0-9.]+ +Card None  \[$(pid "$PN" | cut -c1-8)\]$" <<<"$RO" \
   && grep -qE "^   [0-9.]+ +Card Zed  \[$(pid "$PZ" | cut -c1-8)\]  priority: Zed \(-\)$" <<<"$RO" \
   || { echo "read-board.sh priority suffixes:"; echo "$RO"; exit 1; }
