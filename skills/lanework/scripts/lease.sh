@@ -24,6 +24,8 @@
 # Each file: key=value lines: board,
 # timer pid, CLAUDE_PID, working directory and branch at stake, name, model, last notice seen, state), and a
 # <card-uuid>.lost directory once the loss record is posted (mkdir: posted once, whoever finds the loss first).
+# The timer ends when its memory file is gone or unreadable (as released), and saves only over a file still its own, so a
+# release is never undone; a save it cannot write (a takeover notice seen) is tried again on the next poll.
 # Reads git (branch, `git --no-optional-locks status --porcelain`) for the loss record; never writes the repo, stages or commits.
 # Test-only knobs, read by tests/smoke.sh: LEASE_TEST_STAKE_WAIT (seconds, default 1), LEASE_TEST_NOTICE_WAIT (120),
 # LEASE_TEST_POLL (60), LEASE_TEST_RENEW_EVERY (polls between renewals, 15), LEASE_TEST_WRITE_PAUSE (0: a write's first try waits this
@@ -176,11 +178,11 @@ mem_load() {
       model) M_MODEL=$v ;; notice) M_NOTICE=$v ;; state) M_STATE=$v ;; esac
   done < "$MEM"
 }
+# mem_save: 1 when the file could not be written (explicit checks, not set -e: the timer runs it under ||)
 mem_save() {
-  mkdir -p "$MEMD"; local t; t=$(mktemp "$MEMD/.mem.XXXXXX")
+  local t; mkdir -p "$MEMD" && t=$(mktemp "$MEMD/.mem.XXXXXX") || return 1
   printf 'board=%s\npid=%s\ncpid=%s\ndir=%s\nbranch=%s\nname=%s\nmodel=%s\nnotice=%s\nstate=%s\n' \
-    "$BOARD" "$M_PID" "$M_CPID" "$M_DIR" "$M_BRANCH" "$M_NAME" "$M_MODEL" "$M_NOTICE" "$M_STATE" > "$t"
-  mv "$t" "$MEM"
+    "$BOARD" "$M_PID" "$M_CPID" "$M_DIR" "$M_BRANCH" "$M_NAME" "$M_MODEL" "$M_NOTICE" "$M_STATE" > "$t" && mv "$t" "$MEM" || { rm -f "$t"; return 1; }
 }
 # mem_new: the work-in-flight facts as of now (the caller's directory and branch)
 mem_new() {
@@ -230,14 +232,16 @@ own_held() {
 }
 
 # timer: a card not found (or not readable as found) on 3 polls in a row has gone, so a deleted card ends it 3 polls later;
-# fewer is a move that outlasted find_card's retry
+# fewer is a move that outlasted find_card's retry. The memory unreadable ends it (as released); unwritable, the notice is
+# saved again on the next poll. mem_mine: the memory still there, not lost, and no other timer's (released meanwhile: never saved back)
+mem_mine() { [ -f "$MEM" ] && [ ! -d "$MEM.lost" ] || return 1; local p; p=$(sed -n 's/^pid=//p' "$MEM" 2>/dev/null) || return 1; [ -z "$p" ] || [ "$p" = "$$" ]; }
 timer() {
   local f t n=0 na miss=0
   while :; do
     sleep "$POLL"; n=$((n + 1))
     kill -0 "$TCPID" 2>/dev/null || exit 0
     [ -f "$MEM" ] && [ ! -d "$MEM.lost" ] || exit 0
-    mem_load; [ -z "$M_PID" ] || [ "$M_PID" = "$$" ] || exit 0   # released, or a newer timer took over; empty: not saved yet
+    mem_load || exit 0; [ -z "$M_PID" ] || [ "$M_PID" = "$$" ] || exit 0   # released, or a newer timer took over; empty: not saved yet
     NAME=${M_NAME:-claude}; MODEL=${M_MODEL:-unknown}
     if f=$(find_card) && t=$(cat "$f" 2>/dev/null); then miss=0; else miss=$((miss + 1)); [ "$miss" -lt 3 ] || exit 0; continue; fi
     read_claim /dev/stdin <<<"$t"; [ -n "$CL_TEXT" ] || exit 0     # released
@@ -245,7 +249,8 @@ timer() {
     na=$(thread "$(dirname "$f")" | awk -F'\t' -v s="$SESSION" 'index($2, "**Takeover notice**:") == 1 && index($2, "from session " s " at ") {print $1}' | sort | tail -1) \
       || na=""   # the card moved while its comments were read (set -e would end the timer): read again next poll
     if [ -n "$na" ] && [[ "$na" > "$M_NOTICE" ]]; then
-      M_PID=$$; M_NOTICE=$na; mem_save; write_card renew || true; n=0; continue   # renew 5: the next poll finds the loss or release
+      mem_mine || exit 0                                              # released since the load: never bring the file back
+      M_PID=$$; M_NOTICE=$na; mem_save || true; write_card renew || true; n=0; continue   # renew 5: the next poll finds the loss or release
     fi
     if [ $((n % RENEW_EVERY)) -eq 0 ]; then write_card renew || true; fi
   done

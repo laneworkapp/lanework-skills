@@ -3657,6 +3657,25 @@ sleep 0.6; alive "$TP" || { echo "11g: the timer exited on one comment gone whil
 L S-elr release "$LB" "$C11r" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11g: the timer outlived the release"; exit 1; }
 ok "lease: the timer outlives its card's moves between lanes, a second out of the board, one failed read of the card and one of a comment, and exits once the card is deleted"
 
+# 11h. the timer and an unwritable or unreadable memory (LEASE_TEST_POLL=1). A takeover notice the timer must save while the
+# memory folder is read-only: the save fails, the timer lives on; restored, a later poll saves it. Then a memory file made
+# unreadable: a foreground _timer ends at once with exit 0 (as released), never by set -e
+L1() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$LPID" TMPDIR="$LT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_POLL=1 LEASE_TEST_RENEW_EVERY=1000 "$LS" "$@"; }
+C11h=$(lcard "Eleven h"); L1 S-elh stake "$LB" "$C11h" --model smoke >/dev/null; TP=$(mpid S-elh "$C11h"); MD=$(dirname "$(mem S-elh "$C11h")")
+NI=$(uuidgen | tr A-Z a-z); mkdir -p "$LL/$C11h/comments/$NI"; NA=$(iso $(( $(date -u +%s) + 5 )))
+printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: {name: claude, kind: agent, model: smoke, session: "S-elh2"}}\nmodified: {at: %s, by: {name: claude, kind: agent, model: smoke, session: "S-elh2"}}\n---\n**Takeover notice**: session S-elh2 takes this card from session S-elh at %s unless the lease is renewed first.\n' \
+  "$NA" "$NA" "$NA" > "$LL/$C11h/comments/$NI/index.md"
+chmod 500 "$MD"; sleep 2.5; chmod 700 "$MD"
+alive "$TP" || { echo "11h: the timer exited while its memory folder was read-only"; exit 1; }
+waitfor '[ "$(sed -n "s/^notice=//p" "$(mem S-elh "$C11h")")" = "$NA" ]' 5 || { echo "11h: the notice was never saved once the folder was writable again"; exit 1; }
+L1 S-elh release "$LB" "$C11h" --model smoke >/dev/null; waitfor '! alive "$TP"' || { echo "11h: the timer outlived the release"; exit 1; }
+C11k=$(lcard "Eleven k"); L1 S-elk stake "$LB" "$C11k" --model smoke >/dev/null; TP=$(mpid S-elk "$C11k"); MF=$(mem S-elk "$C11k")
+kill "$TP"; waitfor '! alive "$TP"' || { echo "11h: the stake's timer did not end on kill"; exit 1; }
+chmod 000 "$MF"; RC=0; CLAUDE_CODE_SESSION_ID=S-elk TMPDIR="$LT" LEASE_TEST_POLL=0.2 perl -e 'alarm 10; exec @ARGV' "$LS" _timer "$(cd "$LB" && pwd -P)" "$C11k" S-elk "$LPID" 2>/dev/null || RC=$?
+chmod 600 "$MF"; [ "$RC" = 0 ] || { echo "11h: an unreadable memory file ended the timer with $RC, not 0"; exit 1; }
+L1 S-elk release "$LB" "$C11k" --model smoke >/dev/null
+ok "lease: the timer outlives a read-only memory folder and saves the notice once it is writable; an unreadable memory file ends it with exit 0"
+
 # 12. list
 C12l=$(lcard "Lapsed one"); setclaim "$(lcf "$C12l")" S-gone "$(iso $(( $(date -u +%s) - 600 )))"
 C12v=$(lcard "Voided one"); setclaim "$(lcf "$C12v")" S-skew "$(iso $(( $(date -u +%s) + 7200 )))"
