@@ -4,8 +4,7 @@ kind: card
 title: "The smoke suite shares variables and process patterns across sections, so new cases break it only in a full run"
 order: 3072
 created:  {at: 2026-11-23T12:33:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-23T16:45:42Z, comment: eb9ad338-9597-42cc-b59f-ec0b3b49b7a2}
-modified: {at: 2026-11-23T16:45:42Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-23T16:49:27Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Make `tests/smoke.sh` safe to extend: each section runs in a scope of its own, the suite handles its lease timers by pid, and one section can be run alone by name.
 
@@ -28,7 +27,7 @@ Two points in the founding note need care. It gives a complete run as "30 to 60 
 
 ## Proposed change
 
-Three slices. 1 and 2 stand on their own; 3 waits on the open call below.
+Three slices. 1 and 2 stand on their own; 3 rides on slice 2's named sections.
 
 ### Slice 1: timers by pid (done-when 2)
 
@@ -46,19 +45,21 @@ Three slices. 1 and 2 stand on their own; 3 waits on the open call below.
 - A section that needs another section's board says so with one line, `needs fixture_discovery`, where each fixture is a function that founds that board fresh under `$T`. The four sections that copy `D` take the fresh board; the fixture files the one or two cards they read. The discovery chain (`:408-694`: `D` and `C1..C5` are built up case by case) is one section, so what follows it never needs its cards.
 - With `--only`, the run ends `smoke: <n> passed (sections: a, b)`, so a partial run cannot be mistaken for a full one. The unqualified run keeps `smoke: <n> passed` as its last line.
 
-### Slice 3: scope per section (done-when 1)
+### Slice 3: each section in its own subshell (done-when 1)
 
-The scoping mechanism is open (see Open call). Every option rides on slice 2's named sections, and the choice does not change slices 1 and 2.
+Owner ruled A, 2026-11-23: each section is a function run in its own subshell.
 
-## Open call
-
-Which scope keeps a section out of another's names? **A: each section runs in its own subshell** (recommended). B: each section is a function with `local`. C: a lint that fails when a name is reused across sections. The options and what each costs are in the ask on this card.
+- The runner calls each section as a plain statement, `( sec_<name> )`, never through `||` or `if`, which would switch `set -e` off inside it. It prints a `section: <name>` header first, and a top-level exit trap names the section a failed run stopped in.
+- `ok` keeps its count in a file under `$T`, since an increment inside a subshell is lost. The last line and the exit code are unchanged.
+- Each section sets its own exit trap, which runs when its subshell ends. The four `trap ... EXIT` lines stop replacing each other, and `unr_restore` runs again.
+- The boards shared on purpose (`D`, `P`, `PL`, `LB`) reach a section only through its `needs fixture_<name>` line from slice 2. Nothing else crosses a section boundary.
+- With `set -u` already on, a section that reads a name another section set fails at once.
 
 ## Out of scope
 
 - Splitting `tests/smoke.sh` into several files. The run-alone form makes it unnecessary, and a split would change what `release.sh` and CI call.
 - Speeding up the suite. Section names make a timing table possible, and that table is not part of this card.
-- Moving the fixed file names under `$T` into per-section folders. Slice 3 notes the 15 shared names; it only fixes them if the ruling is option A and the build finds one that bites.
+- Moving the fixed file names under `$T` into per-section folders. Slice 3 notes the 15 shared names; it only fixes one that the build finds biting.
 - Any change to what a case asserts.
 
 ## Risks
@@ -74,7 +75,7 @@ Each slice ends with one full `tests/smoke.sh` run, never against `Boards/`.
 
 - **Slice 1**: the guard fails on a planted `pgrep -f` (a self-check). Two runs of the suite from one checkout, started together, both end `smoke: N passed` (the case that fails today); a throwaway copy of `lease.sh` without the knob makes the pid log empty and the run fail loudly, not silently pass. Time the full run before and after, on the same machine, and quote both in the closing record.
 - **Slice 2**: `--list` names every section once; `--only` of each section on its own passes or names the fixture it lacks; the sum of the sections' case counts equals the full run's count (`ok` is 410 today).
-- **Slice 3**: the check for each option is in the ask. Whichever is ruled, a throwaway case that assigns `PL` and `RE` in one section and reads them in the next fails the run (or the lint) and passes after the fix.
+- **Slice 3**: a throwaway case that assigns `PL` and `RE` in one section and reads them in the next fails the run and passes after the fix.
 - `bash -n tests/smoke.sh`, `tests/check-refs.sh` and `tests/check-sizes.sh` stay green. CI (`.github/workflows/smoke.yml`) needs no edit.
 
 ## Done when
@@ -83,10 +84,10 @@ Each slice ends with one full `tests/smoke.sh` run, never against `Boards/`.
 - [ ] Every timer a smoke run starts is stopped and waited on by its logged pid, with the process's command line checked first; two simultaneous runs from one checkout both pass.
 - [ ] The suite's first line gives its pid.
 - [ ] `tests/smoke.sh --list` names every section and `--only <name>` runs one; a partial run says so on its last line; the full run's output, exit code and case count are unchanged.
-- [ ] A section cannot read a variable another section assigned by accident: a throwaway case that does so fails the run (or the lint) before the fix and passes after it, under the mechanism ruled.
+- [ ] A section cannot read a variable another section assigned by accident: a throwaway case that does so fails the run before the fix and passes after it, with each section in its own subshell.
 - [ ] The exit traps no longer replace each other: a section's cleanup runs when it ends, and `unr_restore` still runs after the lease section starts.
 - [ ] `tests/smoke.sh` passes in full, and a timing before and after is in the closing record.
 
 ## Recommendation
 
-Approve all three slices, with the open call ruled A. Build slice 1 first: it needs no ruling and removes the timer stalls that cost the most. Slice 2 follows. Slice 3 then adds only the `( ... )` call around each section and the counter file for `ok`, and moves the shared fixtures into `needs` lines.
+Approve all three slices. Build slice 1 first: it needs no ruling and removes the timer stalls that cost the most. Slice 2 follows. Slice 3 then adds only the `( ... )` call around each section and the counter file for `ok`, and moves the shared fixtures into `needs` lines.
