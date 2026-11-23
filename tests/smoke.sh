@@ -1009,6 +1009,7 @@ for n in ['a, b "c" \\ d}', 'plain-name', 'x y']:
     e = [('modified', ['modified: {at: 2026-11-22T10:00:00Z, by: {name: %s, kind: agent, model: m}}' % q])]
     assert lm.stamp_desc(e) == '2026-11-22T10:00:00Z, ' + n, (n, lm.stamp_desc(e))
 assert lm.stamp_desc([('modified', ['modified: {at: 2026-11-22T10:00:00Z}'])]) == '2026-11-22T10:00:00Z, the owner'
+assert lm.stamp_desc([('modified', ['modified: {at: 2026-11-22T10:00:00Z, by: {name: "open, kind: agent}}'])]) == '2026-11-22T10:00:00Z, "open'
 PY
 ok "lanework-merge.py stamp_desc: a quoted name holding a comma, quotes, a backslash and a brace prints whole; a bare name and no name as before"
 BQ="$SBQ"; BPL="$SBPL"
@@ -3740,7 +3741,11 @@ ok "lease: list prints held cards with holder, time left, lapsed and voided, the
 C12q=$(lcard "Quoted one"); QN='a, b "c" \ d}'; L S-quo stake "$LB" "$C12q" --model smoke --name "$QN" >/dev/null
 [ "$("$LS" list "$LB" | awk -F'\t' -v c="$C12q" '$1==c {print $2}')" = "$QN (S-quo)" ] || { echo "list cut a quoted name short: $("$LS" list "$LB" | awk -F'\t' -v c="$C12q" '$1==c')"; exit 1; }
 L S-quo release "$LB" "$C12q" --model smoke >/dev/null
-ok "lease: list prints a stake name holding a comma, quotes, a backslash and a brace whole"
+# an opening quote never closed (and no later quote on the claimed lines): the bare reading (text up to the next , or }), not an empty name
+C12r=$(lcard "Unclosed one"); L S-unq stake "$LB" "$C12r" --model smoke >/dev/null; cp "$(lcf "$C12r")" "$T/unq.bak"; perl -pi -e 's/^claimed: .*(until: \S+?)\}$/claimed: {by: {name: "open, kind: agent}, $1}/' "$(lcf "$C12r")"
+[ "$("$LS" list "$LB" | awk -F'\t' -v c="$C12r" '$1==c {print $2}')" = '"open (?)' ] || { echo "list on an unclosed quoted name: $("$LS" list "$LB" | awk -F'\t' -v c="$C12r" '$1==c')"; exit 1; }
+cp "$T/unq.bak" "$(lcf "$C12r")"; L S-unq release "$LB" "$C12r" --model smoke >/dev/null
+ok "lease: list prints a stake name holding a comma, quotes, a backslash and a brace whole, and an unclosed quoted name by the bare reading"
 
 # work: the card-writing scripts check the lease first (post-comment, move-card, post-ask), on the lease board, before 13 releases
 # what is left. LW <session> <cmd...>: the command as that session, with L's stand-in CLAUDE_PID, TMPDIR and knobs; LN: no session id
