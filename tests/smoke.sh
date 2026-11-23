@@ -491,11 +491,18 @@ rclick "$(rcard "$RH")" "" "" "$CLK"
 perl -0pi -e 's/^waiting: [^\n]*\n//m' "$(rcard "$RH")/index.md"; ! grep -q '^waiting:' "$(rcard "$RH")/index.md"
 rclick "$(rcard "$RJ")" "$BOM" "" "A real answer behind a BOM"
 SR=$(sum "$R")
-for c in "$RE" "$RF" "$RG" "$RH"; do
-  RC=0; "$SK/discovery/scripts/settle-question.sh" "$R" "$c" --ruling "$T/r1.md" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
-  [ "$RC" = 1 ] && grep -q -- '--record' "$T/err.txt" && [ "$(sum "$R")" = "$SR" ] || { echo "settle on a Recap: click ($c, BOM/200KB/waiting cleared): want exit 1, --record in the message, nothing written; got rc $RC"; cat "$T/err.txt"; exit 1; }
-done
-ok "settle-question refuses a lone Recap: click saved with a BOM (before the frontmatter, before the body line), as a 200 KB comment, and with waiting cleared: exit 1, message names --record, nothing written"
+refuses_click() { RC=0; "$SK/discovery/scripts/settle-question.sh" "$R" "$1" --ruling "$T/r1.md" --model smoke >/dev/null 2>"$T/err.txt" || RC=$?
+  [ "$RC" = 1 ] && grep -q -- '--record' "$T/err.txt" && [ "$(sum "$R")" = "$SR" ] || { echo "settle on a lone Recap: click ($2): want exit 1, --record in the message, nothing written; got rc $RC"; cat "$T/err.txt"; exit 1; }; }
+refuses_click "$RE" "BOM before the frontmatter"; ok "settle-question refuses a lone Recap: click saved with a BOM before the frontmatter: exit 1, message names --record, nothing written"
+refuses_click "$RF" "BOM before the body line"; ok "settle-question refuses a lone Recap: click saved with a BOM before the body line: exit 1, message names --record, nothing written"
+refuses_click "$RG" "200 KB comment"; ok "settle-question refuses a lone Recap: click in a 200 KB comment: exit 1, message names --record, nothing written"
+refuses_click "$RH" "waiting cleared"; ok "settle-question refuses a lone Recap: click once waiting is cleared: exit 1, message names --record, nothing written"
+# waiting cleared after a click, --record with no --reply: settles, the record in reply to the ask
+RM=$(rq "Click cleared record"); rclick "$(rcard "$RM")" "" "" "$CLK"; RMASK=$(sed -n 's/^waiting:.*comment: "\{0,1\}\([0-9a-f-]*\).*/\1/p' "$(rcard "$RM")/index.md" | head -1)
+perl -0pi -e 's/^waiting: [^\n]*\n//m' "$(rcard "$RM")/index.md"; [ -n "$RMASK" ] && ! grep -q '^waiting:' "$(rcard "$RM")/index.md"
+"$SK/discovery/scripts/settle-question.sh" "$R" "$RM" --ruling "$T/r1.md" --record "$T/rec.md" --model smoke >/dev/null || { echo "settle with waiting cleared after a click and --record, no --reply: refused"; exit 1; }
+grep -q "^in-reply-to: $RMASK" "$R"/*/"$RM"/comments/*/index.md && [ "$(grep -m1 '^title:' "$(dirname "$(dirname "$(ls "$R"/*/"$RM"/index.md)")")/index.md")" = 'title: "Settled"' ] || { echo "record not in reply to the ask $RMASK, or the card is not in Settled"; exit 1; }
+ok "settle-question settles a click card whose waiting was cleared on --record alone: the record in reply to the ask, card in Settled"
 # waiting cleared, a real owner answer after the ask still settles (a BOM before an answer does not make it a click)
 "$SK/discovery/scripts/settle-question.sh" "$R" "$RJ" --ruling "$T/r1.md" --model smoke >/dev/null
 ok "settle-question settles on a real owner answer that starts with a BOM"

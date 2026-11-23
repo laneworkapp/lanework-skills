@@ -4,7 +4,7 @@
 #          [--record F [--reply <ask-uuid>]] --model m [--name n] [--session s]
 # Appends `## Ruling` + the --ruling text (templates/ruling.md), drops `waiting`, restamps,
 # posts --record (a `>` quote line and a `**Given**` line, else exit 2) as a comment (in reply to --reply, default the card's
-# `waiting.comment`), moves the card to the bottom of Settled or Parked. --ruling and --record are written with LF line ends.
+# `waiting.comment`, or its newest ask when `waiting` is gone), moves the card to the bottom of Settled or Parked. --ruling and --record are written with LF line ends.
 # `waiting` set, or cleared with a `Recap:` click on the card (and the lint present): the staged card and its comments are run through work/scripts/lint-waiting-clears.sh first; a NO-QUOTE
 # (no owner comment answers the newest ask, and no record in reply to it) = exit 1, nothing written. So a click that left `waiting` cleared still needs --record or a real answer.
 # A `Recap:` click (a human comment whose first body line starts `Recap:`, a UTF-8 BOM ignored; any size) is not an owner answer: it stays out of the lint's copy.
@@ -70,6 +70,21 @@ waiting_comment() {
 }
 WAITING=0; WCOMMENT=$(waiting_comment "$CARD/index.md") && WAITING=1 || true
 [ -n "$REPLY" ] || REPLY="$WCOMMENT"
+# newest_ask: uuid of the card's newest agent comment whose first body line starts `@` (the lint's ask), for a card whose `waiting` is gone
+newest_ask() {
+  for ci in "$CARD"/comments/*/index.md; do
+    [ -f "$ci" ] || continue
+    perl -pe 's/\r//g; s/^\xEF\xBB\xBF//' < "$ci" | awk -v id="$(basename "$(dirname "$ci")")" '
+      NR == 1 && /^---[ \t]*$/ { fm = 1; next }
+      fm && /^---[ \t]*$/ { fm = 0; body = 1; next }
+      fm && /^[^ \t]/ { inc = ($0 ~ /^created:/) }
+      fm && inc && /kind:[ \t]*["\x27]?agent/ { agent = 1 }
+      fm && inc && match($0, /at:[ \t]*["\x27]?[0-9T:Z.-]+/) { at = substr($0, RSTART, RLENGTH); sub(/^at:[ \t]*["\x27]?/, "", at) }
+      body && !done && /[^ \t]/ { done = 1; ask = ($0 ~ /^@/) }
+      END { if (agent && ask) print at, id }'
+  done | sort | tail -1 | cut -d' ' -f2
+}
+if [ -z "$REPLY" ] && [ "$WAITING" = 0 ]; then REPLY=$(newest_ask || true); fi   # waiting cleared (by the app after a click): --record answers the newest ask
 LINT=$WAITING   # waiting cleared by the app after a click: the lint still runs, when it is there (a card with no waiting and no click settles as before)
 if [ "$LINT" = 0 ] && [ -x "$LINT_CLEARS" ]; then
   for ci in "$CARD"/comments/*/index.md; do [ -f "$ci" ] && is_recap_click "$ci" && { LINT=1; break; }; done
