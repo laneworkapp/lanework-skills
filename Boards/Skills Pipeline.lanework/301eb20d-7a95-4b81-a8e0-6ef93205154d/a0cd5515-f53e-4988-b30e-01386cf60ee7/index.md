@@ -3,171 +3,304 @@ schema: 1
 title: "Spike: is lanework@lanework skill compatible with AI other than claude? if not, what would it take to make it compatible with all frontier LLMs?"
 order: 1024
 created: {at: 2026-11-23T16:56:31Z}
-modified: {at: 2026-11-23T17:24:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+waiting: {for: anyone, since: 2026-11-23T17:33:58Z, comment: e6463d40-09b0-4a00-937b-b746324492da}
+modified: {at: 2026-11-23T17:33:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 kind: card
 claimed:
   by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
   until: 2026-11-23T17:54:53Z
 ---
-## Answer
+## Summary
 
-Partly. Most of the product is agent-neutral: Markdown references, bash and python scripts, and `SKILL.md` folders in the open Agent Skills format, which Codex, Gemini CLI, Cursor and Copilot all load. Under those agents `lanework`, `merge`, `heal` and the board-writing half of `work` and `discovery` run once installed by hand (`plan` keeps charting but loses its work step). Three things block or bend the rest:
+**Goal** (the owner's words): make the `lanework` skills compatible with every modern, relevant LLM, both in how they are installed and in how they are used and perform. This card starts with a Before compatibility matrix and an After matrix for the proposed changes.
 
-- The card lease requires Claude Code's `CLAUDE_CODE_SESSION_ID` and `CLAUDE_PID`, so `plan`'s work step and the stake-before-farm rule fail.
-- `watch` needs Claude Code's Monitor tool.
-- Every write is signed `name: claude` unless the agent passes `--name`.
+"LLM" means two different things here, and they are rated apart:
 
-Making the skills work under every frontier agent takes:
+- **The harness** is the agent program that loads the skills and runs their scripts: Claude Code, Codex CLI, Cursor and so on. The **Install** and **Use** axes are rated per harness.
+- **The model** is what runs inside the harness: Claude, GPT, Gemini, Grok or an open-weight model. The **Perform** axis is rated per model family.
 
-- harness-neutral session variables, with a fallback to Claude's;
-- naming in the prose that does not depend on the harness;
-- install docs for the `.agents/skills` path;
-- a design for `watch` without Monitor.
+**Before**
+
+| axis | state |
+|---|---|
+| Install | One command, Claude Code only. Every other harness needs hand steps the README does not give. Three of them (Cursor, OpenCode, Amp) happen to read the README's `~/.claude/skills` path. |
+| Use | Claude Code: everything works. Elsewhere: `watch` is blocked (it needs the Monitor tool) and `plan` is blocked (its claim needs Claude's session variables). The other five skills lose the lease guard and sign their writes `claude`. |
+| Perform | Not measured anywhere, Claude included. There are risk predictions only, reasoned from vendor docs. |
+
+**After** (with the nine work packages below)
+
+| axis | state |
+|---|---|
+| Install | One documented command or path for each of the seven relevant harnesses. |
+| Use | Six skills fully usable everywhere. `work` and `watch` keep the limits listed under Residual limits. |
+| Perform | Measured by a board-task eval, run per harness and model. A cell only changes on evidence. |
+
+**Residual limits** (things this repo cannot remove, because the harness lacks the feature):
+
+| limit | where | cause |
+|---|---|---|
+| `watch` holds the turn while it waits, and each idle wake-up costs a model turn | Codex, Antigravity, Copilot, Cursor, Grok | No tool that wakes the agent on background output |
+| The lead and its fixers cannot message each other mid-run, so each phase is a separate subagent run | all but Claude Code | No agent-to-agent messaging |
+| A lease ends 30 minutes after the session's last board write, not when the session exits | harnesses that expose no session process | — |
+
+**Plan**: 9 work packages (WP1 to WP9).
+
+- WP1 to WP5 and WP7 change nothing under Claude Code.
+- WP6 renames `plan`, which is a major version bump.
+- WP8 (the eval) needs the owner's accounts and budget.
+- WP9 runs only if the eval shows it is needed.
+
+## Harnesses in scope
+
+**Criterion for "relevant"**, all four must hold:
+
+1. It loads Agent Skills from a shared path: `.agents/skills`, `~/.agents/skills` or `.claude/skills`.
+2. It has a local shell on the Mac where the board and the app live.
+3. It has shipped a release in the last 90 days.
+4. It is a frontier lab's own harness, or one of the editors with the largest share, or the main open-weight carrier.
+
+| group | harnesses | why |
+|---|---|---|
+| **Relevant: the matrix columns** | Claude Code (CC), Codex CLI (CX), Antigravity CLI (AG), GitHub Copilot CLI and agent mode (CP), Cursor (CU), Grok Build (GK), OpenCode (OC) | Frontier labs: Anthropic, OpenAI, Google, xAI. Largest editors: Copilot, Cursor. OpenCode carries open-weight models (Qwen, Kimi, GLM, DeepSeek, gpt-oss) |
+| **Follows for free** (behaves like the column named) | Amp, Goose, Zed, Cline, Junie, Auggie, Warp, Devin Desktop (formerly Windsurf) and Factory Droid: like OC or CU. Mistral Vibe, Qwen Code and Kimi Code: like OC. Gemini CLI on paid tiers: like AG | Each reads `.agents/skills` or `.claude/skills` and `AGENTS.md`, and has a shell. Each is fixed by the same work packages. Not rated cell by cell |
+| **Follows with one step** | Kiro | Reads only `.kiro/skills`. The installer in WP7 links it |
+| **Out of scope** | Roo Code | Shut down on 2026-05-15 |
+| | Gemini CLI on unpaid and Google One tiers | Replaced by Antigravity CLI (Gemini CLI docs) |
+| | Cloud agents (Copilot cloud agent, Codex cloud, Devin cloud, Factory remote) | Linux sandboxes. The scripts target macOS bash 3.2 and BSD tools, and the app is a Mac app |
+| | Chat apps (claude.ai, ChatGPT, the Gemini app) | No shell on the board's machine |
 
 ## Evidence
 
-### Inventory: what assumes Claude (counts are files under `skills/` unless stated)
+### What the harnesses offer (read 2026-11-23)
 
-| # | item | where | effect on another agent |
+(S) marks a secondary source; NV means not verified.
+
+| | skills: paths | explicit invoke | honours `disable-model-invocation` | `AGENTS.md` / `CLAUDE.md` | installs a Claude plugin | subagent model | wakes on background output | multiple-choice ask | session or agent env |
+|---|---|---|---|---|---|---|---|---|---|
+| CC | `~/.claude/skills`, `.claude/skills`, plugin | `/name` | yes | `CLAUDE.md` | yes | yes | yes (Monitor) | yes | `CLAUDECODE=1`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_PID` |
+| CX | `.agents/skills` (cwd up to the repo root), `~/.agents/skills` | `$name`, `/skills` | no: `agents/openai.yaml` `allow_implicit_invocation` | `AGENTS.md`, 32 KiB combined cap | partly, root `plugin.json` (S) | yes | NV | `request_user_input` (S) | `CODEX_THREAD_ID` (S) |
+| AG | `.agents/skills`, `~/.gemini/config/skills` | `/name` | NV | `AGENTS.md` (`GEMINI.md` legacy) | `agy plugin import claude` migrates; no direct install | yes (`inherit`, `flash`, `pro`) | `/tasks`; wake NV | NV | NV |
+| CP | `.agents/skills`, `.claude/skills`, `.github/skills`, `~/.agents/skills`, `~/.copilot/skills` | NV | NV | both | reads `.claude-plugin/` plugin and marketplace manifests | yes | NV | NV | `COPILOT_MODEL` only |
+| CU | `.agents/skills`, `.cursor/skills`, `.claude/skills`, the `~/` variants | `/name` | yes | `AGENTS.md`; `CLAUDE.md` (S) | no (own and Agent Plugins formats) | yes | the parent polls | NV | NV |
+| GK | `.grok/skills`, `~/.grok/skills`, `~/.agents/skills` | `/name` | yes | both (S) | reads Claude marketplaces (S) | parallel (S) | NV | NV | NV |
+| OC | `.agents/skills`, `.claude/skills`, `~/.claude/skills`, `~/.agents/skills` | `@id` | yes | `AGENTS.md`; `CLAUDE.md` as fallback | no | yes | **yes**: `background: true`, notified on exit | yes (`question`) | NV |
+
+More facts that shape the design:
+
+- Goose sets `AGENT=goose` and `AGENT_SESSION_ID`.
+- Amp sets `AMP_CURRENT_THREAD_ID` (S).
+- Devin, Factory, Auggie and Copilot read `.claude-plugin/` manifests. Vibe loads skills and MCP servers from them.
+- Codex, Cursor, Copilot, Kiro, Vibe and Qwen read the vendor-neutral Agent Plugins `plugin.json` at the plugin root. For Copilot that root file takes precedence over `.claude-plugin/`.
+- No cross-tool session variable exists. `AGENT` and `AI_AGENT` are proposals only (S).
+
+### What in the skills assumes Claude Code
+
+This is the inventory from the first pass, condensed. File and line references are in the thread record.
+
+| # | assumption | where | axis |
 |---|---|---|---|
-| **a. Packaging and discovery** | | | |
-| a1 | Plugin manifest `.claude-plugin/plugin.json`. Marketplace `laneworkapp/lanework-marketplace` `.claude-plugin/marketplace.json` uses source `url` + `ref: stable` | `plugin.json`; `README.md:142-149` | Install path only. Copilot CLI reads `.claude-plugin/` manifests (end-to-end install not tested). Others: **install by hand** |
-| a2 | Hand install symlinks into `~/.claude/skills/<name>` | `README.md:151-166` | Others look in `.agents/skills` or `~/.agents/skills` (Codex, Cursor, Copilot, Gemini). **Install-step change only** |
-| a3 | Hand install puts `plan` at `lanework-plan`, but its frontmatter keeps `name: plan` | `README.md:159,164` | The spec requires the name to match the folder. Strict loaders may reject it. **Degraded** |
-| a4 | `disable-model-invocation: true` on discovery, plan, watch, heal (4 `SKILL.md`) | frontmatter | Claude and Cursor honour it. Codex uses `agents/openai.yaml` `allow_implicit_invocation` instead. Gemini: model-triggered only. Elsewhere the skill may fire unasked. **Degraded** |
-| a5 | Slash invocation: `/watch`, `/discovery`, `/heal`, `/lanework:plan` | 4 `SKILL.md`; `README.md:17-22` | Codex uses `$name`; Cursor uses `/`; Gemini has no explicit invoke; Copilot not verified. **Cosmetic or degraded** |
-| a6 | README: "Claude Code, the one supported harness" | `README.md:168` | Accurate today. **Cosmetic** |
-| **b. Harness tools named in skill text** | | | |
-| b1 | Monitor (`persistent: true`), TaskStop, "survives `/clear`" | `watch/references/arming.md:32-51`, `watch/SKILL.md`, `events.md:3`, `watch-boards.sh:15` (4 files) | No verified wake-on-output tool elsewhere. **Blocker for `watch`** |
-| b2 | Agent-tool subagents, tiers `haiku`/`sonnet`/`opus`/inherit | `work/references/tiers.md:7-10`, `team.md:9-10,42`, `sweep.md:50`; plan and discovery "subagents" | Codex, Gemini, Cursor and Copilot all have subagents with a per-agent model, but the names are Claude's. **Degraded** (the agent maps the tiers itself) |
-| b3 | SendMessage between the lead and its fixers | `team.md:20`, `companions.md:8` | No verified equivalent. The build cycle collapses to a single agent. **Degraded** |
-| b4 | Worktrees under `.claude/worktrees/` | `work/references/lead.md:35,42` | Plain `git worktree`; only the folder name. **Cosmetic** |
-| b5 | `/loop`, `/clear`, compaction | `companions.md`, `sweep.md`, `arming.md:51` | Context only. **Cosmetic** |
-| b6 | "Claude can't start a watch" | `discovery/SKILL.md:47`, `plan/SKILL.md:44` | **Cosmetic** |
-| b7 | AskUserQuestion, hooks (Claude) | none. Asks go on the card; `commit-board.sh` hooks are git hooks | **Neutral** |
-| **c. Environment the scripts read** | | | |
-| c1 | `CLAUDE_CODE_SESSION_ID`: the lease holder | `lease.sh:295-298`; `claim-ticket.sh:42`; checks in `move-card.sh:88`, `label-card.sh:50`, `post-comment.sh:69`, `resolve-ticket.sh:85` (6 scripts, plus `writes.md` and `tickets.md`) | Unset: `lease.sh` exits 2 and `claim-ticket.sh` exits 1. **Blocker for leases, `plan` work and farming.** Move, label and comment silently skip the lease check: **degraded** (no collision guard) |
-| c2 | `CLAUDE_PID`: the lease timer lives while this process lives | `lease.sh:192-206,299`; `claim-ticket.sh` | Unset: stake exits 2. **Blocker.** Another harness has no documented equivalent |
-| c3 | `CLAUDE_MODEL` fallback for `--model` | `lib.sh:26-29` (16 scripts through `require_model`) | Claude Code does not set it either, so `--model` is always passed. **Cosmetic** |
-| c4 | Lease memory under `${TMPDIR}/lanework-lease/<session>/` | `lease.sh:15,303` | Neutral apart from the session key. Nothing under `~/.claude` is read |
-| **d. Data written to boards** | | | |
-| d1 | `--name` defaults to `claude` | 13 `.sh` (e.g. `file-card.sh:21`, `lease.sh:248,279,285`), `heal-board.py:1192`, `heal-descriptors.py:498` | A GPT or Gemini write is signed `claude` (observed below). **Cosmetic, but the attribution is wrong** |
-| d2 | `lanework-merge.py` hard-codes `name: claude` when a model is given | `lanework-merge.py:14,689`; `merge/references/rules.md:56` | No `--name` flag. **Cosmetic, wrong attribution** |
-| d3 | Rule: "the main session stamps `claude`" | `companions.md:11`, `team.md:9`, `writes.md:53` | **Cosmetic** |
-| **e. Already agent-neutral** | | | |
-| e1 | Every script is plain bash 3.2, python3, git, `yq` or `fswatch`; Markdown references and templates; relative `../../lanework/scripts/lib.sh` | all | Works under any agent with a shell |
-| e2 | Asks and rulings live on the card, never in a chat tool | `work/references/writing.md` § When to ask | Neutral by design |
-| e3 | The in-board guide: the app writes `CLAUDE.md` and `AGENTS.md` byte-identical in every board (v120, 1,353 lines; `cmp` equal) | each board | Codex, Cursor and Copilot read `AGENTS.md`; Gemini reads it once configured. The guide's "Ready-made skills" line points only at the Claude Code plugin; that text is the app's, not this repo's |
+| A1 | Plugin and marketplace exist only as `.claude-plugin/`; the README's hand install goes to `~/.claude/skills` | `plugin.json`, `README.md:142-166` | Install |
+| A2 | `plan` is hand-installed in a `lanework-plan` folder while its `name:` stays `plan`. The spec says the name must equal the folder name; Kiro enforces it | `README.md:159,164` | Install |
+| A3 | The lease holder and process come from `CLAUDE_CODE_SESSION_ID` and `CLAUDE_PID`. `lease.sh` exits 2 without them, `claim-ticket.sh` exits 1, and move, label and comment skip the lease check silently | 6 scripts, `writes.md`, `tickets.md` | Use |
+| A4 | `--name` defaults to `claude` in 13 `.sh` and 2 `.py` files; `lanework-merge.py` hard-codes it. Nothing reads `by.name` back (checked by grep), so the change is to the stamp only | scripts, `companions.md:11`, `team.md:9` | Use |
+| A5 | Monitor, `persistent: true`, TaskStop, "survives `/clear`" | `watch/SKILL.md`, `arming.md:32-51`, `events.md:3` | Use |
+| A6 | SendMessage between the lead and its fixers | `team.md:20`, `companions.md:8` | Use |
+| A7 | Tiers `haiku`, `sonnet`, `opus`, inherit | `tiers.md:7-10`, `team.md:10,42` | Use, Perform |
+| A8 | The slash-only guard is the `disable-model-invocation` frontmatter key alone | 4 `SKILL.md` | Use |
+| A9 | Smaller harness-specific mentions: `.claude/worktrees/`, `/loop`, "Claude can't start a watch" | `lead.md:35,42`, `discovery/SKILL.md:47`, `plan/SKILL.md:44` | Perform (wording) |
+| A10 | Already neutral: bash, python and git scripts with relative calls; asks and rulings go on the card, never through a chat tool; the app writes `AGENTS.md` beside `CLAUDE.md` in every board | — | — |
 
-Experiment, run 2026-11-23 in a `mktemp -d` board with every `CLAUDE*` variable unset:
+### Experiments (throwaway boards under `mktemp -d`, 2026-11-23)
 
-| step | result |
+| run | result |
 |---|---|
-| `found-board.sh … --model gpt-5-codex` | exit 0 |
-| `file-card.sh` | exit 0; stamped `{name: claude, kind: agent, model: gpt-5-codex}` |
-| `move-card.sh` | exit 0; the lease check was skipped |
-| `lease.sh stake` | exit 2: `no CLAUDE_CODE_SESSION_ID` |
-| with a session id but no PID | exit 2: `no CLAUDE_PID` |
-| with both set by hand | exit 0, held; `release` exit 0 |
+| Every `CLAUDE*` variable unset: `found-board.sh`, `file-card.sh`, `move-card.sh` | All exit 0. The card was stamped `name: claude, model: gpt-5-codex`, and the lease check was skipped |
+| `lease.sh stake` without the variables | Exit 2. With both variables set by hand: exit 0, held, then released |
+| A one-shot prototype watcher (`next.zsh`, kept in scratch): it keeps the snapshot between runs and blocks until the next change or a timeout | A change made while it was not running was reported on the next run. A change during the block was reported in 2 s. An idle 3 s timeout returned `IDLE` in 3 to 4 s |
 
-So prefixing the two variables is a working shim. Its weak point is the PID: it must belong to a process that lives as long as the session.
+## Before matrix
 
-### Outside world (read 2026-11-23)
+The legend is the same for both matrices; letters refer to the footnotes under each table.
 
-| | Agent Skills: where loaded | explicit invoke | `AGENTS.md` | plugins and marketplace | subagents with a per-agent model | wake on background output | multiple-choice ask | session or model env |
-|---|---|---|---|---|---|---|---|---|
-| **Claude Code** | `~/.claude/skills`, `.claude/skills`, plugin `skills/` | `/name` | no (reads `CLAUDE.md`) | `.claude-plugin/` plugin and marketplace | yes (Agent) | yes (Monitor) | AskUserQuestion | `CLAUDECODE=1`, `CLAUDE_CODE_SESSION_ID`; no model variable |
-| **Codex CLI** | `.agents/skills` (cwd up to the repo root), `~/.agents/skills`, `/etc/codex/skills`; follows symlinks | `$name`, `/skills` | yes | root `plugin.json` (Agent Plugins); `.agents/plugins/marketplace.json`; Claude manifests partly accepted (S) | yes, TOML in `.codex/agents/` | not found | `request_user_input` (S) | `CODEX_THREAD_ID` (S) |
-| **Gemini CLI** | `~/.gemini/skills`, `.gemini/skills`, `.agents/skills` | none: model-activated after the user confirms | only via `context.fileName` | `gemini-extension.json` (S) | yes, `.gemini/agents/*.md` `model` | background shell returns a PID; wake not stated | `ask_user` (choice) | `GEMINI_CLI=1`; no session id |
-| **Cursor** | `.agents/skills`, `.cursor/skills`, `.claude/skills`, `.codex/skills`, plus `~/` variants | `/name`; honours `disable-model-invocation` | yes | `.cursor-plugin/` or root `plugin.json` | yes, `.cursor/agents`, `.claude/agents`; `is_background` | the parent polls; wake not documented | not found | not verified |
-| **Copilot** (CLI, cloud agent, IDE agent mode) | `.github/skills`, `.claude/skills`, `.agents/skills`, `~/.copilot/skills`, `~/.agents/skills` | not verified | yes; `CLAUDE.md` is also accepted | reads `.claude-plugin/plugin.json` and `marketplace.json`; `copilot plugin install NAME@MARKETPLACE`; `CLAUDE_PLUGIN_ROOT` aliased | yes, `.agent.md` `model` | not verified | not verified | `COPILOT_MODEL`; no session id found |
+- **Install**: ● one documented command or path; ◐ works with steps the README does not give; ○ cannot be installed.
+- **Use**: ● works as designed; ◐ works with a loss; ○ the core flow is blocked.
+- **Perform**: predicted risk, L (low), M (medium) or H (high). Unmeasured everywhere.
 
-**(S)** means a secondary source only. Note that Gemini CLI's own docs say it was replaced by Antigravity CLI for unpaid and Google One tiers from 2026-06-18; Antigravity was not researched. No cross-tool session variable exists: `AGENT` and `AI_AGENT` are proposals only (agentsmd/agents.md issue #136, S).
+### Install, per harness
 
-Sources (primary unless marked):
+| skill | CC | CX | AG | CP | CU | GK | OC |
+|---|---|---|---|---|---|---|---|
+| lanework | ● | ◐a | ◐a | ◐b | ◐c | ◐a | ◐c |
+| work | ● | ◐a | ◐a | ◐b | ◐c | ◐a | ◐c |
+| watch | ● | ◐a | ◐a | ◐b | ◐c | ◐a | ◐c |
+| discovery | ● | ◐a | ◐a | ◐b | ◐c | ◐a | ◐c |
+| plan | ● | ◐ad | ◐ad | ◐bd | ◐cd | ◐ad | ◐cd |
+| merge | ● | ◐a | ◐a | ◐b | ◐c | ◐a | ◐c |
+| heal | ● | ◐a | ◐a | ◐b | ◐c | ◐a | ◐c |
 
-- agentskills.io/specification
-- code.claude.com/docs/en/env-vars, /skills, /plugins-reference, /tools-reference
-- learn.chatgpt.com/docs/build-skills, /docs/agent-configuration/agents-md, /docs/agent-configuration/subagents
-- developers.openai.com/codex/plugins/build/
-- geminicli.com/docs/cli/skills/, /cli/gemini-md/, /core/subagents/, /tools/ask-user/, /tools/shell/
-- cursor.com/docs/skills, /docs/context/rules, /docs/plugins, /docs/subagents
-- docs.github.com/en/copilot/concepts/agents/about-agent-skills
-- docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions
-- docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference
-- docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-custom-agents-for-cli
-- github.com/agentplugins/agent-plugins-spec
+- **a**: The harness does not read `~/.claude/skills`. The user must link the skills into `~/.agents/skills` themselves; the README does not say so.
+- **b**: `copilot plugin install lanework@lanework` should work because Copilot reads `.claude-plugin/`. Not tried, and the marketplace's `url` + `ref: stable` source form is not verified for Copilot.
+- **c**: The README's `~/.claude/skills` link happens to work, but the README does not say so.
+- **d**: Under a hand install the folder is `lanework-plan` but the skill's `name:` is `plan`, which breaks the spec.
 
-### Compatibility matrix (today, as shipped)
+### Use, per harness
 
-| skill | Claude Code | Codex CLI | Gemini CLI | Cursor | Copilot |
-|---|---|---|---|---|---|
-| `lanework` | works | install steps; lease blocked | install steps; lease blocked | install steps; lease blocked | install steps (or plugin install, untested); lease blocked |
-| `work` | works | **degraded**: file, move, comment and ask work, signed `claude`; no lease guard; farming blocked by the stake rule; tiers and SendMessage unmapped | **degraded**, same | **degraded**, same | **degraded**, same |
-| `watch` | works | **blocked** (no Monitor) | **blocked** | **blocked** | **blocked** |
-| `discovery` | works | install steps; `$discovery`; implicit-invoke guard missing | **degraded**: no explicit invoke | install steps | install steps; invoke not verified |
-| `plan` | works | **degraded**: charting works, work step blocked (`claim-ticket.sh`); hand-install name mismatch | **degraded**, same | **degraded**, same | **degraded**, same |
-| `merge` | works | works with install steps; signed `claude` | same | same | same |
-| `heal` | works | install steps; signed `claude` by default | **degraded**: no explicit invoke | install steps | install steps |
+| skill | CC | CX | AG | CP | CU | GK | OC |
+|---|---|---|---|---|---|---|---|
+| lanework | ● | ◐eg | ◐eg | ◐eg | ◐eg | ◐eg | ◐eg |
+| work | ● | ◐efg | ◐efg | ◐efg | ◐efg | ◐efg | ◐efg |
+| watch | ● | ○h | ○h | ○h | ○h | ○h | ○h |
+| discovery | ● | ◐gi | ◐gi | ◐gi | ◐g | ◐g | ◐g |
+| plan | ● | ○j | ○j | ○j | ○j | ○j | ○j |
+| merge | ● | ◐g | ◐g | ◐g | ◐g | ◐g | ◐g |
+| heal | ● | ◐gi | ◐gi | ◐gi | ◐g | ◐g | ◐g |
 
-There is no `dispatch` skill. The seven skills above are the full `skills/` list.
+- **e**: No lease. `lease.sh` exits 2, and the writes no longer guard against another session holding the card.
+- **f**: Farming cannot start, because a card must be staked first. The tiers and SendMessage are named for Claude.
+- **g**: Every write is signed `name: claude`.
+- **h**: Arming needs the Monitor tool.
+- **i**: The harness may ignore `disable-model-invocation`, so the skill may start without being typed.
+- **j**: `claim-ticket.sh` exits 1, so the work step (one ticket per session) is blocked. Charting still works.
 
-## What it would take
+### Perform, per model family
 
-### Cheap and safe now (no behaviour change under Claude Code)
+All cells are predictions.
 
-| # | change | files |
-|---|---|---|
-| 1 | Neutral session variables with a fallback: holder = `LANEWORK_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`; process = `LANEWORK_SESSION_PID`, else `CLAUDE_PID`. Resolved once in `lib.sh`. The exit-2 message names both | `lib.sh`, `lease.sh`, `move-card.sh`, `label-card.sh`, `post-comment.sh`, `claim-ticket.sh`, `resolve-ticket.sh`, `writes.md`, `tickets.md` (9), plus a smoke case with the `CLAUDE*` variables unset |
-| 2 | `--name` default from `LANEWORK_AGENT_NAME`, else `claude` (the default itself unchanged); `lanework-merge.py` takes `--name` | 13 `.sh` through `lib.sh`, 3 `.py`, `rules.md`, `writes.md` (about 18) |
-| 3 | Capability wording in the prose, with Claude Code as the named example: "a background watcher that wakes the session (Claude Code: Monitor)", "message the fixer (Claude Code: SendMessage)", worktree folder `<repo>/.worktrees` or the harness's own | `arming.md`, `events.md`, `team.md`, `companions.md`, `sweep.md`, `lead.md`, `discovery/SKILL.md`, `plan/SKILL.md` (8) |
-| 4 | README "Other agents" section: symlink into `.agents/skills` or `~/.agents/skills`; set the two session variables; pass `--name` and `--model`; which skills are degraded. The support line at `README.md:168` restated | `README.md` (1) |
-| 5 | `agents/openai.yaml` with `allow_implicit_invocation: false` beside the four slash-only skills (Codex's equivalent of `disable-model-invocation`) | 4 new files; `check-refs.sh` unaffected |
+| skill | Claude | GPT | Gemini | Grok | open-weight, large | open-weight, small (≤32k context) |
+|---|---|---|---|---|---|---|
+| lanework | L | L | L | M | M | M (k) |
+| work | L | M (l, m) | M (n) | M | M | H (k) |
+| watch | L | M (m) | M | M | M | H (k) |
+| discovery | L | M (l) | M (n) | M | M | H (k) |
+| plan | L | M (l) | M (n) | M | M | H (k) |
+| merge | L | L | L | L | L | M |
+| heal | L | L | L | M | M | M |
 
-### Needs a design decision
+Notes:
 
-| # | decision | why |
-|---|---|---|
-| 6 | Session identity where the harness gives none: an id the agent mints once and exports, a session file in the board, or no lease (and no farming) on that harness | The lease is the only claim; a PID that dies with each shell call leaves the timer dead and the lease lapses at 30 min |
-| 7 | `watch` without Monitor: a blocking `watch-boards.sh --next` that waits for one event and exits, re-run by the agent in a loop; or `watch` stays Claude-only | Works in any agent that allows long shell calls, but it holds the turn and nothing arrives between runs |
-| 8 | Tier vocabulary: `haiku`/`sonnet`/`opus` become `mechanical`/`routine`/`complex`, with a per-harness mapping row | Clearer for other agents, but touches `tiers.md`, `team.md` and every place that cites a tier |
-| 9 | The `plan` name clash: rename the skill folder `lanework-plan` (a major bump under the repo rule) or keep the hand-install alias | The spec says name equals folder |
-| 10 | Which agents to support and test, how to test them (`tests/` cannot run a model), and where to publish (Agent Plugins `plugin.json` at the root, Codex marketplace, Copilot via the existing marketplace) | Owner calls, asked on the README card |
+- **k**: A shaping pass reads about 29k tokens before writing anything: the board guide is 80 KB (about 20k tokens), plus `work/SKILL.md`, `authority.md`, `writes.md`, `reading.md`, `writing.md` and `board-kinds.md`. That nearly fills a 32k window.
+- **l**: OpenAI's Codex guide says the model defaults to reasonable assumptions over clarifying questions. Our rule is that every owner-only call becomes an ask on the card, which pulls the other way.
+- **m**: Codex caps `AGENTS.md` at 32 KiB combined and stops adding files at the cap. The 80 KB board guide is dropped or cut short whenever Codex's working directory is inside a board.
+- **n**: No vendor evidence on how well Gemini follows long Markdown procedures. Google's guide says contradictory context makes it fall back on training data.
+- **Claude** is rated L only because the skills were written and used there. That is not a measurement either.
 
-### Not worth doing
+## Perform: what the skill text relies on
 
-- Porting the lead, fixer and reviewer SendMessage protocol to each harness's subagent API. Each API differs, and the single-agent build path already works.
-- Per-harness forks of any skill. That breaks "one topic, one file".
-- Linux or Windows portability as part of this. Separate work: the repo targets macOS bash 3.2 and BSD tools.
-- Gemini CLI first: its docs say Antigravity CLI is replacing it for some tiers.
+| trait in our skills | measured here | what the vendors and evals say | risk |
+|---|---|---|---|
+| **Size**: `SKILL.md` 19 to 58 lines; descriptions 183 to 709 characters, about 2.7k in total; references 3.7 KB (heal) to 38 KB (work); 26k words of Markdown in all | `wc` | agentskills.io and Anthropic: body under 500 lines. Codex lists skills within 2% of the context window and shortens descriptions first. Claude Code truncates at 1,536 characters. Zed has a 50 KB cap on all descriptions together | Low: inside every documented limit |
+| **Progressive disclosure**: `SKILL.md` is a hub, 139 cross-file citations | `grep` | Every harness in scope lists the name and description up front and loads the body on use. OpenCode, Zed, Factory and Cline read files only when the text points at them. Anthropic: agents may `head -100` files nested deeper, so put a contents list on any reference over 100 lines | Low to medium: `writes.md` and `writing.md` exceed 100 lines and have no contents list |
+| **Telegraphic style**: 209 arrows (`→`), 117 `§` section citations, tables over prose | `grep` | No vendor recommends fragments or sentences either way; all say "concise, imperative, specific". SkillsBench: compact skills +19.0 pp, comprehensive +0.7 pp | Untested. Plausibly fine for frontier models, a risk for small models |
+| **Tool names**: Agent, SendMessage, Monitor, TaskStop | inventory A5 to A7 | OpenAI: name tools explicitly, because models prefer their native tools. Microsoft: avoid branching on the model | Medium: these names do not exist elsewhere |
+| **Tier names**: haiku, sonnet, opus | A7 | — | Medium: meaningless outside Claude |
+| **"The main session", slash commands** | A9, A8 | Invocation syntax differs: `/` (CC, CU, AG, GK, Kiro, Zed, Vibe, Qwen, Devin), `$` (CX, Junie), `@` (OC), `/skill:` (Auggie, Kimi), none (Amp, Gemini CLI) | Medium |
+| **Being picked up at all** | — | Vercel's eval (S): the skill was not invoked in 56% of cases, while an `AGENTS.md` index scored 100%. SkillsBench: some harnesses read a skill and then ignore it. Our boards carry `AGENTS.md`, which points at the skills | Medium. It also means the app's guide text drives triggering; that is an app card |
+| **Scripts over prose for fragile steps**: every write goes through a script with exit codes | — | agentskills.io and Anthropic: bundle scripts for fragile steps. OpenAI: prefer instructions unless the behaviour must be deterministic | Low: this is the strongest part for every model |
 
-## Follow-on cards (to file in Ideas)
+**How performance would be measured** (WP8). Today there is no measurement, only reasoning from docs.
 
-| title | skill | scope |
-|---|---|---|
-| Harness-neutral session variables for the lease | `lanework`, `work`, `plan` | Change 1 |
-| Agent name from the environment; `--name` on the merge driver | `lanework`, `merge`, `heal` | Change 2 |
-| Capability wording for harness tools in skill prose | `work`, `watch`, `discovery`, `plan` | Change 3 |
-| README: installing under Codex, Cursor and Copilot | `repo` | Change 4, plus a Copilot CLI plugin-install trial |
-| Codex implicit-invocation guard for slash-only skills | `watch`, `discovery`, `plan`, `heal` | Change 5 |
-| Watch without Monitor | `watch` | Decision 7, then the build |
-| Lease identity on harnesses without a session id | `lanework` | Decision 6 |
+| item | proposal |
+|---|---|
+| Tasks (12, each on a fresh throwaway board, never this repo) | E1 found a pipeline board · E2 file a card with an open call (record, ask, `waiting`) · E3 shape a Shaping card to the board's bar and move it to Proposed · E4 answer an owner comment with `in-reply-to` · E5 a sweep report against expected lines · E6 build a tiny Approved card in a scratch repo, with closing evidence · E7 `plan`: chart, claim, resolve · E8 a `discovery` round · E9 resolve a prepared board conflict with `merge` · E10 `heal` a damaged board · E11 `watch`: a scripted owner comment arrives after 60 s, and the reply must land within 3 min · E12 two sessions try to take the same card |
+| Automatic scoring | `lanework-validate.py` exits 0 · `lint-stamps.sh` · `lint-ask.sh` on each ask · `lint-leases.sh` · `lint-waiting-clears.sh` · per-task assertions: the lane, `waiting`, `in-reply-to`, a `by.name` matching the harness, a lease held and then released, no owner question asked in chat (a transcript check) |
+| Optional scoring | A judge model scores body quality against the board's bar, blind to which harness wrote it |
+| Runs | 12 tasks × 3 repeats per configuration. The configurations are the 7 harnesses with each one's default model, plus OpenCode with one large and one small open-weight model: 9 in all. SkillsBench found the same model scoring about 8 pp differently between harnesses, so a configuration is a harness and model pair |
+| Cost (rough; prices not checked) | About 50k to 150k tokens per task, so about 2 to 5M tokens per configuration, roughly $5 to $60 each and about 3 hours of wall time. It needs the owner's accounts for each harness, and a headless mode in each (`claude -p`, `codex exec`, `opencode run`; the others are not verified) |
+| Pass line | A configuration passes a skill when it reaches at least 90% of Claude Code's score on that skill's tasks |
 
-Separately, the in-board guide's "Ready-made skills" line names only Claude Code. It is app text, so any change is a `lanework-app` card, not one here.
+## After matrix
+
+These are the same grids with WP1 to WP7 built. The perform grid is a target: its cells change only on WP8 results.
+
+### Install
+
+| skill | CC | CX | AG | CP | CU | GK | OC |
+|---|---|---|---|---|---|---|---|
+| all 7 | ● | ● | ● | ● (r1) | ● | ● | ● |
+
+- **r1**: This depends on the Copilot plugin-install trial in WP7. If the trial fails, Copilot uses the installer like the other harnesses.
+- The `plan` name is fixed in every harness by WP6.
+
+### Use
+
+| skill | CC | CX | AG | CP | CU | GK | OC |
+|---|---|---|---|---|---|---|---|
+| lanework | ● | ● | ●r2 | ●r2 | ●r2 | ●r2 | ●r2 |
+| work | ● | ◐r3 | ◐r3 | ◐r3 | ◐r3 | ◐r3 | ◐r3 |
+| watch | ● | ◐r4 | ◐r4 | ◐r4 | ◐r4 | ◐r4 | ●r5 |
+| discovery | ● | ● | ● | ● | ● | ● | ● |
+| plan | ● | ● | ●r2 | ●r2 | ●r2 | ●r2 | ●r2 |
+| merge | ● | ● | ● | ● | ● | ● | ● |
+| heal | ● | ● | ● | ● | ● | ● | ● |
+
+What remains, and why it cannot be fixed on our side:
+
+- **r2**: The harness exposes no session id, or none verified. The agent mints one, records it in its START or Claimed comment, and re-reads it from there after a compaction. The lease ends 30 minutes after the session's last board write, because there is no session process to follow. Codex has `CODEX_THREAD_ID` (S), so it may not need this.
+- **r3**: The harness has no agent-to-agent messaging. Each fixer phase becomes its own subagent run that returns a report. The lead cannot grant a heavy-build slot in the middle of a run, so heavy builds run one after another.
+- **r4**: The harness has no tool that wakes the agent on background output. The watch runs `watch-boards.sh --next` in a loop:
+  - the session is busy while it waits;
+  - each idle timeout costs a model turn;
+  - the wait is capped by the harness's shell timeout.
+- **r5**: OpenCode's background shell notifies the session when the process exits. A `--next` run in the background gives close to Monitor behaviour. Not tested.
+
+### Perform target
+
+Every cell is to be measured by WP8. The predicted change after WP3 is shown here.
+
+| skill | Claude | GPT | Gemini | Grok | open-weight, large | open-weight, small |
+|---|---|---|---|---|---|---|
+| lanework, merge, heal | L | L | L | L to M | L to M | M |
+| work, discovery, plan | L | M → L to M (WP3, and an explicit "ask on the card, never assume" line) | M | M | M | H: residual unless WP9 trims what is read |
+| watch | L | M | M | M | M | H |
+
+Residual: a small model cannot hold the 80 KB board guide. Trimming the guide is the app's decision. WP9 can only make the skills read less of it.
+
+## Designs for the points left open before
+
+Each design has alternatives where the choice is the owner's; the ask number (C1 to C7) is given.
+
+| topic | proposed design | alternatives | owner call |
+|---|---|---|---|
+| **Session identity** | `lib.sh` `session_id` takes the first that is set: `LANEWORK_SESSION_ID`, `CLAUDE_CODE_SESSION_ID`, `CODEX_THREAD_ID`, `AGENT_SESSION_ID` (Goose), `AMP_CURRENT_THREAD_ID`. If none is set, `lease.sh session` mints an id, which the agent puts before every board write and records in its START or Claimed comment | Holder from `--session`: refused today on purpose, because a subagent could pass as its lead | — |
+| **Lease liveness** | Claude Code is unchanged: the timer follows `CLAUDE_PID`, or `LANEWORK_SESSION_PID` when given. Elsewhere a heartbeat: every lease-aware write touches the session's memory file, and the timer stops renewing once it has been idle for 15 minutes | (B) Walk up the process tree to the harness process: fragile, because IDE agents share one process across chats. (C) No lease on such harnesses, and so no farming | C2 |
+| **Agent name** | `by_of` defaults to `LANEWORK_AGENT_NAME`, else the name detected from the harness (`CLAUDECODE` → `claude`, `CODEX_*` → `codex`, `GEMINI_CLI` → `gemini`, `AGENT=<x>` → `x`), else `agent`. The merge driver gets `--name`. Under Claude Code the stamp stays `claude` | (B) Keep `claude` as the default, overridable. (C) Always `agent` | C3 |
+| **Tier vocabulary** | Rename the tiers `mechanical`, `routine`, `complex` and `inherit`. A mapping table lists Claude as `haiku`/`sonnet`/`opus`, and every other harness as its cheapest, default and strongest model. Where a harness cannot pick a model per subagent, the work runs inline | (B) Keep the Claude names and add one line mapping them to the other harnesses | C4 |
+| **Lead and fixer channel** | Use the harness's messaging when it has one. Otherwise the fixer returns at each phase and the lead starts the next phase as a new run. The card thread is already the durable record | — | — |
+| **`watch` without Monitor** | Add a `watch-boards.sh --next <state> --timeout <s>` mode (the prototype works): the snapshot carries over between runs, so no event is lost. Arming chooses: Monitor when the harness has it, a background `--next` where the harness notifies on exit (OpenCode), otherwise a foreground `--next` loop with a timeout under the harness's shell limit | (B) `watch` stays Claude Code and OpenCode only, and is documented as such | C5 |
+| **Slash-only guard** | Each of the 4 slash-only `SKILL.md` files opens with a text guard ("Runs only when the user asked for it by name; otherwise stop"), and gets an `agents/openai.yaml` with `allow_implicit_invocation: false` for Codex. The README gets a table of how each harness invokes a skill | — | — |
+| **`plan` against the spec** | Rename the folder and the name to `lanework-plan` everywhere: `skills/`, `plugin.json`, the README, 139 citations checked by `check-refs.sh`, and the board's `Skill` label. The plugin command becomes `/lanework:lanework-plan`. Major bump to 1.0.0 | (B) Keep `plan` everywhere, and accept the clash with built-in `/plan` commands in Claude Code and other harnesses. (C) Another name, such as `chart` | C6 |
+| **Distribution** | `scripts/release.sh` writes an Agent Plugins `plugin.json` at the repo root from `.claude-plugin/plugin.json`, so the version keeps one source. `lanework-marketplace` gains a Codex `.agents/plugins/marketplace.json`. A repo-root `scripts/install-skills.sh` links the skills into `~/.agents/skills`, and optionally `~/.claude/skills` and `~/.kiro/skills`. The README gives one install line per harness. WP7 tries the Copilot and Codex installs on a scratch machine profile | (B) Documentation and the installer only, relying on harnesses that read `.claude-plugin/`. (C) Option A plus listings in vendor registries (Antigravity official plugins, Kiro Powers) | C7 |
+
+## Work packages
+
+These become the follow-on cards, in this order. "Safe under CC" means no behaviour change for Claude Code users.
+
+| WP | scope | files touched (approx.) | size | depends on | flips | safe under CC | owner ruling |
+|---|---|---|---|---|---|---|---|
+| WP1 | Session resolver, heartbeat liveness, minted session id | `lib.sh`, `lease.sh`, `move-card.sh`, `label-card.sh`, `post-comment.sh`, `claim-ticket.sh`, `resolve-ticket.sh`, `writes.md`, `tickets.md`, smoke cases (~11) | M | — | Use e, j → r2 | yes | C2 |
+| WP2 | Agent name resolver, `--name` on the merge driver | `lib.sh`, `heal-board.py`, `heal-descriptors.py`, `lanework-merge.py`, `rules.md`, `writes.md`, `companions.md`, `team.md`, smoke (~10; the 13 shell scripts change through `lib.sh`) | S | — | Use g | yes | C3 |
+| WP3 | Prose that does not depend on the harness: capability wording, tier vocabulary, the lead and fixer fallback, the worktree folder, "ask on the card, never assume" | `tiers.md`, `team.md`, `companions.md`, `sweep.md`, `lead.md`, `fixer.md`, `farmed-prompt.md`, `discovery/SKILL.md`, `plan/SKILL.md` (~9) | M | — | Use f → r3; Perform GPT M → L to M | yes, if the Claude names stay in the mapping | C4 |
+| WP4 | Slash-only guard: text line and `agents/openai.yaml` | 4 `SKILL.md`, 4 new yaml files (8) | S | — | Use i | yes | — |
+| WP5 | `watch --next` mode and arming that picks the mode per harness | `watch-boards.sh`, `arming.md`, `events.md`, `watch/SKILL.md`, smoke case (~5) | M | WP3 | Use h → r4, r5 | yes (the Monitor path is unchanged) | C5 |
+| WP6 | Rename `plan` to `lanework-plan` | `skills/plan/` → `skills/lanework-plan/`, `plugin.json`, `README.md`, the citing references, the board label (~15) | M | — | Install d | **no**: the command changes; major bump | C6 |
+| WP7 | Distribution: root `plugin.json` written by `release.sh`, Codex marketplace entry, `install-skills.sh`, per-harness README, install trials | `release.sh`, `README.md`, a new root `plugin.json`, a new `scripts/install-skills.sh`, plus `lanework-marketplace` (cross-repo) (~5) | M | WP6 | Install a, b, c | yes, if Claude Code ignores a root `plugin.json` (NV, to be tested) | C7 |
+| WP8 | The eval: tasks, scorer and runs | a new `tests/eval/` (~15), outside `skills/` | L | WP1 to WP5 | Perform: predicted → measured | yes | C8 |
+| WP9 | Read less (only on WP8 evidence): contents lists on references over 100 lines, guide sections read on demand | `writes.md`, `writing.md`, `authority.md` (~3) | S | WP8 | Perform for small open-weight models | yes | — |
+
+Two app-side items for a `lanework-app` card:
+
+- The guide's "Ready-made skills" line names only Claude Code.
+- The 80 KB guide is more than Codex's 32 KiB cap for `AGENTS.md`.
 
 ## Done when
 
-- The owner approves these findings (the move out of Proposed).
-- The seven follow-on cards above are then filed in Ideas, each linked from this card's closing comment. Each waits at triage like any other idea.
+- The owner has accepted the Before matrices and the harness scope. C1 has a ruling on this card.
+- C2, C5, C6 and C7 have rulings on this card, because they decide After cells. The After matrices are updated to match.
+- WP1 to WP9 are filed in Ideas, one card each, every one linked from this card's closing comment. C3, C4 and C8 are asked on WP2, WP3 and WP8.
 - Nothing under `skills/` changes on this card.
 
-## Calls left to the follow-on cards
+## Recommendation
 
-A spike answers a question, so nothing here needs a ruling. These calls are the owner's and are asked when the card that needs them is shaped:
-
-- Which agents to target and test first (the README card). Leaning: Codex CLI and Copilot, since Copilot already reads `.claude-plugin/` manifests.
-- Whether to publish outside the Claude Code marketplace (the README card). Leaning: document the hand install and try a Copilot plugin install before adding any manifest.
-- Whether the default `by.name` stays `claude` (the agent-name card). Leaning: keep it, overridable.
-- What `watch` does without Monitor (its own card). Leaning: Claude-only until the blocking-loop design is shaped.
-- Session identity where the harness gives none (its own card).
-- The `plan` folder name against the spec, and the tier vocabulary (decisions 8 and 9): no card until an agent is seen rejecting the alias or misreading a tier.
+- Accept the seven harnesses.
+- Rule the four calls that decide the After matrix: heartbeat liveness, `watch --next` everywhere, rename `plan`, and the generated root manifest.
+- Build in this order: WP4 and WP2 first (small and safe), then WP1, WP3 and WP5, then WP6 and WP7 together as 1.0.0, then WP8 before any claim of "compatible".
