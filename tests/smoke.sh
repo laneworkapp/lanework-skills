@@ -4181,9 +4181,10 @@ validate "$PB" >/dev/null; ok "plan resume stakes a Working ticket without movin
 ok "plan cases leave no lease and no timer on their board"
 
 # 12z. every wrapper that can start a timer logs its pid: a stake through each adds one live timer to the log, the one its memory
-# names, and its release ends it. LLL (its stand-in already ended), LN (no session) and LX (the RAM disk, gone) cannot start one here
-LWD=$(mktemp -d "$T/lease-log-tmp.XXXXXX")
-for zw in L L1 LW LWP LRP PLS PE; do
+# names, and its release ends it. Not here: PE (case 74 checks its timer; its stand-in, a 10-minute sleep, may be over by now), LLL
+# (its stand-in already ended), LN (no session) and LX (the RAM disk, gone)
+LWD=$(mktemp -d "$T/lease-log-tmp.XXXXXX"); ZPID=$LPID; standin; LPID=$SP   # a fresh stand-in: LPID's sleep may be over under load
+for zw in L L1 LW LWP LRP PLS; do
   zc=$(lcard "Logged $zw"); zs="S-log-$zw"; zd=$LT; zm=$(timers_logged)
   case $zw in
     L|L1) "$zw" "$zs" stake "$LB" "$zc" --model smoke >/dev/null ;;
@@ -4191,14 +4192,14 @@ for zw in L L1 LW LWP LRP PLS PE; do
     LWP) zd=$LWD; LWP "$zd" "$zs" "$LS" stake "$LB" "$zc" --model smoke >/dev/null ;;
     LRP) zd=$LWD; LRP "$zd" "$zs" stake "$LB" "$zc" || { echo "12z: LRP never read the card"; exit 1; }; wait "$LRPP" ;;
     PLS) PCP="" PLS "$zs" "$LS" stake "$LB" "$zc" --model smoke >/dev/null ;;
-    PE) zd=$PT; zs=S-plan; PE "$LS" stake "$LB" "$zc" --model smoke >/dev/null ;;
   esac
   zp=$(timers_left "$zm" " $zc $zs "); zq=$(sed -n 's/^pid=//p' "$zd/lanework-lease/$zs"/*/"$zc" 2>/dev/null || true)
   [ -n "$zp" ] && [ "$zp" = "$zq" ] || { echo "12z: $zw's timer is not logged: logged '$zp', memory '$zq'"; timers_show $zq; exit 1; }
   CLAUDE_CODE_SESSION_ID="$zs" TMPDIR="$zd" "$LS" release "$LB" "$zc" --model smoke >/dev/null
   waitfor '! timer_alive "$zp"' || { echo "12z: $zw's timer outlived its release:"; timers_show "$zp"; exit 1; }
 done
-ok "lease timers by pid: a stake through each wrapper (L, L1, LW, LWP, LRP, PLS, PE) logs exactly its memory's timer pid, and the release ends it"
+LPID=$ZPID
+ok "lease timers by pid: a stake through each wrapper (L, L1, LW, LWP, LRP, PLS) logs exactly its memory's timer pid, and the release ends it"
 
 # 13. nothing left: release what is held, end the stand-ins; every timer must be gone within a poll
 for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
