@@ -1,30 +1,26 @@
 ---
 schema: 1
 kind: card
-title: "Shaping: assign a label from the kind the lane is grouped by"
-order: 7168
-labels: [{text: work, kind: {type: skill, text: Skill}}]
-created:  {at: 2026-11-12T00:35:26Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
-modified: {at: 2026-11-12T00:35:26Z, by: {name: claude, kind: agent, model: claude-opus-5-5}}
+title: "Fix the merge script dropping a kept card's unedited files"
+order: 4096
+created:  {at: 2026-11-22T22:20:35Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
+modified: {at: 2026-11-22T22:20:35Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
 ---
-The owner asked on 2026-11-11 that when a card is shaped, the agent read what the Shaping lane is grouped by and try to give the card a fitting label of that kind. The card then lands in a real section, not the trailing "No <kind>" one.
+The board merge script keeps an edited card that the other side deleted, but drops every file in it that was not edited: its comments, attachments and relations.
 
-## Idea
+## Evidence
 
-- **Read the lane's `group`** when shaping (`group: {by, kind, direction}`, guide § lanes; the retired `group-by` is read where `group` is absent).
-- **Pick a value for the grouped kind:**
-  - `by: label` + `kind` → choose one value of that kind. Closed kind = one of its listed values. Open kind = reuse a value already on the board before inventing one.
-  - `by: priority` / `by: component` → the same, for that kind.
-  - `modified` / `created` / none → nothing to do. `due` → leave it, since a date is the owner's call.
-- **Write it the way a drop would**: the flattened `labels` entry of that kind, replacing any the card had (the kinds are `single: true`).
-- **When unsure, ask instead of guessing.** Leave the label off and say so in the shaping record, or offer options in the shaping ask.
-- **Never overwrite** a value of that kind that the owner already set.
+- From a read of the script during a project audit, 2026-11-22. Read, not run.
 
-## Open questions for shaping
+- `skills/merge/scripts/lanework-merge.py`, lines 944 to 953. For each file, `if vo == vt or vt == vb: pick = ('o', vo)` and `elif vo == vb: pick = ('t', vt)`. When one side deleted the card, that side's value is `None`; for any file the other side left unchanged, the pick is `None` and the file is not written.
+- Only files changed on the surviving side reach the "deleted on one side, changed on the other: keep the change" branch below.
+- Sequence: one branch runs `git rm -r` on a card; the other edits its `index.md`; `merge-board.sh` runs. The card comes back holding `index.md` alone, and the merge comment at line 916 says "the edited card is kept."
+- The lines were read here and the logic followed by hand. Not run. The subagent notes a three-commit test repo reproduces it without the app.
+- Three suspicions in the same script, not traced: `later()` compares stamps with and without a timezone, which raises and aborts the pass; a delete against a comment-only edit leaves a comment in a folder with no `index.md`; the pass removes tracked paths (line 1001) before rewriting them (line 1015), so an interruption between loses uncommitted edits.
 
-- Does this apply only to Shaping, or to any lane the agent writes a card into (filing to Ideas or Issues, moving to Proposed)?
-- Does it also apply to the `due` grouping, or never?
+## Done when
 
-## Touches
-
-`skills/work/` shaping flow (the shaper's reference), possibly `lanework/` § write rules for the label-entry shape, plus a smoke case if a script writes it.
+- A card kept against a delete keeps the whole surviving side's tree: comments, attachments and relations.
+- The three-commit reproduction is in the test suite and passes.
+- The three suspicions above are each traced and either fixed or ruled out, with a line saying which.
+- The fix ships as a plugin release.

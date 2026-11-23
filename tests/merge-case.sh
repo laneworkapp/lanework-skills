@@ -195,18 +195,19 @@ appside)
   # Side B is real app writes (unstamped `modified`, keys in the app's order, a quoted human `created`), copied from this
   # board's git history; the base holds each item as it was just before the app wrote it, so git and the driver see the
   # same diffs the app made. Side A is a scripted edit to each of the same items.
-  # AE sits after the retitled card's created (01:09:29Z) and before the app's unstamped modified (01:46:22Z), so only that modified decides the title
-  FX="$ROOT/tests/fixtures/app-writes"; AE=2026-10-10T01:30:00Z; AL=2026-11-13T00:00:00Z
-  MOVED=f322abdb-5f60-40c0-80df-da30b2a03b33; DISC=4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03; CMT=2bbea8c7-8147-4bcc-aa8a-ce8dd41e9598
+  # AE sits after the retitled card's created (01:09:29Z) and before the app's unstamped modified (01:46:22Z), so only that modified decides the title;
+  # AL sits after every app write here (the latest, the card move, 2026-11-22T22:35:16Z), so A's edits are the later side
+  FX="$ROOT/tests/fixtures/app-writes"; AE=2026-10-10T01:30:00Z; AL=2026-11-23T00:00:00Z
+  MOVED=28c22261-3d84-4e72-8620-8cc2eb3c7cc2; DISC=4ff216a4-e8d1-4d7a-b5f4-ae4c34773e03; CMT=2bbea8c7-8147-4bcc-aa8a-ce8dd41e9598
   SHAPING=$(lane "$O" Shaping); ISSUES=$(lane "$O" Issues)
   put() { mkdir -p "$(dirname "$2")"; cp "$FX/$1" "$2"; }
   put lane-rewrite.before.md "$O/$BN/$SHAPING/index.md"
-  put card-move.before.md "$O/$BN/$IDEAS/$MOVED/index.md"
+  put card-move.before.md "$O/$BN/$ISSUES/$MOVED/index.md"
   put card-title-edit.before.md "$O/$BN/$ISSUES/$DISC/index.md"
   cm "$O" appbase; validate_board "$O" "appside base"; G "$A" pull -q; G "$B" pull -q
   # side B: what the app wrote
   put lane-rewrite.after.md "$B/$BN/$SHAPING/index.md"
-  G "$B" mv "$BN/$IDEAS/$MOVED" "$BN/$SHAPING/$MOVED"; put card-move.after.md "$B/$BN/$SHAPING/$MOVED/index.md"
+  G "$B" mv "$BN/$ISSUES/$MOVED" "$BN/$SHAPING/$MOVED"; put card-move.after.md "$B/$BN/$SHAPING/$MOVED/index.md"
   G "$B" mv "$BN/$ISSUES/$DISC" "$BN/$APPROVED/$DISC"; put card-title-edit.after.md "$B/$BN/$APPROVED/$DISC/index.md"
   put comment-posted.md "$B/$BN/$IDEAS/$S1/comments/$CMT/index.md"
   cm "$B" "app writes"
@@ -231,7 +232,7 @@ appside)
   grep -q '^width: 3$' "$D/$SHAPING/index.md" && grep -q LANE_A_TOKEN "$D/$SHAPING/index.md" && grep -q '^The agent work lane\.' "$D/$SHAPING/index.md" || fail "appside lane: B's width and A's body must both survive"
   # the card the app moved while A edited its body: at the new path, A's body, B's order
   one "$SHAPING" "$MOVED" "moved by the app, edited by A"
-  grep -q BODY_A_MOVED "$D/$SHAPING/$MOVED/index.md" && grep -q '^order: 1024$' "$D/$SHAPING/$MOVED/index.md" || fail "appside move: A's body and B's order must both survive"
+  grep -q BODY_A_MOVED "$D/$SHAPING/$MOVED/index.md" && grep -q '^order: 5120$' "$D/$SHAPING/$MOVED/index.md" || fail "appside move: A's body and B's order must both survive"
   # the card the app retitled while A retitled it earlier: B's title kept, A's in the merge comment
   one "$APPROVED" "$DISC" "retitled by the app"
   grep -q '^title: "Discovery and founding scripts: escape titles, and stamp a real model"$' "$D/$APPROVED/$DISC/index.md" || fail "appside title: the later (app) title must win"
