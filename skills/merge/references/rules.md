@@ -44,7 +44,7 @@ The pass matches cards by uuid across base, ours and theirs, not by git's rename
 | trashed on one side, edited on the other | later `modified` wins: a later trash stays trashed carrying the edit; a later edit restores the card to the lane it held at the base (or the editing side's lane) |
 | trashed on both | trashed once |
 | same uuid added on both sides | ours; theirs' body in the merge comment |
-| deleted for good (`rm`) on one side, edited on the other (a comment alone included) | the surviving side's whole card: every file, its own removals and additions held. The merge comment says the other side deleted it. A file removed inside a card both sides kept: 3-way, as above |
+| deleted for good (`rm`) on one side, an existing file of the card edited on the other (a comment's alone included) | the surviving side's whole card: every file, its own removals and additions held. The merge comment says the other side deleted it. A file removed inside a card both sides kept: 3-way, as above. Only a comment or attachment added against the delete: not handled, git merges it with no conflict, leaving it in a folder with no `index.md` |
 | git paired two different cards by similarity (a delete plus an add) | refused: `created` differs. The pass rebuilds both cards by uuid |
 | card's lane gone on the winning side | the lane's trashed copy, else ours' location |
 | uncommitted local edits in a card the pass rebuilds | carried as ours, 3-way against theirs, staged, named in the report. Never erased. Only git's own conflict output (`<<<<<<< `, `=======`, `>>>>>>> ` lines, in order) is not an edit |
