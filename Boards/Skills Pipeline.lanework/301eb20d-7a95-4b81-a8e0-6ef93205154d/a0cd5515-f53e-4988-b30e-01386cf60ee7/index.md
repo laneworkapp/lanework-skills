@@ -3,7 +3,6 @@ schema: 1
 title: "Spike: is lanework@lanework skill compatible with AI other than claude? if not, what would it take to make it compatible with all frontier LLMs?"
 order: 1024
 created: {at: 2026-11-23T16:56:31Z}
-waiting: {for: anyone, since: 2026-11-23T17:33:58Z, comment: e6463d40-09b0-4a00-937b-b746324492da}
 modified: {at: 2026-11-23T17:33:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 kind: card
 claimed:
