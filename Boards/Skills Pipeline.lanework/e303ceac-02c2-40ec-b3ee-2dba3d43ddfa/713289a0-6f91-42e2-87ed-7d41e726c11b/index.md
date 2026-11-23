@@ -2,17 +2,14 @@
 schema: 1
 kind: card
 title: "Review leftovers 3: Recap-click edges, lease memory file, commit-board setsid, smoke guard"
-order: 5120
+order: 106496
 labels:
   - {text: "discovery", kind: {type: "skill", text: "Skill"}}
   - {text: "lanework", kind: {type: "skill", text: "Skill"}}
   - {text: "work", kind: {type: "skill", text: "Skill"}}
   - {text: "repo", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-21T19:23:56Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-23T03:47:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
-claimed:
-  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
-  until: 2026-11-23T04:17:25Z
+modified: {at: 2026-11-23T04:03:34Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Reviewer notes left open when several cards closed on 2026-11-21 and 2026-11-22 (Recap click, smoke under load, commit-board leftovers, label-card, lease write path, script headers, lint output, lease trial). They were never re-checked. This card re-checked every one against `main` at 6e04933: 21 are still true, none is already fixed, 2 could not be settled by reading, and 3 are reviewer-confirmed non-defects to close with a reason. No item blocks a release. The fixes are small and spread over four scripts, `tests/smoke.sh` and the headers of a dozen scripts, so the proposal splits them into three build cards.
 

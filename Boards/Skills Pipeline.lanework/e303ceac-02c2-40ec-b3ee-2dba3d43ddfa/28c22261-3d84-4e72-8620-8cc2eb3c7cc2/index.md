@@ -2,13 +2,10 @@
 schema: 1
 kind: card
 title: "Fix the merge script dropping a kept card's unedited files"
-order: 3072
+order: 104448
 labels: [{text: "merge", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-22T22:20:35Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "board watch"}}
-modified: {at: 2026-11-23T03:47:19Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
-claimed:
-  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
-  until: 2026-11-23T04:17:19Z
+modified: {at: 2026-11-23T04:03:28Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 When one side deletes a card for good and the other edits it, the board merge pass brings the card back with only the files the surviving side changed, so its unedited comments, attachments and relations are gone, and the merge comment still says "the edited card is kept". The same pass also aborts on a stamp with no timezone, leaves a comment in a folder with no `index.md` when the edit was to a comment alone, and deletes a card's files before it rewrites them, so an interruption between the two loses local edits. All four reproduce, and the board validator passes on every broken result.
 
