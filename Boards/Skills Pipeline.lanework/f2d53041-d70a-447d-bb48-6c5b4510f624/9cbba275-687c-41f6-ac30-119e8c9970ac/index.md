@@ -2,10 +2,13 @@
 schema: 1
 kind: card
 title: "Guide moved to v120: bump the stamp and re-copy the app-write fixtures"
-order: 1024
+order: 7168
 labels: [{text: "repo", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-21T21:00:58Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-22T22:37:46Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-23T03:47:21Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-23T04:17:21Z
 ---
 The app moved this board's agent guide from v118 to v120 in two steps, and the skills are still stamped v118 in the repo's `CLAUDE.md`. Smoke prints a note and `scripts/release.sh` prints a warning on every run until the stamp catches up.
 

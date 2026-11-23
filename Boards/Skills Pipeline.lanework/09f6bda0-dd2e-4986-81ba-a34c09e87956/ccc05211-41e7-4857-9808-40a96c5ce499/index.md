@@ -2,10 +2,13 @@
 schema: 1
 kind: card
 title: "Pick the next card by priority"
-order: 3072
+order: 4096
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-22T22:33:00Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-22T22:38:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-23T03:47:24Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-23T04:17:24Z
 ---
 Owner's suggestion, in chat 2026-11-22: "use priority when picking next card to work on".
 
