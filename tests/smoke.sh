@@ -860,8 +860,10 @@ bsnap() { (cd "$1" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do 
 # bholds <before copy> <after file>: the labels line and the whole old body are as they were (a body only grew by an appended ruling)
 bholds() { [ "$(grep -m1 '^labels:' "$1")" = "$(grep -m1 '^labels:' "$2")" ] && [[ "$(bodyof "$2")" == "$(bodyof "$1")"* ]]; }
 printf 'Is brace safe?\n\n## Options\n\n- A: yes\n- B: no\n\n## Recommended\n\nA. Simple.\n' > "$T/bq.md"
-bq() { bfirst "$SK/discovery/scripts/file-question.sh" "$BQ" "$1" --round 1 --body "$T/bq.md" --model smoke 2>/dev/null; }
-! (BQ="$T/no-such-board.lanework"; bq "Self-check" >/dev/null) || { echo "bq hides a failing file-question.sh"; exit 1; }
+# bq's stderr goes to a file, printed (to stderr) when the call fails: under set -e a bare failure would end the suite unexplained
+bq() { local rc=0; bfirst "$SK/discovery/scripts/file-question.sh" "$BQ" "$1" --round 1 --body "$T/bq.md" --model smoke 2>"$T/bq.err" || rc=$?; [ "$rc" = 0 ] || { echo "bq: file-question.sh failed (rc $rc) for '$1':" >&2; cat "$T/bq.err" >&2; return "$rc"; }; }
+BQSELF=$( (BQ="$T/no-such-board.lanework"; bq "Self-check" >/dev/null) 2>&1 ) && { echo "bq hides a failing file-question.sh"; exit 1; }
+grep -q "^bq: file-question.sh failed (rc [0-9]*) for 'Self-check':" <<<"$BQSELF" && [ "$(grep -c . <<<"$BQSELF")" -ge 2 ] || { echo "bq does not print why file-question.sh failed: $BQSELF"; exit 1; }
 BQM=$(bq "Brace move"); BQA=$(bq "Brace ask"); BQS=$(bq "Brace settle"); BQR=$(bq "Brace record")
 bcard() { ls "$BQ"/*/"$1"/index.md; }
 for c in "$BQM" "$BQA" "$BQS" "$BQR"; do bracecard "$(bcard "$c")"; done
