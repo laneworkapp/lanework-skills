@@ -5,7 +5,10 @@ title: "Plan: record ticket dependencies as depends-on relations"
 order: 1024
 labels: [{text: "plan", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T16:34:08Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Scratch"}}
-modified: {at: 2026-11-23T16:34:08Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Scratch"}}
+modified: {at: 2026-11-23T16:36:15Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-23T17:06:15Z
 ---
 Plan tickets record their dependencies as a `## Depends on` section of links in the body. The guide has a typed link for exactly this, the `depends-on` relation (guide § Relations), and plan does not use it. The app shows a relation on both cards and draws nothing for a body link.
 

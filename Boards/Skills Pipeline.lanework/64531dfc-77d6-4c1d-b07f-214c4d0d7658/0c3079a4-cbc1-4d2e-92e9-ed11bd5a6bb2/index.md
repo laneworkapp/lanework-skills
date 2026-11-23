@@ -2,9 +2,12 @@
 schema: 1
 kind: card
 title: "The smoke suite shares variables and process patterns across sections, so new cases break it only in a full run"
-order: 2048
+order: 3072
 created:  {at: 2026-11-23T12:33:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-23T12:33:10Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-23T16:36:18Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-23T17:06:18Z
 ---
 `tests/smoke.sh` is one long script whose sections share shell variables and process patterns. On 2026-11-22 that cost four failed full runs and two killed ones, none caused by a fault in a skill script.
 

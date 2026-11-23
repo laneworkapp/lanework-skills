@@ -2,10 +2,13 @@
 schema: 1
 kind: card
 title: "Merge: a delete against an added comment leaves a folder with no index.md; a delete against a bare move drops the card"
-order: 1024
+order: 2048
 labels: [{text: "merge", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T00:30:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-23T00:30:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-23T16:36:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-23T17:06:17Z
 ---
 Two merges still lose or strand a card after the kept-card fix (card `28c22261`). Both predate that fix and were reproduced by its reviewer on throwaway repos, 2026-11-23.
 
