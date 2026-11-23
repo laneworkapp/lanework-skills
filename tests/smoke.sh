@@ -999,6 +999,16 @@ for m in ["claude", "claude-fable-5-2", "smoke", "m"]:
     assert hd.scalar(m) == m, m
 PY
 ok "lanework-merge.py signer: model 'a: b', '{n}', a quote, a backslash and '#x' parse back unchanged, a plain model stays bare, a control character is dropped"
+python3 - "$SK/merge/scripts/lanework-merge.py" <<'PY' || { echo "lanework-merge.py stamp_desc: a quoted name cut short"; exit 1; }
+import importlib.util, sys; sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("lm", sys.argv[1]); lm = importlib.util.module_from_spec(spec); spec.loader.exec_module(lm)
+for n in ['a, b "c" \\ d}', 'plain-name', 'x y']:
+    q = n if n == 'plain-name' else '"' + n.replace('\\', '\\\\').replace('"', '\\"') + '"'   # the writer's yaml_quote
+    e = [('modified', ['modified: {at: 2026-11-22T10:00:00Z, by: {name: %s, kind: agent, model: m}}' % q])]
+    assert lm.stamp_desc(e) == '2026-11-22T10:00:00Z, ' + n, (n, lm.stamp_desc(e))
+assert lm.stamp_desc([('modified', ['modified: {at: 2026-11-22T10:00:00Z}'])]) == '2026-11-22T10:00:00Z, the owner'
+PY
+ok "lanework-merge.py stamp_desc: a quoted name holding a comma, quotes, a backslash and a brace prints whole; a bare name and no name as before"
 BQ="$SBQ"; BPL="$SBPL"
 # by_of quotes `session` always: a brace, even a triple one, inside the quoted session is a valid stamp
 for sv in 'a{b' 'x}' 'x}}}'; do
@@ -3707,6 +3717,10 @@ line "$C12u" | grep -q -E "$(printf '\t-\tvoided\tUnreadable one$')" || { echo "
 line "$CA" | grep -q -E "$(printf '^%s\tclaude \\(S-multi\\)\t(29|30) min left\tlive\tA$' "$CA")" || { echo "list live: $(line "$CA")"; exit 1; }
 [ -z "$(line "$C10")" ] && [ -z "$(line "$C2")" ] || { echo "list printed a card with no lease"; exit 1; }
 ok "lease: list prints held cards with holder, time left, lapsed and voided, the title last"
+C12q=$(lcard "Quoted one"); QN='a, b "c" \ d}'; L S-quo stake "$LB" "$C12q" --model smoke --name "$QN" >/dev/null
+[ "$("$LS" list "$LB" | awk -F'\t' -v c="$C12q" '$1==c {print $2}')" = "$QN (S-quo)" ] || { echo "list cut a quoted name short: $("$LS" list "$LB" | awk -F'\t' -v c="$C12q" '$1==c')"; exit 1; }
+L S-quo release "$LB" "$C12q" --model smoke >/dev/null
+ok "lease: list prints a stake name holding a comma, quotes, a backslash and a brace whole"
 
 # work: the card-writing scripts check the lease first (post-comment, move-card, post-ask), on the lease board, before 13 releases
 # what is left. LW <session> <cmd...>: the command as that session, with L's stand-in CLAUDE_PID, TMPDIR and knobs; LN: no session id

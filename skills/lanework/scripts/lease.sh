@@ -60,9 +60,12 @@ read_claim() {
   CL_TEXT=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {exit}
     fm && c && /^[ \t]/ {print; next} fm {c=0} fm && /^claimed:/ {c=1; print}' "$1")
   CL_SESS=""; CL_NAME=""; CL_UNTIL=""
-  local rs='session:[[:space:]]*"?([^",}[:space:]]*)' rn='name:[[:space:]]*"?([^",}]*)' ru='until:[[:space:]]*"?([^",}[:space:]]*)'
+  local rs='session:[[:space:]]*"?([^",}[:space:]]*)' rn='name:[[:space:]]*("(([^"\\]|\\.)*)"|([^",}]*))' ru='until:[[:space:]]*"?([^",}[:space:]]*)'
   if [[ $CL_TEXT =~ $rs ]]; then CL_SESS="${BASH_REMATCH[1]}"; fi
-  if [[ $CL_TEXT =~ $rn ]]; then CL_NAME="${BASH_REMATCH[1]}"; fi
+  if [[ $CL_TEXT =~ $rn ]]; then   # a quoted name is read whole, \" and \\ unescaped (the writer's yaml_quote); a bare one stops at , or }
+    CL_NAME="${BASH_REMATCH[4]}"
+    if [[ ${BASH_REMATCH[1]} == \"* ]]; then CL_NAME=${BASH_REMATCH[2]//\\\\/$'\001'}; CL_NAME=${CL_NAME//\\\"/\"}; CL_NAME=${CL_NAME//$'\001'/\\}; fi
+  fi
   if [[ $CL_TEXT =~ $ru ]]; then CL_UNTIL="${BASH_REMATCH[1]}"; fi
 }
 # status_of: ST = none | live | lapsed | voided (the clock guard: until unreadable or over 35 minutes ahead); UE = until's epoch

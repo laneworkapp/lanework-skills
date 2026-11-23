@@ -386,8 +386,9 @@ def stamp_desc(entries):
         return 'unstamped'
     t = ' '.join(ls)
     at = re.search(r'\bat:\s*"?([^,}"]+)', t)
-    name = re.search(r'\bname:\s*"?([^,}"]+)', t)
-    return '%s, %s' % (at.group(1).strip() if at else 'no time', name.group(1).strip() if name else 'the owner')
+    name = re.search(r'\bname:\s*(?:"((?:[^"\\]|\\.)*)"|([^,}"]+))', t)
+    who = (re.sub(r'\\(["\\])', r'\1', name.group(1)) if name.group(1) is not None else name.group(2).strip()) if name else 'the owner'
+    return '%s, %s' % (at.group(1).strip() if at else 'no time', who)
 
 
 def later(eo, et):
