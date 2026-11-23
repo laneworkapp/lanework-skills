@@ -154,12 +154,16 @@ for f in "$GD"/lanework-commit-board.saved.*.*; do
 done
 # push_bounded: git push in its own session under perl (no timeout(1) on macOS; no terminal, so a prompt fails at once); its
 # group is killed after LIM s and it returns 124, only then (a git 124 reads 1); INT, TERM, HUP to perl are passed on to the
-# group, or to the child alone before its setsid (the parent never sets the group: that races the setsid). Its stderr goes to
-# push.err by a redirect on perl itself, never on the function: a trap run inside a redirected function keeps the redirect
+# group, or to the child alone before its setsid (the parent never sets the group: that races the setsid). The three are
+# blocked from before the fork until the handlers are in, so one sent in that window is held, then passed on; the child puts
+# the mask back before exec (a mask survives exec). A setsid that fails ends the child with 126 before git runs: a failed push.
+# Its stderr goes to push.err by a redirect on perl itself, never on the function: a trap run inside a redirected function keeps the redirect
 push_bounded() {
-  perl -mPOSIX -e 'my $t = shift; my $pid = fork; defined $pid or exit 125;
-    if (!$pid) { POSIX::setsid(); exec @ARGV; exit 127 }
+  perl -mPOSIX -e 'my $t = shift; my $old = POSIX::SigSet->new; my $set = POSIX::SigSet->new(&POSIX::SIGINT, &POSIX::SIGTERM, &POSIX::SIGHUP);
+    POSIX::sigprocmask(&POSIX::SIG_BLOCK, $set, $old) or exit 125; my $pid = fork; defined $pid or exit 125;
+    if (!$pid) { POSIX::setsid() or POSIX::_exit(126); POSIX::sigprocmask(&POSIX::SIG_SETMASK, $old) or POSIX::_exit(126); exec @ARGV; POSIX::_exit(127) }
     $SIG{$_} = sub { kill $_[0], -$pid or kill $_[0], $pid } for qw(INT TERM HUP);
+    POSIX::sigprocmask(&POSIX::SIG_SETMASK, $old);
     $SIG{ALRM} = sub { kill "KILL", -$pid; waitpid $pid, 0; exit 124 };
     alarm $t; my $r; do { $r = waitpid $pid, 0 } until $r == $pid || $r == -1 && !$!{EINTR}; alarm 0;
     exit 1 if $r != $pid; my $s = $?; exit 128 + ($s & 127) if $s & 127; $s >>= 8; exit($s == 124 ? 1 : $s)' \
