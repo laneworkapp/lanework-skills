@@ -1055,8 +1055,8 @@ dxrel "$DX7" d7000000-0000-4000-8000-000000000003 depends-on "lanework://$DXID/$
 dxrel "$DX7" d7000000-0000-4000-8000-000000000004 depends-on "lanework://$DXID/abcdabcd"
 DX9=$(dxf "Old list" --type task); mv "$(dxd "$DX9")" "$DXBL/"; printf -- '\n## Depends on\n\n- [T1](lanework://%s/%s)\n' "$DXID" "$DX1" >> "$(dxd "$DX9")/index.md"
 DXO=$("$PS/frontier.sh" "$DXB" 2>"$T/dx-drift.txt") || { echo "frontier.sh exited non-zero on drift"; exit 1; }
-DXT3=$(awk '/^T3: /{f=1; next} f && /^    waits on /{print; next} {f=0}' <<<"$DXO" | sort)
-DXT5=$(awk '/^T5: /{f=1; next} f && /^    waits on /{print; next} {f=0}' <<<"$DXO" | sort)
+DXT3=$(awk '/^T3: /{f=1; next} f && /^    waits on /{print; next} {f=0}' <<<"$DXO")   # in ticket-number order (T5's folders name T2 first)
+DXT5=$(awk '/^T5: /{f=1; next} f && /^    waits on /{print; next} {f=0}' <<<"$DXO")
 { [ "$DXT3" = "$(printf '    waits on T1 (Frontier)\n    waits on T2 (Frontier)')" ] && [ "$DXT5" = "$DXT3" ] && grep -q '^T4: ' <<<"$DXO" && grep -qx '    waits on T1 (Frontier)' <<<"$DXO"; } \
   || { echo "frontier.sh does not read waits on from relations (owner shapes included):"; echo "$DXO"; exit 1; }
 { grep -qxF 'frontier.sh: drift: T6 is Blocked but names no dependency: move it to Frontier' "$T/dx-drift.txt" &&
@@ -3500,6 +3500,15 @@ FO=$("$PS/frontier.sh" "$CP" 2>"$T/cdrift.txt")
 # a Blocked ticket moved to Frontier by hand while its dependencies are open: the drift warning names the citation
 mv "$(ls -d "$CP"/*/"$LT3")" "$(dirname "$(ls -d "$CP"/*/"$LT1")")/"; "$PS/frontier.sh" "$CP" >/dev/null 2>"$T/cdrift.txt"
 grep -qxF 'frontier.sh: drift: T3 is on the Frontier with a dependency open: T1 (Frontier) T2 (Frontier)' "$T/cdrift.txt" || { echo "frontier.sh warning does not name the citations:"; cat "$T/cdrift.txt"; exit 1; }
+# the order is the tickets' numbers, never the relation folders': T3's two relation folders renamed so either one sorts first, the same line
+CRD="$(ls -d "$CP"/*/"$LT3")/relations"
+for flip in 0 1; do
+  for f in "$CRD"/*/index.md; do case "$(grep '^to: ' "$f")" in *"/$LT1") n=1 ;; *) n=2 ;; esac; [ "$flip" = 0 ] || n=$((3 - n)); mv "$(dirname "$f")" "$CRD/tmp-$n"; done
+  mv "$CRD/tmp-1" "$CRD/00000000-0000-4000-8000-00000000000a"; mv "$CRD/tmp-2" "$CRD/ffffffff-0000-4000-8000-00000000000b"
+  [ "$(grep -l "^to: .*/$LT1\$" "$CRD"/*/index.md)" = "$CRD/$([ "$flip" = 0 ] && echo 00000000-0000-4000-8000-00000000000a || echo ffffffff-0000-4000-8000-00000000000b)/index.md" ] || { echo "cite order: folder rename $flip did not land"; exit 1; }
+  "$PS/frontier.sh" "$CP" >/dev/null 2>"$T/cdrift.txt"
+  grep -qxF 'frontier.sh: drift: T3 is on the Frontier with a dependency open: T1 (Frontier) T2 (Frontier)' "$T/cdrift.txt" || { echo "frontier.sh dependency order follows the relation folders (flip $flip):"; cat "$T/cdrift.txt"; exit 1; }
+done
 ok "cite links: dependencies are depends-on relations to the full links, a record's first line is [Q1](…); frontier.sh and read-board.sh print the citation before the title, and its listing and drift warning name the citation"
 # cite-as: resolving a ticket with a bare title names the citation, not the title
 printf 'Where does the engine run?\n' > "$T/ct.md"; printf '**2026-11-17**: Done.\n' > "$T/cres.md"

@@ -9,6 +9,8 @@
 #   1 no such card (or the link names no card), 2 a short link matching several cards, 3 another board's link. Nothing printed unless 0.
 # lane_of <board> <uuid>: the title of the lane holding that card; empty when none.
 # deps_of <board> <card dir>: one line per dependency: the target card's uuid, else `missing:<to>`, `elsewhere:<to>` or `ambiguous:<to>`.
+#   Order: the tickets found, by ticket number (T<n>), then the rest; ties by the `to` as written, bytewise. Never the relation folders' order
+#   (random uuids), so every reader prints a ticket's dependencies the same way on every run.
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then echo "deps.sh: source it, never run it" >&2; exit 2; fi
 
 card_of() {
@@ -40,10 +42,17 @@ deps_of() {
   while IFS= read -r to; do
     rc=0; c=$(card_of "$1" "$to") || rc=$?
     case $rc in
-      0) printf '%s\n' "$(basename "$c")" ;;
-      2) printf 'ambiguous:%s\n' "$to" ;;
-      3) printf 'elsewhere:%s\n' "$to" ;;
-      *) printf 'missing:%s\n' "$to" ;;
+      0) printf '0\t%s\t%s\t%s\n' "$(ticket_no "$c/index.md")" "$to" "$(basename "$c")" ;;
+      2) printf '1\t0\t%s\tambiguous:%s\n' "$to" "$to" ;;
+      3) printf '1\t0\t%s\telsewhere:%s\n' "$to" "$to" ;;
+      *) printf '1\t0\t%s\tmissing:%s\n' "$to" "$to" ;;
     esac
-  done < <(relation_targets "$2" depends-on)
+  done < <(relation_targets "$2" depends-on) | LC_ALL=C sort -t "$(printf '\t')" -k1,1n -k2,2n -k3,3 | cut -f4-
+}
+
+# ticket_no <index.md>: the ticket's number for deps_of's order: its `cite-as` T<n>, else a `T<n>: ` title prefix; else 999999999 (after
+# every numbered ticket)
+ticket_no() {
+  local t; t=$(cite_of "$1"); [ -n "$t" ] || t=$(strip_quotes "$(fm_value "$1" title)")
+  if [[ "$t" =~ ^T0*([0-9]{1,9})(:|$) ]]; then printf '%s' "${BASH_REMATCH[1]}"; else printf '999999999'; fi
 }
