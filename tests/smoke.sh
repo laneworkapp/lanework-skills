@@ -2,8 +2,8 @@
 # smoke.sh: run every skill script against throwaway boards; validate with a board's schema.
 # usage: tests/smoke.sh [--list | --only <section>[,<section>...]] [<scratch dir>]   (default: a fresh mktemp dir, removed on success)
 #   --list prints the section names, one per line. --only runs those sections, in file order, after the prelude; its last line
-#   names them. A section is a function sec_<name>, one row in SECTIONS at the end; a board it reads from another section
-#   comes from a `needs fixture_<name>` line at its head. No argument: every section, last line `smoke: <n> passed`.
+#   names them. A section is a function sec_<name>, one row in SECTIONS at the end, run in a subshell of its own; a board it
+#   reads from another section comes from a `needs fixture_<name>` line at its head. No argument: every section, last line `smoke: <n> passed`.
 # The validator is borrowed from the Skills Pipeline board's app-installed .schema/.
 set -euo pipefail
 # the session running smoke is no session of the cases: the card-writing scripts check a lease only under a session id, set per case
@@ -16,9 +16,10 @@ start_run() {
   echo "smoke: pid $$, scratch $T" >&2   # first line, on stderr (release.sh hides stdout): stop a run with kill <pid>, never by pattern
   mkdir -p "$T"; TR=$(cd "$T" && pwd -P)
   export LEASE_TEST_PIDLOG="$TR/timers.pids"; : > "$LEASE_TEST_PIDLOG"
+  OKF="$T/ok.count"; echo 0 > "$OKF"; STANDINS="$T/standins.pids"; : > "$STANDINS"
 }
-pass=0
-ok() { pass=$((pass+1)); echo "ok $pass - $1"; }
+# ok <text>: the next case number, kept in a file: each section runs in a subshell of its own, so a shell counter would restart in each
+ok() { local n; n=$(( $(cat "$OKF") + 1 )); echo "$n" > "$OKF"; echo "ok $n - $1"; }
 validate() {
   local out; out=$(python3 "$VAL/bin/lanework-validate.py" --schema "$VAL" "$1")
   grep -q '^failures    0 ' <<<"$out" && ! grep -q DEPRECATED <<<"$out" || { echo "$out"; return 1; }
@@ -38,9 +39,15 @@ timers_left() { local p n=0; [ -s "$LEASE_TEST_PIDLOG" ] || return 0
   while read -r p; do n=$((n + 1)); if [ "$n" -gt "${1:-0}" ] && timer_alive "$p" "${2:-}"; then echo "$p"; fi; done < "$LEASE_TEST_PIDLOG"; }
 # timers_show <pid...>: each pid and its command line, for a wait that cannot finish
 timers_show() { local p; for p in "$@"; do echo "  $p: $(ps -ww -p "$p" -o command= 2>/dev/null || echo '(gone)')"; done; }
-# stop_standin <pid>: end a stand-in CLAUDE_PID (a sleep 600 this run started) only while the pid is still that sleep
+# stand-ins: a stand-in CLAUDE_PID is a `sleep $STANDIN_SECS` this run started, its pid appended to $STANDINS. Its section ends it on exit;
+# the runner ends any still left after each section and when the run exits, so none outlives a section, a failed run or a killed one.
+# An hour: longer than a whole run, so a stand-in never expires under a section still using it
+STANDIN_SECS=3600
+# stop_standin <pid>: end a stand-in only while the pid is still that sleep
 stop_standin() { local c; [ -n "${1:-}" ] || return 0; c=$(ps -ww -p "$1" -o command= 2>/dev/null) || return 0
-  if [ "$c" = "sleep 600" ]; then kill "$1" 2>/dev/null || true; fi; }
+  if [ "$c" = "sleep $STANDIN_SECS" ]; then kill "$1" 2>/dev/null || true; fi; }
+# standins_stop: end every logged stand-in still alive
+standins_stop() { local p; [ -s "${STANDINS:-}" ] || return 0; while read -r p; do stop_standin "$p"; done < "$STANDINS"; }
 # mkguide <board> <n>: stamp the board's guide line at version n, as the app writes it (the gates read it: lib.sh guide_version)
 mkguide() { mkdir -p "$1"; printf '<!-- lanework-agent-guide v%s - app guide -->\n\n**This board'"'"'s human answers to `@kim` right now**\n' "$2" > "$1/CLAUDE.md"; }
 
@@ -161,15 +168,15 @@ TXT='kind: {type: text, text: Text, icon: {glyph: tag}}'
 # moved <card> <dest lane dir>: the card's body and every frontmatter line but order, modified and waiting are unchanged from <saved copy>
 moved() { diff <(grep -v -E '^(order|modified|waiting):' "$3") <(grep -v -E '^(order|modified|waiting):' "$2/$1/index.md") >/dev/null; }
 
-# fixtures. A section that reads a board (or a body file) another section builds says so at its head: `needs fixture_<name>`.
-# A fixture builds that board under $T, at the path its own section uses, only when it is not there yet. In a full run the
-# owning section has run first, so the fixture does nothing and every case sees what it saw before; run alone (--only), the
-# board is new and holds only what the fixture puts in it, which is what the needing sections read (never the owner's end state).
+# fixtures. A section that reads a board (or a body file) another section builds says so at its head: `needs fixture_<name>`. Each
+# section runs in a subshell of its own, so nothing it assigns reaches the next: a fixture sets the board's variables in the needing
+# section, and builds the board under $T, at the path its own section uses, only when it is not on disk yet. In a full run the owning
+# section has run first, so the fixture reuses the board it left (its end state, as the cases saw it before the sections were scoped);
+# run alone (--only), the board is new and holds only what the fixture puts in it, which is what the needing sections read.
 needs() { "$@"; }
 # fixture_pipeline: P, the Acme pipeline board (founding)
 fixture_pipeline() {
-  if [ -n "${P:-}" ] && [ -d "$P" ]; then return 0; fi
-  P="$T/Acme Pipeline.lanework"
+  P="$T/Acme Pipeline.lanework"; if [ -d "$P" ]; then return 0; fi
   "$SK/lanework/scripts/found-board.sh" "$P" --index "$SK/lanework/templates/pipeline-index.md" \
     --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified='`make check`' --model smoke >/dev/null
 }
@@ -183,15 +190,17 @@ fixture_template_boards() { local k b
 # fixture_heal_block: H3, a board with one lane (Ideas), which matches no known lane set. heal_board's H3 also holds a block-scalar card
 # and copies the Damaged board's index; lane_actors reads only its lanes, so the fixture writes a plain board index and no card
 fixture_heal_block() { local l
-  if [ -n "${H3:-}" ] && [ -d "$H3" ]; then return 0; fi
-  H3="$T/Block.lanework"; l="$H3/aaaa0000-0000-4000-8000-000000000001"; mkdir -p "$l"
+  H3="$T/Block.lanework"; if [ -d "$H3" ]; then return 0; fi
+  l="$H3/aaaa0000-0000-4000-8000-000000000001"; mkdir -p "$l"
   printf -- '---\nschema: 1\nkind: board\ntitle: "Block"\nid: aaaa0000-0000-4000-8000-000000000000\ncreated:  %s\nmodified: %s\n---\nBoard body.\n' "$STAMP" "$STAMP" > "$H3/index.md"
   printf -- '---\nschema: 1\nkind: lane\ntitle: "Ideas"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane body.\n' "$STAMP" "$STAMP" > "$l/index.md"
 }
-# fixture_discovery: D, the Sync: v2 discovery board (discovery), with C1 asked, C2 settled (out of Asked) and C4 asked
+# fixture_discovery: D, the Sync: v2 discovery board (discovery), with C1 asked, C2 out of Asked and C4 asked. On a board already there,
+# C1, C2 and C4 are its cards titled Q<n>: Pricing, Q<n>: Engine: placement and Q<n>: Open one (one each, as discovery files them)
 fixture_discovery() {
-  if [ -n "${D:-}" ] && [ -d "$D" ]; then return 0; fi
-  D="$T/Sync: v2 Discovery.lanework"; "$SK/discovery/scripts/found-discovery-board.sh" "$D" --model smoke >/dev/null
+  D="$T/Sync: v2 Discovery.lanework"
+  if [ -d "$D" ]; then C1=$(fx_card "$D" Pricing); C2=$(fx_card "$D" 'Engine: placement'); C4=$(fx_card "$D" 'Open one'); return 0; fi
+  "$SK/discovery/scripts/found-discovery-board.sh" "$D" --model smoke >/dev/null
   printf 'Is sync free?\n\n## Options\n\n- A: free\n- B: paid\n\n## Recommended\n\nA. Simple.\n' > "$T/fx-q.md"; printf '**2026-09-27**: A, as recommended.\n' > "$T/fx-r.md"
   C1=$(bfirst "$SK/discovery/scripts/file-question.sh" "$D" "Pricing" --round 1 --body "$T/fx-q.md" --model smoke)
   C2=$(bfirst "$SK/discovery/scripts/file-question.sh" "$D" "Engine: placement" --round 1 --body "$T/fx-q.md" --model smoke)
@@ -201,25 +210,31 @@ fixture_discovery() {
   printf 'Sync is free.\n' > "$T/fx-adr.md"   # one record, so a section reading the board's records (compact_form) has one to read
   "$SK/discovery/scripts/file-record.sh" "$D" "$C1" --record ADR --title "Free sync" --body "$T/fx-adr.md" --model smoke >/dev/null
 }
+# fx_card <board> <title>: the uuid of the one card titled Q<n>: <title>; none or several stop the run
+fx_card() { local f; f=$(grep -l -E "^title: \"Q[0-9]+: $2\"\$" "$1"/*/*/index.md /dev/null || true)
+  [ -n "$f" ] && [ "$(grep -c . <<<"$f")" = 1 ] || { echo "fixture: want one card titled Q<n>: $2 on $1, found: ${f:-none}" >&2; exit 1; }
+  basename "$(dirname "$f")"; }
 # fixture_plan: PL, the Sync: v2 plan board (plan), with the guide line plan stamps on it and two tickets, the second filed with
 # --depends on the first (one depends-on relation), so a section reading the board's tickets (compact_form) has them to read
 fixture_plan() { local t1
-  if [ -n "${PL:-}" ] && [ -d "$PL" ]; then return 0; fi
-  PL="$T/Sync: v2 Plan.lanework"; "$PS/found-plan-board.sh" "$PL" --model smoke >/dev/null; mkguide "$PL" 116
+  PL="$T/Sync: v2 Plan.lanework"; if [ -d "$PL" ]; then return 0; fi
+  "$PS/found-plan-board.sh" "$PL" --model smoke >/dev/null; mkguide "$PL" 116
   printf 'Where does the engine run?\n' > "$T/fx-t.md"
   t1=$(bfirst "$PS/file-ticket.sh" "$PL" "Engine: placement" --type grilling --body "$T/fx-t.md" --model smoke)
   "$PS/file-ticket.sh" "$PL" "After the engine" --type task --body "$T/fx-t.md" --depends "lanework://$(sed -n 's/^id: //p' "$PL/index.md")/$t1" --model smoke >/dev/null
 }
-# fixture_plan_session: PE, the plan scripts as session S-plan (plan builds it first; braces, cite-as and lease use PE or PSP)
+# fixture_plan_session: PE, the plan scripts as session S-plan (plan builds it first; braces, cite-as and lease use PE or PSP), with a
+# TMPDIR and a stand-in of the needing section's own: the stand-in ends with that section (its exit trap, or the runner's sweep)
 fixture_plan_session() {
   if [ -n "${PSP:-}" ]; then return 0; fi
 # claim-ticket.sh stakes through lanework/scripts/lease.sh, so the plan scripts run as a session: PE, as session S-plan under a
 # stand-in CLAUDE_PID (a sleep ended by its pid on exit and before the lease cases' last check), a TMPDIR of their own, the test knobs
-PT=$(mktemp -d "$T/plan-tmp.XXXXXX"); sleep 600 </dev/null >/dev/null 2>&1 & PSP=$!; disown "$PSP"; trap 'kill "$PSP" 2>/dev/null || true' EXIT
+PT=$(mktemp -d "$T/plan-tmp.XXXXXX"); sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & PSP=$!; disown "$PSP"; echo "$PSP" >> "$STANDINS"; trap 'kill "$PSP" 2>/dev/null || true' EXIT
 PE() { CLAUDE_CODE_SESSION_ID=S-plan CLAUDE_PID="$PSP" TMPDIR="$PT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 \
   LEASE_TEST_RENEW_EVERY=1000 "$@"; }
 }
-# fixture_sentinel: the lints' sentinel card (lint-stamps builds it first, at this point in the run, so SENT_TS is ten minutes ahead of then)
+# fixture_sentinel: the lints' sentinel card, built in each needing section (lint-stamps, lint-symlinks), so SENT_TS is ten minutes ahead
+# of that section's start
 fixture_sentinel() {
   if [ -n "${SENT_TS:-}" ]; then return 0; fi
 # sentinel card for the lints: sent_card <lane dir> <card folder> [comment folder suffix] writes a card every lint finds something in, so a silent run
@@ -241,8 +256,8 @@ sent_check() { local want x="${5:-}"
 }
 # fixture_defaults_plan: DP, the Defaults Plan board (filing-defaults)
 fixture_defaults_plan() {
-  if [ -n "${DP:-}" ] && [ -d "$DP" ]; then return 0; fi
-  DP="$T/Defaults Plan.lanework"; "$SK/plan/scripts/found-plan-board.sh" "$DP" --labels priority --model smoke >/dev/null; mkguide "$DP" 116
+  DP="$T/Defaults Plan.lanework"; if [ -d "$DP" ]; then return 0; fi
+  "$SK/plan/scripts/found-plan-board.sh" "$DP" --labels priority --model smoke >/dev/null; mkguide "$DP" 116
 }
 # fixture_compact_boards: the other boards the compact-form case reads: the layout seed (heal-board), PL2 (plan), and the
 # label-kinds discovery board and seven-kind board (label-kinds)
@@ -1622,7 +1637,7 @@ lint "$LLB" "$T/LeaseLintLink.lanework" "$LLB/"; [ "$LR" = 1 ] && [ "$(llnorm <<
 ok "lint-leases counts a board passed twice once, in the same spelling, as X and ./X, and through a symlink"
 
 # 7. the real record: lease.sh loses a card (staked, its timer ended, claimed taken by another session, then checked); the lint finds it
-LLT=$(mktemp -d "$T/lease-lint-tmp.XXXXXX"); sleep 600 </dev/null >/dev/null 2>&1 & LLP=$!; disown "$LLP"
+LLT=$(mktemp -d "$T/lease-lint-tmp.XXXXXX"); sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & LLP=$!; disown "$LLP"; echo "$LLP" >> "$STANDINS"
 llfresh; llcard $LA; LLK=$(printf '%s' "$(cd "$LLB" && pwd -P)" | shasum | cut -c1-16)
 LLL() { CLAUDE_CODE_SESSION_ID=S-lintlease CLAUDE_PID="$LLP" TMPDIR="$LLT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1000 "$SK/lanework/scripts/lease.sh" "$@"; }
 LLL stake "$LLB" $LA --model smoke >/dev/null || { kill "$LLP"; echo "case 7: stake failed"; exit 1; }
@@ -3635,7 +3650,7 @@ lease_cleanup() {
   if type unr_restore >/dev/null 2>&1; then unr_restore; fi
 }
 trap lease_cleanup EXIT
-standin() { sleep 600 </dev/null >/dev/null 2>&1 & SP=$!; disown "$SP"; LSP+=("$SP"); }
+standin() { sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & SP=$!; disown "$SP"; LSP+=("$SP"); echo "$SP" >> "$STANDINS"; }
 standin; LPID=$SP
 # RE and NW are L's per-call knobs (RE=5 L ...): an earlier section's RE (a card uuid) left set would end every timer at its first poll
 unset RE NW
@@ -4018,7 +4033,7 @@ for sid in 'S,x' 'S}x' 'S\x'; do
 done
 L S-own stake "$LB" "$C11e" --model smoke >/dev/null; RC=0; L S-other release "$LB" "$C11e" --model smoke >/dev/null 2>"$T/l11e.err" || RC=$?
 [ $RC = 1 ] && grep -qF 'lease.sh list' "$T/l11e.err" || { echo "11e: another session's release: rc $RC, $(cat "$T/l11e.err")"; exit 1; }
-( : ) & DP=$!; wait "$DP"; sleep 600 </dev/null >/dev/null 2>&1 & LV=$!; LSP+=("$LV")
+( : ) & DP=$!; wait "$DP"; sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & LV=$!; LSP+=("$LV"); echo "$LV" >> "$STANDINS"
 DW="$LB/.lease-write.$C11e.$DP.lanework-tmp"; LW="$LB/.lease-write.$C11e.$LV.lanework-tmp"; : > "$DW"; : > "$LW"
 P1W="$LB/.lease-write.$C11e.1.lanework-tmp"; : > "$P1W"          # pid 1 is live but not signalable as this user (kill -0 fails with EPERM)
 L S-own renew "$LB" "$C11e" --model smoke >/dev/null
@@ -4615,6 +4630,22 @@ if [ -n "$ONLYSET" ]; then
   [ -n "$RUN" ] || usage "--only names no section: $ONLY"
 fi
 start_run
-for n in $RUN; do "sec_$n"; done
+# each section in a subshell of its own: nothing it assigns, defines, traps or changes reaches the next. It runs in the background so a
+# kill of the run's pid is handled at once (a foreground subshell would hold the trap until the section ends); its status still stops
+# the run (wait, as a plain statement under set -e). SMOKE_CANARY: set in each section, so it must arrive unset in the next one.
+# run_cleanup (the run's EXIT trap): the section still running is ended (its own exit trap runs), then every logged stand-in and timer
+SECPID=""
+run_cleanup() { local p
+  if [ -n "$SECPID" ] && kill -0 "$SECPID" 2>/dev/null; then kill "$SECPID" 2>/dev/null || true; wait "$SECPID" 2>/dev/null || true; fi
+  standins_stop; for p in $(timers_left); do kill "$p" 2>/dev/null || true; done; }
+trap run_cleanup EXIT; trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP
+for n in $RUN; do
+  ( trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP
+    [ -z "${SMOKE_CANARY:-}" ] || { echo "smoke: section $n sees SMOKE_CANARY=$SMOKE_CANARY, set in section $SMOKE_CANARY: the sections are not scoped"; exit 1; }
+    SMOKE_CANARY=$n; "sec_$n" ) 0<&0 & SECPID=$!
+  wait "$SECPID"; SECPID=""
+  standins_stop   # a stand-in its section left: none may outlive it
+done
+pass=$(cat "$OKF")
 if [ -n "$ONLYSET" ]; then echo "smoke: $pass passed (sections: $(echo $RUN | sed 's/ /, /g'))"; else echo "smoke: $pass passed"; fi
 [ -n "$SCRATCH" ] || rm -rf "$T"
