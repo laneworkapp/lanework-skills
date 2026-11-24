@@ -180,7 +180,8 @@ fixture_template_boards() { local k b
     "$SK/lanework/scripts/found-board.sh" "$b" --index "$T/fx-idx.md" --lanes "$SK/lanework/templates/$k-lanes.md" --model smoke >/dev/null
   done
 }
-# fixture_heal_block: H3, a board whose one lane matches no known lane set (heal_board builds it around a block-scalar card)
+# fixture_heal_block: H3, a board with one lane (Ideas), which matches no known lane set. heal_board's H3 also holds a block-scalar card
+# and copies the Damaged board's index; lane_actors reads only its lanes, so the fixture writes a plain board index and no card
 fixture_heal_block() { local l
   if [ -n "${H3:-}" ] && [ -d "$H3" ]; then return 0; fi
   H3="$T/Block.lanework"; l="$H3/aaaa0000-0000-4000-8000-000000000001"; mkdir -p "$l"
@@ -197,11 +198,17 @@ fixture_discovery() {
   owner_comment "$(dirname "$(ls "$D"/*/"$C2"/index.md)")" 'A.'
   "$SK/discovery/scripts/settle-question.sh" "$D" "$C2" --ruling "$T/fx-r.md" --model smoke >/dev/null
   C4=$(bfirst "$SK/discovery/scripts/file-question.sh" "$D" "Open one" --round 2 --body "$T/fx-q.md" --model smoke)
+  printf 'Sync is free.\n' > "$T/fx-adr.md"   # one record, so a section reading the board's records (compact_form) has one to read
+  "$SK/discovery/scripts/file-record.sh" "$D" "$C1" --record ADR --title "Free sync" --body "$T/fx-adr.md" --model smoke >/dev/null
 }
-# fixture_plan: PL, the Sync: v2 plan board (plan), with the guide line plan stamps on it
-fixture_plan() {
+# fixture_plan: PL, the Sync: v2 plan board (plan), with the guide line plan stamps on it and two tickets, the second filed with
+# --depends on the first (one depends-on relation), so a section reading the board's tickets (compact_form) has them to read
+fixture_plan() { local t1
   if [ -n "${PL:-}" ] && [ -d "$PL" ]; then return 0; fi
   PL="$T/Sync: v2 Plan.lanework"; "$PS/found-plan-board.sh" "$PL" --model smoke >/dev/null; mkguide "$PL" 116
+  printf 'Where does the engine run?\n' > "$T/fx-t.md"
+  t1=$(bfirst "$PS/file-ticket.sh" "$PL" "Engine: placement" --type grilling --body "$T/fx-t.md" --model smoke)
+  "$PS/file-ticket.sh" "$PL" "After the engine" --type task --body "$T/fx-t.md" --depends "lanework://$(sed -n 's/^id: //p' "$PL/index.md")/$t1" --model smoke >/dev/null
 }
 # fixture_plan_session: PE, the plan scripts as session S-plan (plan builds it first; braces, cite-as and lease use PE or PSP)
 fixture_plan_session() {
@@ -288,13 +295,16 @@ hits=$(grep -nE "$EC" "$ROOT/tests/smoke.sh" || true); [ -z "$hits" ] || { echo 
 ok "no script under test pipes its output into head or grep -q/-m in smoke"
 
 # kills and waits by pattern: nothing under tests/ finds a process by its command line (the -f, --full or --list-full flag of pkill
-# and pgrep, after any other words) or kills all by name, which reaches every run's processes from the same checkout. By pid only
-# (timers_left); pkill -P, a pid's children, stays allowed. The pattern matches a sample of each form
-KILLPAT='(pk[i]ll|pg[r]ep)( +[^ |;&]+)* +(-[a-zA-Z]*f[a-zA-Z]*|--full|--list-full)( |$)|kil[l]all'
+# and pgrep, after any other words, a space or tab before it, quote, $ or ) right after) or kills all by name, which reaches every run's
+# processes from the same checkout. By pid only (timers_left); pkill -P, a pid's children, stays allowed. The pattern matches a sample of
+# each form, and none of the allowed ones (a comma after -f is prose, as in the case name below)
+KILLPAT='(pk[i]ll|pg[r]ep)([[:space:]]+[^[:space:]|;&]+)*[[:space:]]+(-[a-zA-Z]*f[a-zA-Z]*|--full|--list-full)([^a-zA-Z,]|$)|kil[l]all'
 kp1='pk'; kp1+='ill -f "$LS _timer"'; kp2='[ -z "$(pg'; kp2+='rep -f "$LS _timer $PBR " || true)" ]'; kp3='pg'; kp3+='rep -fl "$LS _timer"'
 kp4='pk'; kp4+='ill -9 -f x'; kp5='kil'; kp5+='lall sleep'; kpn='pk'; kpn+='ill -P "$WP" 2>/dev/null || true'   # split: no self-match
 kp6='pk'; kp6+='ill --full x'; kp7='pg'; kp7+='rep --full x'; kp8='pg'; kp8+='rep --list-full x'; kp9='pk'; kp9+='ill -P 1 -f x'
-[ "$(printf '%s\n' "$kp1" "$kp2" "$kp3" "$kp4" "$kp5" "$kp6" "$kp7" "$kp8" "$kp9" | grep -cE "$KILLPAT")" = 9 ] && ! grep -qE "$KILLPAT" <<<"$kpn" || { echo "the kill-pattern guard misses its samples or hits pkill -P"; exit 1; }
+kpa='pk'; kpa+='ill -f"x"'; kpb='pg'; kpb+='rep -f$var'; kpc='X=$(pg'; kpc+='rep -f)'; kpd='pk'; kpd+=$'ill\t-f x'; kpe='pk'; kpe+='ill -f=x'
+kpn2='pg'; kpn2+='rep -x foo | grep -f pat'; kpn3='pk'; kpn3+='ill -9 sleep'
+[ "$(printf '%s\n' "$kp1" "$kp2" "$kp3" "$kp4" "$kp5" "$kp6" "$kp7" "$kp8" "$kp9" "$kpa" "$kpb" "$kpc" "$kpd" "$kpe" | grep -cE "$KILLPAT")" = 14 ] && [ "$(printf '%s\n' "$kpn" "$kpn2" "$kpn3" | grep -cE "$KILLPAT" || true)" = 0 ] || { echo "the kill-pattern guard misses its samples or hits pkill -P"; exit 1; }
 hits=$(grep -rnE "$KILLPAT" "$ROOT/tests" || true); [ -z "$hits" ] || { echo "a process found or killed by pattern under tests/:"; echo "$hits"; exit 1; }
 ok "nothing under tests/ kills or waits on a process by pattern (pkill or pgrep with -f, or by name); pkill -P is allowed"
 
@@ -4585,8 +4595,9 @@ SCRATCH=""; LISTING=""; ONLY=""; ONLYSET=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --list) LISTING=1 ;;
-    --only) [ $# -ge 2 ] || usage "--only needs a section name"; ONLY=$2; ONLYSET=1; shift ;;
-    --only=*) ONLY=${1#--only=}; ONLYSET=1 ;;
+    --only) [ $# -ge 2 ] || usage "--only needs a section name"; [ -z "$ONLYSET" ] || usage "--only given twice: name every section in one --only, comma-separated"
+      ONLY=$2; ONLYSET=1; shift ;;
+    --only=*) [ -z "$ONLYSET" ] || usage "--only given twice: name every section in one --only, comma-separated"; ONLY=${1#--only=}; ONLYSET=1 ;;
     -*) usage "unknown argument: $1" ;;
     *) [ -z "$SCRATCH" ] || usage "one scratch dir only: $SCRATCH, $1"; SCRATCH=$1 ;;
   esac
@@ -4601,6 +4612,7 @@ if [ -n "$ONLYSET" ]; then
     case " $(echo $SECTIONS) " in *" $n "*) ;; *) usage "unknown section: $n (tests/smoke.sh --list names them)" ;; esac
   done
   RUN=""; for n in $SECTIONS; do case ",$ONLY," in *",$n,"*) RUN="$RUN $n" ;; esac; done
+  [ -n "$RUN" ] || usage "--only names no section: $ONLY"
 fi
 start_run
 for n in $RUN; do "sec_$n"; done
