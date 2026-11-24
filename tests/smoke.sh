@@ -8,6 +8,7 @@
 set -euo pipefail
 # the session running smoke is no session of the cases: the card-writing scripts check a lease only under a session id, set per case
 unset CLAUDE_CODE_SESSION_ID CLAUDE_PID
+unset SMOKE_CANARY   # the runner's scope check (below): a caller's export would fail the first section
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Boards/Skills Pipeline.lanework/.schema"
 # start_run: the scratch dir, the pid line and the timer pid log; the runner at the end calls it once the arguments are checked
@@ -223,7 +224,7 @@ fixture_plan() { local t1
   t1=$(bfirst "$PS/file-ticket.sh" "$PL" "Engine: placement" --type grilling --body "$T/fx-t.md" --model smoke)
   "$PS/file-ticket.sh" "$PL" "After the engine" --type task --body "$T/fx-t.md" --depends "lanework://$(sed -n 's/^id: //p' "$PL/index.md")/$t1" --model smoke >/dev/null
 }
-# fixture_plan_session: PE, the plan scripts as session S-plan (plan builds it first; braces, cite-as and lease use PE or PSP), with a
+# fixture_plan_session: PE, the plan scripts as session S-plan (plan builds it first; braces and cite-as use PE too), with a
 # TMPDIR and a stand-in of the needing section's own: the stand-in ends with that section (its exit trap, or the runner's sweep)
 fixture_plan_session() {
   if [ -n "${PSP:-}" ]; then return 0; fi
@@ -1745,7 +1746,6 @@ sec_lint_symlinks() {
 # work: the lints follow a symlinked board and exit 2 with `could not read <path>` when part of it is unreadable (lanework/scripts/lib.sh board_index_files)
 needs fixture_discovery
 needs fixture_sentinel
-needs fixture_plan_session   # PSP: the exit trap below ends it
 LS="$SK/work/scripts/lint-stamps.sh"; LL="$SK/work/scripts/lint-leases.sh"; WL="$SK/work/scripts/lint-waiting-clears.sh"   # the three lints, as their sections set them
 UB="$T/Unread.lanework"; cp -R "$D" "$UB"; UL=$(dirname "$(ls "$UB"/*/index.md | sed -n 2p)"); rm -rf "$UB"/*/*/   # no cards but the one built here
 UC="$UL/e0000000-0000-4000-8000-000000000001"; UI="$UC/index.md"; mkdir -p "$UC/comments/e1000000-0000-4000-8000-000000000001"
@@ -1753,7 +1753,7 @@ printf -- '---\nschema: 1\nkind: card\ntitle: "Unread"\norder: 1024\ncreated: {a
 printf -- '---\nschema: 1\nkind: comment\ncreated: {at: 2026-11-01T00:00:00Z, by: {name: kim, kind: human}}\n---\nA note.\n' > "$UC/comments/e1000000-0000-4000-8000-000000000001/index.md"
 USEN=f9000000-0000-4000-8000-000000000009; sent_card "$UL" "$USEN"   # the card a readable run must find
 unr_restore() { chmod 755 "$UL" "$UC" 2>/dev/null || true; chmod 644 "$UI" 2>/dev/null || true; }
-trap 'unr_restore; kill "$PSP" 2>/dev/null || true' EXIT
+trap unr_restore EXIT
 # unr_run <script> <board>: UO stdout, UE stderr, UR exit
 unr_run() { UR=0; UO=$("$1" "$2" 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err"); }
 unr_fail() { echo "$1"; echo "stdout: $UO"; echo "stderr: $UE"; echo "exit: $UR"; exit 1; }
@@ -3638,16 +3638,13 @@ sec_lease() {
 # smoke starts and kills); per-session memory under a TMPDIR of its own, never the real one; the test knobs keep it to seconds.
 # Every timer this run logged is killed on exit, by pid, and case 13 checks none outlives the cases.
 needs fixture_pipeline
-needs fixture_plan_session   # PSP: lease_cleanup and case 13 end it
 needs fixture_bodies pc.md fm.md ask1.md t.md res1.md
 LS="$SK/lanework/scripts/lease.sh"; LT=$(mktemp -d "$T/lease-tmp.XXXXXX"); LSP=()
-# lease_cleanup: the stand-ins and this run's live logged timers, nothing else; then the lint-unreadable restore, which this trap
-# replaced as the EXIT trap
+# lease_cleanup: this section's stand-ins and this run's live logged timers, nothing else
 lease_cleanup() {
-  local p; for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do stop_standin "$p"; done
+  local p; for p in ${LSP[@]+"${LSP[@]}"}; do stop_standin "$p"; done
   for p in $(timers_left); do kill "$p" 2>/dev/null || true; done
   [ -z "${LB:-}" ] || chmod -R u+w "$LB" 2>/dev/null || true   # a case makes a comments folder read-only
-  if type unr_restore >/dev/null 2>&1; then unr_restore; fi
 }
 trap lease_cleanup EXIT
 standin() { sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & SP=$!; disown "$SP"; LSP+=("$SP"); echo "$SP" >> "$STANDINS"; }
@@ -4502,7 +4499,7 @@ validate "$PB" >/dev/null; ok "plan resume stakes a Working ticket without movin
 ok "plan cases leave no lease and no timer on their board"
 
 # 12z. every wrapper that can start a timer logs its pid: a stake through each adds one live timer to the log, the one its memory
-# names, and its release ends it. Not here: PE (case 74 checks its timer; its stand-in, a 10-minute sleep, may be over by now), LLL
+# names, and its release ends it. Not here: PE (the plan cases' wrapper, checked there; this section has none), LLL
 # (its stand-in already ended), LN (no session) and LX (the RAM disk, gone)
 LWD=$(mktemp -d "$T/lease-log-tmp.XXXXXX"); ZPID=$LPID; standin; LPID=$SP   # a fresh stand-in: LPID's sleep may be over under load
 for zw in L L1 LW LWP LRP PLS; do
@@ -4525,7 +4522,7 @@ ok "lease timers by pid: a stake through each wrapper (L, L1, LW, LWP, LRP, PLS)
 # 13. nothing left: release what is held, end the stand-ins; every timer must be gone within a poll
 for c in $(awk -F'\t' '$4=="live"{print $1}' <<<"$("$LS" list "$LB")"); do
   s=$(csess "$(lcf "$c")"); L "$s" release "$LB" "$c" --model smoke >/dev/null || true; done
-for p in ${LSP[@]+"${LSP[@]}"} "$PSP"; do stop_standin "$p"; done; LSP=()
+for p in ${LSP[@]+"${LSP[@]}"}; do stop_standin "$p"; done; LSP=()
 waitfor '[ -z "$(timers_left)" ]' || { echo "timers left:"; timers_show $(timers_left); exit 1; }
 validate "$LB" >/dev/null; ok "lease: no timer process is left after the run"
 }
@@ -4630,22 +4627,30 @@ if [ -n "$ONLYSET" ]; then
   [ -n "$RUN" ] || usage "--only names no section: $ONLY"
 fi
 start_run
-# each section in a subshell of its own: nothing it assigns, defines, traps or changes reaches the next. It runs in the background so a
-# kill of the run's pid is handled at once (a foreground subshell would hold the trap until the section ends); its status still stops
-# the run (wait, as a plain statement under set -e). SMOKE_CANARY: set in each section, so it must arrive unset in the next one.
-# run_cleanup (the run's EXIT trap): the section still running is ended (its own exit trap runs), then every logged stand-in and timer
-SECPID=""
-run_cleanup() { local p
+# each section in a subshell of its own: nothing it assigns, defines, traps or changes reaches the next. It runs in the background so
+# the parent takes a kill of the run's pid at once (a foreground subshell would hold the parent's trap until the section ends); the
+# section itself ends when its current foreground command returns. Its status still stops the run. SMOKE_CANARY: set in each
+# section, so it must arrive unset in the next one. Each section's name goes to stderr first, so stdout keeps the case list alone.
+# run_cleanup (the run's EXIT trap): names the section a failed run stopped in, ends the section still running (its own exit trap
+# runs), then every stand-in still logged and every logged timer; the run's exit status is kept
+SECPID=""; SECNAME=""
+# run_sweep: every stand-in still logged and every logged timer still alive, by pid; before the scratch dir (and its logs) goes
+run_sweep() { local p; standins_stop; for p in $(timers_left); do kill "$p" 2>/dev/null || true; done; }
+run_cleanup() { local r=$? p
+  if [ "$r" != 0 ] && [ -n "$SECNAME" ]; then echo "smoke: failed in section $SECNAME" >&2; fi
   if [ -n "$SECPID" ] && kill -0 "$SECPID" 2>/dev/null; then kill "$SECPID" 2>/dev/null || true; wait "$SECPID" 2>/dev/null || true; fi
-  standins_stop; for p in $(timers_left); do kill "$p" 2>/dev/null || true; done; }
+  run_sweep; exit "$r"; }
 trap run_cleanup EXIT; trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP
 for n in $RUN; do
-  ( trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP
+  SECNAME=$n; echo "smoke: section $n" >&2
+  ( trap 'exit 143' TERM; trap 'exit 129' HUP
     [ -z "${SMOKE_CANARY:-}" ] || { echo "smoke: section $n sees SMOKE_CANARY=$SMOKE_CANARY, set in section $SMOKE_CANARY: the sections are not scoped"; exit 1; }
     SMOKE_CANARY=$n; "sec_$n" ) 0<&0 & SECPID=$!
-  wait "$SECPID"; SECPID=""
-  standins_stop   # a stand-in its section left: none may outlive it
+  wait "$SECPID" || { r=$?; SECPID=""; exit "$r"; }
+  SECPID=""
+  standins_stop; : > "$STANDINS"   # a stand-in its section left: none may outlive it, and a pid is swept only right after its section
 done
+SECNAME=""; run_sweep
 pass=$(cat "$OKF")
 if [ -n "$ONLYSET" ]; then echo "smoke: $pass passed (sections: $(echo $RUN | sed 's/ /, /g'))"; else echo "smoke: $pass passed"; fi
 [ -n "$SCRATCH" ] || rm -rf "$T"
