@@ -4,7 +4,10 @@ kind: card
 title: "Guide moved to v122: read the skills against it and bump the stamp"
 order: 1024
 created:  {at: 2026-11-24T00:21:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-24T00:21:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-25T04:02:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-25T04:32:59Z
 ---
 The app rewrote this board's guide at `lanework-agent-guide v122` on 2026-11-23. The skills are stamped v120 in the repo's `CLAUDE.md`, so smoke and `scripts/release.sh` now print the drift note.
 
