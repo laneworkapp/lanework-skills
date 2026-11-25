@@ -9,8 +9,8 @@ labels:
   - {text: "watch", kind: {type: "skill", text: "Skill"}}
   - {text: "repo", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-24T00:21:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-25T12:38:29Z, comment: 98be796a-17b7-49b0-b197-bd8a9f293f1a}
-modified: {at: 2026-11-25T12:38:29Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+waiting: {for: anyone, since: 2026-11-25T12:40:16Z, comment: 2da7907d-8e8f-437e-acc1-60b6c035bec8}
+modified: {at: 2026-11-25T12:40:16Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 claimed:
   by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
   until: 2026-11-25T13:03:39Z
@@ -42,17 +42,28 @@ Everything was run on a throwaway board carrying the v122 guide and schema, with
 | `tests/merge-case.sh` | two cases: both sides add, and one removes while the other adds |
 | `skills/lanework/scripts/lib.sh` | the writers refuse `anyone`, `board`, `healer`, `shortcuts` and `tracker` as a signer name, with a smoke case across them |
 | `skills/lanework/references/reading.md` | one line: a move receipt is a record, and its `moved.by` is who moved the card |
-| `skills/watch/references/events.md` | a receipt is known by its signer `board`, as `arm-pass.sh` already tests it, and one line on a comment whose reactions changed |
-| `skills/lanework/references/writes.md` | one line on reactions, as the open call below rules |
+| `skills/watch/references/events.md` | a receipt is known by its signer `board`, as `arm-pass.sh` already tests it. A changed comment that is this session's own ask is read for an owner reaction, not skipped as an own write |
+| `skills/watch/scripts/arm-pass.sh` | a `comment` line for an ask that carries an owner reaction and has no agent reply after it, with a smoke case |
+| `skills/work/references/writing.md` | § The ask: a reaction as an answer, what it stands for, and the ruling record that follows |
+| `skills/work/scripts/lint-waiting-clears.sh` | a cleared `waiting` is also good when the ask carries an owner reaction and a record after it names the emoji, with a smoke case |
+| `skills/lanework/references/writes.md` | one line: agents never add or remove a reaction |
 | repo `CLAUDE.md` | the stamp reads `lanework-agent-guide v122` |
 
-## Open call: do agents use reactions?
+## Ruled: reactions
 
-The guide now lets an agent add or remove its own reaction on any comment. The skills say a posted comment is never rewritten, and `watch` has no rule for a comment that changed.
+Ruled by the owner on 2026-11-25: **C**. Agents never write a reaction. The owner's reaction on an ask counts as its answer.
 
-- **A (recommended)**: No. Agents never write a reaction, and an owner's reaction is never an answer or an event. Two lines of text, no new script.
-- **B**: Agents may write one, for example to acknowledge a comment. Needs a `react` helper script and a smoke case.
-- **C**: As A, and an owner's reaction on an ask counts as its answer. Needs a reaction-to-option rule the guide does not have, and the app does not clear `waiting` on a reaction.
+- An agent that reads a reaction as an answer posts a ruling record that names the emoji and the option it stood for, then clears `waiting` itself, because the app does not clear it on a reaction.
+- A reaction on anything but an ask is not an event and gets no reply.
+- Not taken: B, agents reacting to acknowledge a comment. It can come back as its own card.
+
+## Open call: which reaction means what?
+
+The guide gives no meaning to any emoji, so the skills have to pick one.
+
+- **A (recommended)**: A thumbs-up picks the option marked recommended, or means "done" on an ask with no options. Every other emoji is not an answer.
+- **B**: As A, and a thumbs-down means "none of these": the agent records that and asks what is wanted in its place.
+- **C**: Each option is tied to its own emoji, printed on the option line. Needs a change to the ask template and to `lint-ask.sh`.
 
 ## Decided here, not asked
 
@@ -69,6 +80,8 @@ The guide now lets an agent add or remove its own reaction on any comment. The s
 
 - A reaction union can bring back a reaction that one side removed and the other never saw removed. The three-way base settles that, as it does for labels, and the second merge case pins it.
 - Refusing reserved names could break a caller that signs as one of them. None in `skills/` or `tests/` does.
+- A reaction never changes a comment's `modified`, so the reaction's own `at` is the only clock for whether it came before or after an agent's reply. A reaction with a missing or future `at` is treated as not an answer.
+- The owner can take a reaction back after the agent has recorded it as a ruling. The record stands, and a new comment is how the owner changes the ruling.
 
 ## Verified by
 
@@ -79,4 +92,5 @@ The guide now lets an agent add or remove its own reaction on any comment. The s
 - Merging two sides that each changed a comment's reactions keeps every reaction that neither side removed.
 - Each writer exits non-zero when asked to sign as a reserved name.
 - The stamp in the repo's `CLAUDE.md` reads v122 and smoke prints no drift note.
-- The open call above has a ruling, and `writes.md` and `events.md` say what it ruled.
+- On a throwaway board, an owner thumbs-up on an ask is printed by `arm-pass.sh` as a comment to answer, and a `waiting` cleared with a record naming the emoji passes `lint-waiting-clears.sh`.
+- `writes.md`, `writing.md` and `events.md` say what the two reaction rulings ruled.
