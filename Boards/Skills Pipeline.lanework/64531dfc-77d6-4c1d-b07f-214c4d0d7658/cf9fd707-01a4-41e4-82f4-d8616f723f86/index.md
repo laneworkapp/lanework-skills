@@ -3,31 +3,80 @@ schema: 1
 kind: card
 title: "Guide moved to v122: read the skills against it and bump the stamp"
 order: 1024
+labels:
+  - {text: "merge", kind: {type: "skill", text: "Skill"}}
+  - {text: "lanework", kind: {type: "skill", text: "Skill"}}
+  - {text: "watch", kind: {type: "skill", text: "Skill"}}
+  - {text: "repo", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-24T00:21:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-25T04:02:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+waiting: {for: anyone, since: 2026-11-25T04:51:33Z, comment: 6ea2056b-e3f5-43d7-94dd-5e4717a31a30}
+modified: {at: 2026-11-25T04:51:33Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 claimed:
   by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
-  until: 2026-11-25T04:32:59Z
+  until: 2026-11-25T05:18:02Z
 ---
-The app rewrote this board's guide at `lanework-agent-guide v122` on 2026-11-23. The skills are stamped v120 in the repo's `CLAUDE.md`, so smoke and `scripts/release.sh` now print the drift note.
+The app's guide moved from v120 to v122, and reading every skill against it found one real bug and a handful of small gaps: merging a board silently drops emoji reactions on comments.
 
-## What moved
+## What moved in the guide
 
-Two app commits since v120, by their messages:
+- **v121** (app commit `d2ed9169b`): comment `reactions` are new, a list of `{emoji, at, by}` entries. The `move-receipts` config key is new in the config list. The schema count reads eight files, with `relation` named.
+- **v122** (app commit `5bb87c36d`): the config path is printed from `~`. No rule moved.
+- The reserved writer names (`anyone`, `board`, `healer`, `shortcuts`) are unchanged.
 
-- `d2ed9169b` (2026-11-22): the schema count is corrected to eight files, and the guide now teaches comment `reactions` and the `move-receipts` config key.
-- `5bb87c36d` (2026-11-23): the guide writes the config path from `~`, not the home folder.
+## What the audit found
 
-Which commit is v121 and which is v122 is not checked yet.
+Everything was run on a throwaway board carrying the v122 guide and schema, with hand-written move receipts and reactions shaped as the app writes them.
 
-## Likely to touch the skills
+- **Move receipts are already handled.** `arm-pass.sh`, `lint-waiting-clears.sh`, `lint-stamps.sh`, `lint-leases.sh`, `lease.sh list`, `read-board.sh` and the validator all read a receipt as a record, in both its one-line and its indented form. None takes it for an owner comment or a human answer.
+- **Reactions are lost in a merge.** A reaction never changes a comment's `modified`, so the merge driver's "later `modified` wins" cannot choose. When each side adds a reaction, one is dropped. When one side removes and the other adds, both are dropped. The merge exits 0 and writes no merge comment.
+- **The writers accept reserved names.** `post-comment.sh --name board` and `file-card.sh --name board` both succeed, and so do `healer`, `shortcuts`, `tracker` and `anyone`. A comment signed `board` is then invisible to `arm-pass.sh`. This is older than v120.
+- **Nothing else drifts.** No skill says seven schema files, none bundles a copy of the schema or validator, and no script parses the config path line.
+- **Smoke passes on the v122 board**: 419 cases, with only the drift note.
 
-- **Move receipts.** With `move-receipts: true` the app posts a quiet comment signed `board` on each lane move. `watch` classifies new comments, and the lints read stamps: check that a receipt is not read as an owner comment or as a bad stamp.
-- **Reactions.** A new `reactions` list on comments. Check that the comment writers and the merge driver keep it.
-- **Home path.** The six app-written guides on disk in this repo were held out of commits because they carried the absolute home path. Check whether the v122 files are clean, which would lift that hold.
+## Scope
+
+| file | change |
+|---|---|
+| `skills/merge/scripts/lanework-merge.py` | merge a comment's `reactions` three ways, as a union by emoji and `by`, where a removal on one side holds |
+| `skills/merge/references/rules.md` | one row for `reactions` |
+| `tests/merge-case.sh` | two cases: both sides add, and one removes while the other adds |
+| `skills/lanework/scripts/lib.sh` | the writers refuse `anyone`, `board`, `healer`, `shortcuts` and `tracker` as a signer name, with a smoke case across them |
+| `skills/lanework/references/reading.md` | one line: a move receipt is a record, and its `moved.by` is who moved the card |
+| `skills/watch/references/events.md` | a receipt is known by its signer `board`, as `arm-pass.sh` already tests it, and one line on a comment whose reactions changed |
+| `skills/lanework/references/writes.md` | one line on reactions, as the open call below rules |
+| repo `CLAUDE.md` | the stamp reads `lanework-agent-guide v122` |
+
+## Open call: do agents use reactions?
+
+The guide now lets an agent add or remove its own reaction on any comment. The skills say a posted comment is never rewritten, and `watch` has no rule for a comment that changed.
+
+- **A (recommended)**: No. Agents never write a reaction, and an owner's reaction is never an answer or an event. Two lines of text, no new script.
+- **B**: Agents may write one, for example to acknowledge a comment. Needs a `react` helper script and a smoke case.
+- **C**: As A, and an owner's reaction on an ask counts as its answer. Needs a reaction-to-option rule the guide does not have, and the app does not clear `waiting` on a reaction.
+
+## Decided here, not asked
+
+- Founding templates leave `move-receipts` off, which is the app's default.
+- `lint-stamps.sh` does not check a reaction's `at`.
+- `tests/fixtures/app-writes/` stays as it is: no app write made under v122 is committed yet, so there is nothing to re-copy. The first one committed becomes the source, as its README says.
+
+## Not in this card
+
+- `skills/lanework/scripts/heal-board.py` lags the board's own healer, which moved to heal v6 ("no thread, no drop"). Filed apart.
+- The app-written guides on disk: the Skills Pipeline pair is v122 and carries no home path. The Board Runner Discovery and Card Lease Discovery pairs still carry the absolute home path until the app reopens those boards, so those four stay out of commits.
+
+## Risks
+
+- A reaction union can bring back a reaction that one side removed and the other never saw removed. The three-way base settles that, as it does for labels, and the second merge case pins it.
+- Refusing reserved names could break a caller that signs as one of them. None in `skills/` or `tests/` does.
+
+## Verified by
+
+`bash -n` on each changed script, the two new merge cases and the reserved-name case on throwaway boards, and a full `tests/smoke.sh` run with no drift note. The changed prose is read through against the v122 guide.
 
 ## Done when
 
-- Every skill is read against v122 and the drift is fixed.
-- The app-written files in `tests/fixtures/app-writes/` are re-copied, as its README says.
+- Merging two sides that each changed a comment's reactions keeps every reaction that neither side removed.
+- Each writer exits non-zero when asked to sign as a reserved name.
 - The stamp in the repo's `CLAUDE.md` reads v122 and smoke prints no drift note.
+- The open call above has a ruling, and `writes.md` and `events.md` say what it ruled.
