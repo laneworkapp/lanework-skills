@@ -1,0 +1,13 @@
+kind,uuid,parent,title,body,labels,due
+board,b1,,Project Board,,,
+lane,l1,b1,Backlog,,,
+card,c1,l1,Plan the launch,"Pick a date, then tell everyone.
+
+Second paragraph of the body.",marketing; q4,2026-12-01
+card,c2,l1,[[Design Notes]],,,
+card,c3,l1,Screenshot review ![[shot.png]],,,
+card,c4,l1,[[Dup]],,,
+card,c5,l1,[[Nowhere]],,,
+card,c6,l1,Leak check ![[../outside.png]],,,
+lane,l2,b1,Done,,,
+card,c7,l2,Set up the repo,,,

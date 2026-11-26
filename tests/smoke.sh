@@ -4570,6 +4570,14 @@ fi
 ok "plugin manifests match the skills folders and validate"
 }
 
+sec_import() {
+# import: the Trello and Obsidian Kanban converters. Fixtures in tests/fixtures/import, expected CSV compared byte for byte; no network (a fake fetcher), the vault confinement, the non-empty-folder refusal and a contract check of every output, all in import-case.py, run on the system python3 the plugin's users have, and on the PATH's
+for py in /usr/bin/python3 python3; do command -v "$py" >/dev/null || continue
+  "$py" "$ROOT/tests/import-case.py" "$T/import-$(basename "$py")" >/dev/null || { "$py" "$ROOT/tests/import-case.py" "$T/import-again" | tail -20; exit 1; }
+done
+ok "import: both converters match their expected CSV, pass the contract check, never reach the network, stay inside the vault and refuse a folder that holds anything"
+}
+
 # the sections, in run order: one row each. --list prints them; --only runs the named ones in this order, after the prelude
 SECTIONS='
 static
@@ -4601,6 +4609,7 @@ heal_descriptors
 lease
 usage_guard
 plugin
+import
 '
 usage() { echo "smoke: $1" >&2; echo "usage: tests/smoke.sh [--list | --only <section>[,<section>...]] [<scratch dir>]" >&2; exit 2; }
 SCRATCH=""; LISTING=""; ONLY=""; ONLYSET=""

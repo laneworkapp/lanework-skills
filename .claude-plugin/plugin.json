@@ -1,7 +1,7 @@
 {
   "name": "lanework",
   "version": "0.11.0",
-  "description": "Agent skills for Lanework boards: what a board is and how to found one, sweeping and working a pipeline board, a standing watch on a board, running discovery on a project's problem and domain space, producing ADRs and PDRs, and multi-session planning that charts an idea's open decisions as tickets and resolves them one per session.",
+  "description": "Agent skills for Lanework boards: what a board is and how to found one, sweeping and working a pipeline board, a standing watch on a board, running discovery on a project's problem and domain space, producing ADRs and PDRs, multi-session planning that charts an idea's open decisions as tickets and resolves them one per session, and converting Trello and Obsidian Kanban boards to Lanework CSV for import.",
   "author": {
     "name": "laneworkapp",
     "url": "https://github.com/laneworkapp"
@@ -16,6 +16,7 @@
     "./skills/discovery",
     "./skills/plan",
     "./skills/merge",
-    "./skills/heal"
+    "./skills/heal",
+    "./skills/import"
   ]
 }

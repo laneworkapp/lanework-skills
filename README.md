@@ -13,6 +13,7 @@ A [Lanework](https://laneworkapp.com) board is just a folder of plain directorie
 | `plan` | planning an idea too big for one session on a plan board: name the destination, chart the open decisions as ticket cards, then resolve one ticket per session until nothing is left to decide. It produces decisions, not deliverables, and files work cards only when you say so |
 | `merge` | resolves git merge, pull and rebase conflicts on a board with no human: a merge driver plus a placement pass, keeping both sides' content and the later stamp's state |
 | `heal` | brings existing boards up to the current skills and guide: repairs board damage, then makes each lane body and the pipeline board sheet name who acts and what starts it, keeping the owner's own wording |
+| `import` | turns a Trello board JSON export or an Obsidian Kanban plugin board into a Lanework CSV folder the app imports with File > Import Board... Python scripts, standard library only; attachments and linked notes are opt-in and never leave their source folder or send credentials |
 
 `discovery`, `plan`, `watch` and `heal` never start on their own. Type the command first in your message. Installed as the plugin they carry the `lanework:` prefix, as `plan` does below; installed by hand, the others are typed bare and `plan` as `/lanework-plan` (§ Install):
 
@@ -35,8 +36,9 @@ A [Lanework](https://laneworkapp.com) board is just a folder of plain directorie
 | `plan` | 9 | 467 | 2,926 |
 | `merge` | 2 | 362 | 1,864 |
 | `heal` | 2 | 311 | 897 |
+| `import` | 2 | 406 | 875 |
 
-Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `work` and `watch` on 2026-11-22, `merge` and `plan` on 2026-11-23), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `work` and `watch` on 2026-11-22, `merge` and `plan` on 2026-11-23, `import` on 2026-11-26), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -137,9 +139,17 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `wor
 | `references/descriptors.md` | 586 |
 | **total** | **897** |
 
+#### `import`
+
+| file | words |
+|---|---|
+| `SKILL.md` | 406 |
+| `references/mapping.md` | 469 |
+| **total** | **875** |
+
 ## Install
 
-As a Claude Code plugin, which installs all seven skills and updates with each release:
+As a Claude Code plugin, which installs all eight skills and updates with each release:
 
 ```
 /plugin marketplace add https://github.com/laneworkapp/lanework-marketplace.git
@@ -159,11 +169,12 @@ ln -s "$(pwd)/lanework-skills/skills/discovery" ~/.claude/skills/discovery
 ln -s "$(pwd)/lanework-skills/skills/plan" ~/.claude/skills/lanework-plan
 ln -s "$(pwd)/lanework-skills/skills/merge" ~/.claude/skills/merge
 ln -s "$(pwd)/lanework-skills/skills/heal" ~/.claude/skills/heal
+ln -s "$(pwd)/lanework-skills/skills/import" ~/.claude/skills/import
 ```
 
 `plan` goes in as `lanework-plan`, typed `/lanework-plan`: a bare `plan` would replace Claude Code's built-in `/plan` in a local terminal.
 
-The skills cite and call each other by relative path, so install all seven side by side.
+The skills cite and call each other by relative path, so install all eight side by side.
 
 The skills are written for Claude Code, the one supported harness: `discovery`, `plan` and `watch` rely on its `disable-model-invocation` setting, and `watch` on its Monitor tool.
 
@@ -187,7 +198,7 @@ Wherever a skill here disagrees with the in-board guide (`<board>.lanework/CLAUD
 
 ## Names
 
-The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, `discovery` examines a problem space, `plan` finds the way from an idea to a destination one decision at a time, `merge` resolves git conflicts on a board, and `heal` brings existing boards up to date. The `Lanework/` folder is where a project keeps its boards. It was `Pitlane/` before, which is still found, and the agent offers once to rename it.
+The skills are named for what they do. `lanework` is the base, `work` files, sweeps and builds on a board, `watch` stays up and reacts to one, `discovery` examines a problem space, `plan` finds the way from an idea to a destination one decision at a time, `merge` resolves git conflicts on a board, `heal` brings existing boards up to date, and `import` brings boards in from Trello and Obsidian. The `Lanework/` folder is where a project keeps its boards. It was `Pitlane/` before, which is still found, and the agent offers once to rename it.
 
 ## Credits
 
