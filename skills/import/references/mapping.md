@@ -9,9 +9,9 @@ Both scripts: Python 3 standard library, no prompts, write only the columns used
 | board name | board `title` |
 | list, by `pos` | lane |
 | card, by `pos` | card; `desc` → body |
-| label | `labels`, plain text label of its name, colour when unnamed; `;` → `,`, `:` → ` - ` |
+| label | `labels`, a JSON list of plain text labels: its name, colour when unnamed |
 | `due`, `start` | `due`, `start` (UTC timestamp) |
-| `commentCard` actions, oldest first | comment rows; body first line `**Name**`; `created` = its date |
+| `commentCard` actions, oldest first | comment rows; body first line `**Name**`; `created` = `{"at": its date}` |
 | checklists | task list at the end of the body, checked items checked |
 | attachment that is a link | `**Links**` list in the body |
 | uploaded attachment | with `--attachments`: file in `assets/`, attachment row; else (or on failure) a link in the body |

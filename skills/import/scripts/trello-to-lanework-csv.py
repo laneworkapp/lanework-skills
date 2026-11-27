@@ -60,9 +60,12 @@ def norm_ts(s):
 def label_text(lab):
     name = one_line(lab.get("name"))
     value = name or one_line(lab.get("color"))
-    # the short form reads "Kind: Value"; a colon or semicolon inside a name would be read as one
-    value = re.sub(r"\s*:\s*", " - ", value.replace(";", ","))
     return value.strip()
+
+
+def labels_cell(texts):
+    """The `labels` cell: a JSON list of plain text labels, or empty when there are none."""
+    return json.dumps([{"text": t, "kind": {"type": "text"}} for t in texts], ensure_ascii=False) if texts else ""
 
 
 def pos_key(o):
@@ -244,7 +247,7 @@ def convert(export, include_archived=False, attachments=False, max_bytes=DEFAULT
                 parts.append("**Links**\n\n" + "\n".join(link_lines))
 
             rows.append({"kind": "card", "uuid": cid, "parent": lid, "title": one_line(card.get("name")) or "(untitled)",
-                         "body": "\n\n".join(parts), "labels": "; ".join(labs), "due": due or "", "start": start or ""})
+                         "body": "\n\n".join(parts), "labels": labels_cell(labs), "due": due or "", "start": start or ""})
             carry("cards")
             carry("checklist items", items)
             for c in sorted(comments.get(card.get("id"), []), key=lambda a: a.get("date") or ""):
@@ -254,8 +257,8 @@ def convert(export, include_archived=False, attachments=False, max_bytes=DEFAULT
                 row = {"kind": "comment", "uuid": str(c.get("id") or "%s-comment-%d" % (cid, len(rows))), "parent": cid,
                        "body": "**%s**\n\n%s" % (name, text) if text else "**%s**" % name}
                 ts = norm_ts(c.get("date"))
-                if ts:
-                    row["created"] = ts
+                if ts and "T" in ts:  # a stamp needs a time and a zone; a bare day is left out
+                    row["created"] = json.dumps({"at": ts})
                 rows.append(row)
                 carry("comments")
             rows.extend(att_rows)

@@ -12,6 +12,7 @@ import argparse
 import csv
 import datetime
 import io
+import json
 import os
 import re
 import sys
@@ -252,7 +253,7 @@ def convert(text, title, vault=None, include_archive=False, max_bytes=DEFAULT_MA
             if not clean:
                 clean = os.path.splitext(card_atts[0]["title"])[0] if card_atts else "(untitled)"
             rows.append({"kind": "card", "uuid": cid, "parent": lid, "title": clean, "body": body,
-                         "labels": "; ".join(labels), "due": due})
+                         "labels": json.dumps([{"text": t, "kind": {"type": "text"}} for t in labels], ensure_ascii=False) if labels else "", "due": due})
             rows.extend(card_atts)
             carry("cards")
             if labels:

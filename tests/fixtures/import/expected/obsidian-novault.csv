@@ -3,7 +3,7 @@ board,b1,,Project Board,,,
 lane,l1,b1,Backlog,,,
 card,c1,l1,Plan the launch,"Pick a date, then tell everyone.
 
-Second paragraph of the body.",marketing; q4,2026-12-01
+Second paragraph of the body.","[{""text"": ""marketing"", ""kind"": {""type"": ""text""}}, {""text"": ""q4"", ""kind"": {""type"": ""text""}}]",2026-12-01
 card,c2,l1,[[Design Notes]],,,
 card,c3,l1,Screenshot review ![[shot.png]],,,
 card,c4,l1,[[Dup]],,,

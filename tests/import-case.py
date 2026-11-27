@@ -9,8 +9,10 @@ Contains its own small checker of Lanework CSV (not shipped): the contract in th
 import csv
 import importlib.util
 import io
+import json
 import os
 import py_compile
+import re
 import shutil
 import socket
 import subprocess
@@ -123,17 +125,19 @@ def check_csv(folder):
                 bad.append("row %d: %s filled on a %s" % (n, c, k))
             if r[c] and c in ONE_LINE and "\n" in r[c]:
                 bad.append("row %d: %s spans lines" % (n, c))
-        for c in ("due", "start", "end", "created", "modified"):
+        for c in ("due", "start", "end"):
             if r.get(c) and not real_date(r[c]):
                 bad.append("row %d: %s %r is not a real date" % (n, c, r[c]))
+        for c in ("created", "modified"):
+            if r.get(c) and not zoned_stamp(r[c]):
+                bad.append("row %d: %s %r is not a map with a zoned at" % (n, c, r[c]))
         if r.get("order"):
             try:
                 float(r["order"])
             except ValueError:
                 bad.append("row %d: order is not a number" % n)
-        for lab in [x.strip() for x in (r.get("labels") or "").split(";") if x.strip()]:
-            if ":" in lab and not (lab.split(":", 1)[0].strip() and lab.split(":", 1)[1].strip()):
-                bad.append("row %d: label %r names a kind and no value" % (n, lab))
+        if r.get("labels") and not label_list(r["labels"]):
+            bad.append("row %d: labels %r is not a list of {text, kind}" % (n, r["labels"]))
         if k == "attachment":
             f = r.get("file", "")
             root = os.path.realpath(folder)
@@ -153,6 +157,27 @@ def check_csv(folder):
     return bad
 
 
+def zoned_stamp(cell):
+    """A stamp cell: a JSON map whose `at` is a timestamp with a time and a zone."""
+    try:
+        v = json.loads(cell)
+    except ValueError:
+        return False
+    return isinstance(v, dict) and isinstance(v.get("at"), str) and bool(
+        re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[-+]\d\d(:?\d\d)?)$", v["at"])) and real_date(v["at"][:10])
+
+
+def label_list(cell):
+    """A labels cell: a JSON list of maps, each with a text and a kind that names its type."""
+    try:
+        v = json.loads(cell)
+    except ValueError:
+        return False
+    return isinstance(v, list) and bool(v) and all(
+        isinstance(e, dict) and isinstance(e.get("text"), str) and e["text"].strip()
+        and isinstance(e.get("kind"), dict) and isinstance(e["kind"].get("type"), str) for e in v)
+
+
 def must_be_valid(folder, what):
     bad = check_csv(folder)
     if bad:
@@ -169,7 +194,9 @@ def checker_self_test():
         "title-on-comment": "kind,uuid,parent,title\nboard,b,,B\nlane,l,b,L\ncard,c,l,C\ncomment,m,c,x\n",
         "fake-date": "kind,uuid,parent,due\nboard,b,,\nlane,l,b,\ncard,c,l,2026-02-30\n",
         "no-uuid-col": "kind,parent\nboard,\n",
-        "label-no-value": "kind,uuid,parent,labels\nboard,b,,\nlane,l,b,\ncard,c,l,Priority:\n",
+        "label-short-form": "kind,uuid,parent,labels\nboard,b,,\nlane,l,b,\ncard,c,l,Priority: High\n",
+        "bare-stamp": "kind,uuid,parent,created\nboard,b,,\nlane,l,b,\ncard,c,l,2026-11-09T10:00:00Z\n",
+        "stamp-no-zone": "kind,uuid,parent,created\nboard,b,,\nlane,l,b,\ncard,c,l,\"{\"\"at\"\": \"\"2026-11-09T10:00:00\"\"}\"\n",
     }
     for name, body in cases.items():
         d = os.path.join(t, name)
@@ -180,7 +207,7 @@ def checker_self_test():
     d = os.path.join(t, "good")
     os.makedirs(d)
     open(os.path.join(d, "board.csv"), "w").write(
-        "kind,uuid,parent,title,body,labels,due\nboard,b1,,R,,,\nlane,l1,b1,T,,,\ncard,c1,l1,F,\"B, md\",Priority: High; urgent,2026-12-01\ncomment,m1,c1,,Ok,,\n")
+        "kind,uuid,parent,title,body,labels,due\nboard,b1,,R,,,\nlane,l1,b1,T,,,\ncard,c1,l1,F,\"B, md\",\"[{\"\"text\"\": \"\"High\"\", \"\"kind\"\": {\"\"type\"\": \"\"priority\"\"}}, {\"\"text\"\": \"\"urgent\"\", \"\"kind\"\": {\"\"type\"\": \"\"text\"\"}}]\",2026-12-01\ncomment,m1,c1,,Ok,,\n")
     if check_csv(d):
         die("checker self-test: the docs example was refused: %s" % check_csv(d))
     print("ok - checker: refuses 7 broken files, accepts the docs example")
