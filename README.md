@@ -36,7 +36,7 @@ A [Lanework](https://laneworkapp.com) board is just a folder of plain directorie
 | `plan` | 9 | 467 | 2,926 |
 | `merge` | 2 | 362 | 1,864 |
 | `heal` | 2 | 311 | 897 |
-| `import` | 2 | 406 | 875 |
+| `import` | 2 | 406 | 871 |
 
 Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `work` and `watch` on 2026-11-22, `merge` and `plan` on 2026-11-23, `import` on 2026-11-26), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
@@ -145,7 +145,7 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `wor
 |---|---|
 | `SKILL.md` | 406 |
 | `references/mapping.md` | 465 |
-| **total** | **875** |
+| **total** | **871** |
 
 ## Install
 
