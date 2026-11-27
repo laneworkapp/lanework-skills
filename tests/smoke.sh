@@ -4600,6 +4600,185 @@ fi
 ok "plugin manifests match the skills folders and validate"
 }
 
+sec_signature() {
+# signature: lanework/scripts/sign-board.py leaves .plugin.lanework-signature on a board that holds the app's seeded .gitignore, after
+# each write a script makes (lanework/references/writes.md § Signature). Throwaway boards only; a fake install record under $SG, never
+# the real one; CLAUDECODE and the debug knob unset unless a case sets them.
+needs fixture_bodies pc.md ask1.md t.md q5.md r1.md adr.md res1.md
+SIGN=.plugin.lanework-signature; SG=$(mktemp -d "$T/sig.XXXXXX"); WS="$SK/work/scripts"; DS="$SK/discovery/scripts"
+export LANEWORK_PLUGINS_FILE="$SG/no-record.json"; unset CLAUDECODE LANEWORK_SIGNATURE_DEBUG
+VER=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$ROOT/.claude-plugin/plugin.json")
+seed() { printf '# lanework-gitignore v5\n.*.lanework-*\n' > "$1/.gitignore"; }   # the two lines of the app's seed that matter here
+pboard() { "$SK/lanework/scripts/found-board.sh" "$1" --index "$SK/lanework/templates/pipeline-index.md" \
+  --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Sig --var verified=x --model smoke >/dev/null; }
+keys() { awk 'NR == 1 { next } $0 == "---" { exit } { sub(/:.*/, ""); printf "%s ", $0 }' "$1"; }
+val() { sed -n "s/^$2: //p" "$1"; }
+fstat() { stat -f '%i %Fm' "$1"; }   # inode (os.replace makes a new one) and mtime to the nanosecond
+norm() { sed -E "s#$2#BOARD#g; s/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/UUID/g" "$1"; }
+cleanup_sig() { chmod -R u+w "$SG" 2>/dev/null || true; local p; for p in ${SSP:-}; do stop_standin "$p"; done
+  for p in $(timers_left); do kill "$p" 2>/dev/null || true; done; }
+trap cleanup_sig EXIT
+
+# 1. the first write on a seeded board creates the file with the always-present keys, git ignores it, and nothing else lands at the root
+A="$SG/A.lanework"; pboard "$A"; [ ! -e "$A/$SIGN" ] || { echo "a founded board, never opened by the app, was signed"; exit 1; }
+seed "$A"; before=$(ls -A "$A" | sort)
+t0=$(date -u +%s); CA=$(bfirst "$WS/file-card.sh" "$A" Ideas "First" --body "$T/t.md" --model smoke 2>/dev/null); t1=$(date -u +%s)
+[ -f "$A/$SIGN" ] || { echo "file-card.sh on a seeded board left no $SIGN"; ls -A "$A"; exit 1; }
+[ "$(keys "$A/$SIGN")" = "schema kind name version written " ] || { echo "signature keys: $(keys "$A/$SIGN")"; cat "$A/$SIGN"; exit 1; }
+{ [ "$(head -1 "$A/$SIGN")" = --- ] && [ "$(tail -1 "$A/$SIGN")" = --- ] && [ "$(val "$A/$SIGN" schema)" = 1 ] && [ "$(val "$A/$SIGN" kind)" = plugin-signature ] &&
+  [ "$(val "$A/$SIGN" name)" = lanework ] && [ "$(val "$A/$SIGN" version)" = "\"$VER\"" ]; } || { echo "signature values:"; cat "$A/$SIGN"; exit 1; }
+w=$(val "$A/$SIGN" written); we=$(date -j -u -f %Y-%m-%dT%H:%M:%SZ "$w" +%s 2>/dev/null || echo 0)
+[ "$we" -ge "$t0" ] && [ "$we" -le "$t1" ] || { echo "written $w is not the clock's ($t0..$t1)"; exit 1; }
+[ "$(ls -A "$A" | sort)" = "$(printf '%s\n%s\n' "$before" "$SIGN" | sort)" ] || { echo "the board root gained more than the signature:"; ls -A "$A"; exit 1; }
+git init -q "$SG"; git -C "$SG" check-ignore -q "A.lanework/$SIGN" || { echo "git does not ignore $SIGN under the seeded .gitignore"; exit 1; }
+ok "signature: the first write on a board with the seeded .gitignore writes schema, kind, name, version \"$VER\" and written from the clock; git ignores it"
+
+# 2. a second write leaves its bytes, inode and mtime alone (a second apart, so a rewrite would change written)
+s0=$(shasum "$A/$SIGN"); f0=$(fstat "$A/$SIGN"); sleep 1.1
+"$WS/post-comment.sh" "$A" "$CA" --body "$T/pc.md" --model smoke >/dev/null
+[ "$(shasum "$A/$SIGN")" = "$s0" ] && [ "$(fstat "$A/$SIGN")" = "$f0" ] || { echo "post-comment.sh rewrote an unchanged signature:"; cat "$A/$SIGN"; exit 1; }
+ok "signature: a second write with nothing changed leaves the file's bytes, inode and mtime alone"
+
+# 3. a changed version rewrites it (a copy of the plugin); a symlinked skill folder reads the version of what it points at; no plugin.json, no file
+PG="$SG/plug"; mkdir -p "$PG/.claude-plugin"; cp -R "$SK" "$PG/skills"
+sed "s/\"version\": \"$VER\"/\"version\": \"9.9.9-test\"/" "$ROOT/.claude-plugin/plugin.json" > "$PG/.claude-plugin/plugin.json"
+"$PG/skills/work/scripts/file-card.sh" "$A" Ideas "Copy" --body "$T/t.md" --model smoke >/dev/null 2>&1
+[ "$(val "$A/$SIGN" version)" = '"9.9.9-test"' ] && [ "$(fstat "$A/$SIGN")" != "$f0" ] || { echo "a changed version did not rewrite the signature:"; cat "$A/$SIGN"; exit 1; }
+mkdir -p "$SG/links"; ln -s "$SK/work" "$SG/links/work"; ln -s "$SK/lanework" "$SG/links/lanework"
+"$SG/links/work/scripts/file-card.sh" "$A" Ideas "Linked" --body "$T/t.md" --model smoke >/dev/null 2>&1
+[ "$(val "$A/$SIGN" version)" = "\"$VER\"" ] || { echo "a symlinked skill folder did not read its target's plugin.json:"; cat "$A/$SIGN"; exit 1; }
+NP="$SG/noplug"; mkdir -p "$NP"; cp -R "$SK" "$NP/skills"; NB="$SG/NB.lanework"; pboard "$NB"; seed "$NB"
+"$NP/skills/work/scripts/file-card.sh" "$NB" Ideas "Bare" --body "$T/t.md" --model smoke >/dev/null 2>&1
+[ ! -e "$NB/$SIGN" ] || { echo "a copy with no .claude-plugin/plugin.json signed the board"; exit 1; }
+ok "signature: a changed plugin version rewrites the file, a symlinked skill folder reads its target's version, no plugin.json writes nothing"
+
+# 4. a fake install record fills installed, updated, commit and scope from the entry whose installPath is the plugin's root; no path, user or host
+cat > "$SG/record.json" <<EOF
+{"version": 2, "plugins": {
+  "other@lanework": [{"scope": "user", "installPath": "$PG", "installedAt": "2001-01-01T00:00:00Z"}],
+  "lanework@lanework": [
+    {"scope": "project", "installPath": "$SG/elsewhere", "version": "1.0.0", "installedAt": "2020-01-01T00:00:00Z", "gitCommitSha": "ffffffffffffffffffffffffffffffffffffffff"},
+    {"scope": "user", "installPath": "$PG", "version": "9.9.9-test", "installedAt": "2026-11-12T10:00:00.123Z",
+     "lastUpdated": "2026-11-20T09:30:00+01:00", "gitCommitSha": "1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B"}]}}
+EOF
+LANEWORK_PLUGINS_FILE="$SG/record.json" CLAUDECODE=1 "$PG/skills/work/scripts/file-card.sh" "$A" Ideas "Installed" --body "$T/t.md" --model smoke >/dev/null 2>&1
+want=$(printf -- '---\nschema: 1\nkind: plugin-signature\nname: lanework\nversion: "9.9.9-test"\ninstalled: 2026-11-12T10:00:00Z\nupdated: 2026-11-20T08:30:00Z\ncommit: 1a2b3c4\nscope: user\nagent: claude-code\n---')
+[ "$(grep -v '^written: ' "$A/$SIGN")" = "$want" ] || { echo "signature from the fake install record:"; cat "$A/$SIGN"; exit 1; }
+nopath() { local w; ! grep -q -e / -e "$SG" "$1" || return 1
+  for w in "$(id -un)" "$(hostname -s)"; do [ -z "$w" ] || ! grep -qiwF "$w" "$1" || return 1; done; }
+nopath "$A/$SIGN" || { echo "a path, the user name or the host name reached the signature:"; cat "$A/$SIGN"; exit 1; }
+cat > "$SG/bad.json" <<EOF
+{"plugins": {"lanework@lanework": [{"scope": "$SG", "installPath": "$PG/skills/..", "installedAt": "yesterday",
+  "lastUpdated": "$SG/2026-11-20T08:30:00Z", "gitCommitSha": "$SG/1a2b3c4"}]}}
+EOF
+LANEWORK_PLUGINS_FILE="$SG/bad.json" "$PG/skills/work/scripts/file-card.sh" "$A" Ideas "Bad record" --body "$T/t.md" --model smoke >/dev/null 2>&1
+[ "$(keys "$A/$SIGN")" = "schema kind name version written " ] && nopath "$A/$SIGN" || { echo "values outside the allow-list were written:"; cat "$A/$SIGN"; exit 1; }
+ok "signature: a fake install record gives installed, updated, commit (7 hex) and scope in UTC, agent from CLAUDECODE=1; a path-shaped value is left out, never written"
+
+# 5. a signature that cannot be written: the card and the comment still land, with the exit code and output of a signed run.
+# (a) a folder at the signature's path: the temp file is written, os.replace fails on it, the temp file is removed.
+# (b) a read-only board folder (its lanes writable): the temp file cannot be created
+B1="$SG/B1.lanework"; B2="$SG/B2.lanework"; B3="$SG/B3.lanework"; for b in "$B1" "$B2" "$B3"; do pboard "$b"; seed "$b"; done
+# run <script...>: "<rc>|<stdout>|<stderr>", the board's path and every uuid normalized (BOARD, UUID); $SG/o keeps the raw stdout
+run() { local b="$1" rc=0; shift; "$@" >"$SG/o" 2>"$SG/e" || rc=$?; printf '%s|%s|%s' "$rc" "$(norm "$SG/o" "$b")" "$(norm "$SG/e" "$b")"; }
+FC1=$(run "$B1" "$WS/file-card.sh" "$B1" Ideas "Unwritable" --body "$T/t.md" --model smoke); K1=$(basename "$(cat "$SG/o")")
+PC1=$(run "$B1" "$WS/post-comment.sh" "$B1" "$K1" --body "$T/pc.md" --model smoke)
+{ [ "${FC1%%|*}" = 0 ] && [ "${PC1%%|*}" = 0 ] && [ -f "$B1/$SIGN" ]; } || { echo "the signed control runs failed: $FC1 / $PC1"; exit 1; }
+mkdir -p "$B2/$SIGN/x"
+FC2=$(run "$B2" "$WS/file-card.sh" "$B2" Ideas "Unwritable" --body "$T/t.md" --model smoke); K2=$(basename "$(cat "$SG/o")")
+[ "$FC2" = "$FC1" ] && [ -f "$(cat "$SG/o")/index.md" ] || { echo "file-card.sh under a folder at $SIGN: $FC2 (want $FC1)"; exit 1; }
+PC2=$(run "$B2" "$WS/post-comment.sh" "$B2" "$K2" --body "$T/pc.md" --model smoke)
+[ "$PC2" = "$PC1" ] && [ -f "$(ls -d "$B2"/*/"$K2")/comments/$(cat "$SG/o")/index.md" ] || { echo "post-comment.sh under a folder at $SIGN: $PC2 (want $PC1)"; exit 1; }
+[ -z "$(ls -A "$B2" | grep -F "$SIGN." || true)" ] && [ "$(ls -A "$B2/$SIGN")" = x ] || { echo "a temp file was left beside the folder at $SIGN, or the folder changed:"; ls -A "$B2"; exit 1; }
+de=$(LANEWORK_SIGNATURE_DEBUG=1 python3 -I "$SK/lanework/scripts/sign-board.py" "$B2" 2>&1 >/dev/null); grep -q 'IsADirectoryError' <<<"$de" || { echo "the folder case did not reach the failed replace: $de"; exit 1; }
+[ -z "$(ls -A "$B2" | grep -F "$SIGN." || true)" ] || { echo "the debug run left a temp file"; exit 1; }
+chmod a-w "$B3"
+FC3=$(run "$B3" "$WS/file-card.sh" "$B3" Ideas "Unwritable" --body "$T/t.md" --model smoke)
+de=$(LANEWORK_SIGNATURE_DEBUG=1 python3 -I "$SK/lanework/scripts/sign-board.py" "$B3" 2>&1 >/dev/null); chmod u+w "$B3"
+[ "$FC3" = "$FC1" ] && [ -f "$(cat "$SG/o")/index.md" ] && [ -z "$(ls -A "$B3" | grep -F "$SIGN" || true)" ] || { echo "file-card.sh on a read-only board folder: $FC3 (want $FC1)"; exit 1; }
+grep -q 'PermissionError' <<<"$de" || { echo "the read-only case did not fail creating the temp file: $de"; exit 1; }
+ok "signature: a folder at its path (os.replace fails, temp removed) or a read-only board folder (no temp file): card and comment land, same exit code and output as a signed run"
+
+# 6. no .gitignore, or one without the seed's pattern: no file
+NG="$SG/NG.lanework"; pboard "$NG"
+CN=$(bfirst "$WS/file-card.sh" "$NG" Ideas "Unseeded" --body "$T/t.md" --model smoke 2>/dev/null); "$WS/post-comment.sh" "$NG" "$CN" --body "$T/pc.md" --model smoke >/dev/null
+[ ! -e "$NG/$SIGN" ] || { echo "a board with no .gitignore was signed"; exit 1; }
+printf '# mine\n*.tmp\n' > "$NG/.gitignore"; "$WS/file-card.sh" "$NG" Ideas "Own ignore" --body "$T/t.md" --model smoke >/dev/null 2>&1
+[ ! -e "$NG/$SIGN" ] || { echo "a .gitignore without .*.lanework-* still got a signature"; exit 1; }
+seed "$NG"; "$WS/file-card.sh" "$NG" Ideas "Seeded now" --body "$T/t.md" --model smoke >/dev/null 2>&1
+[ -f "$NG/$SIGN" ] || { echo "the same board, once seeded, was not signed"; exit 1; }
+ok "signature: a board with no .gitignore, or one without .*.lanework-*, gets no file; seeded, the next write signs it"
+
+# 7. a failed founding leaves the folder empty (signing is on the success path only), and a founding never signs: the folder it fills is empty
+FE="$SG/Empty.lanework"; mkdir -p "$FE"
+rc=0; "$SK/lanework/scripts/found-board.sh" "$FE" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --model smoke >/dev/null 2>&1 || rc=$?
+[ "$rc" = 2 ] && [ -z "$(ls -A "$FE")" ] || { echo "a failed founding (template unrendered): rc=$rc, left: $(ls -A "$FE")"; exit 1; }
+seed "$FE"; rc=0; pboard "$FE" 2>/dev/null || rc=$?
+[ "$rc" = 1 ] && [ "$(ls -A "$FE")" = .gitignore ] || { echo "found-board.sh into a folder holding only the seed: rc=$rc, left: $(ls -A "$FE")"; exit 1; }
+ok "signature: a failed founding leaves its folder empty; a founding refuses a folder holding the seed, so it never signs"
+
+# 8. every writer in Scope signs a seeded board (a fresh signature each), the lease timer's renewals never do. One loop, one row per writer
+SSP=""; sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & SSP=$!; disown "$SSP"; echo "$SSP" >> "$STANDINS"
+SLT=$(mktemp -d "$SG/lease-tmp.XXXXXX")
+SE() { CLAUDE_CODE_SESSION_ID=S-sig CLAUDE_PID="$SSP" TMPDIR="$SLT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 LEASE_TEST_RENEW_EVERY=1 "$@"; }
+W="$SG/W.lanework"; pboard "$W"; mkguide "$W" 118; seed "$W"
+DB="$SG/W Discovery.lanework"; "$DS/found-discovery-board.sh" "$DB" --model smoke >/dev/null; seed "$DB"
+PB="$SG/W Plan.lanework"; "$PS/found-plan-board.sh" "$PB" --model smoke >/dev/null; mkguide "$PB" 116; seed "$PB"
+MR="$SG/repo"; git init -q "$MR"; MB="$MR/M.lanework"; pboard "$MB"; seed "$MB"; ML=$(lane_file "$MB" Ideas)
+G() { git -C "$MR" -c user.name=smoke -c user.email=smoke@example.invalid "$@"; }
+G add -A; G commit -qm base; MAIN=$(G symbolic-ref --short HEAD); G checkout -qb theirs
+sed -i '' '$d' "$ML"; echo 'Their body.' >> "$ML"; G commit -qam theirs; G checkout -q "$MAIN"; sed -i '' '$d' "$ML"; echo 'Our body.' >> "$ML"; G commit -qam ours
+G merge -q theirs >/dev/null 2>&1 && { echo "the merge fixture did not conflict"; exit 1; }
+WC=$(bfirst "$WS/file-card.sh" "$W" Ideas "Loop" --body "$T/t.md" --model smoke 2>/dev/null)
+mkdir -p "$(dirname "$(lane_file "$W" Ideas)")/c0000000-0000-4000-8000-00000000510a"
+printf -- '---\nschema: 1\nkind: card\ntitle: Bare title\norder: 9000\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$(dirname "$(lane_file "$W" Ideas)")/c0000000-0000-4000-8000-00000000510a/index.md"
+WL=$(lane_file "$W" Done); awk 'NR == 1 || !e { print } NR > 1 && $0 == "---" { e = 1 }' "$WL" > "$SG/lane" && mv "$SG/lane" "$WL"   # an empty lane body: heal-descriptors fills it
+owner_answer() { owner_comment "$(dirname "$(ls "$DB"/*/"$QC"/index.md)")" 'A.'; }
+signs() { local name="$1"; shift; rm -f "$SB/$SIGN"; "$@" >/dev/null 2>"$SG/e" || { echo "$name failed:"; cat "$SG/e"; exit 1; }
+  [ -f "$SB/$SIGN" ] && [ "$(val "$SB/$SIGN" kind)" = plugin-signature ] || { echo "$name wrote $SB and left no signature"; exit 1; }; N=$((N + 1)); NAMES="$NAMES $name"; }
+N=0; NAMES=""
+SB="$W"
+signs file-card.sh "$WS/file-card.sh" "$W" Ideas "Loop two" --body "$T/t.md" --model smoke
+signs move-card.sh "$WS/move-card.sh" "$W" "$WC" Approved --model smoke
+signs post-comment.sh "$WS/post-comment.sh" "$W" "$WC" --body "$T/pc.md" --model smoke
+signs post-ask.sh "$WS/post-ask.sh" "$W" "$WC" --body "$T/ask1.md" --model smoke --for anyone
+signs label-card.sh "$WS/label-card.sh" "$W" "$(ls -d "$W"/*/"$WC")" Loop --model smoke
+signs "lease.sh stake" SE "$SK/lanework/scripts/lease.sh" stake "$W" "$WC" --model smoke
+rm -f "$W/$SIGN"; m0=$(grep '^modified:' "$(ls "$W"/*/"$WC"/index.md)"); sleep 2.2   # the timer renews on every 0.2 s poll here (LEASE_TEST_RENEW_EVERY=1): it must not sign
+[ "$(grep '^modified:' "$(ls "$W"/*/"$WC"/index.md)")" != "$m0" ] || { echo "the lease timer did not renew in 2 s: the no-sign check below would prove nothing"; exit 1; }
+grep -q '^claimed:' "$(ls "$W"/*/"$WC"/index.md)" && [ ! -e "$W/$SIGN" ] || { echo "the lease timer's renewals signed the board (or the lease is gone)"; exit 1; }
+signs "lease.sh release" SE "$SK/lanework/scripts/lease.sh" release "$W" "$WC" --model smoke
+signs heal-board.py python3 -I "$HEAL" "$W" --apply --model smoke
+signs heal-descriptors.py python3 -I "$SK/heal/scripts/heal-descriptors.py" "$W" --apply --model smoke
+SB="$DB"
+signs file-question.sh "$DS/file-question.sh" "$DB" "Loop" --round 1 --body "$T/q5.md" --model smoke; QC=$(pid "$(grep -l '^title: "Q1: Loop"$' "$DB"/*/*/index.md)")
+signs file-record.sh "$DS/file-record.sh" "$DB" "$QC" --record ADR --title "Loop" --body "$T/adr.md" --model smoke
+owner_answer; signs settle-question.sh "$DS/settle-question.sh" "$DB" "$QC" --ruling "$T/r1.md" --model smoke
+SB="$PB"
+TC=$(bfirst "$PS/file-ticket.sh" "$PB" "Loop" --type task --body "$T/t.md" --model smoke)
+signs file-ticket.sh "$PS/file-ticket.sh" "$PB" "Loop two" --type task --body "$T/t.md" --model smoke
+signs claim-ticket.sh SE "$PS/claim-ticket.sh" "$PB" "$TC" --model smoke
+SE "$SK/lanework/scripts/lease.sh" release "$PB" "$TC" --model smoke >/dev/null   # resolve-ticket.sh runs with no lease to release: its own call alone signs
+signs resolve-ticket.sh "$PS/resolve-ticket.sh" "$PB" "$TC" --resolution "$T/res1.md" --model smoke
+SB="$MB"; signs merge-board.sh "$SK/merge/scripts/merge-board.sh" "$MR" --model smoke
+[ -z "$(G diff --name-only --diff-filter=U)" ] || { echo "merge-board.sh left the fixture unmerged"; exit 1; }
+[ "$N" = 16 ] || { echo "the loop ran $N writers, want 16:$NAMES"; exit 1; }
+ok "signature: every writer signs a seeded board ($N:$NAMES); found-board.sh never can (case 7); the lease timer's renewals do not sign"
+
+# 9. a guard against a missed call site: every script that calls stamp_args_ok (the stamping writers) calls sign_board, and so do
+# merge-board.sh and the two heal scripts; the readers, the lints, commit-board.sh and the import scripts never sign
+n=0; for s in "$SK"/*/scripts/*.sh; do [ "$(basename "$s")" != lib.sh ] || continue
+  grep -q 'stamp_args_ok "' "$s" || continue; n=$((n + 1))
+  grep -q '^[^#]*sign_board "' "$s" || { echo "$s calls stamp_args_ok but never sign_board"; exit 1; }
+done
+grep -q '^[^#]*sign_board "' "$SK/merge/scripts/merge-board.sh" && grep -q '^[^#]*sign_board(' "$HEAL" && grep -q '^[^#]*sign_board(' "$SK/heal/scripts/heal-descriptors.py" || { echo "merge-board.sh or a heal script never signs"; exit 1; }
+awk '/^timer\(\) \{/ { t = 1 } t && /sign_board/ { bad = 1 } t && /^}/ { t = 0 } END { exit bad }' "$SK/lanework/scripts/lease.sh" || { echo "the lease timer signs"; exit 1; }
+for s in "$SK"/lanework/scripts/read-board.sh "$SK"/work/scripts/lint-*.sh "$SK"/work/scripts/commit-board.sh "$SK"/import/scripts/* "$SK"/watch/scripts/* "$SK"/merge/scripts/lanework-merge.py "$SK"/plan/scripts/deps.sh "$SK"/plan/scripts/frontier.sh; do
+  if grep -q 'sign_board\|sign-board' "$s"; then echo "$s signs, and is no board writer"; exit 1; fi; done
+[ "$n" = 13 ] || { echo "$n scripts call stamp_args_ok, want 13: a new writer needs its sign_board call and a row in case 8"; exit 1; }
+ok "signature: all $n stamping writers, merge-board.sh and both heal scripts call the signer; readers, lints, commit-board.sh, import, watch and the merge driver never do"
+}
+
 sec_import() {
 # import: the Trello and Obsidian Kanban converters. Fixtures in tests/fixtures/import, expected CSV compared byte for byte; no network (a fake fetcher), the vault confinement, the non-empty-folder refusal and a contract check of every output, all in import-case.py, run on the system python3 the plugin's users have, and on the PATH's
 for py in /usr/bin/python3 python3; do command -v "$py" >/dev/null || continue
@@ -4639,6 +4818,7 @@ heal_descriptors
 lease
 usage_guard
 plugin
+signature
 import
 '
 usage() { echo "smoke: $1" >&2; echo "usage: tests/smoke.sh [--list | --only <section>[,<section>...]] [<scratch dir>]" >&2; exit 2; }
