@@ -2,12 +2,12 @@
 schema: 1
 kind: card
 title: "Reserved-name check accepts a padded name, and four smaller leftovers from the v122 change"
-order: 1024
+order: 3072
 labels:
   - {text: "lanework", kind: {type: "skill", text: "Skill"}}
   - {text: "merge", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-27T16:51:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-27T17:33:44Z}
+modified: {at: 2026-11-27T17:34:22Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Five small gaps the reviewer found in the v122 change, none of which blocked it.
 
@@ -25,16 +25,17 @@ Five small gaps the reviewer found in the v122 change, none of which blocked it.
 
 | File | Change |
 |---|---|
-| `skills/lanework/scripts/lib.sh` | Trim the name before the reserved-name compare, or refuse a padded name outright. |
+| `skills/lanework/scripts/lib.sh` | `stamp_args_ok` refuses a name with leading or trailing whitespace: exit 2, nothing written. |
 | `tests/smoke.sh` | Add `lease.sh` to the reserved-name loop, and a padded-name case. |
 | `skills/merge/scripts/lanework-merge.py` | Keep every entry with no emoji, duplicates included. |
 | `tests/merge-case.sh` | One `reactions` case with two identical no-emoji entries. |
 | `README.md` | Move the three dates. |
-| script headers | One pass adding both exit-2 causes, or one line in `writes.md` saying the shared causes live in `lib.sh`. |
+| `skills/lanework/references/writes.md` | One line: the exit-2 causes every stamping script shares (a reserved name, a padded name, a control character) are listed once in `lib.sh`, at `stamp_args_ok`. Its header comment lists them. No script header changes. |
 
-## Open call
+## Decided here, not asked
 
-- Row 5: add the causes to every header, or say once in `writes.md` that the shared ones are not repeated. Shaping picks one and asks only if it matters.
+- **Row 5**: the shared causes are listed once, in `lib.sh`, and `writes.md` points there. Thirteen headers are left alone.
+- **Padded names are refused, not trimmed**: a stamp is written as given.
 
 ## Verified by
 
@@ -45,4 +46,4 @@ Five small gaps the reviewer found in the v122 change, none of which blocked it.
 - `--name ' board'` exits 2 with nothing written, from every script in the loop, `lease.sh` included.
 - Two identical no-emoji reaction entries survive a merge where both sides changed `reactions`.
 - The README dates match the day each count was measured.
-- Row 5 is settled one way and the files agree with it.
+- `writes.md` points at `lib.sh` for the shared exit-2 causes, and the comment at `stamp_args_ok` lists all three.
