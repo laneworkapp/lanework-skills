@@ -2,15 +2,12 @@
 schema: 1
 kind: card
 title: "Reserved-name check accepts a padded name, and four smaller leftovers from the v122 change"
-order: 4096
+order: 113664
 labels:
   - {text: "lanework", kind: {type: "skill", text: "Skill"}}
   - {text: "merge", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-27T16:51:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-27T17:41:28Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-claimed:
-  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
-  until: 2026-11-27T18:11:26Z
+modified: {at: 2026-11-27T22:35:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Five small gaps the reviewer found in the v122 change, none of which blocked it.
 
