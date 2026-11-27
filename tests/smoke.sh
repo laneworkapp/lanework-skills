@@ -4699,6 +4699,30 @@ de=$(LANEWORK_SIGNATURE_DEBUG=1 python3 -I "$SK/lanework/scripts/sign-board.py" 
 grep -q 'PermissionError' <<<"$de" || { echo "the read-only case did not fail creating the temp file: $de"; exit 1; }
 ok "signature: a folder at its path (os.replace fails, temp removed) or a read-only board folder (no temp file): card and comment land, same exit code and output as a signed run"
 
+# 5b. never blocks: nothing but a regular file is opened. Each run is bounded (20 s, then stopped by its pid and its FIFOs opened for
+# writing, which frees a blocked reader). (a) a FIFO at the signature's path is left as it is; (b) a symlink there to a FIFO is replaced,
+# the FIFO untouched; (c) a FIFO as the install record gives no install facts; (d) a FIFO as the .gitignore: unsigned
+# bounded <board> <fifo...> -- <script...>: BR = "<rc>|<stdout>|<stderr>" normalized as run does, or "hung"
+bounded() { local b="$1" p n=0 rc=0 fs=(); shift; while [ "$1" != -- ]; do fs+=("$1"); shift; done; shift
+  "$@" >"$SG/o" 2>"$SG/e" </dev/null & p=$!
+  while kill -0 "$p" 2>/dev/null && [ "$n" -lt 200 ]; do sleep 0.1; n=$((n + 1)); done
+  if kill -0 "$p" 2>/dev/null; then kill "$p" 2>/dev/null || true; wait "$p" 2>/dev/null || true
+    for f in "${fs[@]}"; do perl -e 'alarm 3; open(my $f, ">", $ARGV[0])' "$f" 2>/dev/null || true; done; BR=hung; return 0; fi
+  wait "$p" || rc=$?; BR="$rc|$(norm "$SG/o" "$b")|$(norm "$SG/e" "$b")"; }
+B4="$SG/B4.lanework"; pboard "$B4"; seed "$B4"; mkfifo "$B4/$SIGN"
+bounded "$B4" "$B4/$SIGN" -- "$WS/file-card.sh" "$B4" Ideas "Unwritable" --body "$T/t.md" --model smoke
+[ "$BR" = "$FC1" ] && [ -p "$B4/$SIGN" ] && [ -z "$(ls -A "$B4" | grep -F "$SIGN." || true)" ] || { echo "file-card.sh with a FIFO at $SIGN: $BR (want $FC1), FIFO kept: $([ -p "$B4/$SIGN" ] && echo yes || echo no)"; exit 1; }
+B5="$SG/B5.lanework"; pboard "$B5"; seed "$B5"; mkfifo "$SG/fifo-target"; ln -s "$SG/fifo-target" "$B5/$SIGN"
+bounded "$B5" "$SG/fifo-target" -- "$WS/file-card.sh" "$B5" Ideas "Unwritable" --body "$T/t.md" --model smoke
+[ "$BR" = "$FC1" ] && [ -f "$B5/$SIGN" ] && [ ! -L "$B5/$SIGN" ] && [ -p "$SG/fifo-target" ] || { echo "a symlink to a FIFO at $SIGN: $BR, now: $(ls -l "$B5/$SIGN")"; exit 1; }
+mkfifo "$SG/fifo-record"; B6="$SG/B6.lanework"; pboard "$B6"; seed "$B6"
+LANEWORK_PLUGINS_FILE="$SG/fifo-record" bounded "$B6" "$SG/fifo-record" -- "$WS/file-card.sh" "$B6" Ideas "Unwritable" --body "$T/t.md" --model smoke
+[ "$BR" = "$FC1" ] && [ "$(keys "$B6/$SIGN")" = "schema kind name version written " ] || { echo "a FIFO as the install record: $BR, keys: $(keys "$B6/$SIGN" 2>&1)"; exit 1; }
+B7="$SG/B7.lanework"; pboard "$B7"; mkfifo "$B7/.gitignore"
+bounded "$B7" "$B7/.gitignore" -- "$WS/file-card.sh" "$B7" Ideas "Unwritable" --body "$T/t.md" --model smoke
+[ "$BR" = "$FC1" ] && [ ! -e "$B7/$SIGN" ] || { echo "a FIFO as the .gitignore: $BR"; exit 1; }
+ok "signature: a FIFO at its path is left alone, a symlink there to a FIFO is replaced, a FIFO as the record or the .gitignore is never opened: no run blocks, each exits as a signed run does"
+
 # 6. no .gitignore, or one without the seed's pattern: no file
 NG="$SG/NG.lanework"; pboard "$NG"
 CN=$(bfirst "$WS/file-card.sh" "$NG" Ideas "Unseeded" --body "$T/t.md" --model smoke 2>/dev/null); "$WS/post-comment.sh" "$NG" "$CN" --body "$T/pc.md" --model smoke >/dev/null
@@ -4724,7 +4748,7 @@ SE() { CLAUDE_CODE_SESSION_ID=S-sig CLAUDE_PID="$SSP" TMPDIR="$SLT" LEASE_TEST_S
 W="$SG/W.lanework"; pboard "$W"; mkguide "$W" 118; seed "$W"
 DB="$SG/W Discovery.lanework"; "$DS/found-discovery-board.sh" "$DB" --model smoke >/dev/null; seed "$DB"
 PB="$SG/W Plan.lanework"; "$PS/found-plan-board.sh" "$PB" --model smoke >/dev/null; mkguide "$PB" 116; seed "$PB"
-MR="$SG/repo"; git init -q "$MR"; MB="$MR/M.lanework"; pboard "$MB"; seed "$MB"; ML=$(lane_file "$MB" Ideas)
+MR="$SG/repo"; git init -q "$MR"; MB="$MR/M.lanework"; pboard "$MB"; seed "$MB"; ML=$(lane_file "$MB" Ideas); MQ="$MR/Q.lanework"; pboard "$MQ"; seed "$MQ"
 G() { git -C "$MR" -c user.name=smoke -c user.email=smoke@example.invalid "$@"; }
 G add -A; G commit -qm base; MAIN=$(G symbolic-ref --short HEAD); G checkout -qb theirs
 sed -i '' '$d' "$ML"; echo 'Their body.' >> "$ML"; G commit -qam theirs; G checkout -q "$MAIN"; sed -i '' '$d' "$ML"; echo 'Our body.' >> "$ML"; G commit -qam ours
@@ -4760,10 +4784,12 @@ signs file-ticket.sh "$PS/file-ticket.sh" "$PB" "Loop two" --type task --body "$
 signs claim-ticket.sh SE "$PS/claim-ticket.sh" "$PB" "$TC" --model smoke
 SE "$SK/lanework/scripts/lease.sh" release "$PB" "$TC" --model smoke >/dev/null   # resolve-ticket.sh runs with no lease to release: its own call alone signs
 signs resolve-ticket.sh "$PS/resolve-ticket.sh" "$PB" "$TC" --resolution "$T/res1.md" --model smoke
+QL=$(lane_file "$MQ" Ideas); sed -i '' '$d' "$QL"; echo 'Staged by hand.' >> "$QL"; G add "$QL"   # the user's own staged edit, on a board the pass never writes
 SB="$MB"; signs merge-board.sh "$SK/merge/scripts/merge-board.sh" "$MR" --model smoke
+[ ! -e "$MQ/$SIGN" ] || { echo "merge-board.sh signed a board whose only change was the user's staged edit"; exit 1; }
 [ -z "$(G diff --name-only --diff-filter=U)" ] || { echo "merge-board.sh left the fixture unmerged"; exit 1; }
 [ "$N" = 16 ] || { echo "the loop ran $N writers, want 16:$NAMES"; exit 1; }
-ok "signature: every writer signs a seeded board ($N:$NAMES); found-board.sh never can (case 7); the lease timer's renewals do not sign"
+ok "signature: every writer signs a seeded board ($N:$NAMES); found-board.sh never can (case 7); the lease timer's renewals do not sign; merge-board.sh leaves a board it did not write unsigned"
 
 # 9. a guard against a missed call site: every script that calls stamp_args_ok (the stamping writers) calls sign_board, and so do
 # merge-board.sh and the two heal scripts; the readers, the lints, commit-board.sh and the import scripts never sign
@@ -4777,6 +4803,40 @@ for s in "$SK"/lanework/scripts/read-board.sh "$SK"/work/scripts/lint-*.sh "$SK"
   if grep -q 'sign_board\|sign-board' "$s"; then echo "$s signs, and is no board writer"; exit 1; fi; done
 [ "$n" = 13 ] || { echo "$n scripts call stamp_args_ok, want 13: a new writer needs its sign_board call and a row in case 8"; exit 1; }
 ok "signature: all $n stamping writers, merge-board.sh and both heal scripts call the signer; readers, lints, commit-board.sh, import, watch and the merge driver never do"
+
+# 10. written: a missing or malformed written line is rewritten; a well-formed one with nothing else changed is left alone
+B8="$SG/B8.lanework"; pboard "$B8"; seed "$B8"; "$WS/file-card.sh" "$B8" Ideas "W" --body "$T/t.md" --model smoke >/dev/null 2>&1
+wok() { [ "$(grep -c '^written: ' "$B8/$SIGN")" = 1 ] && grep -qE '^written: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$' "$B8/$SIGN"; }
+for bad in drop junk; do
+  case $bad in drop) sed -i '' '/^written: /d' "$B8/$SIGN" ;; junk) sed -i '' 's/^\(written: .*\)$/\1 extra/' "$B8/$SIGN" ;; esac
+  "$WS/file-card.sh" "$B8" Ideas "W $bad" --body "$T/t.md" --model smoke >/dev/null 2>&1
+  wok || { echo "a $bad written line was not rewritten:"; cat "$B8/$SIGN"; exit 1; }
+done
+sed -i '' 's/^written: .*/written: 2001-01-01T00:00:00Z/' "$B8/$SIGN"; s0=$(shasum "$B8/$SIGN")
+"$WS/file-card.sh" "$B8" Ideas "W kept" --body "$T/t.md" --model smoke >/dev/null 2>&1
+[ "$(shasum "$B8/$SIGN")" = "$s0" ] || { echo "a well-formed written with nothing else changed was rewritten"; exit 1; }
+ok "signature: a deleted or junk written line is rewritten to one UTC stamp; a well-formed one with nothing else changed is left alone"
+
+# 11. one bad install value leaves out its own key, never the file: an overflowing stamp, an offset past +-14:00 or with minutes over 59,
+# and an entry whose installPath holds a NUL (skipped; the matching entry after it still counts)
+B9="$SG/B9.lanework"; pboard "$B9"; seed "$B9"
+rec() { printf '{"plugins": {"lanework@lanework": [{"scope": "user", "installPath": "bad\\u0000path"},
+  {"scope": "user", "installPath": "%s", "installedAt": "%s", "lastUpdated": "%s", "gitCommitSha": "1a2b3c4d5e6f"}]}}\n' "$PG" "$1" "$2" > "$SG/rec.json"; }
+for pair in '9999-12-31T23:59:59-01:00|2026-11-20T08:30:00+99:99' '0001-01-01T00:00:00+01:00|2026-11-20T08:30:00+14:30' '2026-11-12T10:00:00+05:60|2026-11-20T08:30:00-14:00'; do
+  rec "${pair%|*}" "${pair#*|}"; rm -f "$B9/$SIGN"
+  LANEWORK_PLUGINS_FILE="$SG/rec.json" "$PG/skills/work/scripts/file-card.sh" "$B9" Ideas "Rec" --body "$T/t.md" --model smoke >/dev/null 2>&1
+  case $pair in *-14:00) want="schema kind name version updated commit scope written " ;; *) want="schema kind name version commit scope written " ;; esac
+  [ "$(keys "$B9/$SIGN" 2>/dev/null)" = "$want" ] || { echo "install stamps $pair: keys $(keys "$B9/$SIGN" 2>&1), want $want"; exit 1; }
+done
+[ "$(val "$B9/$SIGN" updated)" = 2026-11-20T22:30:00Z ] || { echo "-14:00 not converted: $(val "$B9/$SIGN" updated)"; exit 1; }
+ok "signature: an overflowing stamp, an offset of +99:99, +14:30 or minutes 60 leave out that key alone; a NUL in another entry's installPath is skipped; -14:00 converts"
+
+# 12. the seed's line with trailing blanks or a CR still counts; with leading blanks (git does not apply it) it does not
+B10="$SG/B10.lanework"; pboard "$B10"; printf '# lanework-gitignore v5\r\n.*.lanework-*  \r\n' > "$B10/.gitignore"
+"$WS/file-card.sh" "$B10" Ideas "Trail" --body "$T/t.md" --model smoke >/dev/null 2>&1; [ -f "$B10/$SIGN" ] || { echo "a seed line with trailing blanks and CRLF was refused"; exit 1; }
+B11="$SG/B11.lanework"; pboard "$B11"; printf '# lanework-gitignore v5\n  .*.lanework-*\n' > "$B11/.gitignore"
+"$WS/file-card.sh" "$B11" Ideas "Lead" --body "$T/t.md" --model smoke >/dev/null 2>&1; [ ! -e "$B11/$SIGN" ] || { echo "a seed line with leading blanks was taken as the seed"; exit 1; }
+ok "signature: the seed's .*.lanework-* line counts with trailing blanks or CRLF, not with leading blanks"
 }
 
 sec_import() {
