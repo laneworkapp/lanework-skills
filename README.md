@@ -29,12 +29,12 @@ A [Lanework](https://laneworkapp.com) board is just a folder of plain directorie
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,611 |
+| `lanework` | 10 | 382 | 5,673 |
 | `work` | 16 | 488 | 8,012 |
-| `watch` | 4 | 182 | 2,096 |
+| `watch` | 4 | 182 | 2,120 |
 | `discovery` | 14 | 510 | 3,022 |
 | `plan` | 9 | 467 | 2,926 |
-| `merge` | 2 | 362 | 1,864 |
+| `merge` | 2 | 362 | 1,915 |
 | `heal` | 2 | 311 | 897 |
 | `import` | 2 | 406 | 871 |
 
@@ -50,11 +50,11 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `wor
 | `references/finding.md` | 386 |
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
-| `references/reading.md` | 286 |
-| `references/writes.md` | 2,239 |
+| `references/reading.md` | 314 |
+| `references/writes.md` | 2,273 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,611** |
+| **total** | **5,673** |
 
 #### `work`
 
@@ -84,9 +84,9 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `wor
 |---|---|
 | `SKILL.md` | 182 |
 | `references/arming.md` | 797 |
-| `references/events.md` | 532 |
+| `references/events.md` | 556 |
 | `references/responding.md` | 585 |
-| **total** | **2,096** |
+| **total** | **2,120** |
 
 #### `discovery`
 
@@ -128,8 +128,8 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `wor
 | file | words |
 |---|---|
 | `SKILL.md` | 362 |
-| `references/rules.md` | 1,502 |
-| **total** | **1,864** |
+| `references/rules.md` | 1,553 |
+| **total** | **1,915** |
 
 #### `heal`
 

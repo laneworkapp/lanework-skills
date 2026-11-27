@@ -22,6 +22,7 @@ Among the cards waiting in one lane you act on: build-blockers first (a red gate
 
 - **`cat` whole files, never `head -N`.** Truncated reads have missed owner rulings.
 - **Read the whole thread before acting on a card**: `comments/<uuid>/index.md`, sorted by `created.at`. Body = what was believed at filing; thread = what's been learned since (duplicates, bundle-with, wrong root cause). Same for every card it links.
+- **A move receipt** (a comment signed `board`, carrying `moved:`) is a record: never an ask, never an answer. `moved.by` = who moved the card, not the signer.
 - Top-level scalars: `fm_value` in `scripts/lib.sh`. Nested keys: `yq` (mikefarah v4) over the frontmatter block:
 
 ```bash

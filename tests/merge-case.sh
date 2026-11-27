@@ -10,11 +10,12 @@
 #   delete: a whole card deleted on one side, edited or moved on the other: the survivor's whole tree comes back
 #   deleteadd: a whole card deleted on one side, a comment, attachment or relation only added on the other: restored whole
 #   stamps: a zone-less or loosely written `modified` stamp; interrupt: the pass interrupted at its first write
+#   reactions: a comment's reactions changed on both sides (both add; one removes while the other adds), `modified` untouched
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Boards/Skills Pipeline.lanework"
-T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove, dirty, appside, delete, deleteadd, stamps or interrupt}"
-case "$MODE" in merge|rebase|nodriver|clean|rebasemove|dirty|appside|delete|deleteadd|stamps|interrupt) ;; *) echo "merge-case: unknown mode '$MODE'" >&2; exit 2 ;; esac
+T="${1:?usage: merge-case.sh <dir> <mode>}"; MODE="${2:?merge, rebase, nodriver, clean, rebasemove, dirty, appside, delete, deleteadd, stamps, interrupt or reactions}"
+case "$MODE" in merge|rebase|nodriver|clean|rebasemove|dirty|appside|delete|deleteadd|stamps|interrupt|reactions) ;; *) echo "merge-case: unknown mode '$MODE'" >&2; exit 2 ;; esac
 . "$SK/lanework/scripts/lib.sh"
 MRG="$SK/merge/scripts/lanework-merge.py"
 fail() { echo "merge-case ($MODE): $*" >&2; exit 1; }
@@ -427,6 +428,28 @@ PY
   pass "interrupt rerun"; grep -q 'Uncommitted edits carried' <<<"$OUT" || { echo "$OUT"; fail "interrupt: the rerun doesn't carry the edit"; }
   G "$M" commit -q --no-edit; clean_status "interrupt"; inhead INTERRUPT_LOCAL_TOKEN TOKEN_A_K1 TOKEN_B_K1
   validate_board "$M" "interrupt"; echo "$OUT"; exit 0 ;;
+reactions)
+  # a reaction never restamps `modified`, so "later wins" cannot choose: the driver merges `reactions` 3-way, keyed by emoji and `by`
+  # rcomment <repo> <card> <comment> <reactions lines>: one comment, stamps fixed at T0 on every side
+  rcomment() { local d="$1/$BN/$IDEAS/$2/comments/$3"; mkdir -p "$d"
+    printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n%s---\nReact to me.\n' "$T0" "$BY0" "$T0" "$BY0" "$4" > "$d/index.md"; }
+  RC1=$(uuid); RC2=$(uuid); OWN='{emoji: "👍", at: 2026-01-01T00:00:00Z}'
+  ALI='{emoji: "🎉", at: 2026-01-01T00:00:00Z, by: {name: alice, kind: human}}'; BOB='{emoji: "👀", at: 2026-01-03T00:00:00Z, by: {name: bob, kind: human}}'
+  # base: case 1 holds the owner's thumbs-up (flow form); case 2 the owner's and alice's (block form). B takes A's base commit.
+  rcomment "$A" "$K1" "$RC1" "reactions: [$OWN]"$'\n'; rcomment "$A" "$T1" "$RC2" $'reactions:\n'"  - $OWN"$'\n'"  - $ALI"$'\n'
+  cm "$A" rbase; G "$B" pull -q --ff-only "$A" main
+  # case 1, both add: alice reacts on A, bob on B. Case 2, one removes while the other adds: the owner takes the thumbs-up back on A, bob reacts on B
+  rcomment "$A" "$K1" "$RC1" "reactions: [$OWN, $ALI]"$'\n'; rcomment "$B" "$K1" "$RC1" "reactions: [$OWN, $BOB]"$'\n'
+  rcomment "$A" "$T1" "$RC2" $'reactions:\n'"  - $ALI"$'\n'; rcomment "$B" "$T1" "$RC2" $'reactions:\n'"  - $OWN"$'\n'"  - $ALI"$'\n'"  - $BOB"$'\n'
+  cm "$A" a1; cm "$B" b1; mclone
+  G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1 || fail "reactions: nothing is lost, so git should finish by itself"
+  clean_status "reactions"
+  F1="$D/$IDEAS/$K1/comments/$RC1/index.md"; F2="$D/$IDEAS/$T1/comments/$RC2/index.md"
+  for e in 👍 🎉 👀; do grep -qF "\"$e\"" "$F1" || { cat "$F1"; fail "reactions, both add: $e lost"; }; done
+  for e in 🎉 👀; do grep -qF "\"$e\"" "$F2" || { cat "$F2"; fail "reactions, one removes while the other adds: $e lost"; }; done
+  if grep -qF '"👍"' "$F2"; then cat "$F2"; fail "reactions, one removes while the other adds: the removed thumbs-up came back"; fi
+  [ "$(mcount "$D/$IDEAS/$K1")" = 0 ] && [ "$(mcount "$D/$IDEAS/$T1")" = 0 ] || fail "reactions: a merge comment for a merge that lost nothing"
+  validate_board "$M" "reactions"; echo "both add:"; grep '^reactions' -A3 "$F1" | sed -n '/^---$/q;p'; echo "one removes, one adds:"; grep '^reactions' -A3 "$F2" | sed -n '/^---$/q;p'; exit 0 ;;
 esac
 
 # ---- side A (earlier, except TR2)

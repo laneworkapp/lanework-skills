@@ -20,6 +20,7 @@ Every rule is 3-way against the merge base: a key changed on one side only → t
 | `modified` | the later stamp, `at` and `by` together. Any form the schema's `timestamp` allows; no zone → UTC (YAML 1.1) |
 | `title` | later wins; the other title in the merge comment (an attachment's: named by its id). A lane or board title: the earlier inline, `Earlier title: "…"` under the body's merged-from heading |
 | `labels`, board `config.labels` values | union, by `text` within a kind. A removal on one side holds |
+| a comment's `reactions` | union, by `emoji` and `by.name` (no `by` = the owner). A removal on one side holds. No reaction restamps `modified`, so no side is later; an entry both sides changed → the later side's, ties ours. Not a list on a side → later wins |
 | single-valued label kinds: priority, any kind the board marks `single` | state: the later side's entries of that kind, whole |
 | `order`, `waiting`, `hero`, `collapsed`, any other key | later `modified` side wins |
 | `created`, `schema`, `kind`, `id`, tracker keys | ours |

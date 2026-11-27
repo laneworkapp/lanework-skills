@@ -1281,6 +1281,30 @@ for fl in --name --model; do
   rm -rf "$T/sv-found.lanework"; rc=0; "$FB" "$T/sv-found.lanework" "${FA[@]}" --model smoke "$fl" "$NLV" >/dev/null 2>&1 || rc=$?
   [ $rc -eq 2 ] && [ ! -e "$T/sv-found.lanework" ] || { echo "found-board $fl newline: exit $rc or a folder exists"; exit 1; }; done
 ok "a newline or a C1 control in --name or --model, a tab or a C1 control in --session: exit 2 and nothing written from every stamping script; an empty --name is refused too"
+# a reserved signer name (guide § Stamping: anyone, board, healer, shortcuts, tracker; any case) is refused by every stamping script, exit 2
+# and nothing written (stamp_args_ok); post-comment.sh and file-card.sh name it on stderr
+for rn in anyone board healer shortcuts tracker Board; do
+  FF=(--model smoke --name "$rn")
+  for s in post-comment file-card; do
+    S0=$(bsnap "$BQ"); rc=0
+    if [ $s = post-comment ]; then "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ" --body "$SVBODY" "${FF[@]}" >/dev/null 2>"$T/rn.err" || rc=$?
+    else "$SK/work/scripts/file-card.sh" "$BQ" Parked "R" --body "$SVBODY" "${FF[@]}" >/dev/null 2>"$T/rn.err" || rc=$?; fi
+    [ "$rc" = 2 ] && grep -qx "$s.sh: $rn is a reserved name; sign as yourself; nothing written" "$T/rn.err" && [ "$S0" = "$(bsnap "$BQ")" ] \
+      || { echo "$s --name $rn: exit $rc (want 2), or no message, or the board changed"; cat "$T/rn.err"; exit 1; }
+  done
+  svrefused "post-ask --name $rn" 2 "$BQ" "$SK/work/scripts/post-ask.sh" "$BQ" "$SVQ" --body "$SVBODY" --for anyone "${FF[@]}"
+  svrefused "label-card --name $rn" 2 "$BQ" "$SK/work/scripts/label-card.sh" "$BQ" "$(bcard "$SVQ")" "Needs review" "${FF[@]}"
+  svrefused "move-card --name $rn" 2 "$BQ" "$SK/work/scripts/move-card.sh" "$BQ" "$SVQ" Parked "${FF[@]}"
+  svrefused "file-question --name $rn" 2 "$BQ" "$SK/discovery/scripts/file-question.sh" "$BQ" "R" --round 1 --body "$T/bq.md" "${FF[@]}"
+  svrefused "settle-question --name $rn" 2 "$BQ" "$SK/discovery/scripts/settle-question.sh" "$BQ" "$SVQ" --ruling "$T/bruling.md" "${FF[@]}"
+  svrefused "file-record --name $rn" 2 "$BQ" "$SK/discovery/scripts/file-record.sh" "$BQ" "$SQ3" --record ADR --title x --body "$T/badr.md" "${FF[@]}"
+  svrefused "file-ticket --name $rn" 2 "$BPL" "$PS/file-ticket.sh" "$BPL" "R" --type grilling --body "$T/bt.md" "${FF[@]}"
+  svrefused "claim-ticket --name $rn" 2 "$BPL" PE "$PS/claim-ticket.sh" "$BPL" "$SVT2" "${FF[@]}"
+  svrefused "resolve-ticket --name $rn" 2 "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$SVT" --resolution "$T/bres.md" "${FF[@]}"
+  rm -rf "$T/rn-found.lanework"; rc=0; "$FB" "$T/rn-found.lanework" "${FA[@]}" "${FF[@]}" >/dev/null 2>&1 || rc=$?
+  [ $rc -eq 2 ] && [ ! -e "$T/rn-found.lanework" ] || { echo "found-board --name $rn: exit $rc (want 2) or a folder exists"; exit 1; }
+done
+ok "a reserved signer name (anyone, board, healer, shortcuts, tracker, any case) as --name: exit 2 and nothing written from every stamping script, named on stderr"
 # values YAML would not read back as the same string (null, ~, a bool word, a number) are quoted: valid, and the same bytes from every script
 for nv in null '~' true 123 1e3; do for k in name model; do
   F=(--model smoke); case $k in model) F=(--model "$nv") ;; name) F+=(--name "$nv") ;; esac
@@ -2241,6 +2265,7 @@ for m in merge rebase nodriver; do "$ROOT/tests/merge-case.sh" "$T" "$m" >/dev/n
 "$ROOT/tests/merge-case.sh" "$T" deleteadd >/dev/null; ok "merge case: a comment, attachment or relation added against a whole-card delete brings the whole card back, after a merge, a rebase or a stop elsewhere"
 "$ROOT/tests/merge-case.sh" "$T" stamps >/dev/null; ok "merge case: a zone-less or loosely written stamp reads as UTC and never aborts the pass"
 "$ROOT/tests/merge-case.sh" "$T" interrupt >/dev/null; ok "merge case: a pass interrupted at its first write loses no uncommitted edit, and a rerun finishes"
+"$ROOT/tests/merge-case.sh" "$T" reactions >/dev/null; ok "merge case: reactions changed on both sides (both add; one removes while the other adds) merge 3-way: every reaction neither side removed is kept, git finishes alone"
 
 # merge, heal and watch headers card: usage errors exit 2 (64 for the heal scripts), no traceback, no silent exit 0
 MP="$SK/merge/scripts/lanework-merge.py"; MBS="$SK/merge/scripts/merge-board.sh"; mkdir -p "$T/mhw"; git init -q "$T/mhw/repo"

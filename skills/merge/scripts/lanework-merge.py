@@ -450,6 +450,23 @@ def merge_labels(b, o, t, win, singles):
     return out
 
 
+def reaction_key(e):
+    """(emoji, who): `by` absent = the owner, a bare name = that name. An entry with no emoji keys on itself, so it is kept as written."""
+    if not isinstance(e, dict) or not isinstance(e.get('emoji'), str) or not e['emoji'].strip():
+        return ('#', dump(e))
+    by = e.get('by')
+    who = by.get('name') if isinstance(by, dict) else by
+    return ('e', e['emoji'], None if who is None else str(who))
+
+
+def merge_reactions(b, o, t, win):
+    """A comment's `reactions`, 3-way: union by (emoji, by), a removal on one side held. None when a side is not a list
+    (the guide: only a list reads), so the caller falls back to the later side. One entry changed on both sides: `win`'s."""
+    if not all(isinstance(x, list) for x in (b, o, t)):
+        return None
+    return three_way_list(b, o, t, reaction_key, win)
+
+
 def merge_config(b, o, t, win):
     b, o, t = (x if isinstance(x, dict) else {} for x in (b, o, t))
     out = {}
@@ -518,6 +535,17 @@ def merge_doc(base, ours, theirs, kind, singles):
                 pick = key_lines('labels', v) if v else None
             except (ValueError, IndexError):
                 pick = lt if win == 'theirs' else lo
+        elif k == 'reactions' and kind == 'comment':
+            # a reaction never restamps `modified`, so no side is later: a 3-way union, a removal on one side held
+            try:
+                v = merge_reactions(*[parse_value(x) if x else [] for x in (lb, lo, lt)], win)
+            except (ValueError, IndexError):
+                v = None
+            if v is None:
+                pick = lt if win == 'theirs' else lo
+            else:
+                same = [x for x in (lo, lt) if x and parse_value(x) == v]   # one side's bytes when they already say it
+                pick = same[0] if same else key_lines('reactions', v) if v else None
         elif k == 'config' and kind == 'board' and lo and lt:
             try:
                 v = merge_config(parse_value(lb) if lb else {}, parse_value(lo), parse_value(lt), win)

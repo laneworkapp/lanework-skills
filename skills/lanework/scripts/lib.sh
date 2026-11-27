@@ -185,7 +185,8 @@ by_of() {
 }
 
 # stamp_args_ok <name> <model> [session]: call right after require_model. A value that is empty or holds a control character (newline, tab) cannot be
-# carried by any quoting: exit 2 "nothing written".
+# carried by any quoting: exit 2 "nothing written". So is a name the guide reserves (RESERVED_NAMES, any case; heal-board.py and heal/scripts/heal-descriptors.py hold the same set).
+RESERVED_NAMES='anyone board healer shortcuts tracker'
 stamp_args_ok() {
   local w v i=0 LC_ALL=C   # bytes: a C1 control (U+0080-U+009F, UTF-8 C2 80-9F) is caught like the ASCII ones
   for w in name model session; do
@@ -193,6 +194,10 @@ stamp_args_ok() {
     if [ -z "$v" ] && [ "$w" != session ]; then printf '%s: empty --%s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2; fi
     if [ "$i" = 3 ] && [ -z "$v" ]; then continue; fi
     case "$v" in *[[:cntrl:]]*|*$'\xc2'[$'\x80'-$'\x9f']*) printf '%s: control character in the stamp %s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2 ;; esac
+  done
+  local r l; l=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+  for r in $RESERVED_NAMES; do
+    [ "$l" != "$r" ] || { printf '%s: %s is a reserved name; sign as yourself; nothing written\n' "$(basename "$0")" "$1" >&2; exit 2; }
   done
 }
 
