@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "heal-board.py lags the board healer, now at heal v6"
-order: 3072
+order: 5120
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "heal", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-25T04:51:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-27T13:03:19Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-27T13:42:07Z}
 ---
 The skills' own healer, `skills/lanework/scripts/heal-board.py`, is brought up to the board healer's heal v6 by hand, so it stops losing values the board healer keeps, and it no longer steps aside for a board copy older than itself.
 
