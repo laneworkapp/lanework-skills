@@ -5,8 +5,8 @@ title: "heal-board.py lags the board healer, now at heal v6"
 order: 1024
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "heal", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-25T04:51:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-27T12:55:57Z, comment: 997c673f-9edf-4102-bc6d-5c03ebbd8652}
-modified: {at: 2026-11-27T12:55:59Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+waiting: {for: anyone, since: 2026-11-27T12:58:50Z, comment: bb68f5fd-4075-4f4d-b2d2-8b3792ec5690}
+modified: {at: 2026-11-27T12:58:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Replace the skills' hand-kept healer with a verbatim copy of the board healer at heal v6, behind a thin `heal-board.py` that keeps today's command and its reserved-name guard, so the skills heal exactly as the app's healer does and can be re-copied when it moves.
 
