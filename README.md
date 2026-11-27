@@ -29,7 +29,7 @@ A [Lanework](https://laneworkapp.com) board is just a folder of plain directorie
 
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
-| `lanework` | 10 | 382 | 5,686 |
+| `lanework` | 10 | 382 | 5,682 |
 | `work` | 16 | 488 | 8,012 |
 | `watch` | 4 | 182 | 2,120 |
 | `discovery` | 14 | 510 | 3,022 |
@@ -51,10 +51,10 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `work` on 2026-1
 | `references/format.md` | 143 |
 | `references/founding.md` | 468 |
 | `references/reading.md` | 314 |
-| `references/writes.md` | 2,286 |
+| `references/writes.md` | 2,282 |
 | `templates/index.md` | 76 |
 | `templates/label-kinds.md` | 254 |
-| **total** | **5,686** |
+| **total** | **5,682** |
 
 #### `work`
 
