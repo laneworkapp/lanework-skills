@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "An ask posted without waiting on its card goes unnoticed by every lint and by the arming pass"
-order: 4096
+order: 10240
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "watch", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-26T12:53:20Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-27T12:57:43Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+modified: {at: 2026-11-27T13:02:46Z}
 ---
 The arming pass reports a card whose newest ask is still open but whose `waiting` key is missing, so an ask posted with `post-comment.sh` no longer goes unnoticed.
 
