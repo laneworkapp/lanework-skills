@@ -184,8 +184,10 @@ by_of() {
   else printf '{name: %s, kind: agent, model: %s}' "$n" "$m"; fi
 }
 
-# stamp_args_ok <name> <model> [session]: call right after require_model. A value that is empty or holds a control character (newline, tab) cannot be
-# carried by any quoting: exit 2 "nothing written". So is a name the guide reserves (RESERVED_NAMES, any case; heal-board.py and heal/scripts/heal-descriptors.py hold the same set).
+# stamp_args_ok <name> <model> [session]: call right after require_model. The exit-2 causes every stamping script shares, listed here only,
+# each "nothing written": an empty --name or --model; a control character (newline, tab, a C1 control) in any value, which no quoting carries;
+# a name with leading or trailing whitespace (refused, never trimmed: a stamp is written as given); a name the guide reserves
+# (RESERVED_NAMES, any case; heal-board.py and heal/scripts/heal-descriptors.py hold the same set).
 RESERVED_NAMES='anyone board healer shortcuts tracker'
 stamp_args_ok() {
   local w v i=0 LC_ALL=C   # bytes: a C1 control (U+0080-U+009F, UTF-8 C2 80-9F) is caught like the ASCII ones
@@ -195,6 +197,7 @@ stamp_args_ok() {
     if [ "$i" = 3 ] && [ -z "$v" ]; then continue; fi
     case "$v" in *[[:cntrl:]]*|*$'\xc2'[$'\x80'-$'\x9f']*) printf '%s: control character in the stamp %s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2 ;; esac
   done
+  case "$1" in [[:space:]]*|*[[:space:]]) printf "%s: '%s' has leading or trailing whitespace; sign as yourself; nothing written\n" "$(basename "$0")" "$1" >&2; exit 2 ;; esac
   local r l; l=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
   for r in $RESERVED_NAMES; do
     [ "$l" != "$r" ] || { printf '%s: %s is a reserved name; sign as yourself; nothing written\n' "$(basename "$0")" "$1" >&2; exit 2; }

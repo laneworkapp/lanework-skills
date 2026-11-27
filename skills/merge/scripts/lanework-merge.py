@@ -451,7 +451,8 @@ def merge_labels(b, o, t, win, singles):
 
 
 def reaction_key(e):
-    """(emoji, who): `by` absent = the owner, a bare name = that name. An entry with no emoji keys on itself, so it is kept as written."""
+    """(emoji, who): `by` absent = the owner, a bare name = that name. An entry with no emoji keys on itself ('#'); merge_reactions
+    adds its occurrence number, so it is kept as written, duplicates included."""
     if not isinstance(e, dict) or not isinstance(e.get('emoji'), str) or not e['emoji'].strip():
         return ('#', dump(e))
     by = e.get('by')
@@ -461,10 +462,21 @@ def reaction_key(e):
 
 def merge_reactions(b, o, t, win):
     """A comment's `reactions`, 3-way: union by (emoji, by), a removal on one side held. None when a side is not a list
-    (the guide: only a list reads), so the caller falls back to the later side. One entry changed on both sides: `win`'s."""
+    (the guide: only a list reads), so the caller falls back to the later side. One entry changed on both sides: `win`'s.
+    An entry with no non-empty emoji (kept untouched, the guide) keys on itself plus its occurrence number in its list, so
+    identical copies stay apart: none collapses into another."""
     if not all(isinstance(x, list) for x in (b, o, t)):
         return None
-    return three_way_list(b, o, t, reaction_key, win)
+    def tagged(l):
+        seen, out = {}, []
+        for e in l:
+            k = reaction_key(e)
+            if k[0] == '#':
+                seen[k] = seen.get(k, 0) + 1
+                k = k + (seen[k],)
+            out.append((k, e))
+        return out
+    return [e for _, e in three_way_list(tagged(b), tagged(o), tagged(t), lambda p: p[0], win)]
 
 
 def merge_config(b, o, t, win):

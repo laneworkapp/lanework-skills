@@ -10,7 +10,8 @@
 #   delete: a whole card deleted on one side, edited or moved on the other: the survivor's whole tree comes back
 #   deleteadd: a whole card deleted on one side, a comment, attachment or relation only added on the other: restored whole
 #   stamps: a zone-less or loosely written `modified` stamp; interrupt: the pass interrupted at its first write
-#   reactions: a comment's reactions changed on both sides (both add; one removes while the other adds), `modified` untouched
+#   reactions: a comment's reactions changed on both sides (both add; one removes while the other adds; both add beside two
+#   identical entries with no emoji), `modified` untouched
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; SK="$ROOT/skills"
 VAL="$ROOT/Boards/Skills Pipeline.lanework"
@@ -433,14 +434,18 @@ reactions)
   # rcomment <repo> <card> <comment> <reactions lines>: one comment, stamps fixed at T0 on every side
   rcomment() { local d="$1/$BN/$IDEAS/$2/comments/$3"; mkdir -p "$d"
     printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n%s---\nReact to me.\n' "$T0" "$BY0" "$T0" "$BY0" "$4" > "$d/index.md"; }
-  RC1=$(uuid); RC2=$(uuid); OWN='{emoji: "👍", at: 2026-01-01T00:00:00Z}'
+  RC1=$(uuid); RC2=$(uuid); RC3=$(uuid); OWN='{emoji: "👍", at: 2026-01-01T00:00:00Z}'
   ALI='{emoji: "🎉", at: 2026-01-01T00:00:00Z, by: {name: alice, kind: human}}'; BOB='{emoji: "👀", at: 2026-01-03T00:00:00Z, by: {name: bob, kind: human}}'
   # base: case 1 holds the owner's thumbs-up (flow form); case 2 the owner's and alice's (block form). B takes A's base commit.
   rcomment "$A" "$K1" "$RC1" "reactions: [$OWN]"$'\n'; rcomment "$A" "$T1" "$RC2" $'reactions:\n'"  - $OWN"$'\n'"  - $ALI"$'\n'
+  # case 3: two identical entries with no emoji (a hand edit), kept untouched by the guide, so neither collapses into the other
+  NOE='{at: 2026-01-02T00:00:00Z, by: {name: carol, kind: human}}'
+  rcomment "$A" "$K1" "$RC3" $'reactions:\n'"  - $NOE"$'\n'"  - $NOE"$'\n'
   cm "$A" rbase; G "$B" pull -q --ff-only "$A" main
   # case 1, both add: alice reacts on A, bob on B. Case 2, one removes while the other adds: the owner takes the thumbs-up back on A, bob reacts on B
   rcomment "$A" "$K1" "$RC1" "reactions: [$OWN, $ALI]"$'\n'; rcomment "$B" "$K1" "$RC1" "reactions: [$OWN, $BOB]"$'\n'
   rcomment "$A" "$T1" "$RC2" $'reactions:\n'"  - $ALI"$'\n'; rcomment "$B" "$T1" "$RC2" $'reactions:\n'"  - $OWN"$'\n'"  - $ALI"$'\n'"  - $BOB"$'\n'
+  rcomment "$A" "$K1" "$RC3" $'reactions:\n'"  - $NOE"$'\n'"  - $NOE"$'\n'"  - $ALI"$'\n'; rcomment "$B" "$K1" "$RC3" $'reactions:\n'"  - $NOE"$'\n'"  - $NOE"$'\n'"  - $BOB"$'\n'
   cm "$A" a1; cm "$B" b1; mclone
   G "$M" merge -q --no-edit FETCH_HEAD >/dev/null 2>&1 || fail "reactions: nothing is lost, so git should finish by itself"
   clean_status "reactions"
@@ -448,8 +453,12 @@ reactions)
   for e in 👍 🎉 👀; do grep -qF "\"$e\"" "$F1" || { cat "$F1"; fail "reactions, both add: $e lost"; }; done
   for e in 🎉 👀; do grep -qF "\"$e\"" "$F2" || { cat "$F2"; fail "reactions, one removes while the other adds: $e lost"; }; done
   if grep -qF '"👍"' "$F2"; then cat "$F2"; fail "reactions, one removes while the other adds: the removed thumbs-up came back"; fi
+  F3="$D/$IDEAS/$K1/comments/$RC3/index.md"; NC=$(grep -o 'carol' "$F3" | grep -c . || true)
+  [ "$NC" = 2 ] || { cat "$F3"; fail "reactions, both add beside two identical no-emoji entries: $NC of them kept (want 2)"; }
+  for e in 🎉 👀; do grep -qF "\"$e\"" "$F3" || { cat "$F3"; fail "reactions, both add beside two no-emoji entries: $e lost"; }; done
   [ "$(mcount "$D/$IDEAS/$K1")" = 0 ] && [ "$(mcount "$D/$IDEAS/$T1")" = 0 ] || fail "reactions: a merge comment for a merge that lost nothing"
-  validate_board "$M" "reactions"; echo "both add:"; grep '^reactions' -A3 "$F1" | sed -n '/^---$/q;p'; echo "one removes, one adds:"; grep '^reactions' -A3 "$F2" | sed -n '/^---$/q;p'; exit 0 ;;
+  validate_board "$M" "reactions"; echo "both add:"; grep '^reactions' -A3 "$F1" | sed -n '/^---$/q;p'; echo "one removes, one adds:"; grep '^reactions' -A3 "$F2" | sed -n '/^---$/q;p'
+  echo "both add beside two no-emoji entries:"; grep '^reactions' -A4 "$F3" | sed -n '/^---$/q;p'; exit 0 ;;
 esac
 
 # ---- side A (earlier, except TR2)
