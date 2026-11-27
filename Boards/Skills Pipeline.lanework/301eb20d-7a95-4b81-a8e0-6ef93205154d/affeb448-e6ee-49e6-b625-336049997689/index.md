@@ -2,13 +2,12 @@
 schema: 1
 kind: card
 title: "heal-board.py lags the board healer, now at heal v6"
-order: 1024
+order: 3072
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "heal", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-25T04:51:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-waiting: {for: anyone, since: 2026-11-27T12:58:50Z, comment: bb68f5fd-4075-4f4d-b2d2-8b3792ec5690}
-modified: {at: 2026-11-27T12:58:51Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-27T13:03:19Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
-Replace the skills' hand-kept healer with a verbatim copy of the board healer at heal v6, behind a thin `heal-board.py` that keeps today's command and its reserved-name guard, so the skills heal exactly as the app's healer does and can be re-copied when it moves.
+The skills' own healer, `skills/lanework/scripts/heal-board.py`, is brought up to the board healer's heal v6 by hand, so it stops losing values the board healer keeps, and it no longer steps aside for a board copy older than itself.
 
 ## What lags
 
@@ -87,54 +86,59 @@ After `--apply`, the skills' copy left `priorities:` in place, appended the sugg
 
 The reserved-name case: `heal-board.py ... --apply --name anyone` exits 64 with `anyone is reserved for the app; sign as yourself`; the board healer exits 0 and writes `created: {at: ..., by: {name: anyone, kind: agent, model: t}}` on both records.
 
+## Ruled: the skills keep their own healer
+
+Ruled by the owner on 2026-11-27: the skill has its own full-featured healer, brought up to heal v6 by hand. A board in deep trouble that the app cannot open, or a stale board its user does not open, carries a stale healer too, so the skills cannot depend on the board's copy.
+
+- Not taken: shipping a verbatim copy of the app's healer behind a wrapper, and dropping the skills' healer.
+- The drift is accepted as real and expected to shrink as the schema settles during the beta.
+
 ## Scope
 
 | File | Change |
 |---|---|
-| `skills/lanework/scripts/lanework-heal.py` | New. Byte for byte copy of `.schema/bin/lanework-heal.py` at v6, header `# lanework-heal v6` intact. Never edited by hand. |
-| `skills/lanework/scripts/heal-board.py` | Replaced by a short wrapper (about 40 lines). It keeps the usage and exit codes (64 usage, 2 refusal removed), rejects reserved names including `anyone`, then runs the board's own `.schema/bin/lanework-heal.py` when the board has one, and the vendored `lanework-heal.py` otherwise or under `--ignore-board-copy`. It passes every other argument through. |
-| `skills/lanework/SKILL.md` | The scripts table row for `heal-board.py`: say it runs the board's own healer, else the vendored v6 copy. |
-| `skills/lanework/references/writes.md` | § Healing: "Which copy" and "Repairs" lines (the board's copy now runs through `heal-board.py` instead of refusing it; the rule ids appear in the dry run); exit-code line unchanged. |
-| `skills/lanework/templates/label-kinds.md` | No change; the vendored copy reads its `priority` row as today and falls back to its embedded copy. |
-| `tests/smoke.sh` | `sec_heal_board`: update the greps that expect the old line (`index.md: root-key `, line 563) to the `<file>: H11 root-key` form; replace "heal defers to the board's own" (line 596) with a delegation case; add the cases under Verified by. `sec_label_kinds` (line 2578): `hb.EMBEDDED_SUGGESTED` and `hb.SUGGESTED` now come from the vendored module. Add a drift note: vendored copy `cmp` to the Skills Pipeline board's `.schema/bin/lanework-heal.py`; a mismatch prints a note and `scripts/release.sh` prints a warning, neither fails (same pattern as the guide-version stamp). |
-| `scripts/release.sh` | Print the same drift warning. |
-| `CLAUDE.md` (repo) | "The in-board agent guide wins" bullet: add the heal version stamp (`lanework-heal v6`) and the step "re-copy `lanework-heal.py` from the board" beside the fixtures step. |
+| `skills/lanework/scripts/heal-board.py` | Bring every rule in the table above to the v6 behaviour: H01, H03, H05, H06, H07 to H11, H13, H15, H16, unknown subkeys riding through on `kind` and `icon`, a record before any rewrite that drops what the card wrote, an unreadable `rank` dropping out of the definition, no second record on a rerun. Print the rule id in each line (`<file>: H05 definition ...`). Carry a heal version constant, `6`. Keep refusing `--name anyone`. |
+| `skills/lanework/scripts/heal-board.py`, which copy runs | Read the version from the header of the board's `.schema/bin/lanework-heal.py`. Board's copy at the same or a later version: refuse as today and name it. Board's copy earlier, or its version unreadable: run the skills' own and say so in one line. `--ignore-board-copy` stays. |
+| `skills/lanework/references/writes.md` | § Healing: "Which copy" becomes the later heal version wins; "Repairs" names the rules added. |
+| `skills/lanework/SKILL.md` | The `heal-board.py` row, if its wording needs it. |
+| `tests/smoke.sh` | `sec_heal_board`: the greps that read the old line form move to the form with the rule id; the cases under Verified by; a drift note when the Skills Pipeline board's healer header reads a later version than the skills' constant. A note, never a failure. |
+| `scripts/release.sh` | The same drift, printed as a warning. |
+| repo `CLAUDE.md` | "The in-board agent guide wins": add the heal version the skills target, and "read `heal-board.py` against the board's `HEAL.md`" to the steps for a guide move. |
 
-## Options
+## Decided here, not asked
 
-Open call, asked on the thread: which way the skills' healer keeps up. Scope, Verified by and Done when below are written for (d), the recommendation.
-
-- **(a) Port the missing rules into `heal-board.py`.** Touches `heal-board.py` (about 700 changed lines) and `tests/smoke.sh`. High risk: 11 rules differ in behaviour, not only in text, and the app moved to v6 without notice, so the port lags again at the next move. Stays in step only by a manual re-diff. Not recommended.
-- **(b) Delegate to the board's `lanework-heal.py` when present, keep the old rules as fallback.** Touches `heal-board.py`, `writes.md`, `smoke.sh`. Low risk to write, but it fixes nothing where it matters: boards with no `.schema/` are exactly where the fallback runs, so the data-losing rules stay live. Today's refusal (exit 2) already gives the same effect for boards that have the copy. Not recommended alone.
-- **(c) Drop `heal-board.py`, use only the board's healer.** Touches `SKILL.md`, `writes.md`, `smoke.sh`, `heal/SKILL.md`. A board founded by `found-board.sh` and worked by agents before the app opens it has no healer, and `writes.md` tells agents to heal such boards. Not recommended.
-- **(d) Recommended: vendor the board healer verbatim, and let `heal-board.py` be the wrapper in front of it.** Same engine on every board, so parity is by construction, and the catalog's own promise ("a copy of this script that ships with an agent skill") is what the app intends. It stays in step by a re-copy (one `cp`) plus the drift note, which mirrors how the guide version and `tests/fixtures/app-writes/` are kept today. The wrapper exists for three reasons: it keeps the command name every skill and test cites, it keeps the reserved-name guard the app's copy lacks (`anyone`), and it delegates to the board's own copy so the right healer runs without a second command.
+- **The later heal version wins**, in place of "the board's copy always wins". It follows from the ruling: a stale board copy must not block the skills' healer. A board whose copy is current still heals with its own.
+- **Parity is checked by running both**: the smoke cases heal one throwaway board with each script and compare the files and the records. The board's healer is read from the Skills Pipeline board's `.schema/bin/`, never copied into `skills/`.
+- **`anyone` stays refused** by the skills' healer. The app's healer accepts it; that fix belongs to the app, and the owner is told at close.
+- **No vendored file**: nothing from the app is added under `skills/`.
 
 ## Risks
 
-- The vendored copy is 1524 lines the skills cannot edit. A guard the skills need (reserved names) lives in the wrapper for that reason, not in the copy.
-- The app's healer signs as `anyone`. That is a bug in the app's copy (`RESERVED_NAMES` lacks `anyone`); the wrapper hides it for skill runs only. The fix belongs to the app, so the owner is told at close.
-- The smoke case that compares the vendored copy with the Skills Pipeline board's copy depends on that board being on the same heal version; during a guide move the two can differ for a while, so it is a note, not a failure.
-- The first `--apply` with v6 rules on an old board can re-stamp more cards (H13, H14), which `writes.md` already says to do only on the owner's ask; the dry run still lists them.
-- A user who runs the old line format in a script (`<file>: <code> ...`) sees the rule id inserted. Nothing in the skills parses the line except `tests/smoke.sh`, fixed in Scope.
+- About 700 lines change in one script, across 11 rules that differ in behaviour. The side-by-side smoke cases are the guard, one per rule.
+- It lags again when the app's healer moves. The drift note and the release warning say so on the day it happens; the port is then a new card.
+- "The later version wins" runs the skills' healer on a board that ships an older one. An older board healer that knew a rule the skills' healer dropped would lose it; none exists today, since v6 is a superset in the rules compared here.
+- The first `--apply` with the v6 rules on an old board can re-stamp more cards (H13, H14). `writes.md` already says to do that only on the owner's ask, and the dry run lists them.
+- The line format gains the rule id. Nothing in the skills parses the line except `tests/smoke.sh`, changed in Scope.
 
 ## Verified by
 
-- `env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_PID bash tests/smoke.sh --only heal_board,label_kinds,compact_form` passes, then the full `tests/smoke.sh` once the other run on the machine is finished.
-- New smoke cases, each on a throwaway board under the scratch directory:
-  - A lane and a card with `iconColor` beside an icon mapping, a null title, a bare `glyph:` beside a different `icon`: `heal-board.py --apply` and the board healer produce byte-identical files and the same records.
-  - A card label with `rank: 7` and a `kind` subkey: a record quoting the card's `labels` line is posted before the file changes, and the kind subkey survives.
-  - A board with `config.priorities` and a card with root `priority: Hot`: the board gains `values: [{text: "Hot", rank: 1, color: "red"}, ...]` and the card keeps rank and colour.
-  - A board that ships `.schema/bin/lanework-heal.py`: `heal-board.py` runs that copy (a marker line printed by a stub copy proves it), and `--ignore-board-copy` runs the vendored one.
-  - `--name anyone` exits 64 with nothing written.
-  - The vendored file is `cmp` equal to the Skills Pipeline board's copy, or prints the drift note.
-- `tests/check-refs.sh` and `tests/check-sizes.sh` pass (the README word counts if `SKILL.md` text changes).
+- `bash -n` and `python3 -m py_compile` on the changed scripts.
+- New smoke cases, each on a throwaway board healed once by `heal-board.py --ignore-board-copy` and once by the Skills Pipeline board's v6 healer, compared file by file and record by record:
+  - a lane and a card with `iconColor` beside an icon mapping, a null title, a bare `glyph:` beside a different `icon`;
+  - a card label with `rank: 7` and a `kind` subkey: the record quotes the card's `labels` line before the file changes, and the subkey survives;
+  - a board with `config.priorities` and a card with root `priority: Hot`: the board gains the roster as its `priority` definition and the card keeps rank and colour;
+  - an empty `config.collapse-empty`;
+  - a rerun after an interrupted apply posts no second record.
+- Which copy: a board with a stub healer at `v5` runs the skills' own; at `v6` and at `v7` it is refused and named.
+- `--name anyone` exits 64 with nothing written.
+- The full `tests/smoke.sh`, with `check-refs.sh` and `check-sizes.sh`.
 
 ## Done when
 
-- `heal-board.py` and the board's v6 healer make the same call, including skips and records, on a throwaway board holding a lane `iconColor` beside an icon mapping, a null `title`, a board definition with a shadowed `glyph:`, and a `config.priorities` roster.
-- `skills/lanework/scripts/lanework-heal.py` is byte for byte the board's `.schema/bin/lanework-heal.py` at v6, and a drift against the Skills Pipeline board prints a note in smoke and a warning in `scripts/release.sh`.
+- `heal-board.py` and the board's v6 healer make the same call, skips and records included, on the throwaway boards above.
+- A board that ships an earlier healer is healed by the skills' own, and one that ships the same or a later version is left to its own.
 - `heal-board.py --apply --name anyone` still exits 64 with nothing written.
-- On a board that ships its own healer, `heal-board.py <board>` runs it instead of refusing.
-- `skills/lanework/references/writes.md` § Healing, `skills/lanework/SKILL.md` and the repo `CLAUDE.md` describe the wrapper, the vendored copy and the re-copy step, and none cites a rule the copy lacks.
+- Smoke prints a note, and `scripts/release.sh` a warning, when the Skills Pipeline board's healer is at a later version than the skills target.
+- `writes.md` § Healing and the repo `CLAUDE.md` say which copy runs and name the heal version.
 - `tests/smoke.sh` passes in full, and the closing record carries the changelog sentence.
-- The owner is told that the app healer's `RESERVED_NAMES` lacks `anyone`, since the fix belongs to the app.
+- The owner is told that the app healer's `RESERVED_NAMES` lacks `anyone`.
