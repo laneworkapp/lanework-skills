@@ -7,7 +7,7 @@ labels:
   - {text: "lanework", kind: {type: "skill", text: "Skill"}}
   - {text: "merge", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-27T16:51:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-27T16:51:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-27T17:33:44Z}
 ---
 Five small gaps the reviewer found in the v122 change, none of which blocked it.
 

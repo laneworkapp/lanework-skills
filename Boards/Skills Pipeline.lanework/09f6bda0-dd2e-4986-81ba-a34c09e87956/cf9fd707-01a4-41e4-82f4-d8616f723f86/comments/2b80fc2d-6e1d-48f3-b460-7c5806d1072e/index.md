@@ -8,7 +8,7 @@ modified: {at: 2026-11-27T16:48:40Z, by: {name: claude, kind: agent, model: clau
 
 - **Stance**: adversarial, because the fixer ran at opus and the diff changes how persisted comment files merge
 - **Round**: 1
-- **Card**: [Guide moved to v122: read the skills against it and bump the stamp](lanework://Skills%20Pipeline/cf9fd707-01a4-41e4-82f4-d8616f723f86)
+- **Card**: [Guide moved to v122: read the skills against it and bump the stamp](../..)
 - **Branch**: `guide-v122` at `6d8ed0ba` (read off the branch), on `a490089e`
 
 **Blocking**: none.

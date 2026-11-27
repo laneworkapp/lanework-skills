@@ -5,7 +5,7 @@ title: "Scripts leave a plugin signature file in every board they write to"
 order: 2048
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "work", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-27T17:33:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-27T17:33:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-27T17:33:44Z}
 ---
 The scripts leave a small signature file in every board they write to, so the sandboxed app can read which plugin version is working the board and tell the person when it is behind.
 
