@@ -5,7 +5,10 @@ title: "An ask posted without waiting on its card goes unnoticed by every lint a
 order: 3072
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "watch", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-26T12:53:20Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-27T12:46:46Z}
+modified: {at: 2026-11-27T12:51:43Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-27T13:21:43Z
 ---
 An ask can be posted without setting the card's `waiting` key, and nothing in the skills catches it, so the app shows no waiting mark on a card that waits on the owner.
 
