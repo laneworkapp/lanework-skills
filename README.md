@@ -144,7 +144,7 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `lanework`, `wor
 | file | words |
 |---|---|
 | `SKILL.md` | 406 |
-| `references/mapping.md` | 469 |
+| `references/mapping.md` | 465 |
 | **total** | **875** |
 
 ## Install

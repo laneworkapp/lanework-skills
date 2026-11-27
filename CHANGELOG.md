@@ -1,5 +1,7 @@
 **November 2026**
 
+The Trello and Obsidian import scripts now write labels as a list and comment dates as a map, the strict form the app's importer requires, and label names keep their colons and semicolons.
+
 Version 0.11.0: agents now pick the highest-priority card first when choosing what to work on next, then go by lane order.
 
 Reading a board now shows each card's priority beside it.
