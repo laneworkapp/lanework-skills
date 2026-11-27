@@ -573,6 +573,7 @@ def main(argv):
             print("skip %s: %s" % (where, why))
         if apply_ and changes:
             stage = tempfile.mkdtemp(prefix="lanework-heal-")
+            moved = 0
             try:
                 written = set()
                 for n, (d, where, code, detail, body) in enumerate(changes):
@@ -586,9 +587,11 @@ def main(argv):
                     with open(tmp, "w", encoding="utf-8", newline="") as f:
                         f.write(d.render(body, stamp))
                     move_in(tmp, d.path, board)
+                    moved += 1
             finally:
                 shutil.rmtree(stage, ignore_errors=True)
-            sign_board(board)
+            if moved:   # every change skipped as "changed while healing": nothing written, nothing signed
+                sign_board(board)
         print("%d changes in %d files%s" % (len(changes), len({d.path for d, *_ in changes}),
               "" if apply_ or not changes else " (dry run: --apply to write)"))
     print("digest %s" % hexd)

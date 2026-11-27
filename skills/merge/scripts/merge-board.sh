@@ -5,8 +5,8 @@
 # Exit 0 = every board path resolved and every touched board validates.
 # Exit 1 = a refusal: <repo> is not a git repo, or resolve left something (its exit 1, passed on).
 # Exit 2 = usage: no argument, an unknown argument (a first one starting with `-` too), `--model` with no value (nothing run).
-# Exit 0 also signs each board the pass touched (lib.sh sign_board): the boards with unmerged paths before it, and the boards with
-# staged paths after it (resolve's own validation set). Never on exit 1.
+# Exit 0 also signs each board the pass wrote to (lib.sh sign_board): those whose index entries it changed, as
+# `git ls-files --stage` before and after shows (every write of the pass is staged). Never on exit 1.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,10 +28,12 @@ if [ -z "$(git -C "$REPO" config --get merge.lanework.driver || true)" ]; then
 fi
 args=(resolve "$REPO"); [ -n "$MODEL" ] && args+=(--model "$MODEL")
 TOP=$(git -C "$REPO" rev-parse --show-toplevel)
-# boards_of: the board folder (the first segment ending in .lanework, never the last) of each NUL-separated repo path on stdin, one per line
-boards_of() { tr '\0' '\n' | awk -F/ '{ for (i = 1; i < NF; i++) if ($i ~ /\.lanework$/) { b = $1; for (j = 2; j <= i; j++) b = b "/" $j; print b; break } }'; }
-BEFORE=$(git -C "$TOP" diff --name-only -z --diff-filter=U | boards_of || true)
+# index: the repo's index, one "mode sha stage<TAB>path" line per entry, sorted (a path holding a newline splits: never a board's)
+index() { git -C "$TOP" ls-files --stage -z | tr '\0' '\n' | LC_ALL=C sort; }
+# boards_of: the board folder (the first segment ending in .lanework, never the last) of each path on stdin, one per line
+boards_of() { awk -F/ '{ for (i = 1; i < NF; i++) if ($i ~ /\.lanework$/) { b = $1; for (j = 2; j <= i; j++) b = b "/" $j; print b; break } }'; }
+BEFORE=$(index)
 python3 "$HERE/lanework-merge.py" "${args[@]}" </dev/null
-{ printf '%s\n' "$BEFORE"; git -C "$TOP" diff --cached --name-only -z | boards_of || true; } | sort -u | while IFS= read -r b; do
+LC_ALL=C comm -3 <(printf '%s\n' "$BEFORE") <(index) | awk -F'\t' '{ print $NF }' | boards_of | sort -u | while IFS= read -r b; do
   [ -z "$b" ] || sign_board "$TOP/$b"
 done
