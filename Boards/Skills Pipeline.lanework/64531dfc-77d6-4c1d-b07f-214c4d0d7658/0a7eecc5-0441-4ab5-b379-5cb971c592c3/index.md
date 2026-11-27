@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Merge: a conflicted card whose lane was removed outright still lands in a lane with no index.md"
-order: 1024
+order: 2048
 labels: [{text: "merge", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T18:46:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-23T18:46:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-27T12:46:32Z}
 ---
 The merge skill can still leave a card in a lane folder with no `index.md` on one path, and a restore into the trash keeps an old stamp. Both were found in the review of the delete fixes and left out of that card.
 

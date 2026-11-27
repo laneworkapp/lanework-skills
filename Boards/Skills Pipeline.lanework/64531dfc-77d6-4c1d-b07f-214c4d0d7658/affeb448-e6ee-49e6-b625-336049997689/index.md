@@ -5,7 +5,7 @@ title: "heal-board.py lags the board healer, now at heal v6"
 order: 1024
 labels: [{text: "lanework", kind: {type: "skill", text: "Skill"}}, {text: "heal", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-25T04:51:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-25T04:51:31Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-27T12:46:11Z}
 ---
 The skills' `heal-board.py` lags the healer the app ships into each board, which moved to heal v6.
 

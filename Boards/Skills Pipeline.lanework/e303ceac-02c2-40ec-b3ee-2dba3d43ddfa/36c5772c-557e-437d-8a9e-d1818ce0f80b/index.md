@@ -2,10 +2,10 @@
 schema: 1
 kind: card
 title: "Lease trial: a collision lint and a clean run over the first 50 leased cards"
-order: 2048
+order: 111616
 labels: [{text: work, kind: {type: skill, text: Skill}}, {text: repo, kind: {type: skill, text: Skill}}]
 created:  {at: 2026-11-14T14:48:41Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-18T10:55:40Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-27T12:51:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 ---
 Add a read-only lint, `lint-leases.sh`, that finds lease collisions in a board's threads, then run it over the first 50 leased cards and record whether the run was clean.
 
