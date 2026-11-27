@@ -5,6 +5,8 @@
 # Exit 0 = every board path resolved and every touched board validates.
 # Exit 1 = a refusal: <repo> is not a git repo, or resolve left something (its exit 1, passed on).
 # Exit 2 = usage: no argument, an unknown argument (a first one starting with `-` too), `--model` with no value (nothing run).
+# Exit 0 also signs each board the pass touched (lib.sh sign_board): the boards with unmerged paths before it, and the boards with
+# staged paths after it (resolve's own validation set). Never on exit 1.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,4 +27,11 @@ if [ -z "$(git -C "$REPO" config --get merge.lanework.driver || true)" ]; then
   echo "note: the board merge driver is not installed in this clone (scripts/lanework-merge.py install <repo>)."
 fi
 args=(resolve "$REPO"); [ -n "$MODEL" ] && args+=(--model "$MODEL")
+TOP=$(git -C "$REPO" rev-parse --show-toplevel)
+# boards_of: the board folder (the first segment ending in .lanework, never the last) of each NUL-separated repo path on stdin, one per line
+boards_of() { tr '\0' '\n' | awk -F/ '{ for (i = 1; i < NF; i++) if ($i ~ /\.lanework$/) { b = $1; for (j = 2; j <= i; j++) b = b "/" $j; print b; break } }'; }
+BEFORE=$(git -C "$TOP" diff --name-only -z --diff-filter=U | boards_of || true)
 python3 "$HERE/lanework-merge.py" "${args[@]}" </dev/null
+{ printf '%s\n' "$BEFORE"; git -C "$TOP" diff --cached --name-only -z | boards_of || true; } | sort -u | while IFS= read -r b; do
+  [ -z "$b" ] || sign_board "$TOP/$b"
+done

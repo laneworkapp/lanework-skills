@@ -57,4 +57,5 @@ if [ -f "$VAL" ]; then
 else
   echo "file-card.sh: note: no .schema/bin/lanework-validate.py on the board; card not validated" >&2
 fi
+sign_board "$BOARD"
 printf '%s\n' "$LANE/$CARD_ID"

@@ -96,4 +96,5 @@ if [ -z "$SINCE" ] || ! stamp_lines_ok "$STAGE/index.md" waiting modified || [ "
   echo "post-ask.sh: ask $COID landed, but the card could not be restamped; set waiting by hand" >&2; exit 1
 fi
 mv "$STAGE/index.md" "$(card)/index.md"
+sign_board "$BOARD"
 printf '%s\n' "$COID"

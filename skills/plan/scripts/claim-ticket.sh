@@ -101,6 +101,7 @@ mv "$STAGE/index.md" "$FRONTIER/$CID/index.md"
 MOVING=1   # set before the move, so a claim ended while the mv runs (a signal waits for it) finds its card in Working
 mv "$FRONTIER/$CID" "$DEST/$CID"
 mkdir -p "$DEST/$CID/comments"; mv "$STAGE/comment" "$DEST/$CID/comments/$COID"
+sign_board "$BOARD"
 
 printf 'claimed %s -> Working (order %s)\n' "${CID:0:8}" "$ORDER"
 printf 'lanework://%s/%s\n' "$(fm_value "$BOARD/index.md" id)" "$CID"

@@ -107,4 +107,5 @@ while IFS=$'\037' read -r ORDER LANE COLLAPSED ICON LBODY; do
   mv "$STAGE/lane.md" "$BOARD/$LANE_ID/index.md" || lane_fail "cannot move a lane into the board"
 done
 
+sign_board "$BOARD"   # a no-op today: the folder was empty, so no seeded .gitignore yet
 printf 'founded %s\nboard id %s\n' "$BOARD" "$BOARD_ID"

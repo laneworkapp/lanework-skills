@@ -132,4 +132,5 @@ if [ -f "$VAL" ]; then
 else
   echo "move-card.sh: note: no .schema/bin/lanework-validate.py on the board; card not validated" >&2
 fi
+sign_board "$BOARD"
 printf '%s\n' "$DEST/$CID"

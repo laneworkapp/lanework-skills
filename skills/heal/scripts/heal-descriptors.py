@@ -49,6 +49,7 @@ import hashlib
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -494,6 +495,16 @@ def drop_stale(body, sentence):
     return "\n".join(out), removed
 
 
+def sign_board(board):
+    """The plugin's signature in the board (lanework/scripts/sign-board.py, lanework/references/writes.md § Signature), after a write has landed.
+    Never fails the heal: every error is swallowed, and the writer prints nothing."""
+    try:
+        subprocess.run([sys.executable, "-I", os.path.join(HERE, "..", "..", "lanework", "scripts", "sign-board.py"), board], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=None if os.environ.get("LANEWORK_SIGNATURE_DEBUG") == "1" else subprocess.DEVNULL, timeout=60)
+    except Exception:
+        pass
+
+
 def main(argv):
     boards, apply_, name, model, session, expect, skip = [], False, "claude", None, None, None, set()
     it = iter(argv)
@@ -577,6 +588,7 @@ def main(argv):
                     move_in(tmp, d.path, board)
             finally:
                 shutil.rmtree(stage, ignore_errors=True)
+            sign_board(board)
         print("%d changes in %d files%s" % (len(changes), len({d.path for d, *_ in changes}),
               "" if apply_ or not changes else " (dry run: --apply to write)"))
     print("digest %s" % hexd)

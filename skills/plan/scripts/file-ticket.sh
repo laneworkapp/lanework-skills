@@ -105,4 +105,5 @@ printf '%s\n' "$WHY" | comment_file "$C/comments/$FOUND_ID/index.md" "$(now_utc 
 
 DEST=$(lane_by_title "$BOARD" "$DEST_TITLE")
 mv "$C" "$DEST/$CARD_ID"
+sign_board "$BOARD"
 printf 'lanework://%s/%s\nshort id %s\n%s -> %s\n' "$BOARD_ID" "$CARD_ID" "${CARD_ID:0:8}" "$CITE" "$DEST_TITLE"

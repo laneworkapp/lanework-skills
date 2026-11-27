@@ -89,3 +89,4 @@ if [ -n "$RELEASE" ]; then
     echo "post-comment.sh: --release: this session holds no lease on ${CID:0:8}; nothing released" >&2
   fi
 fi
+sign_board "$BOARD"   # after --release too: a failed release exits 1 above, unsigned

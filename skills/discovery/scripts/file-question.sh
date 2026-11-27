@@ -108,5 +108,6 @@ if cite_enabled "$BOARD"; then CITE=$(stamp_cite "$STAGE/fm.out" "$BOARD" Q); fi
 } > "$C/index.md"
 
 mv "$C" "$ASKED/$CARD_ID"
+sign_board "$BOARD"
 printf 'lanework://%s/%s\nshort id %s\nask comment %s\n' "$BOARD_ID" "$CARD_ID" "${CARD_ID:0:8}" "$ASK_ID"
 if cite_enabled "$BOARD"; then printf 'cite %s\n' "$CITE"; fi

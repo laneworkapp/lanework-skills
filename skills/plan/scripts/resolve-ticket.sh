@@ -126,5 +126,6 @@ if [ "$TO" = resolved ]; then
     done < <(for g in "$BLOCKED"/*/index.md; do [ -f "$g" ] && printf '%s\t%s\n' "$(fm_value "$g" order)" "$g"; done | sort -n | cut -f2-)
   fi
 fi
+[ "$RC" != 0 ] || sign_board "$BOARD"   # a failed release (exit 1) is no success path
 printf 'lanework://%s/%s\n' "$BOARD_ID" "$CID"
 exit "$RC"

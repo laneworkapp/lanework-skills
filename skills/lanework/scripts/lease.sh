@@ -309,7 +309,7 @@ decide() {
 case "$SUB" in
 stake)
   if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8} and writes it no more" >&2; exit 3; fi
-  if [ "$ST" != none ] && [ "$CL_SESS" = "$SESSION" ]; then own_held renew; echo "held $CID until $WROTE_UNTIL"; exit 0; fi
+  if [ "$ST" != none ] && [ "$CL_SESS" = "$SESSION" ]; then own_held renew; sign_board "$BOARD"; echo "held $CID until $WROTE_UNTIL"; exit 0; fi
   # staked here (remembered), and claimed is gone or another session's (live or lapsed): a loss, never a takeover
   if [ -f "$MEM" ]; then lose "${CL_SESS:-none}" || true; echo "lease.sh: lost ${CID:0:8} to session ${CL_SESS:-none}" >&2; exit 3; fi
   IGNORED=""
@@ -333,7 +333,7 @@ stake)
   F=$(card_file); read_claim "$F"
   if [ "$CL_SESS" != "$SESSION" ]; then echo "lease.sh: session ${CL_SESS:-none} staked ${CID:0:8} first; backing off" >&2; exit 1; fi
   [ -z "$IGNORED" ] || post_record "**Lease ignored**: until $IGNORED was over 35 minutes ahead of $IGN_NOW, so the card was staked as free."
-  mem_new; ensure_timer
+  mem_new; ensure_timer; sign_board "$BOARD"   # stake and release sign; renew, check and the timer never do
   echo "held $CID until $WROTE_UNTIL" ;;
 renew)
   if [ -d "$MEM.lost" ]; then echo "lease.sh: this session lost ${CID:0:8}" >&2; exit 3; fi
@@ -350,7 +350,7 @@ release)
   if [ -n "$FORCE" ] && [ "$ST" != none ] && [ "$CL_SESS" != "$SESSION" ]; then
     RC=0; FS="$CL_SESS"; FU="$CL_UNTIL"; CLEAR_SESS="$CL_SESS"; write_card clear || RC=$?
     case "$RC" in
-      0) post_record "**Lease released by force** on the owner's word: session $FS held it until $FU." ;;
+      0) post_record "**Lease released by force** on the owner's word: session $FS held it until $FU."; sign_board "$BOARD" ;;
       6) echo "lease.sh: ${CID:0:8} was already released; nothing released by force" ;;
       *) exit 1 ;;
     esac
@@ -363,7 +363,7 @@ release)
   mem_load; stop_timer
   RC=0; CLEAR_SESS="$SESSION"; [ "$ST" = none ] || write_card clear || RC=$?
   [ "$RC" = 0 ] || [ "$RC" = 6 ] || exit 1          # another session's claim: nothing released, the memory kept for the loss
-  rm -f "$MEM" ;;
+  rm -f "$MEM"; [ "$ST" = none ] || [ "$RC" != 0 ] || sign_board "$BOARD" ;;
 esac
 exit 0
 }

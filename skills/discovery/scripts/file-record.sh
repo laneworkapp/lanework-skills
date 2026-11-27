@@ -79,5 +79,6 @@ done
 
 DEC=$(lane_by_title "$BOARD" Decisions)
 mv "$C" "$DEC/$CARD_ID"
+sign_board "$BOARD"
 printf 'lanework://%s/%s\n' "$BOARD_ID" "$CARD_ID"
 if [ -n "$CITE" ]; then printf 'cite %s\n' "$CITE"; fi

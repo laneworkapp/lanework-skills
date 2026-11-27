@@ -88,4 +88,5 @@ fi
 # compare against the card as read, then rename into place
 cmp -s "$F" "$STAGE/read" || { echo "label-card.sh: the card changed while it was staged; nothing written, run again" >&2; exit 1; }
 mv "$STAGE/index.md" "$F"
+sign_board "$BOARD"
 printf '%s\n' "$(dirname "$F")"

@@ -1188,6 +1188,16 @@ def post_record(board, card_dir, facts, at, by):
         shutil.rmtree(stage, ignore_errors=True)
 
 
+def sign_board(board):
+    """The plugin's signature in the board (sign-board.py beside this file, lanework/references/writes.md § Signature), after a write has landed.
+    Never fails the heal: every error is swallowed, and the writer prints nothing."""
+    try:
+        subprocess.run([sys.executable, "-I", os.path.join(os.path.dirname(os.path.realpath(__file__)), "sign-board.py"), board], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=None if os.environ.get("LANEWORK_SIGNATURE_DEBUG") == "1" else subprocess.DEVNULL, timeout=60)
+    except Exception:
+        pass
+
+
 def main(argv):
     args = {"apply": False, "name": "claude", "model": None, "session": None, "ignore": False, "board": None}
     it = iter(argv)
@@ -1251,6 +1261,7 @@ def main(argv):
         for card_dir, facts in merged.items():
             post_record(board, card_dir, facts, at, by)
         stage_and_move(board, h.writes)
+        sign_board(board)
     print("%d repairs in %d files%s" % (len(h.repairs), files,
           "" if args["apply"] else (" (dry run: --apply to write)" if h.repairs else "")))
     return 0

@@ -137,6 +137,7 @@ CARD=$(find_card)
 mv "$STAGE/index.md" "$CARD/index.md"
 if [ -n "$COID" ]; then mkdir -p "$CARD/comments"; mv "$STAGE/comment" "$CARD/comments/$COID"; fi
 if [ "$CARD" != "$DEST/$CID" ]; then mv "$CARD" "$DEST/$CID"; fi
+sign_board "$BOARD"
 
 printf 'settled %s -> %s (order %s)\n' "${CID:0:8}" "$LANE_TITLE" "$ORDER"
 if [ -n "$COID" ]; then printf 'record comment %s\n' "$COID"; fi
