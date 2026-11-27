@@ -2,9 +2,9 @@
 schema: 1
 kind: card
 title: "Starting a card stakes its lease in one step; a missing lease is reported"
-order: 4096
+order: 8192
 created:  {at: 2026-11-27T05:03:29Z, by: {name: claude, kind: agent, model: fable-5.2, session: "Lanework Pitwall"}}
-modified: {at: 2026-11-27T05:03:29Z, by: {name: claude, kind: agent, model: fable-5.2, session: "Lanework Pitwall"}}
+modified: {at: 2026-11-27T12:38:14Z}
 ---
 ## Goal
 

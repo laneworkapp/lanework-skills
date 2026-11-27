@@ -9,7 +9,10 @@ labels:
   - {text: "watch", kind: {type: "skill", text: "Skill"}}
   - {text: "repo", kind: {type: "skill", text: "Skill"}}
 created:  {at: 2026-11-24T00:21:12Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-25T12:44:05Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+modified: {at: 2026-11-27T12:38:53Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-27T13:08:52Z
 ---
 The app's guide moved from v120 to v122, and reading every skill against it found one real bug and a handful of small gaps: merging a board silently drops emoji reactions on comments.
 
