@@ -210,6 +210,15 @@ stamp_args_ok() {
 # LEASE_LOST_PREFIX: the fixed opening of the "Lease lost" record. lease.sh writes it; a lint that counts losses greps for it.
 LEASE_LOST_PREFIX='**Lease lost**:'
 
+# sign_board <board>: the plugin's signature in the board (sign-board.py, references/writes.md § Signature). Call once, after the
+# landing write, on the success path only. Never fails its caller, prints nothing (LANEWORK_SIGNATURE_DEBUG=1: the writer's reason
+# on stderr). No .gitignore on the board: returned before Python starts, as the writer would write nothing there.
+sign_board() {
+  [ -f "$1/.gitignore" ] || return 0
+  if [ "${LANEWORK_SIGNATURE_DEBUG:-}" = 1 ]; then python3 -I "$LIB_DIR/sign-board.py" "$1" >/dev/null || true
+  else python3 -I "$LIB_DIR/sign-board.py" "$1" >/dev/null 2>&1 || true; fi
+}
+
 uuid() { uuidgen | tr 'A-Z' 'a-z'; }
 now_utc() { date -u ${1:+-v+${1}S} +%FT%TZ; }   # now_utc [seconds-ahead]
 

@@ -90,6 +90,12 @@ The board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`,
 - **Whole board to currency** (lane bodies, pipeline sheet): the `heal` skill.
 - **Writes**: no `modified` restamp: a heal is upkeep, like the app's. A repair that drops a fact posts a record on the card, signed as you, before the file changes. `skip` lines = left for you by hand. Never `.trash/`, a foreign entry or an unknown key. A missing `by` stays missing: it means the owner.
 
+## Signature
+
+- **`<board>/.plugin.lanework-signature`**: frontmatter only; this plugin's name, version, install facts and when it last changed. The sandboxed app reads it to learn which plugin version works the board.
+- **Written by the scripts**: every board-writing script, after its write lands, through `scripts/sign-board.py` (`scripts/lib.sh` `sign_board`). Only on a board holding the app's seeded `.gitignore`, which ignores it. Never fails or changes the write it follows.
+- **Agents never write, edit, stage or commit it.** A hand write leaves it as it is: the next script write brings it current.
+
 ## Git
 
 - Boards usually live in a repo, and the board body says how it's committed. Commit your own board writes, with plain messages.
