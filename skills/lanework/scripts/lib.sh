@@ -197,7 +197,10 @@ stamp_args_ok() {
     if [ "$i" = 3 ] && [ -z "$v" ]; then continue; fi
     case "$v" in *[[:cntrl:]]*|*$'\xc2'[$'\x80'-$'\x9f']*) printf '%s: control character in the stamp %s; nothing written\n' "$(basename "$0")" "$w" >&2; exit 2 ;; esac
   done
-  case "$1" in [[:space:]]*|*[[:space:]]) printf "%s: '%s' has leading or trailing whitespace; sign as yourself; nothing written\n" "$(basename "$0")" "$1" >&2; exit 2 ;; esac
+  # padded: ASCII space, or a Unicode space Python's str.strip() removes (heal-board.py canon()) that the control check misses, as UTF-8:
+  # U+00A0 C2 A0, U+1680 E1 9A 80, U+2000-200A E2 80 80-8A, U+2028/2029/202F E2 80 A8/A9/AF, U+205F E2 81 9F, U+3000 E3 80 80
+  local u2=$'\xc2\xa0' u3=$'\xe1\x9a\x80' u4=$'\xe2\x81\x9f' u5=$'\xe3\x80\x80' e=$'\xe2\x80'
+  case "$1" in [[:space:]]*|*[[:space:]]|"$u2"*|*"$u2"|"$u3"*|*"$u3"|"$u4"*|*"$u4"|"$u5"*|*"$u5"|"$e"[$'\x80'-$'\x8a'$'\xa8'$'\xa9'$'\xaf']*|*"$e"[$'\x80'-$'\x8a'$'\xa8'$'\xa9'$'\xaf']) printf "%s: '%s' has leading or trailing whitespace; sign as yourself; nothing written\n" "$(basename "$0")" "$1" >&2; exit 2 ;; esac
   local r l; l=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
   for r in $RESERVED_NAMES; do
     [ "$l" != "$r" ] || { printf '%s: %s is a reserved name; sign as yourself; nothing written\n' "$(basename "$0")" "$1" >&2; exit 2; }

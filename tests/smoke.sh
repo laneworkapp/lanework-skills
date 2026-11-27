@@ -1284,10 +1284,11 @@ ok "a newline or a C1 control in --name or --model, a tab or a C1 control in --s
 # a reserved signer name (guide § Stamping: anyone, board, healer, shortcuts, tracker; any case), or a name with leading or trailing
 # whitespace (refused, never trimmed), is refused by every stamping script, exit 2 and nothing written (stamp_args_ok);
 # post-comment.sh and file-card.sh name it on stderr. lease.sh check on a never-held card exits 4 when it accepts the name
-RNS=(anyone board healer shortcuts tracker Board ' board' 'board ' ' alice ')
-for rn in "${RNS[@]}"; do
-  FF=(--model smoke --name "$rn")
-  case "$rn" in [[:space:]]*|*[[:space:]]) RNM="'$rn' has leading or trailing whitespace" ;; *) RNM="$rn is a reserved name" ;; esac
+# padded: ASCII spaces, and the Unicode spaces Python's str.strip() removes (heal-board.py canon()): a leading U+00A0, a trailing U+3000, a leading U+2003
+RNS=(anyone board healer shortcuts tracker Board); PNS=(' board' 'board ' ' alice ' $'\xc2\xa0board' $'alice\xe3\x80\x80' $'\xe2\x80\x83board')
+for rn in "${RNS[@]}" "${PNS[@]}"; do
+  FF=(--model smoke --name "$rn"); RNM="$rn is a reserved name"
+  for p in "${PNS[@]}"; do [ "$p" != "$rn" ] || RNM="'$rn' has leading or trailing whitespace"; done
   for s in post-comment file-card; do
     S0=$(bsnap "$BQ"); rc=0
     if [ $s = post-comment ]; then "$SK/work/scripts/post-comment.sh" "$BQ" "$SVQ" --body "$SVBODY" "${FF[@]}" >/dev/null 2>"$T/rn.err" || rc=$?
@@ -1308,7 +1309,7 @@ for rn in "${RNS[@]}"; do
   rm -rf "$T/rn-found.lanework"; rc=0; "$FB" "$T/rn-found.lanework" "${FA[@]}" "${FF[@]}" >/dev/null 2>&1 || rc=$?
   [ $rc -eq 2 ] && [ ! -e "$T/rn-found.lanework" ] || { echo "found-board --name $rn: exit $rc (want 2) or a folder exists"; exit 1; }
 done
-ok "a reserved signer name (anyone, board, healer, shortcuts, tracker, any case) or a padded one (' board', 'board ', ' alice ') as --name: exit 2 and nothing written from every stamping script, lease.sh included, named on stderr"
+ok "a reserved signer name (anyone, board, healer, shortcuts, tracker, any case) or a padded one (' board', 'board ', ' alice ', a leading U+00A0 or U+2003, a trailing U+3000) as --name: exit 2 and nothing written from every stamping script, lease.sh included, named on stderr"
 # values YAML would not read back as the same string (null, ~, a bool word, a number) are quoted: valid, and the same bytes from every script
 for nv in null '~' true 123 1e3; do for k in name model; do
   F=(--model smoke); case $k in model) F=(--model "$nv") ;; name) F+=(--name "$nv") ;; esac
