@@ -737,7 +737,7 @@ rc=0; O=$("$HEAL" "$WC" 2>"$T/wc.err") || rc=$?
 [ "$rc" = 2 ] && grep -q "^heal-board: this board ships its own heal at version $HV: " "$T/wc.err" && [ -z "$O" ] || hfail "which copy, a CRLF v$HV line 2: rc $rc, $(cat "$T/wc.err")"
 # a copy that can't be read, or a directory at its path (never opened): its own line, no claim about its version
 wrun() { rc=0; O=$("$HEAL" "$WC" 2>"$T/wc.err") || rc=$?; }
-wunread() { [ "$rc" = 0 ] && [ "$(cat "$T/wc.err")" = "heal-board: could not read the version of this board's own heal, \"$WC/.schema/bin/lanework-heal.py\": healing with this copy" ] \
+wunread() { [ "$rc" = 0 ] && [ "$(grep -c . "$T/wc.err")" = 1 ] && grep -qx "heal-board: could not read the version of this board's own heal, \".*/which-copy/.schema/bin/lanework-heal.py\": healing with this copy" "$T/wc.err" \
     && grep -q ' H03 bare-icon ' <<<"$O" || hfail "which copy, $1: rc $rc, $(cat "$T/wc.err")"; }
 if [ "$(id -u)" = 0 ]; then echo "note: running as root, which reads a mode-000 file: the unreadable-copy case is skipped"
 else printf '#!/usr/bin/env python3\n# lanework-heal v%s\n' $((HV + 3)) > "$WC/.schema/bin/lanework-heal.py"; chmod 000 "$WC/.schema/bin/lanework-heal.py"
