@@ -89,5 +89,6 @@ case $rc in
   3) echo "start-card.sh: this session's lease on ${CID:0:8} is lost" >&2; exit 3 ;;
   *) STEP=move; [ -z "$ALREADY" ] || STEP=record; echo "start-card.sh: ${CID:0:8}: the $STEP failed (exit $rc)" >&2; exit 1 ;;
 esac
+sign_board "$BOARD"   # the stake and the move or record signed already; once more after the landing write, as every writer does
 printf 'started %s in %s\n' "${CID:0:8}" "$LANE"
 printf 'lanework://%s/%s\n' "$(fm_value "$BOARD/index.md" id)" "$CID"
