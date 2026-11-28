@@ -20,8 +20,9 @@ Frontmatter only: schema, kind, name, version and written always; installed, upd
   device) is left as it is, unsigned; anything else as the .gitignore: unsigned; as the record: no install facts.
 - Rewritten when a key other than `written` changed, or `written` is missing or not a UTC stamp, through a temp file in the
   board (it fits `.*.lanework-*` too) and os.replace; the temp file is removed on any failure.
-Exit 0 always, nothing on stdout or stderr: a signature never fails or blocks the write it follows. LANEWORK_SIGNATURE_DEBUG=1:
-the reason it wrote nothing, on stderr."""
+Exit 0 always given one board, nothing on stdout or stderr: a signature never fails or blocks the write it follows.
+LANEWORK_SIGNATURE_DEBUG=1: the reason it wrote nothing, on stderr. exit 2 usage: no argument or more than one, the usage line on
+stderr (every caller ignores the status: lib.sh sign_board ends `|| true`, the heal scripts swallow it)."""
 import datetime, json, os, re, stat, sys
 
 NAME = ".plugin.lanework-signature"
@@ -145,8 +146,6 @@ def current(old, new):
 
 
 def main(argv):
-    if len(argv) != 1:
-        return note("usage: sign-board.py <board>")
     board = argv[0]
     if not os.path.isfile(os.path.join(board, "index.md")):
         return note("not a board")
@@ -193,6 +192,9 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        sys.stderr.write("usage: sign-board.py <board>\n")
+        sys.exit(2)
     try:
         main(sys.argv[1:])
     except Exception as e:   # a signature never fails the write it follows
