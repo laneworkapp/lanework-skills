@@ -2778,6 +2778,14 @@ for s in "$HEAL" "$HD"; do
   [ "$rc" -eq 64 ] && grep -q 'board is reserved for the app' "$T/board.err" && [ "$S0" = "$(sum "$HV")" ] || { echo "$s --name board: rc=$rc"; cat "$T/board.err"; exit 1; }
 done
 ok "heal-board and heal-descriptors refuse --name board (app-reserved, move receipts), writing nothing"
+for n in ' board' 'board ' ' claude'; do
+  S0=$(sum "$HV"); rc=0; "$HD" "$HV" --apply --name "$n" --model test >/dev/null 2>"$T/padname.err" || rc=$?
+  [ "$rc" -eq 64 ] && grep -q 'has leading or trailing whitespace' "$T/padname.err" && [ "$S0" = "$(sum "$HV")" ] || { echo "heal-descriptors --apply --name '$n': rc=$rc"; cat "$T/padname.err"; exit 1; }
+done
+rc=0; "$HD" "$HV" > "$T/padname-plain.out" 2>&1 || rc=$?
+rp=0; "$HD" "$HV" --name ' claude' --model test > "$T/padname-dry.out" 2>&1 || rp=$?
+[ "$rc" -eq "$rp" ] && cmp -s "$T/padname-plain.out" "$T/padname-dry.out" || { echo "heal-descriptors dry run with a padded name differs: rc=$rc/$rp"; diff "$T/padname-plain.out" "$T/padname-dry.out"; exit 1; }
+ok "heal-descriptors --apply refuses a padded --name (' board', 'board ', ' claude'), writing nothing; a dry run ignores the padding"
 mkdir -p "$T/singles/one.lanework" "$T/singles/two.lanework"
 printf -- '---\nschema: 1\nkind: board\nconfig: {labels: [{type: "component", text: "Component"}]}\n---\n' > "$T/singles/one.lanework/index.md"
 printf -- '---\nschema: 1\nkind: board\nconfig: {labels: [{type: "component", text: "Component", single: true}]}\n---\n' > "$T/singles/two.lanework/index.md"
