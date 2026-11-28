@@ -4,10 +4,11 @@
 # F = the START record (references/writing.md § START), a bare body: its first non-blank line opens with START
 # (lanework/scripts/lib.sh START_ERE), not a shaping start. The working lane: the first of lib.sh WORKING_LANES the board has (Active).
 # The source lane: on a board with an Approved lane, the card must be in Approved, or already in the working lane (a re-start); a
-# board with no Approved lane: any lane. Steps, each by the existing script: lanework/scripts/lease.sh stake (lanework/references/
-# writes.md § Lease); move-card.sh into the working lane (none on a re-start); then post-comment.sh --body F, after the move, as
-# plan/scripts/claim-ticket.sh posts its record. The holder is CLAUDE_CODE_SESSION_ID, never --session (a stamp label). Prints
-# "started <id8> in <lane>" and the card's lanework:// link; a takeover's `prior:` line first.
+# board with no Approved lane: any lane, unchecked (a board that renames its queue loses this gate). Steps, each by the existing
+# script: lanework/scripts/lease.sh stake (lanework/references/writes.md § Lease); move-card.sh into the working lane (none on a
+# re-start); then post-comment.sh --body F, after the move, as plan/scripts/claim-ticket.sh posts its record. The holder is
+# CLAUDE_CODE_SESSION_ID, never --session (a stamp label). Prints "started <id8> in <lane>" and the card's lanework:// link; a
+# takeover's `prior:` line first.
 # Exit 2, nothing written: usage (a missing positional, flag or flag value, no --comment, an unknown flag), no model (--model, else
 # CLAUDE_MODEL), a stamp value lib.sh stamp_args_ok refuses.
 # Exit 1, nothing written: not a board, not a lowercase card uuid, no such card or several, an unreadable --comment or one that is
@@ -16,10 +17,14 @@
 # lanework/scripts/lease.sh beside work; the stake refused (another session holds the card; lease.sh names it on stderr; a takeover
 # notice it posted stays).
 # Exit 3: this session's lease on the card is lost (lease.sh stake, move-card.sh or post-comment.sh said so; the Lease lost record is on the card).
-# Exit 1 after the stake: the move or the record failed (that script's message on stderr). Undone, best effort: a card this call moved
-# goes back to its source lane (move-card.sh), then a lease this call staked is released; one this session held before the call is
-# kept. One stderr line says what was left: the card's lane and the lease. So a failed start leaves no START without a lease and no
-# lease of its own without a START. The same undo runs on a signal (an EXIT trap); a SIGKILL skips it.
+# Exit 1 after the stake: the move or the record failed (that script's message on stderr). The EXIT trap (also on a signal; a
+# SIGKILL skips it) waits out the step then running, then reads the board, never a flag. A comment new since the call began that
+# opens with F's first line = the start landed (a signal while post-comment.sh ran): card and lease kept, nothing undone. Else
+# undone, best effort: a card this call moved goes back to its source lane at its old order (move-card.sh --order), then a lease
+# this call staked is released; one this session held before the call is kept, and so is this call's when the move back fails
+# (the session that tidies the card holds it). One stderr line, each clause read from the board then: started or not, the card's
+# lane, the lease, the START. So a failed start leaves no START without a lease and no lease of its own without a START, except a
+# failed move back: the card in the working lane under this call's lease, no START.
 # A stake over a lapsed lease waits for the takeover notice (2 min): give the call a timeout over that.
 set -euo pipefail
 HERE="$(dirname "${BASH_SOURCE[0]}")"
@@ -66,27 +71,53 @@ LEASE="$HERE/../../lanework/scripts/lease.sh"
 
 # a lease this session held before the call (a re-start, a renewal) is never released by a failure here
 HOLDER=$("$LEASE" list "$BOARD" | awk -F'\t' -v c="$CID" '$1 == c { print $2 }')
-FRESH=""; STAKING=""; LANDED=""
+FRESH=""; STAKING=""; LANDED=""; CHILD=""
 case "$HOLDER" in *"($CLAUDE_CODE_SESSION_ID)") ;; *) FRESH=1 ;; esac
-# undo unless the start landed (the record posted): the card back to its source lane if this call moved it, then the release of what
-# this call staked. A stake that never landed leaves nothing of this session's: release then refuses another session's lease (exit 1),
-# a lost one (3) or a usage it shares with the stake (2), writing nothing, quiet
+ORDER=$(fm_value "$SRC/$CID/index.md" order); [[ "$ORDER" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || ORDER=""
+PRE=$(ls "$SRC/$CID/comments" 2>/dev/null || true)   # the thread before this call: a START folder not in it is this call's
+# card_dir: the card's folder now (empty unless exactly one); lane_now: its lane's title; lease_now: its lease from lease.sh list
+card_dir() { local m; m=$(ls "$BOARD"/*/"$CID"/index.md 2>/dev/null || true); [ "$(printf '%s' "$m" | grep -c . || true)" = 1 ] && dirname "$m"; }
+lane_now() { local d; d=$(card_dir) || { echo "no one card of that id"; return 0; }; strip_quotes "$(fm_value "$(dirname "$d")/index.md" title)"; }
+lease_now() { local h; h=$("$LEASE" list "$BOARD" 2>/dev/null | awk -F'\t' -v c="$CID" '$1 == c { print $2 }' || true)
+  case "$h" in "") echo none ;; *"($CLAUDE_CODE_SESSION_ID)") echo "this session's" ;; *) echo "held by $h" ;; esac; }
+# my_start: the id of a comment new since PRE whose body opens with F's first line (the START this call posted); exit 1 when none
+my_start() { local d f id
+  d=$(card_dir) || return 1
+  for f in "$d"/comments/*/index.md; do
+    [ -f "$f" ] || continue; id=$(basename "$(dirname "$f")")
+    ! grep -qxF -- "$id" <<<"$PRE" || continue
+    [ "$(awk 'NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { fm = 0; next } !fm && NF { sub(/\r$/, ""); print; exit }' "$f")" = "$FIRST" ] && { printf '%s' "$id"; return 0; }
+  done; return 1; }
+# the EXIT trap, from the board: a START of this call's = landed, nothing undone. Else the card back to its source lane at its old
+# order if this call moved it, then the release of what this call staked (kept when the move back failed). A stake that never landed
+# leaves nothing of this session's: release then refuses another session's lease (exit 1), a lost one (3) or a usage it shares with
+# the stake (2), writing nothing, quiet
 cleanup() {
+  rm -f "${OUTF:-}"
+  [ -z "$CHILD" ] || wait "$CHILD" 2>/dev/null || true   # a signal mid-step: the step finishes first, then the board is read
   [ -n "$STAKING" ] && [ -z "$LANDED" ] || return 0
-  local r=0 where="$SRCT" lease="kept (held before this call)"
+  local r=0 st note="" back=1
+  if st=$(my_start); then
+    echo "start-card.sh: ${CID:0:8} started, interrupted after the record: in $(lane_now), lease $(lease_now), START $st; nothing undone" >&2
+    return 0
+  fi
   if [ -z "$ALREADY" ] && [ -f "$DEST/$CID/index.md" ]; then
-    "$HERE/move-card.sh" "$BOARD" "$CID" "$SRCT" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null 2>&1 || r=$?
-    [ -f "$DEST/$CID/index.md" ] && where="$LANE (the move back failed, exit $r)"
+    "$HERE/move-card.sh" "$BOARD" "$CID" "$SRCT" ${ORDER:+--order "$ORDER"} --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null 2>&1 || r=$?
+    [ ! -f "$DEST/$CID/index.md" ] || { back=""; note=" (the move back failed, exit $r: this call's lease not released, for the tidy-up)"; }
   fi
-  if [ -n "$FRESH" ]; then
+  if [ -n "$FRESH" ] && [ -n "$back" ]; then
     r=0; "$LEASE" release "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null 2>&1 || r=$?
-    case $r in 0|1|2|3) lease="none of this call's" ;; *) lease="not released (exit $r): lanework/scripts/lease.sh release by hand" ;; esac
+    case $r in 0|1|2|3) ;; *) note=" (the release failed, exit $r: lanework/scripts/lease.sh release by hand)" ;; esac
   fi
-  echo "start-card.sh: ${CID:0:8} not started: left in $where, lease $lease, no START posted by this call" >&2
+  echo "start-card.sh: ${CID:0:8} not started: in $(lane_now), lease $(lease_now), no START by this call$note" >&2
 }
 trap cleanup EXIT
-STAKING=1   # before the stake, so a call ended while the stake runs still releases what it left
-rc=0; OUT=$("$LEASE" stake "$BOARD" "$CID" --model "$MODEL" --name "$NAME") || rc=$?
+# the stake, the move and the record each run as a child this shell waits on, so a signal to this shell alone lets the trap wait the
+# child out and read what it left (a foreground child would run on while the trap undid around it)
+OUTF=$(mktemp "${TMPDIR:-/tmp}/start-card.XXXXXX")
+STAKING=1   # before the stake, so a call ended while the stake runs still releases what it left, once the stake is done
+rc=0; "$LEASE" stake "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >"$OUTF" & CHILD=$!
+wait "$CHILD" || rc=$?; CHILD=""; OUT=$(cat "$OUTF")
 case $rc in
   0) ;;
   3) echo "start-card.sh: this session's lease on ${CID:0:8} is lost; nothing else written" >&2; exit 3 ;;
@@ -95,9 +126,13 @@ esac
 grep '^prior: ' <<<"$OUT" || true   # a takeover: the thread's latest START or Lease lost record, read before working
 
 rc=0; STEP=move
-[ -n "$ALREADY" ] || "$HERE/move-card.sh" "$BOARD" "$CID" "$LANE" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null || rc=$?
+if [ -z "$ALREADY" ]; then
+  "$HERE/move-card.sh" "$BOARD" "$CID" "$LANE" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null & CHILD=$!
+  wait "$CHILD" || rc=$?; CHILD=""
+fi
 if [ "$rc" -eq 0 ]; then
-  STEP=record; "$HERE/post-comment.sh" "$BOARD" "$CID" --body "$COMMENT" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null || rc=$?
+  STEP=record; "$HERE/post-comment.sh" "$BOARD" "$CID" --body "$COMMENT" --model "$MODEL" --name "$NAME" ${SESSION:+--session "$SESSION"} >/dev/null & CHILD=$!
+  wait "$CHILD" || rc=$?; CHILD=""
 fi
 case $rc in
   0) LANDED=1 ;;

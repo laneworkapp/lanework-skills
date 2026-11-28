@@ -1,11 +1,12 @@
 #!/bin/bash
 # move-card.sh: move one card to another lane, stamped by the caller.
 # usage: move-card.sh <board> <card-uuid-or-prefix> <lane-title> --model m [--name n] [--session s]
-#          [--comment F] [--top|--bottom] [--clear-waiting]
+#          [--comment F] [--top|--bottom|--order N] [--clear-waiting]
 # The card is found in any lane by its uuid or a lowercase prefix of 8+ characters: exactly one match.
 # Rewrites `modified` whole (`at` from the clock, `by` from the caller, any old `by` replaced; a card
 # the owner filed has none) and `order`: the lane's max + 1024 (--bottom, the default), or half the
-# lane's lowest with --top (lowest - 1024 when that is 0 or less; 1024 in an empty lane). --clear-waiting
+# lane's lowest with --top (lowest - 1024 when that is 0 or less; 1024 in an empty lane), or N with --order (a number: a card put back
+# where it was, as start-card.sh's undo does). --clear-waiting
 # drops `waiting`; the default keeps it. Every other line stays byte for byte, except that the indented
 # continuation lines of a block-form `order`, `modified` or (with --clear-waiting) `waiting` go with their key.
 # --comment F posts F through post-comment.sh with the same `by`, only once every refusal below has passed
@@ -25,7 +26,7 @@
 # check failure: exit 1, nothing written. No release here.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lib.sh"
-USAGE="move-card.sh <board> <card-uuid-or-prefix> <lane-title> --model m [--name n] [--session s] [--comment F] [--top|--bottom] [--clear-waiting]"
+USAGE="move-card.sh <board> <card-uuid-or-prefix> <lane-title> --model m [--name n] [--session s] [--comment F] [--top|--bottom|--order N] [--clear-waiting]"
 [ $# -ge 3 ] || { echo "usage: $USAGE" >&2; exit 2; }
 BOARD="$1"; PREFIX="$2"; LANE_TITLE="$3"; shift 3
 MODEL=""; NAME="claude"; SESSION=""; COMMENT=""; PLACE=""; CLEAR=""
@@ -35,7 +36,9 @@ while [ $# -gt 0 ]; do
     --name)    need_value "$@"; NAME="$2"; shift 2 ;;
     --session) need_value "$@"; SESSION="$2"; shift 2 ;;
     --comment) need_value "$@"; COMMENT="$2"; shift 2 ;;
-    --top|--bottom) [ -z "$PLACE" ] || [ "$PLACE" = "$1" ] || { echo "move-card.sh: --top or --bottom, not both" >&2; exit 2; }; PLACE="$1"; shift ;;
+    --top|--bottom) [ -z "$PLACE" ] || [ "$PLACE" = "$1" ] || { echo "move-card.sh: one of --top, --bottom, --order" >&2; exit 2; }; PLACE="$1"; shift ;;
+    --order) need_value "$@"; [ -z "$PLACE" ] || { echo "move-card.sh: one of --top, --bottom, --order" >&2; exit 2; }
+      [[ "$2" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || { echo "move-card.sh: --order wants a number, got: '$2'" >&2; exit 2; }; PLACE=--order; ORDER="$2"; shift 2 ;;
     --clear-waiting) CLEAR=1; shift ;;
     *) echo "move-card.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -77,7 +80,8 @@ DEST=$(lane_by_title "$BOARD" "$LANE_TITLE") || { echo "move-card.sh: no lane \"
 [ "$(dirname "$CARD")" != "$DEST" ] || { echo "move-card.sh: ${CID:0:8} is already in $LANE_TITLE; a reorder rewrites order only" >&2; exit 1; }
 [ ! -e "$DEST/$CID" ] || { echo "move-card.sh: $DEST/$CID already exists" >&2; exit 1; }
 
-if [ "$PLACE" = --top ]; then
+if [ "$PLACE" = --order ]; then :
+elif [ "$PLACE" = --top ]; then
   LOW=$(low_order "$DEST")
   if [ -z "$LOW" ]; then ORDER=1024
   else ORDER=$(awk -v m="$LOW" 'BEGIN{ if (m > 0) printf "%.15g\n", m/2; else printf "%.15g\n", m-1024 }'); fi
