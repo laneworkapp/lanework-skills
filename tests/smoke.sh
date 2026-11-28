@@ -2459,9 +2459,10 @@ SB="$T/Start Pipeline.lanework"; cp -R "$P" "$SB"; rm -rf "${SB:?}/.schema"; cp 
 SCT=$(mktemp -d "$T/start-tmp.XXXXXX"); sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & SCP=$!; disown "$SCP"; echo "$SCP" >> "$STANDINS"
 sc_cleanup() { local p; stop_standin "$SCP"; for p in $(timers_left 0 "_timer $SBR/"); do kill "$p" 2>/dev/null || true; done; }
 trap sc_cleanup EXIT
-# AS <session> <cmd...>: the command as that session, under the stand-in and the test knobs
+# AS <session> <cmd...>: the command as that session, under the stand-in and the test knobs; no timer renews within the section
+# (a renewal is a write: it would land under the byte-for-byte snapshots of cases 3 and 7)
 AS() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$SCP" TMPDIR="$SCT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 \
-  LEASE_TEST_RENEW_EVERY=1000 "$@"; }
+  LEASE_TEST_RENEW_EVERY=1000000 "$@"; }
 printf 'Body.\n' > "$T/sc-b.md"; printf '**START: build it.**\n\n- **Scope**: the thing\n' > "$T/sc-start.md"
 printf 'Not a start.\n' > "$T/sc-not.md"; printf '**START: shaping: hand it on.**\n' > "$T/sc-shape.md"
 scard() { bfirst "$SK/work/scripts/file-card.sh" "$SB" "$1" "$2" --body "$T/sc-b.md" --model smoke; }
