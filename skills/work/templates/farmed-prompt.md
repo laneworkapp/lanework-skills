@@ -10,7 +10,7 @@ Stamp every write with `by` (guide § Stamping your work): name <role>, kind age
 Board write rules: <skills>/lanework/references/writes.md
 Lease: held by this session on the card until <until>, renewed by its timer | none: the session holds no lease; writes pass as today
 Never run the lease script to stake: your writes pass its check under the session's id. post-comment.sh, move-card.sh or post-ask.sh exiting 3 = the lease is lost: stop writing the card, report back.
-Journal on the card's thread: your plan when you start, as a record, never a START (work/references/writing.md § START), decisions as you make them, verification evidence at the end.
+Journal on the card's thread: your plan when you start, as a record: no START of either kind unless you are the session starting or shaping the card (work/references/writing.md § START), decisions as you make them, verification evidence at the end.
 <paste work/references/writing.md § Short form, verbatim>
 Task: <the work, with its done-when>
 ```

@@ -32,7 +32,7 @@ Every script that writes to a board also leaves a small signature file in it, so
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
 | `lanework` | 10 | 382 | 5,885 |
-| `work` | 16 | 505 | 8,174 |
+| `work` | 16 | 505 | 8,215 |
 | `watch` | 4 | 182 | 2,212 |
 | `discovery` | 14 | 510 | 3,022 |
 | `plan` | 9 | 467 | 2,926 |
@@ -72,13 +72,13 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `plan` on 2026-1
 | `references/team.md` | 532 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
-| `references/writing.md` | 1,855 |
+| `references/writing.md` | 1,884 |
 | `templates/ask.md` | 306 |
-| `templates/farmed-prompt.md` | 235 |
+| `templates/farmed-prompt.md` | 247 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **8,174** |
+| **total** | **8,215** |
 
 #### `watch`
 
