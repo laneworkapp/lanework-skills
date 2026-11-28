@@ -93,6 +93,7 @@ The record a session posts when it starts working a card, after staking it. It s
 - About 40 words. Drop a label that has nothing; add none.
 - Opens with `START:` (bold or not): a scan for two on one thread keys on it. A shaping start reads `**START: shaping: <plan>**` (the plan line opens with `shaping`): the scan skips it as a handoff, not a second builder.
 - A choice made while planning → its own record (§ The record), never inside START.
+- **One per start**: the session that starts the card posts it (`scripts/start-card.sh`, with the lease and the move). A worker under that lease (fixer, subagent) posts its plan as a record (§ The record), never a second START: one from another `--session` label reads as a second builder.
 
 ## Card references
 

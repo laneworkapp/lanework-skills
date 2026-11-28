@@ -32,8 +32,8 @@ Every script that writes to a board also leaves a small signature file in it, so
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
 | `lanework` | 10 | 382 | 5,885 |
-| `work` | 16 | 505 | 8,113 |
-| `watch` | 4 | 182 | 2,211 |
+| `work` | 16 | 505 | 8,174 |
+| `watch` | 4 | 182 | 2,212 |
 | `discovery` | 14 | 510 | 3,022 |
 | `plan` | 9 | 467 | 2,926 |
 | `merge` | 2 | 362 | 1,915 |
@@ -63,32 +63,32 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `plan` on 2026-1
 | file | words |
 |---|---|
 | `SKILL.md` | 505 |
-| `references/companions.md` | 262 |
+| `references/companions.md` | 265 |
 | `references/evidence.md` | 419 |
-| `references/fixer.md` | 445 |
-| `references/lead.md` | 1,125 |
+| `references/fixer.md` | 432 |
+| `references/lead.md` | 1,140 |
 | `references/reviewer.md` | 415 |
 | `references/sweep.md` | 828 |
 | `references/team.md` | 532 |
 | `references/tiers.md` | 97 |
 | `references/traps.md` | 445 |
-| `references/writing.md` | 1,806 |
+| `references/writing.md` | 1,855 |
 | `templates/ask.md` | 306 |
-| `templates/farmed-prompt.md` | 228 |
+| `templates/farmed-prompt.md` | 235 |
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **8,113** |
+| **total** | **8,174** |
 
 #### `watch`
 
 | file | words |
 |---|---|
 | `SKILL.md` | 182 |
-| `references/arming.md` | 857 |
+| `references/arming.md` | 858 |
 | `references/events.md` | 556 |
 | `references/responding.md` | 616 |
-| **total** | **2,211** |
+| **total** | **2,212** |
 
 #### `discovery`
 

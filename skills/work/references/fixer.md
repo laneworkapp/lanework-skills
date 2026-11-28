@@ -5,7 +5,7 @@ One card, one lead-provided worktree with its branch checked out. Team and chann
 ## 1. Pick up
 
 - Read the guide, the board sheet, and the card's body and **whole thread**, plus every linked card's (`lanework/references/reading.md`).
-- **Post your plan as a record before coding.** The lead's START (`writing.md` § START) opened the card; a second one from another session reads as a second builder. A choice made while planning: its own record.
+- **Post your plan as a record before coding**, never a second START (`writing.md` § START). A choice made while planning: its own record.
 - **A fixer never stakes**: the lead's session holds the lease, and the fixer's writes pass its check under that session's id (`lanework/references/writes.md` § Lease). A script exits 3 (lease lost) → stop writing the card, tell the lead.
 
 ## 2. Code

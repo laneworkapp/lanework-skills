@@ -3,7 +3,7 @@
 Other sessions (sweeps, /loop runners, watches, fixers) work the same board concurrently.
 
 - **The lease is the claim** (`lanework/references/writes.md` § Lease; `lanework/scripts/lease.sh list <board>`). A live lease from another session: that card is theirs. Don't double-dispatch, even if an earlier owner comment called for the work. A lapsed one: take it over as that section says (notice, two minutes). Across machines a lease is only a hint.
-  - The session stakes before working a card (a subagent never does), then the worker posts the plan (`writing.md` § START). A plan says what, never who.
+  - The session stakes before working a card (a subagent never does), then the worker posts the plan as a record (`writing.md` § START). A plan says what, never who.
 - **Attribute before alleging.** A surprising commit or move has an author: read commit trailers, `by` stamps (session identity), companion leases, and the board's `.log/<UTC day>.log` when it logs (`grep ' card.move '`; `by=owner` = no stamp) first. Measured 2026-08-31: a "fabricated commit" was a concurrent session's owner-ruled landing.
 - **Relay, don't engage** on a companion-owned card = don't take over its work: forward card, lane and gist via SendMessage if reachable. Reply only on what you own.
   - **Never leave the owner unanswered.** Owner comment on that card + companion unreachable → reply on the card: an answer `in-reply-to` the owner's comment, or the ruling folded into the body, saying it was answered from the record.
