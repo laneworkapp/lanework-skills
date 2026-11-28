@@ -1815,34 +1815,44 @@ LLREC=$(grep -l -F 'Lease lost' "$LLB/$LLN/$LA"/comments/*/index.md); LLID=$(bas
 lint "$LLB"; [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 1 ] && grep -qE "/$LA: lease lost $LLID 20[0-9-]+T[0-9:]+Z\$" <<<"$LO" && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "case 7: the lint did not find the real loss record"
 ok "lint-leases finds the real lease-lost record lease.sh posts on a throwaway board, which opens with LEASE_LOST_PREFIX"
 
-# 10. started without a lease (the eight-card shape, with three): cards in Active whose latest START carries a session and which have no
-# claimed each print one line; silent on a staked card, one at a gate (Proposed), one with an ask out (waiting), one whose latest START
-# has no session, and on the same three cards staked
+# 10. worked without a lease, the incident's shape (eight cards in Active, three here): agent comments stamped with a session that open
+# "Building." and the like, none with START, no claimed. Each card prints one line naming its latest such comment; silent on a staked
+# card, one at a gate (Proposed), one with an ask out (waiting), and cards whose only comments are a human's, a sessionless agent's, or
+# the app's reserved names' (board, healer, shortcuts); silent on the same three cards staked
 llfresh; LLWN=a1000000-0000-4000-8000-0000000000a1; LLGN=a1000000-0000-4000-8000-0000000000a2
 lllane() { mkdir -p "$LLB/$1"; printf -- '---\nschema: 1\nkind: lane\ntitle: "%s"\norder: %s\ncreated:  {at: 2026-01-01T00:00:00Z}\nmodified: {at: 2026-01-01T00:00:00Z}\n---\nLane.\n' "$2" "$3" > "$LLB/$1/index.md"; }
 llto() { mv "$LLB/$LLN/$1" "$LLB/$2/$1"; }   # llcard and llcom write into LLN: the card moves to its lane after
+# llby <card> <comment id> <at> <by mapping> <first line>: a comment with the by written as given
+llby() { local d="$LLB/$LLN/$1/comments/$2"; mkdir -p "$d"; printf -- '---\nschema: 1\nkind: comment\ncreated:  {at: %s, by: %s}\nmodified: {at: %s, by: %s}\n---\n%s\n' "$3" "$4" "$3" "$4" "$5" > "$d/index.md"; }
 LU1=d1000000-0000-4000-8000-0000000000b1; LU2=d1000000-0000-4000-8000-0000000000b2; LU3=d1000000-0000-4000-8000-0000000000b3
-LS1=d1000000-0000-4000-8000-0000000000b4; LG1=d1000000-0000-4000-8000-0000000000b5; LW1=d1000000-0000-4000-8000-0000000000b6; LN1=d1000000-0000-4000-8000-0000000000b7
-llunstaked() {   # llunstaked [claimed text for the three]: the seven cards, the three in Active claimed when given
+LS1=d1000000-0000-4000-8000-0000000000b4; LG1=d1000000-0000-4000-8000-0000000000b5; LW1=d1000000-0000-4000-8000-0000000000b6
+LH1=d1000000-0000-4000-8000-0000000000b7; LA1=d1000000-0000-4000-8000-0000000000b8; LR1=d1000000-0000-4000-8000-0000000000b9
+LLHUM='{name: "Kim", kind: "human"}'; LLNOS='{name: claude, kind: agent, model: smoke}'
+llworked() {   # llworked [claimed text for the three]: the nine cards, the three in Active claimed when given
   lllane $LLWN Active 90000; lllane $LLGN Proposed 91000
-  llcard $LU1 "${1:-}"; llcom $LU1 c1000000-0000-4000-8000-0000000000b1 "$(llago 3000)" "board watch" '**START: one**'; llto $LU1 $LLWN
-  llcard $LU2 "${1:-}"; llcom $LU2 c1000000-0000-4000-8000-0000000000b2 "$(llago 2900)" "board watch" 'START: two' block; llto $LU2 $LLWN
-  llcard $LU3 "${1:-}"; llcom $LU3 c1000000-0000-4000-8000-0000000000b3 "$(llago 2800)" "board watch" '**START: three**' crlf; llto $LU3 $LLWN
+  llcard $LU1 "${1:-}"; llcom $LU1 c1000000-0000-4000-8000-0000000000b1 "$(llago 3000)" "Lanework Pitwall" 'Building.'
+  llcom $LU1 c1000000-0000-4000-8000-0000000000c1 "$(llago 2000)" "Lanework Pitwall" 'Landed the first half; the rest next.'; llto $LU1 $LLWN
+  llcard $LU2 "${1:-}"; llcom $LU2 c1000000-0000-4000-8000-0000000000b2 "$(llago 2900)" "Lanework Pitwall" 'Building it as shaped.' block
+  llby $LU2 c1000000-0000-4000-8000-0000000000c2 "$(llago 1000)" "$LLHUM" 'How is it going?'; llto $LU2 $LLWN
+  llcard $LU3 "${1:-}"; llcom $LU3 c1000000-0000-4000-8000-0000000000b3 "$(llago 2800)" "Lanework Pitwall" '**Building, in two halves.**' crlf; llto $LU3 $LLWN
   llcard $LS1 "claimed: {by: {name: claude, kind: agent, model: smoke, session: \"S-held\"}, until: $(llahead 1200)}"
-  llcom $LS1 c1000000-0000-4000-8000-0000000000b4 "$(llago 2700)" "board watch" '**START: staked**'; llto $LS1 $LLWN
-  llcard $LG1; llcom $LG1 c1000000-0000-4000-8000-0000000000b5 "$(llago 2600)" "board watch" '**START: at the gate**'; llto $LG1 $LLGN
-  llcard $LW1 'waiting: {comment: c1000000-0000-4000-8000-0000000000b6, for: kim}'
-  llcom $LW1 c1000000-0000-4000-8000-0000000000b6 "$(llago 2500)" "board watch" '**START: asked**'; llto $LW1 $LLWN
-  llcard $LN1; llcom $LN1 c1000000-0000-4000-8000-0000000000b7 "$(llago 2400)" "board watch" '**START: first**'
-  llcom $LN1 c1000000-0000-4000-8000-0000000000b8 "$(llago 2300)" "" '**START: by hand**'; llto $LN1 $LLWN; }
-llunstaked
-LUW=$(printf '%s\n' "$LLB/$LLWN/$LU1: started without a lease c1000000-0000-4000-8000-0000000000b1 $(llago 3000)" \
-  "$LLB/$LLWN/$LU2: started without a lease c1000000-0000-4000-8000-0000000000b2 $(llago 2900)" "$LLB/$LLWN/$LU3: started without a lease c1000000-0000-4000-8000-0000000000b3 $(llago 2800)")
-lint "$LLB"; [ "$LR" = 1 ] && [ "$LO" = "$LUW" ] && [ "$LE" = "leased cards: 7, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 3" ] \
-  || llfail "case 10: want one started-without-a-lease line for each of the three unstaked Active cards, none for the staked, gate, asked or hand-started card"
-llfresh; llunstaked "claimed: {by: {name: claude, kind: agent, model: smoke, session: \"S-lead\"}, until: $(llahead 1500)}"
-lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 7, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "case 10: the same board staked must be silent"
-ok "lint-leases reports each card in Active whose latest START is a session's and which has no claimed, one line each (3 of 7 cards); silent on a staked card, a card at a gate, one with an ask out, one whose latest START has no session, and the same board staked"
+  llcom $LS1 c1000000-0000-4000-8000-0000000000b4 "$(llago 2700)" "Lanework Pitwall" 'Building.'; llto $LS1 $LLWN
+  llcard $LG1; llcom $LG1 c1000000-0000-4000-8000-0000000000b5 "$(llago 2600)" "Lanework Pitwall" 'Proposal ready.'; llto $LG1 $LLGN
+  llcard $LW1 'waiting: {for: kim, since: 2026-01-01T00:00:00Z, comment: c1000000-0000-4000-8000-0000000000b6}'
+  llcom $LW1 c1000000-0000-4000-8000-0000000000b6 "$(llago 2500)" "Lanework Pitwall" '@kim Which one?'; llto $LW1 $LLWN
+  llcard $LH1; llby $LH1 c1000000-0000-4000-8000-0000000000b7 "$(llago 2400)" "$LLHUM" 'Please build this.'; llto $LH1 $LLWN
+  llcard $LA1; llby $LA1 c1000000-0000-4000-8000-0000000000b8 "$(llago 2300)" "$LLNOS" 'Building, no session.'; llto $LA1 $LLWN
+  llcard $LR1; llby $LR1 c1000000-0000-4000-8000-0000000000b9 "$(llago 2200)" '{name: board, kind: agent, session: "app"}' 'moved'
+  llby $LR1 c1000000-0000-4000-8000-0000000000c9 "$(llago 2100)" '{name: "Healer", kind: agent, model: x, session: "app"}' 'Healed.'
+  llby $LR1 c1000000-0000-4000-8000-0000000000d9 "$(llago 2000)" '{name: shortcuts, kind: "agent", session: "app"}' 'Shortcut.'; llto $LR1 $LLWN; }
+llworked
+LUW=$(printf '%s\n' "$LLB/$LLWN/$LU1: worked without a lease c1000000-0000-4000-8000-0000000000c1 $(llago 2000)" \
+  "$LLB/$LLWN/$LU2: worked without a lease c1000000-0000-4000-8000-0000000000b2 $(llago 2900)" "$LLB/$LLWN/$LU3: worked without a lease c1000000-0000-4000-8000-0000000000b3 $(llago 2800)")
+lint "$LLB"; [ "$LR" = 1 ] && [ "$LO" = "$LUW" ] && [ "$LE" = "leased cards: 0, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 3" ] \
+  || llfail "case 10: want one worked-without-a-lease line for each of the three Active cards worked by a session, naming the latest agent comment, and none for the staked, gate, asked, human-only, sessionless or app-only card"
+llfresh; llworked "claimed: {by: {name: claude, kind: agent, model: smoke, session: \"S-lead\"}, until: $(llahead 1500)}"
+lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 0, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "case 10: the same board staked must be silent"
+ok "lint-leases, the incident's shape: each Active card with agent comments stamped with a session (\"Building.\", none opening START) and no claimed prints one line naming its latest such comment (3 of 9 cards); silent on a staked card, a card at a gate, one with an ask out, a human's, a sessionless agent's or the app's comments only, and the same board staked"
 }
 
 sec_lint_waiting() {
@@ -2422,30 +2432,39 @@ AL=$(lane_of "$XB" Approved); sed -i '' '$d' "$AL"; echo 'The build queue, top f
 [ -n "$("$AP2" "$XB" | awk -F'\t' '$1 == "arm" && $4 == "Approved" { print $3 }')" ] || { echo "arm-pass.sh stopped arming a board with the old Approved wording"; exit 1; }
 ok "arm-pass.sh: a board whose Approved lane body still has the old 'top first' wording is still armed"
 validate "$PB" >/dev/null; validate "$XB" >/dev/null; validate "$NB" >/dev/null; ok "the pick-order fixture boards validate"
-# unstaked: cards in Active a session started with no lease (the eight-card shape, with three) print an unstaked line each, after their
-# arm line, naming the latest START; none for a staked card, a card at a gate (Proposed), one with an ask out, or one whose START has no session
+# unstaked, the incident's shape (eight cards in Active, three here): cards a session worked with no lease, its comments opening
+# "Building." and the like (none START), print an unstaked line each, after their arm line, naming the latest agent comment with a
+# session; none for a staked card, a card at a gate (Proposed), one with an ask out, or one whose comments are a human's, a
+# sessionless agent's or the app's only
 AB="$T/Unstaked Pipeline.lanework"; AN="${AB##*/}"
 "$SK/lanework/scripts/found-board.sh" "$AB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Unstaked --var verified=make --model smoke >/dev/null
-AWS='{name: claude, kind: agent, model: x, session: "board watch"}'
+AWS='{name: claude, kind: agent, model: x, session: "Lanework Pitwall"}'
 AU1=e2000000-0000-4000-8000-000000000001; AU2=e2000000-0000-4000-8000-000000000002; AU3=e2000000-0000-4000-8000-000000000003
 AUS=e2000000-0000-4000-8000-000000000004; AUG=e2000000-0000-4000-8000-000000000005; AUW=e2000000-0000-4000-8000-000000000006; AUN=e2000000-0000-4000-8000-000000000007
-acard Active $AU1 "Active: started one" 1024; acom Active $AU1 f2000000-0000-4000-8000-000000000001 "$OLD3H" "$AWS" "" "**START: one.**"
-acom Active $AU1 f2000000-0000-4000-8000-000000000011 "$OLD2H" "$AWS" "" "**START: one, again.**"
-acard Active $AU2 "Active: started two" 2048; acom Active $AU2 f2000000-0000-4000-8000-000000000002 "$OLD2H" "$AWS" "" "START: two."
-acard Active $AU3 "Active: started three" 3072; acom Active $AU3 f2000000-0000-4000-8000-000000000003 "$OLD2H" "$AWS" "" "**START: three.**"
-acard Active $AUS "Active: started, staked" 4096 "$UP20"; acom Active $AUS f2000000-0000-4000-8000-000000000004 "$OLD2H" "$AWS" "" "**START: staked.**"
-acard Proposed $AUG "Proposed: started" 1024; acom Proposed $AUG f2000000-0000-4000-8000-000000000005 "$OLD2H" "$AWS" "" "**START: gated.**"
-acard Active $AUW "Active: started, asked" 5120; acom Active $AUW f2000000-0000-4000-8000-000000000006 "$OLD2H" "$AWS" "" "**START: asked.**"
+AUH=e2000000-0000-4000-8000-000000000008; AUR=e2000000-0000-4000-8000-000000000009
+acard Active $AU1 "Active: worked one" 1024; acom Active $AU1 f2000000-0000-4000-8000-000000000001 "$OLD3H" "$AWS" "" "Building."
+acom Active $AU1 f2000000-0000-4000-8000-000000000011 "$OLD2H" "$AWS" "" "First half landed."
+acard Active $AU2 "Active: worked two" 2048; acom Active $AU2 f2000000-0000-4000-8000-000000000002 "$OLD3H" "$AWS" "" "Building it as shaped."
+acom Active $AU2 f2000000-0000-4000-8000-000000000012 "$OLD2H" "$HUMAN" "" "Thanks."
+acard Active $AU3 "Active: worked three" 3072; acom Active $AU3 f2000000-0000-4000-8000-000000000003 "$OLD2H" "$AWS" "" "**Building, in two halves.**"
+acard Active $AUS "Active: worked, staked" 4096 "$UP20"; acom Active $AUS f2000000-0000-4000-8000-000000000004 "$OLD2H" "$AWS" "" "Building."
+acard Proposed $AUG "Proposed: worked" 1024; acom Proposed $AUG f2000000-0000-4000-8000-000000000005 "$OLD2H" "$AWS" "" "Proposal ready."
+acard Active $AUW "Active: worked, asked" 5120; acom Active $AUW f2000000-0000-4000-8000-000000000006 "$OLD2H" "$AWS" "" "@kim Which one?"
 AW_SINCE="$OLD2H" perl -0pi -e 's/\n---\nBody/\nwaiting: {for: kim, since: $ENV{AW_SINCE}, comment: f2000000-0000-4000-8000-000000000006}\n---\nBody/' "$(alane Active)/$AUW/index.md"
-acard Active $AUN "Active: started by no session" 6144; acom Active $AUN f2000000-0000-4000-8000-000000000007 "$OLD2H" "$AGENT" "" "**START: no session.**"
+acard Active $AUN "Active: a sessionless agent only" 6144; acom Active $AUN f2000000-0000-4000-8000-000000000007 "$OLD2H" "$AGENT" "" "Building, no session."
+acard Active $AUH "Active: a human only" 7168; acom Active $AUH f2000000-0000-4000-8000-000000000008 "$OLD2H" "$HUMAN" "" "Please build this."
+acard Active $AUR "Active: the app only" 8192; acom Active $AUR f2000000-0000-4000-8000-000000000009 "$OLD3H" '{name: healer, kind: agent, model: x, session: "app"}' "" "Healed."
+acom Active $AUR f2000000-0000-4000-8000-000000000019 "$OLD2H" '{name: shortcuts, kind: agent, session: "app"}' "" "Shortcut."
 AUO=$("$AP" "$AB") || { echo "arm-pass.sh on the unstaked board failed"; exit 1; }
 AAL=$(basename "$(alane Active)")
-exp=$(printf 'unstaked\t%s\t%s\tActive\t%s\t-\t%s/%s/comments/%s/index.md\n' "$AN" $AU1 "Active: started one" "$AAL" $AU1 f2000000-0000-4000-8000-000000000011 \
-  "$AN" $AU2 "Active: started two" "$AAL" $AU2 f2000000-0000-4000-8000-000000000002 "$AN" $AU3 "Active: started three" "$AAL" $AU3 f2000000-0000-4000-8000-000000000003)
+exp=$(printf 'unstaked\t%s\t%s\tActive\t%s\t-\t%s/%s/comments/%s/index.md\n' "$AN" $AU1 "Active: worked one" "$AAL" $AU1 f2000000-0000-4000-8000-000000000011 \
+  "$AN" $AU2 "Active: worked two" "$AAL" $AU2 f2000000-0000-4000-8000-000000000002 "$AN" $AU3 "Active: worked three" "$AAL" $AU3 f2000000-0000-4000-8000-000000000003)
 [ "$(grep '^unstaked	' <<<"$AUO" || true)" = "$exp" ] || { echo "arm-pass.sh unstaked lines:"; echo "want:"; echo "$exp"; echo "got:"; echo "$AUO"; exit 1; }
-for u in $AU1 $AU2 $AU3; do [ "$(grep "	$u	" <<<"$AUO" | cut -f1 | paste -sd, -)" = "arm,unstaked" ] || { echo "want arm then unstaked for $u:"; echo "$AUO"; exit 1; }; done
+# AU2's owner comment is unanswered: comment prints in place of arm (arming.md), then unstaked
+for u in $AU1 $AU3; do [ "$(grep "	$u	" <<<"$AUO" | cut -f1 | paste -sd, -)" = "arm,unstaked" ] || { echo "want arm then unstaked for $u:"; echo "$AUO"; exit 1; }; done
+[ "$(grep "	$AU2	" <<<"$AUO" | cut -f1 | paste -sd, -)" = "comment,unstaked" ] || { echo "want comment then unstaked for $AU2:"; echo "$AUO"; exit 1; }
 grep -qE "^held	$AN	$AUS	" <<<"$AUO" || { echo "the staked Active card is not held:"; echo "$AUO"; exit 1; }
-ok "arm-pass.sh: three Active cards a session started with no lease print arm then unstaked, naming the latest START; none for a staked card, one at a gate, one with an ask out, or one whose START has no session"
+ok "arm-pass.sh, the incident's shape: three Active cards a session worked with no lease (comments opening Building., none START) print arm (or comment, for an unanswered owner comment) then unstaked, naming the latest agent comment with a session; none for a staked card, one at a gate, one with an ask out, or a human's, a sessionless agent's or the app's comments only"
 validate "$AB" >/dev/null; ok "the unstaked fixture board validates"
 }
 
@@ -2457,7 +2476,8 @@ needs fixture_pipeline
 SCS="$SK/work/scripts/start-card.sh"; SMC="$SK/work/scripts/move-card.sh"; SLS="$SK/lanework/scripts/lease.sh"
 SB="$T/Start Pipeline.lanework"; cp -R "$P" "$SB"; rm -rf "${SB:?}/.schema"; cp -R "$VAL" "$SB/.schema"; SBR=$(cd "$SB" && pwd -P)
 SCT=$(mktemp -d "$T/start-tmp.XXXXXX"); sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & SCP=$!; disown "$SCP"; echo "$SCP" >> "$STANDINS"
-sc_cleanup() { local p; stop_standin "$SCP"; for p in $(timers_left 0 "_timer $SBR/"); do kill "$p" 2>/dev/null || true; done; }
+sc_cleanup() { local p; stop_standin "$SCP"; for p in $(timers_left 0 "_timer $SBR/"); do kill "$p" 2>/dev/null || true; done
+  chmod -R u+w "$SB" 2>/dev/null || true; }   # cases 10 and 11 make a folder read-only
 trap sc_cleanup EXIT
 # AS <session> <cmd...>: the command as that session, under the stand-in and the test knobs; no timer renews within the section
 # (a renewal is a write: it would land under the byte-for-byte snapshots of cases 3 and 7)
@@ -2558,15 +2578,55 @@ N2=$(scard Approved "Started with no session id"); "$SMC" "$SB" "$N2" Active --m
 C8=$(scard Approved "Started, then lost"); AS S-st "$SCS" "$SB" "$C8" --comment "$T/sc-start.md" --model smoke --session "lead label" >/dev/null; sctake "$C8"
 AS S-st "$SLS" check "$SB" "$C8" --model smoke >/dev/null 2>&1 || true   # the loss recorded now, not on the timer's next poll
 SAL=$(basename "$SACT"); rc=0; O=$("$SK/work/scripts/lint-leases.sh" "$SB" 2>"$T/sc.err") || rc=$?
-SNW=$(for c in $N1 $N2; do printf '%s\n' "$SB/$SAL/$c: started without a lease $(basename "$(dirname "$(grep -l -F 'START' "$(dirname "$(scf "$c")")"/comments/*/index.md)")")"; done | sort)
-[ "$rc" = 1 ] && [ "$(grep 'started without a lease' <<<"$O" | sed -E 's/ 20[0-9-]+T[0-9:]+Z$//')" = "$SNW" ] && grep -q ', no lease: 2$' "$T/sc.err" \
+SNW=$(for c in $N1 $N2; do printf '%s\n' "$SB/$SAL/$c: worked without a lease $(basename "$(dirname "$(grep -l -F 'START' "$(dirname "$(scf "$c")")"/comments/*/index.md)")")"; done | sort)
+[ "$rc" = 1 ] && [ "$(grep 'worked without a lease' <<<"$O" | sed -E 's/ 20[0-9-]+T[0-9:]+Z$//')" = "$SNW" ] && grep -q ', no lease: 2$' "$T/sc.err" \
   && [ "$(grep ': lease lost ' <<<"$O" | sed -E 's#^.*/([0-9a-f-]{36}): lease lost .*#\1#' | sort)" = "$(printf '%s\n' "$C4" "$C8" "$M4" | sort)" ] \
-  || scfail "8: lint-leases on held, never-held and lost (rc $rc): want the two unstaked cards as started without a lease, the three lost ones as lease lost"
+  || scfail "8: lint-leases on held, never-held and lost (rc $rc): want the two unstaked cards as worked without a lease, the three lost ones as lease lost"
 rc=0; O=$("$SK/watch/scripts/arm-pass.sh" "$SB") || rc=$?
 [ "$rc" = 0 ] && [ "$(awk -F'\t' '$1 == "unstaked" { print $3 }' <<<"$O" | sort)" = "$(printf '%s\n' "$N1" "$N2" | sort)" ] \
   && [ "$(awk -F'\t' '$1 == "held" { print $3 }' <<<"$O" | sort)" = "$(printf '%s\n' "$C1" "$C2" "$C3" "$C4" "$C8" "$M2" "$M4" "$M5" | sort)" ] || scfail "8: arm-pass.sh on held, never-held and lost (rc $rc)"
 validate "$SB" >/dev/null || scfail "8: the board does not validate"
-ok "lint-leases.sh and arm-pass.sh on the same board: the two cards started with no lease are reported (one line each), none of the held, lost or START-less ones (the lost ones are the lint's lease lost lines); the board validates"
+ok "lint-leases.sh and arm-pass.sh on the same board: the two cards worked with no lease are reported (one line each), none of the held, lost or comment-less ones (the lost ones are the lint's lease lost lines); the board validates"
+# 9. the source lane: on a board with Approved, a card in Proposed, Ideas or Done is refused, byte for byte, the lane named (Approved and
+# a re-start pass: cases 2 and 5); a board with no Approved lane starts a card from any lane
+for l in Proposed Ideas Done; do
+  SL=$(scard "$l" "Start from $l"); H=$(sum "$SB"); rc=0; O=$(AS S-st "$SCS" "$SB" "$SL" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+  [ "$rc" = 1 ] && [ "$H" = "$(sum "$SB")" ] && grep -q "is in $l, not Approved" "$T/sc.err" && [ "$(sclane "$SL")" = "$l" ] || scfail "9: a card in $l (rc $rc): want exit 1, the board byte for byte, the lane named"
+done
+SB2="$T/Start Ready Pipeline.lanework"; cp -R "$P" "$SB2"; rm -rf "${SB2:?}/.schema"; cp -R "$VAL" "$SB2/.schema"
+sed -i '' 's/^title: "Approved"$/title: "Ready"/' "$(lane_of "$SB2" Approved)"
+SR=$(bfirst "$SK/work/scripts/file-card.sh" "$SB2" Ready "Start from Ready" --body "$T/sc-b.md" --model smoke)
+rc=0; O=$(AS S-st "$SCS" "$SB2" "$SR" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+SRF=$(ls "$SB2"/*/"$SR"/index.md); [ "$rc" = 0 ] && [ "$(sed -n 's/^title: "\(.*\)"$/\1/p' "$(dirname "$(dirname "$SRF")")/index.md")" = Active ] && grep -q '^claimed:' "$SRF" \
+  || scfail "9: a board with no Approved lane (rc $rc): want the card from Ready started"
+AS S-st "$SLS" release "$SB2" "$SR" --model smoke >/dev/null
+ok "start-card.sh on a board with Approved refuses a card in Proposed, Ideas or Done (exit 1, the board byte for byte, the lane named); on a board with no Approved lane a card starts from any lane"
+
+# 10. the move fails at its mv (the Active lane folder read-only): exit 1, the card in Approved, no START, no lease
+R1=$(scard Approved "Start, Active read-only"); chmod a-w "$SACT"
+rc=0; O=$(AS S-st "$SCS" "$SB" "$R1" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?; chmod u+w "$SACT"
+[ "$rc" = 1 ] && grep -q 'the move failed' "$T/sc.err" && grep -q "${R1:0:8} not started: left in Approved, lease none of this call's, no START posted" "$T/sc.err" \
+  && [ "$(sclane "$R1")" = Approved ] && ! grep -q '^claimed:' "$(scf "$R1")" && [ "$(scn "$R1" START)" = 0 ] && [ ! -e "$(scmem S-st "$R1")" ] \
+  || scfail "10: a move failing at its mv (rc $rc): want exit 1, the card in Approved, no START, no lease, the state named"
+ok "start-card.sh: a move failing at its mv (Active read-only) exits 1 with the card in Approved, no START and no lease, and says so on stderr"
+
+# 11. the record fails after the move (the card's comments folder read-only): the card goes back to Approved, the stake is released, no START
+F1=$(scard Approved "Start, record refused"); F1C="$(dirname "$(scf "$F1")")/comments"; mkdir "$F1C"; chmod a-w "$F1C"
+rc=0; O=$(AS S-st "$SCS" "$SB" "$F1" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+F1C="$(dirname "$(scf "$F1")")/comments"; chmod u+w "$F1C"
+[ "$rc" = 1 ] && grep -q 'the record failed' "$T/sc.err" && grep -q "${F1:0:8} not started: left in Approved, lease none of this call's, no START posted" "$T/sc.err" \
+  && [ "$(sclane "$F1")" = Approved ] && ! grep -q '^claimed:' "$(scf "$F1")" && [ -z "$(ls -A "$F1C")" ] && [ ! -e "$(scmem S-st "$F1")" ] \
+  || scfail "11: a record failing after the move (rc $rc): want exit 1, the card back in Approved, no lease, no START"
+validate "$SB" >/dev/null || scfail "11: the board does not validate"
+ok "start-card.sh: a record failing after the move (comments read-only) puts the card back in Approved, releases the stake, posts no START, exits 1 and names the state; the board validates"
+
+# 12. the move note with stderr closed: exit and stdout as a held move's (exit 0, the new path)
+M7=$(scard Approved "Note, stderr closed"); M8=$(scard Approved "Held, stderr closed"); AS S-st "$SLS" stake "$SB" "$M8" --model smoke >/dev/null
+r7=0; O7=$(AS S-st "$SMC" "$SB" "$M7" Active --model smoke 2>&-) || r7=$?
+r8=0; O8=$(AS S-st "$SMC" "$SB" "$M8" Active --model smoke 2>&-) || r8=$?
+[ "$r7" = 0 ] && [ "$r8" = 0 ] && [ "$O7" = "$(dirname "$(scf "$M7")")" ] && [ "$O8" = "$(dirname "$(scf "$M8")")" ] && [ "$(sclane "$M7")" = Active ] \
+  || { echo "12: stderr closed: never-held rc $r7 stdout '$O7', held rc $r8 stdout '$O8'"; exit 1; }
+ok "move-card.sh with stderr closed: a never-held move into Active exits 0 with its new path on stdout, as a held move does"
 }
 
 sec_merge() {
