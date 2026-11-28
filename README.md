@@ -7,7 +7,7 @@ A [Lanework](https://laneworkapp.com) board is just a folder of plain directorie
 | skill | what it's for |
 |---|---|
 | `lanework` | the base the others build on: what a board is, reading one, picking the next card by priority, the write rules every board shares, the card lease that marks a card one session is working, healing a damaged board, the default lane sets, and founding a new board with a catalog of common label kinds (priority, component, type, size, platform, round, release, epic) to pick from |
-| `work` | working a board: writing cards and comments, sweeps and triage, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
+| `work` | working a board: writing cards and comments, sweeps and triage, starting a card and its lease in one step, farming work to model-tiered subagents, and a lead/fixer/reviewer build cycle |
 | `watch` | a standing watch on one or more boards, responding to changes as they arrive. At start-up it catches up on what happened while no watch ran: comments left unanswered, cards waiting in agent lanes, cards another session holds and leases that have lapsed. It stakes a card before it works one. After its conversation is compacted it re-reads the boards instead of trusting its summary |
 | `discovery` | a guided examination of a project's problem and domain space, run in rounds on a discovery board: questions as cards, rulings in the owner's words, plus the glossary and the ADRs and PDRs the rulings produce, filed as cards in a Decisions lane beside the questions |
 | `plan` | planning an idea too big for one session on a plan board: name the destination, chart the open decisions as ticket cards, then resolve one ticket per session until nothing is left to decide. It produces decisions, not deliverables, and files work cards only when you say so |
@@ -32,15 +32,15 @@ Every script that writes to a board also leaves a small signature file in it, so
 | skill | files | `SKILL.md` words | words an agent reads |
 |---|---|---|---|
 | `lanework` | 10 | 382 | 5,885 |
-| `work` | 16 | 488 | 8,012 |
-| `watch` | 4 | 182 | 2,120 |
+| `work` | 16 | 505 | 8,113 |
+| `watch` | 4 | 182 | 2,211 |
 | `discovery` | 14 | 510 | 3,022 |
 | `plan` | 9 | 467 | 2,926 |
 | `merge` | 2 | 362 | 1,915 |
 | `heal` | 2 | 311 | 897 |
 | `import` | 2 | 406 | 871 |
 
-Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `work` on 2026-11-22, `plan` on 2026-11-23, `import` on 2026-11-26, `lanework`, `watch` and `merge` on 2026-11-27), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
+Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `plan` on 2026-11-23, `import` on 2026-11-26, `lanework` and `merge` on 2026-11-27, `work` and `watch` on 2026-11-28), over the Markdown an agent reads: `SKILL.md`, references, and the templates it fills in. Scripts, and the templates only a script reads (the lane sets and board bodies passed to `found-board.sh`), are left out: they never enter context.
 
 #### `lanework`
 
@@ -62,11 +62,11 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `work` on 2026-1
 
 | file | words |
 |---|---|
-| `SKILL.md` | 488 |
+| `SKILL.md` | 505 |
 | `references/companions.md` | 262 |
 | `references/evidence.md` | 419 |
-| `references/fixer.md` | 424 |
-| `references/lead.md` | 1,062 |
+| `references/fixer.md` | 445 |
+| `references/lead.md` | 1,125 |
 | `references/reviewer.md` | 415 |
 | `references/sweep.md` | 828 |
 | `references/team.md` | 532 |
@@ -78,17 +78,17 @@ Measured with `wc -w` on 2026-10-10 (`discovery` on 2026-11-20, `work` on 2026-1
 | `templates/fixer-phase1-report.md` | 236 |
 | `templates/fixer-phase2-report.md` | 136 |
 | `templates/review-verdict.md` | 328 |
-| **total** | **8,012** |
+| **total** | **8,113** |
 
 #### `watch`
 
 | file | words |
 |---|---|
 | `SKILL.md` | 182 |
-| `references/arming.md` | 797 |
+| `references/arming.md` | 857 |
 | `references/events.md` | 556 |
-| `references/responding.md` | 585 |
-| **total** | **2,120** |
+| `references/responding.md` | 616 |
+| **total** | **2,211** |
 
 #### `discovery`
 

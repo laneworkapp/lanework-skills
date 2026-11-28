@@ -5,8 +5,8 @@ The main session. Orchestrate, own every worktree, grant slots, merge, close car
 ## Cycle
 
 ```
-lead creates a worktree on a new branch, stakes the card's lease, hands it off
-  -> fixer reads the thread whole, posts START, writes the test, records FAIL-BEFORE, fixes
+lead creates a worktree on a new branch, starts the card (lease, Active, START: one call), hands it off
+  -> fixer reads the thread whole, posts its plan, writes the test, records FAIL-BEFORE, fixes
   -> fixer sends Phase-1 (= slot request, with pre-registered verification)
   -> lead grants a slot
   -> fixer runs the gate, sends Phase-2, releases the slot
@@ -35,7 +35,7 @@ git -C <repo> fetch origin                                                      
 git -C <repo> worktree add -b <slug> .claude/worktrees/<slug> origin/main           # or main
 ```
 
-- **The lead is the session that holds the lease.** Stake each card before the fixer gets its worktree: `lanework/scripts/lease.sh stake <board> <card-uuid> --model m`, rules in `lanework/references/writes.md` § Lease, which also says what to do when `stake` refuses (exit 1) or blocks two minutes. Release it on the closing record: `scripts/post-comment.sh` with `--release`. Exit 1 after that comment landed = the release failed: run `lanework/scripts/lease.sh release <board> <card-uuid> --model m`, never repost. The fixer's START (`writing.md` § START) is its plan, posted under this lease.
+- **The lead is the session that holds the lease.** Start each card before the fixer gets its worktree, in one call: `scripts/start-card.sh <board> <card-uuid> --comment <START file> --model m` stakes the lease, moves the card into the working lane (Active; already there: no move) and posts the START (`writing.md` § START). Never stake and move apart: a forgotten stake goes unleased (`scripts/lint-leases.sh` reports it). Exit 1 = refused (held by another session, or the move or record failed; a lease the call made is released), exit 3 = lost. Lease rules, and the two-minute block over a lapsed lease: `lanework/references/writes.md` § Lease. Release it on the closing record: `scripts/post-comment.sh` with `--release`. Exit 1 after that comment landed = the release failed: run `lanework/scripts/lease.sh release <board> <card-uuid> --model m`, never repost. The fixer's plan is a record under this lease, never a second START.
 - **Fixer prompt** = `templates/farmed-prompt.md` + the worktree's absolute path + the branch + `fixer.md` + both phase-report templates. Tier: `tiers.md`.
 - **Reviewer**, on Phase-2 arrival: prompt = card path + branch + both phase reports + `reviewer.md` + the stance and its trigger (`team.md` § Review stance). Tier per stance.
 - **Adversarial** → also a scratch worktree at the merge-base, its path in the prompt:

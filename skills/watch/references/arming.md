@@ -26,6 +26,7 @@ Once per board, after the reads. No event fires for what is already sitting, so 
 | `arm` | a card in an agent lane with no lease (none, or voided by the clock guard) = work order, only when the lane body agrees and the card waits on nobody (no `waiting`): `responding.md` § A move into an agent lane. Else one report line. A START or plan comment is not a claim: only a lease is (`lanework/references/writes.md` § Lease) |
 | `held` | report only: a valid lease, minutes left. Lane, title, minutes, in the arming message (§ Tell the user). Never worked, whoever holds it |
 | `stale` | report only: a lapsed lease, minutes since its `until`. Same report place. Never worked, never taken over, never released: the owner frees it, or asks an agent to take it through `work` (the takeover waits two minutes, which an arming pass must not block on) |
+| `unstaked` | report only: a card in a working lane that a session started and holds no lease on (its latest start record carries a session; no `claimed`, no `waiting`). The `arm` line before it stands: a start record is no claim. Lane and title in the arming message; working it = starting it again (`work/references/lead.md` § Dispatch) |
 
 Done is never swept. A card in a non-agent lane: no work order, report. The script reads leases once through `lanework/scripts/lease.sh list` and writes nothing. That call failing = exit 1 with `comment` lines only and a stderr note: report it, arm nothing that pass.
 

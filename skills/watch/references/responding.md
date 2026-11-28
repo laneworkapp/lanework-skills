@@ -16,7 +16,7 @@ Answers a question, picks an option (a button click arrives as `<label>: <option
 An owner's move (`events.md` item 5), or a card waiting at arming (`arming.md`), in an `agent` row of `lanework/references/board-kinds.md` = work order, if it holds no lease (none, or voided by the clock guard: `work/references/companions.md`). A lapsed lease is `stale`, no arm; an owner's move of such a card is the owner asking, and the stake takes it over (`lanework/references/writes.md` § Lease). No comment to answer:
 
 1. Read the card whole; act per the lane body (`work/SKILL.md`). Not this card's work (any other lane, `waiting`, lane body out of scope, Approved but not first in pick order, `lanework/references/reading.md` § Pick order) → no work order, report. No stake.
-2. **Stake** only the card to work, immediately before the first write or hand-off: `lanework/scripts/lease.sh stake <board> <card-uuid> --model m`; rules, exit codes and the two-minute takeover wait: `lanework/references/writes.md` § Lease. Refused (exit 1) → no work: one report line, "held by another session".
+2. **Stake** only the card to work, immediately before the first write or hand-off. A card to build (Approved, or already in Active) → start it in one call, `work/references/lead.md` § Dispatch (`work/scripts/start-card.sh`). Any other agent lane: `lanework/scripts/lease.sh stake <board> <card-uuid> --model m`. Rules, exit codes and the two-minute takeover wait: `lanework/references/writes.md` § Lease. Refused (exit 1) → no work: one report line, "held by another session".
 3. A card staked and then not worked (a later refusal, a change of plan) → `lanework/scripts/lease.sh release` at once.
 4. Substantial work → § Action-calling below.
 5. **Release** when the card is handed to a gate or done, in the closing write, before the closing commit (`work/references/lead.md` § Dispatch: `--release`, else `lanework/scripts/lease.sh release`), so the release rides in that commit.
@@ -25,7 +25,7 @@ An owner's move (`events.md` item 5), or a card waiting at arming (`arming.md`),
 
 Asks for work. Don't do it in the watch session:
 
-1. Post a plan record to the thread first, so the journal shows who's doing what.
+1. Post a plan record to the thread first, so the journal shows who's doing what (a card to build: the record `start-card.sh` posts).
 2. Farm it: `work/references/tiers.md`, `work/templates/farmed-prompt.md`: its Lease lines name the lease this session holds and tell the subagent never to stake. Keep the lease while the subagent runs. Split work → parallel agents.
 3. Substantial coding card → the build cycle, with the watch session as lead (`work/references/lead.md`).
 4. Review agent output here against `work/references/evidence.md`. Journal outcome + evidence on the thread. Synthesis and the user-facing reply stay here.
