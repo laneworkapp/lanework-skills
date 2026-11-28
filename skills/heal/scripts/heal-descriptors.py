@@ -12,7 +12,7 @@ second run finds nothing.
 
 Exit codes: exit 0 done (dry run or applied) or `-h`/`--help` (prints this text). exit 2 `--apply` with no `--model`.
 exit 3 `--expect` digest differs. exit 64 usage or setup, nothing written: a flag with no value, an unknown
-argument, no board, `--expect` without `--apply`, with `--apply` only an empty or reserved `--name` (reserved: anyone, board,
+argument, no board, `--expect` without `--apply`, with `--apply` only an empty, padded (leading or trailing whitespace) or reserved `--name` (reserved: anyone, board,
 healer, shortcuts, tracker), a path that is not a board (no `index.md`), lane templates missing beside this script.
 
 Every run ends with `digest <hex>`, a hash of the full change list (each board, lane, code and new text).
@@ -535,6 +535,8 @@ def main(argv):
         print("heal-descriptors: --apply needs --model (the restamp names who healed); nothing written", file=sys.stderr); return 2
     if apply_ and not name.strip():
         print("heal-descriptors: --name needs a non-empty name; nothing written", file=sys.stderr); return 64
+    if apply_ and name != name.strip():
+        print("heal-descriptors: '%s' has leading or trailing whitespace; sign as yourself; nothing written" % name, file=sys.stderr); return 64
     if apply_ and name.lower() in RESERVED_NAMES:
         print("heal-descriptors: %s is reserved for the app; sign as yourself" % name, file=sys.stderr); return 64
     for b in boards:

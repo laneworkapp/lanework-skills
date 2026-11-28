@@ -10,7 +10,7 @@
 # Lanes table rows: | order | title | collapsed (yes) | icon (YAML flow mapping, or empty) | body |  (templates/*-lanes.md).
 # Writes nothing else: the app installs CLAUDE.md, .schema and .gitignore on first open.
 # Exit: 0 founded; 1 refused (non-empty folder, a folder that cannot be created, missing label-kinds.md, a brace in the stamp values), nothing written;
-#   2 usage, nothing written (no argument, unknown argument, a flag with no value, an unreadable --index or --lanes, no model (--model, else CLAUDE_MODEL), empty or control-character --name or --model,
+#   2 usage, nothing written (no argument, unknown argument, a flag with no value, an unreadable --index or --lanes, no model (--model, else CLAUDE_MODEL),
 #   blank flattened --title, reserved --var, a template with {{label_entries}} but no --labels, --labels with no slot, bad label kind, a template that fails to render, e.g. a {{slot}} no --var fills).
 # The folder is created only after the template renders, so a failed run leaves no folder; a lane that fails after that
 # (its folder, its file, its stamp) is undone and exits 1: the folder removed only when this run created it, and from an
