@@ -4876,8 +4876,8 @@ G add -A; G commit -qm base; MAIN=$(G symbolic-ref --short HEAD); G checkout -qb
 sed -i '' '$d' "$ML"; echo 'Their body.' >> "$ML"; G commit -qam theirs; G checkout -q "$MAIN"; sed -i '' '$d' "$ML"; echo 'Our body.' >> "$ML"; G commit -qam ours
 G merge -q theirs >/dev/null 2>&1 && { echo "the merge fixture did not conflict"; exit 1; }
 WC=$(bfirst "$WS/file-card.sh" "$W" Ideas "Loop" --body "$T/t.md" --model smoke 2>/dev/null)
-mkdir -p "$(dirname "$(lane_file "$W" Ideas)")/c0000000-0000-4000-8000-00000000510a"
-printf -- '---\nschema: 1\nkind: card\ntitle: Bare title\norder: 9000\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$(dirname "$(lane_file "$W" Ideas)")/c0000000-0000-4000-8000-00000000510a/index.md"
+mkdir -p "$(dirname "$(lane_file "$W" Ideas)")/c0000000-0000-4000-8000-00000000510a"   # a card heal-board.py repairs (H17: an icon laid out as a block)
+printf -- '---\nschema: 1\nkind: card\ntitle: "Block icon"\norder: 9000\nicon:\n  glyph: star\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$STAMP" "$STAMP" > "$(dirname "$(lane_file "$W" Ideas)")/c0000000-0000-4000-8000-00000000510a/index.md"
 WL=$(lane_file "$W" Done); awk 'NR == 1 || !e { print } NR > 1 && $0 == "---" { e = 1 }' "$WL" > "$SG/lane" && mv "$SG/lane" "$WL"   # an empty lane body: heal-descriptors fills it
 owner_answer() { owner_comment "$(dirname "$(ls "$DB"/*/"$QC"/index.md)")" 'A.'; }
 signs() { local name="$1"; shift; rm -f "$SB/$SIGN"; "$@" >/dev/null 2>"$SG/e" || { echo "$name failed:"; cat "$SG/e"; exit 1; }
