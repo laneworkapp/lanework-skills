@@ -1,8 +1,8 @@
 #!/bin/bash
 # start-card.sh: start a work order in one call: stake the card's lease, move it into the board's working lane, post its START.
 # usage: start-card.sh <board> <card-uuid> --comment F --model m [--name n] [--session s]
-# F = the START record (references/writing.md § START), a bare body: its first non-blank line opens with START (lanework/scripts/lib.sh
-# START_ERE), not a shaping start. The working lane: the first of lib.sh WORKING_LANES the board has (Active). Steps, each by the
+# F = the START record (references/writing.md § START), a bare body: its first non-blank line opens with START
+# (lanework/scripts/lib.sh START_ERE), not a shaping start. The working lane: the first of lib.sh WORKING_LANES the board has (Active). Steps, each by the
 # existing script: lanework/scripts/lease.sh stake (lanework/references/writes.md § Lease); then move-card.sh into that lane with
 # --comment F, or, for a card already there (a re-start), post-comment.sh --body F. The holder is CLAUDE_CODE_SESSION_ID, never
 # --session (a stamp label). Prints "started <id8> in <lane>" and the card's lanework:// link; a takeover's `prior:` line first.
