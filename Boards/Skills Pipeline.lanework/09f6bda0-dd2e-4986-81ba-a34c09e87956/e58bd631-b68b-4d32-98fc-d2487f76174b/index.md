@@ -2,10 +2,13 @@
 schema: 1
 kind: card
 title: "heal-descriptors.py accepts a padded signer name, and found-board.sh still lists shared exit causes"
-order: 3072
+order: 2048
 labels: [{text: "heal", kind: {type: "skill", text: "Skill"}}, {text: "lanework", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-27T22:35:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-28T13:16:17Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-28T13:17:38Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+claimed:
+  by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
+  until: 2026-11-28T13:47:36Z
 ---
 Two places still disagree with the signer-name rules `lib.sh` now holds.
 
