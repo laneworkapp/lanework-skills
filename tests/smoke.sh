@@ -5132,7 +5132,7 @@ grep -q '^[^#]*sign_board "' "$SK/merge/scripts/merge-board.sh" && grep -q '^[^#
 awk '/^timer\(\) \{/ { t = 1 } t && /sign_board/ { bad = 1 } t && /^}/ { t = 0 } END { exit bad }' "$SK/lanework/scripts/lease.sh" || { echo "the lease timer signs"; exit 1; }
 for s in "$SK"/lanework/scripts/read-board.sh "$SK"/work/scripts/lint-*.sh "$SK"/work/scripts/commit-board.sh "$SK"/import/scripts/* "$SK"/watch/scripts/* "$SK"/merge/scripts/lanework-merge.py "$SK"/plan/scripts/deps.sh "$SK"/plan/scripts/frontier.sh; do
   if grep -q 'sign_board\|sign-board' "$s"; then echo "$s signs, and is no board writer"; exit 1; fi; done
-[ "$n" = 13 ] || { echo "$n scripts call stamp_args_ok, want 13: a new writer needs its sign_board call and a row in case 8"; exit 1; }
+[ "$n" = 14 ] || { echo "$n scripts call stamp_args_ok, want 14: a new writer needs its sign_board call and a row in case 8"; exit 1; }
 ok "signature: all $n stamping writers, merge-board.sh and both heal scripts call the signer; readers, lints, commit-board.sh, import, watch and the merge driver never do"
 
 # 10. written: a missing or malformed written line is rewritten; a well-formed one with nothing else changed is left alone
