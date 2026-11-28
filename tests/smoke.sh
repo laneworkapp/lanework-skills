@@ -252,7 +252,7 @@ sent_check() { local want x="${5:-}"
   case "$(basename "$1")" in
     lint-stamps.sh) want="$(esc "$3/$4/index.md"): modified.at $SENT_TS is Ns ahead"; [ "$UR" = 1 ] && [ "$(sed -E 's/is [0-9]+s ahead/is Ns ahead/' <<<"$UO")" = "$want" ] ;;
     lint-waiting-clears.sh) want="NO-QUOTE $(esc "$4") $(esc "${SENT_ASK}${x}")"$'\n'"QUOTED 0, NO-QUOTE 1"; [ "$UR" = 1 ] && [ "$UO" = "$want" ] ;;
-    lint-leases.sh) want="leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0"; [ "$UR" = 0 ] && [ -z "$UO" ] && [ "$UE" = "$want" ] ;;
+    lint-leases.sh) want="leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0"; [ "$UR" = 0 ] && [ -z "$UO" ] && [ "$UE" = "$want" ] ;;
   esac || unr_fail "$(basename "$1") on $2: want exactly the sentinel card's finding (${want:-})"; }
 }
 # fixture_defaults_plan: DP, the Defaults Plan board (filing-defaults)
@@ -1345,6 +1345,9 @@ byof() { grep -m1 '^modified:' "$1" | sed 's/.*by: //'; }
 SBQ="$BQ"; BQ="$T/sv-bq.lanework"; cp -R "$SBQ" "$BQ"   # the boards under test are copies; BQ and BPL point at them until the block ends
 SBPL="$BPL"; BPL="$T/sv-bpl.lanework"; cp -R "$SBPL" "$BPL"
 SVBODY="$T/bask.md"
+# start-card.sh stakes through lease.sh (PE) and moves into Active: a pipeline board of its own
+BSP="$T/sv-bsp.lanework"; "$FB" "$BSP" "${FA[@]}" --model smoke >/dev/null; cp -R "$VAL" "$BSP/.schema"; printf '**START: sv.**\n' > "$T/bstart.md"; SCS="$SK/work/scripts/start-card.sh"
+SVSC=$(bfirst "$SK/work/scripts/file-card.sh" "$BSP" Approved "SV start refuse" --body "$T/bt.md" --model smoke)
 for sv in "${SV[@]}"; do for k in name model session; do
   F=(--model smoke); case $k in model) F=(--model "$sv") ;; name) F+=(--name "$sv") ;; session) F+=(--session "$sv") ;; esac
   svcheck "file-card $k=$sv" "$BQ" "$SK/work/scripts/file-card.sh" "$BQ" Parked "SV card" --body "$SVBODY" "${F[@]}"
@@ -1361,6 +1364,8 @@ for sv in "${SV[@]}"; do for k in name model session; do
   svcheck "claim-ticket $k=$sv" "$BPL" PE "$PS/claim-ticket.sh" "$BPL" "$ST1" "${F[@]}"
   ST2=$(bfirst "$PS/file-ticket.sh" "$BPL" "SV resolve" --type grilling --body "$T/bt.md" --model smoke); PE "$PS/claim-ticket.sh" "$BPL" "$ST2" --model smoke >/dev/null
   svcheck "resolve-ticket $k=$sv" "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$ST2" --resolution "$T/bres.md" "${F[@]}"
+  SC1=$(bfirst "$SK/work/scripts/file-card.sh" "$BSP" Approved "SV start" --body "$T/bt.md" --model smoke)
+  svcheck "start-card $k=$sv" "$BSP" PE "$SCS" "$BSP" "$SC1" --comment "$T/bstart.md" "${F[@]}"
   # byte identity: the stamp's by is the same from a comment and from a card restamp
   SQ4=$(bq "SV same $k $sv"); SQD=$(dirname "$(bcard "$SQ4")"); ls "$SQD"/comments/*/index.md >/dev/null 2>&1 && C0=$(ls "$SQD"/comments/*/index.md) || C0=""
   # --ahead 3: file-question stamps its comments one and two seconds ahead, so a bare post-comment right after it is refused (one distinct second per comment)
@@ -1373,7 +1378,7 @@ for sv in "${SV[@]}"; do for k in name model session; do
   [ -n "$CB" ] && [ "$CB" = "$(byof "$(bcard "$SQ4")")" ] || { echo "by differs between post-comment and the card after move-card and label-card for $k=$sv: '$CB' vs '$(byof "$(bcard "$SQ4")")'"; exit 1; }
   validate "$BQ" >/dev/null || { echo "post-comment/move-card/label-card $k=$sv: board invalid"; exit 1; }
 done; done
-ok "file-card, file-question, post-ask, settle-question, file-record, file-ticket, claim-ticket, resolve-ticket, post-comment and move-card, given {n}, a\"b, a\\, a\\\"}}}, 'x: y' and #x as --name, --model and --session: exit 0 and the board validates, or nothing written; the stamp's by is the same from a comment and a card"
+ok "file-card, file-question, post-ask, settle-question, file-record, file-ticket, claim-ticket, resolve-ticket, start-card, post-comment and move-card, given {n}, a\"b, a\\, a\\\"}}}, 'x: y' and #x as --name, --model and --session: exit 0 and the board validates, or nothing written; the stamp's by is the same from a comment and a card"
 for sv in "${SV[@]}"; do for k in name model; do
   FBN="$T/sv-found.lanework"; rm -rf "$FBN"; F=(--model smoke); case $k in model) F=(--model "$sv") ;; name) F+=(--name "$sv") ;; esac
   rc=0; "$FB" "$FBN" "${FA[@]}" "${F[@]}" >/dev/null 2>&1 || rc=$?
@@ -1403,6 +1408,7 @@ for ((i = 0; i < ${#FLS[@]}; i += 2)); do
   svrefused "file-ticket $fl" $w "$BPL" "$PS/file-ticket.sh" "$BPL" "R" --type grilling --body "$T/bt.md" "${FF[@]}"
   svrefused "claim-ticket $fl" $w "$BPL" PE "$PS/claim-ticket.sh" "$BPL" "$SVT2" "${FF[@]}"
   svrefused "resolve-ticket $fl" $w "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$SVT" --resolution "$T/bres.md" "${FF[@]}"
+  svrefused "start-card $fl" $w "$BSP" PE "$SCS" "$BSP" "$SVSC" --comment "$T/bstart.md" "${FF[@]}"
 done
 for fl in --name --model; do
   rm -rf "$T/sv-found.lanework"; rc=0; "$FB" "$T/sv-found.lanework" "${FA[@]}" --model smoke "$fl" "$NLV" >/dev/null 2>&1 || rc=$?
@@ -1432,6 +1438,7 @@ for rn in "${RNS[@]}" "${PNS[@]}"; do
   svrefused "file-ticket --name $rn" 2 "$BPL" "$PS/file-ticket.sh" "$BPL" "R" --type grilling --body "$T/bt.md" "${FF[@]}"
   svrefused "claim-ticket --name $rn" 2 "$BPL" PE "$PS/claim-ticket.sh" "$BPL" "$SVT2" "${FF[@]}"
   svrefused "resolve-ticket --name $rn" 2 "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$SVT" --resolution "$T/bres.md" "${FF[@]}"
+  svrefused "start-card --name $rn" 2 "$BSP" PE "$SCS" "$BSP" "$SVSC" --comment "$T/bstart.md" "${FF[@]}"
   svrefused "lease check --name $rn" 2 "$BQ" PE "$SK/lanework/scripts/lease.sh" check "$BQ" "$SVQ" "${FF[@]}"
   rm -rf "$T/rn-found.lanework"; rc=0; "$FB" "$T/rn-found.lanework" "${FA[@]}" "${FF[@]}" >/dev/null 2>&1 || rc=$?
   [ $rc -eq 2 ] && [ ! -e "$T/rn-found.lanework" ] || { echo "found-board --name $rn: exit $rc (want 2) or a folder exists"; exit 1; }
@@ -1692,7 +1699,7 @@ llcom $LA c1000000-0000-4000-8000-000000000001 "$(llago 7200)" S-one '**START: f
 llcom $LA c1000000-0000-4000-8000-000000000002 "$(llago 7100)" S-one 'START: again after a compaction' block
 llcom $LA c1000000-0000-4000-8000-000000000003 "$(llago 7000)" S-one 'Just a note.'
 llcom $LB2 c1000000-0000-4000-8000-000000000004 "$(llago 7200)" S-two '**START: b**' crlf
-lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 2, lease lost: 0, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on one-session STARTs: want silent exit 0 and the tally on stderr"
+lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 2, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "lint-leases on one-session STARTs: want silent exit 0 and the tally on stderr"
 ok "lint-leases is silent, exits 0 and tallies the leased cards on a board with only one-session STARTs (flow, block and CRLF comments read)"
 
 # 2. a lease-lost record
@@ -1701,7 +1708,7 @@ llfresh; LT2=$(llago 600); llcard $LA; llcom $LA c2000000-0000-4000-8000-0000000
 llcom $LA c2000000-0000-4000-8000-000000000002 "$(llago 500)" S-gone "A note quoting $LLPRE mid-line, and nothing else."
 llcom $LA c2000000-0000-4000-8000-000000000003 "$(llago 400)" S-gone $'A note whose second line starts it.\n'"$LLPRE not the opening."
 lint "$LLB"
-[ "$LR" = 1 ] && [ "$LO" = "$LLB/$LLN/$LA: lease lost c2000000-0000-4000-8000-000000000001 $LT2" ] && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on a lease-lost record"
+[ "$LR" = 1 ] && [ "$LO" = "$LLB/$LLN/$LA: lease lost c2000000-0000-4000-8000-000000000001 $LT2" ] && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "lint-leases on a lease-lost record"
 ok "lint-leases finds a lease-lost record, naming the card and the comment id and its time"
 
 # 3. two STARTs
@@ -1715,19 +1722,19 @@ lint "$LLB"
 [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 2 ] \
   && grep -qE ": two STARTs c3000000-0000-4000-8000-000000000001 c3000000-0000-4000-8000-000000000002 100s apart first session wrote again\$" <<<"$(grep "/$LD:" <<<"$LO")" \
   && grep -qE ": two STARTs c3000000-0000-4000-8000-000000000004 c3000000-0000-4000-8000-000000000005 100s apart\$" <<<"$(grep "/$LH:" <<<"$LO")" \
-  && [ "$LE" = "leased cards: 4, lease lost: 0, two STARTs: 2, lapsed: 0" ] || llfail "lint-leases two STARTs: want D tagged, E plain, F (one session) and G (3000 s apart) passed"
+  && [ "$LE" = "leased cards: 4, lease lost: 0, two STARTs: 2, lapsed: 0, no lease: 0" ] || llfail "lint-leases two STARTs: want D tagged, E plain, F (one session) and G (3000 s apart) passed"
 lint "$LLB" --window 4000; [ "$(grep -c . <<<"$LO")" = 3 ] && grep -q "/$LG: two STARTs .* 3000s apart\$" <<<"$LO" || llfail "--window 4000 should add G"
 ok "lint-leases finds two STARTs from two sessions inside the window, tags first session wrote again, and passes two from one session and two from sessions farther apart than the window (--window widens it)"
 # a shaper's START (shaping) then the lead's START, two sessions inside the window: a handoff, not two builders; the card still counts as leased
 llfresh; llcard $LD
 llcom $LD c3100000-0000-4000-8000-000000000001 "$(llago 1000)" S-a '**START (shaping): reading the ruling**'; llcom $LD c3100000-0000-4000-8000-000000000002 "$(llago 120)" S-b '**START: build**'
-lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on a START (shaping) then a START: want silent exit 0, the card tallied as leased"
+lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "lint-leases on a START (shaping) then a START: want silent exit 0, the card tallied as leased"
 ok "lint-leases passes a START (shaping) followed by the lead's START from another session: no two-STARTs finding"
 # the form writing.md prescribes (`START: shaping: <plan>`, bold or not, any case, also `shaping to ...`) is skipped too; a lead START naming shaping later, or a START that merely claims shaping, is not
 for SH in '**START: shaping: reading the ruling**' 'START: Shaping to the board bar' '**START: shaping**'; do
   llfresh; llcard $LD
   llcom $LD c3200000-0000-4000-8000-000000000001 "$(llago 1000)" S-a "$SH"; llcom $LD c3200000-0000-4000-8000-000000000002 "$(llago 120)" S-b '**START: build**'
-  lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] || llfail "lint-leases on [$SH] then a START: want silent exit 0, the card tallied as leased"
+  lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "lint-leases on [$SH] then a START: want silent exit 0, the card tallied as leased"
 done
 for NS in 'START: shape this card' '**START: claimed for shaping by S-a**' 'START: build, after shaping'; do
   llfresh; llcard $LD
@@ -1748,7 +1755,7 @@ llcard $LF "claimed:
 llcard $LG "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llago 100)}"
 lint "$LLB"
 [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 2 ] && grep -qE "/$LD: claimed until 20[0-9-]+T[0-9:]+Z is 20[0-9][0-9]s lapsed\$" <<<"$LO" \
-  && grep -qE "/$LH: claimed until 20[0-9-]+T[0-9:]+Z is 20[0-9][0-9]s lapsed\$" <<<"$LO" && [ "$LE" = "leased cards: 0, lease lost: 0, two STARTs: 0, lapsed: 2" ] || llfail "lint-leases lapsed: want the flow and block claims 2000 s lapsed, the live one and the one inside the grace passed"
+  && grep -qE "/$LH: claimed until 20[0-9-]+T[0-9:]+Z is 20[0-9][0-9]s lapsed\$" <<<"$LO" && [ "$LE" = "leased cards: 0, lease lost: 0, two STARTs: 0, lapsed: 2, no lease: 0" ] || llfail "lint-leases lapsed: want the flow and block claims 2000 s lapsed, the live one and the one inside the grace passed"
 lint "$LLB" --grace 50; [ "$(grep -c . <<<"$LO")" = 3 ] && grep -q "/$LG: claimed until" <<<"$LO" || llfail "--grace 50 should add the 100 s lapse"
 # a voided claim (until over 35 minutes ahead, or unreadable) is no lapse
 llcard $LD "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llahead 9000)}"; llcard $LH "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: tomorrow}"
@@ -1761,12 +1768,12 @@ llcom $LA c5000000-0000-4000-8000-000000000001 "$(llago 4000)" S-a '**START: a**
 llcom $LB2 c5000000-0000-4000-8000-000000000003 "$(llago 3000)" S-a '**START: b**'; llcom $LB2 c5000000-0000-4000-8000-000000000004 "$(llago 2950)" S-b '**START: b2**'
 llcom $LC c5000000-0000-4000-8000-000000000005 "$(llago 2000)" S-a '**START: c**'
 llcom $LD c5000000-0000-4000-8000-000000000006 "$(llago 1000)" S-a '**START: d**'; llcom $LD c5000000-0000-4000-8000-000000000007 "$(llago 900)" S-a "$LLPRE two"
-lint "$LLB"; [ "$LE" = "leased cards: 4, lease lost: 2, two STARTs: 1, lapsed: 0" ] || llfail "lint-leases with no --since: want all four cards"
-lint "$LLB" --since "$(llago 3500)"; [ "$LE" = "leased cards: 3, lease lost: 1, two STARTs: 1, lapsed: 0" ] && ! grep -q "/$LA:" <<<"$LO" && grep -q "/$LD: lease lost" <<<"$LO" || llfail "--since left card A's earlier START and lost record in"
-lint "$LLB" --since "$(llago 2500)"; [ "$LE" = "leased cards: 2, lease lost: 1, two STARTs: 0, lapsed: 0" ] || llfail "--since 2500 s ago: want C and D, the two-START card B out"
-lint "$LLB" --first 2; [ "$LE" = "leased cards: 2, lease lost: 1, two STARTs: 1, lapsed: 0" ] && grep -q "/$LA: lease lost" <<<"$LO" && grep -q "/$LB2: two STARTs" <<<"$LO" && ! grep -q "/$LD:" <<<"$LO" || llfail "--first 2 should keep A and B only"
-lint "$LLB" --first 3 --since "$(llago 3500)"; [ "$LE" = "leased cards: 3, lease lost: 1, two STARTs: 1, lapsed: 0" ] || llfail "--first 3 with --since: B, C, D"
-lint "$LLB" --first 1 --since "$(llago 3500)"; [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 1, lapsed: 0" ] || llfail "--first 1 with --since: B only"
+lint "$LLB"; [ "$LE" = "leased cards: 4, lease lost: 2, two STARTs: 1, lapsed: 0, no lease: 0" ] || llfail "lint-leases with no --since: want all four cards"
+lint "$LLB" --since "$(llago 3500)"; [ "$LE" = "leased cards: 3, lease lost: 1, two STARTs: 1, lapsed: 0, no lease: 0" ] && ! grep -q "/$LA:" <<<"$LO" && grep -q "/$LD: lease lost" <<<"$LO" || llfail "--since left card A's earlier START and lost record in"
+lint "$LLB" --since "$(llago 2500)"; [ "$LE" = "leased cards: 2, lease lost: 1, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "--since 2500 s ago: want C and D, the two-START card B out"
+lint "$LLB" --first 2; [ "$LE" = "leased cards: 2, lease lost: 1, two STARTs: 1, lapsed: 0, no lease: 0" ] && grep -q "/$LA: lease lost" <<<"$LO" && grep -q "/$LB2: two STARTs" <<<"$LO" && ! grep -q "/$LD:" <<<"$LO" || llfail "--first 2 should keep A and B only"
+lint "$LLB" --first 3 --since "$(llago 3500)"; [ "$LE" = "leased cards: 3, lease lost: 1, two STARTs: 1, lapsed: 0, no lease: 0" ] || llfail "--first 3 with --since: B, C, D"
+lint "$LLB" --first 1 --since "$(llago 3500)"; [ "$LE" = "leased cards: 1, lease lost: 0, two STARTs: 1, lapsed: 0, no lease: 0" ] || llfail "--first 1 with --since: B only"
 ok "lint-leases --since leaves out earlier STARTs and lost records and --first keeps the earliest n cards, for the tally and the findings"
 
 # 6. read-only, and the exit-2 edges
@@ -1783,7 +1790,7 @@ ok "lint-leases leaves every file of the board unchanged (checksum before and af
 llfresh; llcard $LA "claimed: {by: {name: c, kind: agent, model: smoke, session: \"S-x\"}, until: $(llago 2000)}"; llcom $LA c8000000-0000-4000-8000-000000000001 "$(llago 600)" S-gone "$LLPRE x"
 llcom $LA c8000000-0000-4000-8000-000000000002 "$(llago 5000)" S-a '**START: a**'
 llnorm() { sed -E "s/is [0-9]+s lapsed/is Ns lapsed/"; }   # the lapsed seconds move with the lint's own clock; compare the rest
-lint "$LLB"; LO1=$(llnorm <<<"$LO"); LE1=$LE; [ "$LR" = 1 ] && [ "$LE1" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 1" ] || llfail "case 8: the real folder"
+lint "$LLB"; LO1=$(llnorm <<<"$LO"); LE1=$LE; [ "$LR" = 1 ] && [ "$LE1" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 1, no lease: 0" ] || llfail "case 8: the real folder"
 ln -s "$LLB" "$T/LeaseLintLink.lanework"
 lint "$T/LeaseLintLink.lanework"; [ "$LR" = 1 ] && [ "$LE" = "$LE1" ] && [ "$(llnorm <<<"$LO")" = "$(sed "s#^$LLB/#$T/LeaseLintLink.lanework/#" <<<"$LO1")" ] || llfail "case 8: a symlinked board must read like its target and print the spelling given"
 lint "$T/LeaseLintLink.lanework/"; [ "$LR" = 1 ] && [ "$LE" = "$LE1" ] || llfail "case 8: a symlink with a trailing slash"
@@ -1803,8 +1810,37 @@ perl -0pi -e 's/^claimed:.*\n(?:[ \t].*\n)*//m; s/\A(---\n.*?\n)(---\n)/$1claime
 LLR=0; LLL check "$LLB" $LA --model smoke >/dev/null 2>&1 || LLR=$?; kill "$LLP" 2>/dev/null || true
 LLREC=$(grep -l -F 'Lease lost' "$LLB/$LLN/$LA"/comments/*/index.md); LLID=$(basename "$(dirname "$LLREC")")
 [ "$LLR" = 3 ] && [ "$(awk 'f && NF {print; exit} /^---$/ {n++; if (n == 2) f = 1}' "$LLREC" | cut -c1-${#LLPRE})" = "$LLPRE" ] || llfail "case 7: lease.sh check rc $LLR; the record does not open with LEASE_LOST_PREFIX: $(cat "$LLREC")"
-lint "$LLB"; [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 1 ] && grep -qE "/$LA: lease lost $LLID 20[0-9-]+T[0-9:]+Z\$" <<<"$LO" && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0" ] || llfail "case 7: the lint did not find the real loss record"
+lint "$LLB"; [ "$LR" = 1 ] && [ "$(grep -c . <<<"$LO")" = 1 ] && grep -qE "/$LA: lease lost $LLID 20[0-9-]+T[0-9:]+Z\$" <<<"$LO" && [ "$LE" = "leased cards: 1, lease lost: 1, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "case 7: the lint did not find the real loss record"
 ok "lint-leases finds the real lease-lost record lease.sh posts on a throwaway board, which opens with LEASE_LOST_PREFIX"
+
+# 10. started without a lease (the eight-card shape, with three): cards in Active whose latest START carries a session and which have no
+# claimed each print one line; silent on a staked card, one at a gate (Proposed), one with an ask out (waiting), one whose latest START
+# has no session, and on the same three cards staked
+llfresh; LLWN=a1000000-0000-4000-8000-0000000000a1; LLGN=a1000000-0000-4000-8000-0000000000a2
+lllane() { mkdir -p "$LLB/$1"; printf -- '---\nschema: 1\nkind: lane\ntitle: "%s"\norder: %s\ncreated:  {at: 2026-01-01T00:00:00Z}\nmodified: {at: 2026-01-01T00:00:00Z}\n---\nLane.\n' "$2" "$3" > "$LLB/$1/index.md"; }
+llto() { mv "$LLB/$LLN/$1" "$LLB/$2/$1"; }   # llcard and llcom write into LLN: the card moves to its lane after
+LU1=d1000000-0000-4000-8000-0000000000b1; LU2=d1000000-0000-4000-8000-0000000000b2; LU3=d1000000-0000-4000-8000-0000000000b3
+LS1=d1000000-0000-4000-8000-0000000000b4; LG1=d1000000-0000-4000-8000-0000000000b5; LW1=d1000000-0000-4000-8000-0000000000b6; LN1=d1000000-0000-4000-8000-0000000000b7
+llunstaked() {   # llunstaked [claimed text for the three]: the seven cards, the three in Active claimed when given
+  lllane $LLWN Active 90000; lllane $LLGN Proposed 91000
+  llcard $LU1 "${1:-}"; llcom $LU1 c1000000-0000-4000-8000-0000000000b1 "$(llago 3000)" "board watch" '**START: one**'; llto $LU1 $LLWN
+  llcard $LU2 "${1:-}"; llcom $LU2 c1000000-0000-4000-8000-0000000000b2 "$(llago 2900)" "board watch" 'START: two' block; llto $LU2 $LLWN
+  llcard $LU3 "${1:-}"; llcom $LU3 c1000000-0000-4000-8000-0000000000b3 "$(llago 2800)" "board watch" '**START: three**' crlf; llto $LU3 $LLWN
+  llcard $LS1 "claimed: {by: {name: claude, kind: agent, model: smoke, session: \"S-held\"}, until: $(llahead 1200)}"
+  llcom $LS1 c1000000-0000-4000-8000-0000000000b4 "$(llago 2700)" "board watch" '**START: staked**'; llto $LS1 $LLWN
+  llcard $LG1; llcom $LG1 c1000000-0000-4000-8000-0000000000b5 "$(llago 2600)" "board watch" '**START: at the gate**'; llto $LG1 $LLGN
+  llcard $LW1 'waiting: {comment: c1000000-0000-4000-8000-0000000000b6, for: kim}'
+  llcom $LW1 c1000000-0000-4000-8000-0000000000b6 "$(llago 2500)" "board watch" '**START: asked**'; llto $LW1 $LLWN
+  llcard $LN1; llcom $LN1 c1000000-0000-4000-8000-0000000000b7 "$(llago 2400)" "board watch" '**START: first**'
+  llcom $LN1 c1000000-0000-4000-8000-0000000000b8 "$(llago 2300)" "" '**START: by hand**'; llto $LN1 $LLWN; }
+llunstaked
+LUW=$(printf '%s\n' "$LLB/$LLWN/$LU1: started without a lease c1000000-0000-4000-8000-0000000000b1 $(llago 3000)" \
+  "$LLB/$LLWN/$LU2: started without a lease c1000000-0000-4000-8000-0000000000b2 $(llago 2900)" "$LLB/$LLWN/$LU3: started without a lease c1000000-0000-4000-8000-0000000000b3 $(llago 2800)")
+lint "$LLB"; [ "$LR" = 1 ] && [ "$LO" = "$LUW" ] && [ "$LE" = "leased cards: 7, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 3" ] \
+  || llfail "case 10: want one started-without-a-lease line for each of the three unstaked Active cards, none for the staked, gate, asked or hand-started card"
+llfresh; llunstaked "claimed: {by: {name: claude, kind: agent, model: smoke, session: \"S-lead\"}, until: $(llahead 1500)}"
+lint "$LLB"; [ "$LR" = 0 ] && [ -z "$LO" ] && [ "$LE" = "leased cards: 7, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] || llfail "case 10: the same board staked must be silent"
+ok "lint-leases reports each card in Active whose latest START is a session's and which has no claimed, one line each (3 of 7 cards); silent on a staked card, a card at a gate, one with an ask out, one whose latest START has no session, and the same board staked"
 }
 
 sec_lint_waiting() {
@@ -1973,7 +2009,7 @@ tab_check() { local n="$1" w
   unr_run "$LS" "$NB"; [ "$UR" = 1 ] && [ "$(grep -c '' <<<"$UO")" = 1 ] && [ "$(sed -E 's/is [0-9]+s ahead/is Ns ahead/' <<<"$UO")" = "$(esc "$NL/$TN/index.md"): modified.at $SENT_TS is Ns ahead" ] \
     && w=$(sed -E 's/.* is ([0-9]+)s ahead/\1/' <<<"$UO") && w=$((w - ($(date -j -u -f %Y-%m-%dT%H:%M:%SZ "$SENT_TS" +%s) - $(date -u +%s)))) && [ "$w" -ge -3 ] && [ "$w" -le 3 ] || unr_fail "lint-stamps $n: want one line with the escaped path and the true seconds ahead (the stamp minus now, within 3 s)"
   unr_run "$WL" "$NB"; [ "$UR" = 1 ] && [ "$UO" = "NO-QUOTE $(esc "$TN") $(esc "$SENT_ASK$TC")"$'\n'"QUOTED 0, NO-QUOTE 1" ] || unr_fail "lint-waiting-clears $n: want the escaped card name and ask id, tally 1"
-  unr_run "$LL" "$NB"; [ "$UR" = 1 ] && [ "$UO" = "$(esc "$NL/$TN"): two STARTs $(esc "$SENT_START$TC") $(esc "$TO$TC") 5s apart" ] && [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 1, lapsed: 0" ] || unr_fail "lint-leases $n: want one escaped two-STARTs line, leased cards 1"; }
+  unr_run "$LL" "$NB"; [ "$UR" = 1 ] && [ "$UO" = "$(esc "$NL/$TN"): two STARTs $(esc "$SENT_START$TC") $(esc "$TO$TC") 5s apart" ] && [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 1, lapsed: 0, no lease: 0" ] || unr_fail "lint-leases $n: want one escaped two-STARTs line, leased cards 1"; }
 tab_check "on a card and comment folder with a tab in the name"
 ok "lint-stamps, lint-leases and lint-waiting-clears print a tab in a card or comment name as \\t, one line per finding, with the true seconds"
 ln -s "$(basename "$NL")" "$NB/zz-sibling"   # a lane that is a symlink to a sibling lane: each card is read once
@@ -1986,7 +2022,7 @@ ok "a lane that is a symlink to a sibling lane lists each card once in all three
 # CDPATH set and a relative board path: no cd in the dedupe prints a folder or breaks it; each card is still listed once
 ln -s "$(basename "$NL")" "$NB/zz-sibling"; sent_card "$NL" f7000000-0000-4000-8000-000000000007
 for U in "$LS" "$LL" "$WL"; do UR=0; UO=$(cd "$T" && CDPATH=.: "$U" NewCases.lanework 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err")
-  case "$(basename "$U")" in lint-leases.sh) [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] && [ -z "$UO" ] ;; *) [ "$(grep -c '' <<<"$UO")" -le 2 ] && [ "$(grep -c 'f7000000' <<<"$UO")" = 1 ] ;; esac || unr_fail "$(basename "$U") with CDPATH set and a relative board path: want the card once"; done
+  case "$(basename "$U")" in lint-leases.sh) [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] && [ -z "$UO" ] ;; *) [ "$(grep -c '' <<<"$UO")" -le 2 ] && [ "$(grep -c 'f7000000' <<<"$UO")" = 1 ] ;; esac || unr_fail "$(basename "$U") with CDPATH set and a relative board path: want the card once"; done
 rm -rf "$NL/f7000000-0000-4000-8000-000000000007" "$NB/zz-sibling"
 # a newline in a name shifts realpath's lines: the dedupe falls back to one folder at a time and still lists the card once
 ln -s "$(basename "$NL")" "$NB/zz-sibling"; sent_card "$NL" "$NLN" "$NLC"
@@ -1995,7 +2031,7 @@ rm -rf "$NL/$NLN" "$NB/zz-sibling"
 # the same board under CDPATH with a relative path: the fallback's cd must print nothing, or a folder is listed twice
 ln -s "$(basename "$NL")" "$NB/zz-sibling"; sent_card "$NL" "$NLN" "$NLC"
 for U in "$LS" "$LL" "$WL"; do UR=0; UO=$(cd "$T" && CDPATH=.: "$U" NewCases.lanework 2>"$T/unr.err") || UR=$?; UE=$(cat "$T/unr.err")
-  case "$(basename "$U")" in lint-leases.sh) [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0" ] && [ -z "$UO" ] ;; *) [ "$(grep -c '' <<<"$UO")" -le 2 ] && [ "$(grep -c 'f3000000' <<<"$UO")" = 1 ] ;; esac \
+  case "$(basename "$U")" in lint-leases.sh) [ "$UE" = "leased cards: 1, lease lost: 0, two STARTs: 0, lapsed: 0, no lease: 0" ] && [ -z "$UO" ] ;; *) [ "$(grep -c '' <<<"$UO")" -le 2 ] && [ "$(grep -c 'f3000000' <<<"$UO")" = 1 ] ;; esac \
     || unr_fail "$(basename "$U") with CDPATH set, a relative board path, a card named with a newline and a lane linked to a sibling: want the card once"; done
 rm -rf "$NL/$NLN" "$NB/zz-sibling"
 # a real \001 byte in a name prints as \001 in all three lints, one finding per line
@@ -2384,6 +2420,150 @@ AL=$(lane_of "$XB" Approved); sed -i '' '$d' "$AL"; echo 'The build queue, top f
 [ -n "$("$AP2" "$XB" | awk -F'\t' '$1 == "arm" && $4 == "Approved" { print $3 }')" ] || { echo "arm-pass.sh stopped arming a board with the old Approved wording"; exit 1; }
 ok "arm-pass.sh: a board whose Approved lane body still has the old 'top first' wording is still armed"
 validate "$PB" >/dev/null; validate "$XB" >/dev/null; validate "$NB" >/dev/null; ok "the pick-order fixture boards validate"
+# unstaked: cards in Active a session started with no lease (the eight-card shape, with three) print an unstaked line each, after their
+# arm line, naming the latest START; none for a staked card, a card at a gate (Proposed), one with an ask out, or one whose START has no session
+AB="$T/Unstaked Pipeline.lanework"; AN="${AB##*/}"
+"$SK/lanework/scripts/found-board.sh" "$AB" --index "$SK/lanework/templates/pipeline-index.md" --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Unstaked --var verified=make --model smoke >/dev/null
+AWS='{name: claude, kind: agent, model: x, session: "board watch"}'
+AU1=e2000000-0000-4000-8000-000000000001; AU2=e2000000-0000-4000-8000-000000000002; AU3=e2000000-0000-4000-8000-000000000003
+AUS=e2000000-0000-4000-8000-000000000004; AUG=e2000000-0000-4000-8000-000000000005; AUW=e2000000-0000-4000-8000-000000000006; AUN=e2000000-0000-4000-8000-000000000007
+acard Active $AU1 "Active: started one" 1024; acom Active $AU1 f2000000-0000-4000-8000-000000000001 "$OLD3H" "$AWS" "" "**START: one.**"
+acom Active $AU1 f2000000-0000-4000-8000-000000000011 "$OLD2H" "$AWS" "" "**START: one, again.**"
+acard Active $AU2 "Active: started two" 2048; acom Active $AU2 f2000000-0000-4000-8000-000000000002 "$OLD2H" "$AWS" "" "START: two."
+acard Active $AU3 "Active: started three" 3072; acom Active $AU3 f2000000-0000-4000-8000-000000000003 "$OLD2H" "$AWS" "" "**START: three.**"
+acard Active $AUS "Active: started, staked" 4096 "$UP20"; acom Active $AUS f2000000-0000-4000-8000-000000000004 "$OLD2H" "$AWS" "" "**START: staked.**"
+acard Proposed $AUG "Proposed: started" 1024; acom Proposed $AUG f2000000-0000-4000-8000-000000000005 "$OLD2H" "$AWS" "" "**START: gated.**"
+acard Active $AUW "Active: started, asked" 5120; acom Active $AUW f2000000-0000-4000-8000-000000000006 "$OLD2H" "$AWS" "" "**START: asked.**"
+AW_SINCE="$OLD2H" perl -0pi -e 's/\n---\nBody/\nwaiting: {for: kim, since: $ENV{AW_SINCE}, comment: f2000000-0000-4000-8000-000000000006}\n---\nBody/' "$(alane Active)/$AUW/index.md"
+acard Active $AUN "Active: started by no session" 6144; acom Active $AUN f2000000-0000-4000-8000-000000000007 "$OLD2H" "$AGENT" "" "**START: no session.**"
+AUO=$("$AP" "$AB") || { echo "arm-pass.sh on the unstaked board failed"; exit 1; }
+AAL=$(basename "$(alane Active)")
+exp=$(printf 'unstaked\t%s\t%s\tActive\t%s\t-\t%s/%s/comments/%s/index.md\n' "$AN" $AU1 "Active: started one" "$AAL" $AU1 f2000000-0000-4000-8000-000000000011 \
+  "$AN" $AU2 "Active: started two" "$AAL" $AU2 f2000000-0000-4000-8000-000000000002 "$AN" $AU3 "Active: started three" "$AAL" $AU3 f2000000-0000-4000-8000-000000000003)
+[ "$(grep '^unstaked	' <<<"$AUO" || true)" = "$exp" ] || { echo "arm-pass.sh unstaked lines:"; echo "want:"; echo "$exp"; echo "got:"; echo "$AUO"; exit 1; }
+for u in $AU1 $AU2 $AU3; do [ "$(grep "	$u	" <<<"$AUO" | cut -f1 | paste -sd, -)" = "arm,unstaked" ] || { echo "want arm then unstaked for $u:"; echo "$AUO"; exit 1; }; done
+grep -qE "^held	$AN	$AUS	" <<<"$AUO" || { echo "the staked Active card is not held:"; echo "$AUO"; exit 1; }
+ok "arm-pass.sh: three Active cards a session started with no lease print arm then unstaked, naming the latest START; none for a staked card, one at a gate, one with an ask out, or one whose START has no session"
+validate "$AB" >/dev/null; ok "the unstaked fixture board validates"
+}
+
+sec_start_card() {
+# work: start-card.sh stakes the lease, moves the card into Active and posts the START in one call; move-card.sh notes a never-held
+# move into a working lane; lint-leases.sh and arm-pass.sh on the same board across held, never-held and lost leases. A copy of the
+# pipeline board with the borrowed .schema, fake session ids, a stand-in CLAUDE_PID, a TMPDIR of its own; this board's timers killed by pid on exit
+needs fixture_pipeline
+SCS="$SK/work/scripts/start-card.sh"; SMC="$SK/work/scripts/move-card.sh"; SLS="$SK/lanework/scripts/lease.sh"
+SB="$T/Start Pipeline.lanework"; cp -R "$P" "$SB"; rm -rf "${SB:?}/.schema"; cp -R "$VAL" "$SB/.schema"; SBR=$(cd "$SB" && pwd -P)
+SCT=$(mktemp -d "$T/start-tmp.XXXXXX"); sleep "$STANDIN_SECS" </dev/null >/dev/null 2>&1 & SCP=$!; disown "$SCP"; echo "$SCP" >> "$STANDINS"
+sc_cleanup() { local p; stop_standin "$SCP"; for p in $(timers_left 0 "_timer $SBR/"); do kill "$p" 2>/dev/null || true; done; }
+trap sc_cleanup EXIT
+# AS <session> <cmd...>: the command as that session, under the stand-in and the test knobs
+AS() { local s="$1"; shift; CLAUDE_CODE_SESSION_ID="$s" CLAUDE_PID="$SCP" TMPDIR="$SCT" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1000 "$@"; }
+printf 'Body.\n' > "$T/sc-b.md"; printf '**START: build it.**\n\n- **Scope**: the thing\n' > "$T/sc-start.md"
+printf 'Not a start.\n' > "$T/sc-not.md"; printf '**START: shaping: hand it on.**\n' > "$T/sc-shape.md"
+scard() { bfirst "$SK/work/scripts/file-card.sh" "$SB" "$1" "$2" --body "$T/sc-b.md" --model smoke; }
+scf() { ls "$SB"/*/"$1"/index.md; }
+sclane() { sed -n 's/^title: "\(.*\)"$/\1/p' "$(dirname "$(dirname "$(scf "$1")")")/index.md"; }
+scsess() { awk 'NR > 1 && $0 == "---" { exit } /^claimed:/ { c = 1 } c && match($0, /session: "[^"]*"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$(scf "$1")"; }
+scn() { { grep -l -F -- "$2" "$(dirname "$(scf "$1")")"/comments/*/index.md 2>/dev/null || true; } | grep -c . || true; }
+scmem() { printf '%s' "$SCT/lanework-lease/$1/$(printf '%s' "$SBR" | shasum | cut -c1-16)/$2"; }
+scfail() { echo "$1"; echo "stdout: ${O:-}"; echo "stderr: $(cat "$T/sc.err" 2>/dev/null)"; exit 1; }
+sctake() { AS S-other "$SLS" release "$SB" "$1" --model smoke --force >/dev/null && AS S-other "$SLS" stake "$SB" "$1" --model smoke >/dev/null; }   # another session takes the card
+SNOTE() { printf 'move-card.sh: note: %s went into Active unstaked: this session holds no lease on it (never-held); start a card with work/scripts/start-card.sh' "${1:0:8}"; }
+
+# 1. move-card.sh's note: a never-held card moved into Active with a session id; none when held, with no session id, into another lane, or lost
+M1=$(scard Approved "Note never-held"); rc=0; O=$(AS S-st "$SMC" "$SB" "$M1" Active --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 0 ] && [ "$O" = "$(dirname "$(scf "$M1")")" ] && [ "$(sclane "$M1")" = Active ] && [ "$(cat "$T/sc.err")" = "$(SNOTE "$M1")" ] || scfail "1: never-held into Active (rc $rc): want the move and one note"
+M5=$(scard Approved "Note held by another"); AS S-other "$SLS" stake "$SB" "$M5" --model smoke >/dev/null
+rc=0; O=$(AS S-st "$SMC" "$SB" "$M5" Active --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 0 ] && [ "$(sclane "$M5")" = Active ] && [ "$(cat "$T/sc.err")" = "$(SNOTE "$M5")" ] || scfail "1: another session's card into Active (rc $rc): want the move and one note"
+M2=$(scard Approved "Note held"); AS S-st "$SLS" stake "$SB" "$M2" --model smoke >/dev/null
+rc=0; O=$(AS S-st "$SMC" "$SB" "$M2" Active --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 0 ] && [ "$(sclane "$M2")" = Active ] && [ ! -s "$T/sc.err" ] || scfail "1: held into Active (rc $rc): want the move, no note"
+M3=$(scard Approved "Note no session"); rc=0; O=$("$SMC" "$SB" "$M3" Active --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 0 ] && [ "$(sclane "$M3")" = Active ] && [ ! -s "$T/sc.err" ] || scfail "1: no session id into Active (rc $rc): want the move, no note"
+M6=$(scard Ideas "Note to Shaping"); rc=0; O=$(AS S-st "$SMC" "$SB" "$M6" Shaping --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 0 ] && [ "$(sclane "$M6")" = Shaping ] && [ ! -s "$T/sc.err" ] || scfail "1: never-held into Shaping (rc $rc): want the move, no note"
+M4=$(scard Approved "Note lost"); AS S-st "$SLS" stake "$SB" "$M4" --model smoke >/dev/null; sctake "$M4"
+rc=0; O=$(AS S-st "$SMC" "$SB" "$M4" Active --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 3 ] && [ "$(sclane "$M4")" = Approved ] && ! grep -q 'note:' "$T/sc.err" || scfail "1: lost (rc $rc): want exit 3, unmoved, no note"
+ok "move-card.sh into Active, never-held with a session id (free, or another session's): one note on stderr, the move as ever (exit 0, the new path on stdout); no note when held, with no session id, or into Shaping; lost: exit 3, unmoved, no note"
+
+# 2. start-card.sh on a free card: leased, moved, the START posted, in one call
+C1=$(scard Approved "Start free"); rc=0; O=$(AS S-st "$SCS" "$SB" "$C1" --comment "$T/sc-start.md" --model smoke --session "lead label" 2>"$T/sc.err") || rc=$?
+SCID=$(sed -n 's/^id: //p' "$SB/index.md"); SCC=$(grep -l -F '**START: build it.**' "$(dirname "$(scf "$C1")")"/comments/*/index.md 2>/dev/null || true)
+[ "$rc" = 0 ] && [ "$O" = "started ${C1:0:8} in Active"$'\n'"lanework://$SCID/$C1" ] && [ ! -s "$T/sc.err" ] && [ "$(sclane "$C1")" = Active ] && [ "$(scsess "$C1")" = S-st ] \
+  && [ "$(scn "$C1" '**START: build it.**')" = 1 ] && grep -q 'session: "lead label"' "$SCC" && timer_alive "$(sed -n 's/^pid=//p' "$(scmem S-st "$C1")")" " $C1 " \
+  || scfail "2: start on a free card (rc $rc): want leased by S-st, in Active, one START stamped with the label, a live timer"
+validate "$SB" >/dev/null || scfail "2: the board does not validate"
+ok "start-card.sh on a free Approved card, in one call: the lease is this session's (timer live), the card is in Active, one START posted with the --session label; prints started and the link; the board validates"
+
+# 3. a card another session holds: refused, nothing moved, nothing posted
+C2=$(scard Approved "Start held"); AS S-other "$SLS" stake "$SB" "$C2" --model smoke >/dev/null; H=$(sum "$SB")
+rc=0; O=$(AS S-st "$SCS" "$SB" "$C2" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 1 ] && [ "$H" = "$(sum "$SB")" ] && grep -q 'held by session S-other' "$T/sc.err" && [ "$(sclane "$C2")" = Approved ] && [ "$(scsess "$C2")" = S-other ] && [ "$(scn "$C2" START)" = 0 ] \
+  || scfail "3: start on another session's card (rc $rc): want exit 1, the board byte for byte, the holder named"
+ok "start-card.sh on a card another session holds: exit 1, the holder named on stderr, the board byte for byte (unmoved, no START)"
+
+# 4. the move fails after a fresh stake (a folder of the card's id already in Active): the stake is released, no lease left;
+# a lease held before the call is kept on the same failure; once the way is clear, the held card starts
+C3=$(scard Approved "Start blocked"); SACT=$(dirname "$(lane_of "$SB" Active)"); mkdir "${SACT:?}/${C3:?}"
+rc=0; O=$(AS S-st "$SCS" "$SB" "$C3" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 1 ] && grep -q 'already exists' "$T/sc.err" && grep -q 'the move failed' "$T/sc.err" && [ "$(sclane "$C3")" = Approved ] && ! grep -q '^claimed:' "$(scf "$C3")" \
+  && [ ! -e "$(scmem S-st "$C3")" ] && [ "$(scn "$C3" START)" = 0 ] && [ -z "$(timers_left 0 " $C3 ")" ] && [ -z "$(AS S-st "$SLS" list "$SB" | awk -F'\t' -v c="$C3" '$1 == c')" ] \
+  || scfail "4: a failed move after a fresh stake (rc $rc): want exit 1, no claimed, no memory, no timer, no START"
+AS S-st "$SLS" stake "$SB" "$C3" --model smoke >/dev/null
+rc=0; O=$(AS S-st "$SCS" "$SB" "$C3" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 1 ] && [ "$(scsess "$C3")" = S-st ] && [ -e "$(scmem S-st "$C3")" ] && [ "$(sclane "$C3")" = Approved ] || scfail "4: a failed move on a card held before the call (rc $rc): want exit 1, the lease kept"
+rmdir "${SACT:?}/${C3:?}"; rc=0; O=$(AS S-st "$SCS" "$SB" "$C3" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 0 ] && [ "$(sclane "$C3")" = Active ] && [ "$(scsess "$C3")" = S-st ] && [ "$(scn "$C3" START)" = 1 ] || scfail "4: the held card, the way clear (rc $rc): want it started"
+ok "start-card.sh: a move that fails after its own stake exits 1 and leaves no lease (no claimed, memory or timer) and no START; a lease held before the call is kept on the same failure, and the card starts once the way is clear"
+
+# 5. a re-start: the card already in Active and held: no move, a fresh START, the lease renewed
+sleep 1.1; rc=0; O=$(AS S-st "$SCS" "$SB" "$C1" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 0 ] && [ "$(sclane "$C1")" = Active ] && [ "$(scsess "$C1")" = S-st ] && [ "$(scn "$C1" '**START: build it.**')" = 2 ] || scfail "5: a re-start in Active (rc $rc)"
+ok "start-card.sh on a card already in Active that this session holds: exit 0, no move, a second START, still held"
+
+# 6. lost: a card this session staked, taken by another session: exit 3, unmoved, no START, the Lease lost record posted
+C4=$(scard Approved "Start lost"); AS S-st "$SLS" stake "$SB" "$C4" --model smoke >/dev/null; sctake "$C4"
+rc=0; O=$(AS S-st "$SCS" "$SB" "$C4" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
+[ "$rc" = 3 ] && [ "$(sclane "$C4")" = Approved ] && [ "$(scsess "$C4")" = S-other ] && [ "$(scn "$C4" START)" = 0 ] && [ "$(scn "$C4" '**Lease lost**')" = 1 ] \
+  || scfail "6: lost (rc $rc): want exit 3, unmoved, S-other still holding, one Lease lost record"
+ok "start-card.sh on a card this session lost: exit 3, unmoved, no START, the other session still holds it, one Lease lost record"
+
+# 7. refused with nothing written: no session id, no CLAUDE_PID, a body that is no START, a shaping START, a plan board; no --comment: exit 2
+C5=$(scard Approved "Start refused"); H=$(sum "$SB")
+scref() { local want=$1 why=$2; shift 2; rc=0; O=$("$@" 2>"$T/sc.err") || rc=$?; [ "$rc" = "$want" ] && [ "$H" = "$(sum "$SB")" ] || scfail "7: $why: want exit $want and the board byte for byte (rc $rc)"; }
+scref 1 "no session id" env -u CLAUDE_CODE_SESSION_ID CLAUDE_PID="$SCP" TMPDIR="$SCT" "$SCS" "$SB" "$C5" --comment "$T/sc-start.md" --model smoke
+scref 1 "no CLAUDE_PID" env -u CLAUDE_PID CLAUDE_CODE_SESSION_ID=S-st TMPDIR="$SCT" "$SCS" "$SB" "$C5" --comment "$T/sc-start.md" --model smoke
+scref 1 "a body that is no START" AS S-st "$SCS" "$SB" "$C5" --comment "$T/sc-not.md" --model smoke
+scref 1 "a shaping START" AS S-st "$SCS" "$SB" "$C5" --comment "$T/sc-shape.md" --model smoke
+scref 1 "no such card" AS S-st "$SCS" "$SB" ffffffff-0000-4000-8000-000000000000 --comment "$T/sc-start.md" --model smoke
+scref 2 "no --comment" AS S-st "$SCS" "$SB" "$C5" --model smoke
+SPB="$T/Start Plan.lanework"; "$PS/found-plan-board.sh" "$SPB" --model smoke >/dev/null
+SPT=$(bfirst "$PS/file-ticket.sh" "$SPB" "A ticket" --type task --body "$T/sc-b.md" --model smoke); HP=$(sum "$SPB")
+rc=0; AS S-st "$SCS" "$SPB" "$SPT" --comment "$T/sc-start.md" --model smoke >/dev/null 2>"$T/sc.err" || rc=$?
+[ "$rc" = 1 ] && [ "$HP" = "$(sum "$SPB")" ] && grep -q 'claim-ticket.sh' "$T/sc.err" || scfail "7: a plan board: want exit 1, the board byte for byte, claim-ticket.sh named (rc $rc)"
+ok "start-card.sh writes nothing and exits 1 with no session id, no CLAUDE_PID, a --comment that is no START or a shaping one, no such card, or on a plan board (naming claim-ticket.sh); exit 2 with no --comment"
+
+# 8. the lint and the arming pass on this board, across held, never-held and lost: the cards started with no lease are reported, one
+# line each (a never-held move with its START, and a START moved in by a script run with no session id but a --session label);
+# silent on the held cards (C1, C3, M2), the lost one (C8, now another session's), and the moves with no START (M1, M3, M5)
+N1=$(scard Approved "Started unstaked"); AS S-st "$SMC" "$SB" "$N1" Active --model smoke --session "board watch" --comment "$T/sc-start.md" >/dev/null 2>&1
+N2=$(scard Approved "Started with no session id"); "$SMC" "$SB" "$N2" Active --model smoke --session "board watch" --comment "$T/sc-start.md" >/dev/null 2>&1
+C8=$(scard Approved "Started, then lost"); AS S-st "$SCS" "$SB" "$C8" --comment "$T/sc-start.md" --model smoke --session "lead label" >/dev/null; sctake "$C8"
+AS S-st "$SLS" check "$SB" "$C8" --model smoke >/dev/null 2>&1 || true   # the loss recorded now, not on the timer's next poll
+SAL=$(basename "$SACT"); rc=0; O=$("$SK/work/scripts/lint-leases.sh" "$SB" 2>"$T/sc.err") || rc=$?
+SNW=$(for c in $N1 $N2; do printf '%s\n' "$SB/$SAL/$c: started without a lease $(basename "$(dirname "$(grep -l -F 'START' "$(dirname "$(scf "$c")")"/comments/*/index.md)")")"; done | sort)
+[ "$rc" = 1 ] && [ "$(grep 'started without a lease' <<<"$O" | sed -E 's/ 20[0-9-]+T[0-9:]+Z$//')" = "$SNW" ] && grep -q ', no lease: 2$' "$T/sc.err" \
+  && [ "$(grep ': lease lost ' <<<"$O" | sed -E 's#^.*/([0-9a-f-]{36}): lease lost .*#\1#' | sort)" = "$(printf '%s\n' "$C4" "$C8" "$M4" | sort)" ] \
+  || scfail "8: lint-leases on held, never-held and lost (rc $rc): want the two unstaked cards as started without a lease, the three lost ones as lease lost"
+rc=0; O=$("$SK/watch/scripts/arm-pass.sh" "$SB") || rc=$?
+[ "$rc" = 0 ] && [ "$(awk -F'\t' '$1 == "unstaked" { print $3 }' <<<"$O" | sort)" = "$(printf '%s\n' "$N1" "$N2" | sort)" ] \
+  && [ "$(awk -F'\t' '$1 == "held" { print $3 }' <<<"$O" | sort)" = "$(printf '%s\n' "$C1" "$C2" "$C3" "$C4" "$C8" "$M2" "$M4" "$M5" | sort)" ] || scfail "8: arm-pass.sh on held, never-held and lost (rc $rc)"
+validate "$SB" >/dev/null || scfail "8: the board does not validate"
+ok "lint-leases.sh and arm-pass.sh on the same board: the two cards started with no lease are reported (one line each), none of the held, lost or START-less ones (the lost ones are the lint's lease lost lines); the board validates"
 }
 
 sec_merge() {
@@ -4917,6 +5097,9 @@ rm -f "$W/$SIGN"; m0=$(grep '^modified:' "$(ls "$W"/*/"$WC"/index.md)"); sleep 2
 [ "$(grep '^modified:' "$(ls "$W"/*/"$WC"/index.md)")" != "$m0" ] || { echo "the lease timer did not renew in 2 s: the no-sign check below would prove nothing"; exit 1; }
 grep -q '^claimed:' "$(ls "$W"/*/"$WC"/index.md)" && [ ! -e "$W/$SIGN" ] || { echo "the lease timer's renewals signed the board (or the lease is gone)"; exit 1; }
 signs "lease.sh release" SE "$SK/lanework/scripts/lease.sh" release "$W" "$WC" --model smoke
+WC2=$(bfirst "$WS/file-card.sh" "$W" Approved "Loop start" --body "$T/t.md" --model smoke 2>/dev/null); printf '**START: loop.**\n' > "$SG/start.md"
+signs start-card.sh SE "$WS/start-card.sh" "$W" "$WC2" --comment "$SG/start.md" --model smoke
+SE "$SK/lanework/scripts/lease.sh" release "$W" "$WC2" --model smoke >/dev/null   # its timer renews on every poll here: released, so nothing writes the card after
 signs heal-board.py python3 -I "$HEAL" "$W" --apply --model smoke
 signs heal-descriptors.py python3 -I "$SK/heal/scripts/heal-descriptors.py" "$W" --apply --model smoke
 SB="$DB"
@@ -4933,7 +5116,7 @@ QL=$(lane_file "$MQ" Ideas); sed -i '' '$d' "$QL"; echo 'Staged by hand.' >> "$Q
 SB="$MB"; signs merge-board.sh "$SK/merge/scripts/merge-board.sh" "$MR" --model smoke
 [ ! -e "$MQ/$SIGN" ] || { echo "merge-board.sh signed a board whose only change was the user's staged edit"; exit 1; }
 [ -z "$(G diff --name-only --diff-filter=U)" ] || { echo "merge-board.sh left the fixture unmerged"; exit 1; }
-[ "$N" = 16 ] || { echo "the loop ran $N writers, want 16:$NAMES"; exit 1; }
+[ "$N" = 17 ] || { echo "the loop ran $N writers, want 17:$NAMES"; exit 1; }
 ok "signature: every writer signs a seeded board ($N:$NAMES); found-board.sh never can (case 7); the lease timer's renewals do not sign; merge-board.sh leaves a board it did not write unsigned"
 
 # 9. a guard against a missed call site: every script that calls stamp_args_ok (the stamping writers) calls sign_board, and so do
@@ -5008,6 +5191,7 @@ lint_symlinks
 post_comment
 watch
 arm_pass
+start_card
 merge
 lane_actors
 label_kinds
