@@ -5,10 +5,10 @@ title: "Merge: a conflicted card whose lane was removed outright still lands in 
 order: 1024
 labels: [{text: "merge", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-23T18:46:57Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
-modified: {at: 2026-11-28T19:47:23Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+modified: {at: 2026-11-28T20:02:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
 claimed:
   by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
-  until: 2026-11-28T20:17:23Z
+  until: 2026-11-28T20:32:25Z
 ---
 When one side removes a whole lane with `git rm -r` and the other side changes a card in it, the merge pass keeps the card inside the removed lane's folder, which now has no `index.md`, so the app skips the card, the validator and the heal both pass over it, and the report says "validates".
 
