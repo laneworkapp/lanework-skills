@@ -2605,7 +2605,7 @@ ok "start-card.sh on a board with Approved refuses a card in Proposed, Ideas or 
 # 10. the move fails at its mv (the Active lane folder read-only): exit 1, the card in Approved, no START, no lease
 R1=$(scard Approved "Start, Active read-only"); chmod a-w "$SACT"
 rc=0; O=$(AS S-st "$SCS" "$SB" "$R1" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?; chmod u+w "$SACT"
-[ "$rc" = 1 ] && grep -q 'the move failed' "$T/sc.err" && grep -q "${R1:0:8} not started: left in Approved, lease none of this call's, no START posted" "$T/sc.err" \
+[ "$rc" = 1 ] && grep -q 'the move failed' "$T/sc.err" && grep -q -F "${R1:0:8} not started: in Approved, lease none, no START by this call" "$T/sc.err" \
   && [ "$(sclane "$R1")" = Approved ] && ! grep -q '^claimed:' "$(scf "$R1")" && [ "$(scn "$R1" START)" = 0 ] && [ ! -e "$(scmem S-st "$R1")" ] \
   || scfail "10: a move failing at its mv (rc $rc): want exit 1, the card in Approved, no START, no lease, the state named"
 ok "start-card.sh: a move failing at its mv (Active read-only) exits 1 with the card in Approved, no START and no lease, and says so on stderr"
@@ -2614,7 +2614,7 @@ ok "start-card.sh: a move failing at its mv (Active read-only) exits 1 with the 
 F1=$(scard Approved "Start, record refused"); F1C="$(dirname "$(scf "$F1")")/comments"; mkdir "$F1C"; chmod a-w "$F1C"
 rc=0; O=$(AS S-st "$SCS" "$SB" "$F1" --comment "$T/sc-start.md" --model smoke 2>"$T/sc.err") || rc=$?
 F1C="$(dirname "$(scf "$F1")")/comments"; chmod u+w "$F1C"
-[ "$rc" = 1 ] && grep -q 'the record failed' "$T/sc.err" && grep -q "${F1:0:8} not started: left in Approved, lease none of this call's, no START posted" "$T/sc.err" \
+[ "$rc" = 1 ] && grep -q 'the record failed' "$T/sc.err" && grep -q -F "${F1:0:8} not started: in Approved, lease none, no START by this call" "$T/sc.err" \
   && [ "$(sclane "$F1")" = Approved ] && ! grep -q '^claimed:' "$(scf "$F1")" && [ -z "$(ls -A "$F1C")" ] && [ ! -e "$(scmem S-st "$F1")" ] \
   || scfail "11: a record failing after the move (rc $rc): want exit 1, the card back in Approved, no lease, no START"
 validate "$SB" >/dev/null || scfail "11: the board does not validate"
@@ -2627,6 +2627,75 @@ r8=0; O8=$(AS S-st "$SMC" "$SB" "$M8" Active --model smoke 2>&-) || r8=$?
 [ "$r7" = 0 ] && [ "$r8" = 0 ] && [ "$O7" = "$(dirname "$(scf "$M7")")" ] && [ "$O8" = "$(dirname "$(scf "$M8")")" ] && [ "$(sclane "$M7")" = Active ] \
   || { echo "12: stderr closed: never-held rc $r7 stdout '$O7', held rc $r8 stdout '$O8'"; exit 1; }
 ok "move-card.sh with stderr closed: a never-held move into Active exits 0 with its new path on stdout, as a held move does"
+
+# 13-16 on a staged copy of the skills: move-card.sh and post-comment.sh behind stand-ins that, on a marker in SG, hold the first call
+# until SG/go (marking SG/in-<name>), or make a named folder read-only and fail. scbg starts start-card.sh from the copy in the
+# background (SCBG = its own pid, not a subshell's); sctrap waits until its temp file is gone (the EXIT trap has begun), so a signal
+# sent to start-card.sh alone has landed before the held step goes on: no timing race
+SLOW="$T/sc-slow"; cp -R "$SK" "$SLOW"; SG="$T/sc-gate"; mkdir "$SG"
+cat > "$T/sc-wrap.tmpl" <<'EOF'
+#!/bin/bash
+# smoke stand-in for NAME.sh: SC_GATE/fail-NAME (a folder path inside) makes that folder read-only and exits 1; SC_GATE/hold-NAME
+# holds the first call (SC_GATE/in-NAME marked) until SC_GATE/go; else the real script
+G="${SC_GATE:-}"; n=NAME
+if [ -n "$G" ] && [ -f "$G/fail-$n" ]; then chmod a-w "$(cat "$G/fail-$n")"; rm -f "$G/fail-$n"; exit 1; fi
+if [ -n "$G" ] && [ -f "$G/hold-$n" ]; then rm -f "$G/hold-$n"; : > "$G/in-$n"; i=0
+  while [ ! -f "$G/go" ] && [ "$i" -lt 600 ]; do sleep 0.05; i=$((i + 1)); done; rm -f "$G/go"; fi
+exec "$(dirname "$0")/$n.real.sh" "$@"
+EOF
+for n in move-card post-comment; do mv "$SLOW/work/scripts/$n.sh" "$SLOW/work/scripts/$n.real.sh"; sed "s/NAME/$n/g" "$T/sc-wrap.tmpl" > "$SLOW/work/scripts/$n.sh"; chmod +x "$SLOW/work/scripts/$n.sh"; done
+scbg() { env CLAUDE_CODE_SESSION_ID=S-st CLAUDE_PID="$SCP" TMPDIR="$SCT" SC_GATE="$SG" LEASE_TEST_STAKE_WAIT=0.3 LEASE_TEST_NOTICE_WAIT=1.5 LEASE_TEST_POLL=0.2 \
+  LEASE_TEST_RENEW_EVERY=1000000 "$SLOW/work/scripts/start-card.sh" "$1" "$2" --comment "$T/sc-start.md" --model smoke >"$T/sc.out" 2>"$T/sc.err" & SCBG=$!; }
+scin() { local i=0; while [ ! -f "$SG/in-$1" ] && [ "$i" -lt 400 ]; do sleep 0.05; i=$((i + 1)); done; [ -f "$SG/in-$1" ] && rm -f "$SG/in-$1"; }
+sctrap() { local i=0; while ls "$SCT"/start-card.* >/dev/null 2>&1 && [ "$i" -lt 400 ]; do sleep 0.05; i=$((i + 1)); done; }
+scorder() { sed -n '/^order: /{s///p;q;}' "$(scf "$1")"; }
+
+# 13. TERM to start-card.sh alone while its post-comment.sh runs: the record lands after the signal; the trap reads it from the board
+# and keeps the start (Active, this session's lease, one START), naming each from the board; exit 143
+G1=$(scard Approved "Start, TERM in the record"); : > "$SG/hold-post-comment"; scbg "$SB" "$G1"
+scin post-comment || scfail "13: post-comment.sh never ran"; kill -TERM "$SCBG"; sctrap; : > "$SG/go"; rc=0; wait "$SCBG" || rc=$?
+G1S=$(grep -l -F '**START: build it.**' "$(dirname "$(scf "$G1")")"/comments/*/index.md 2>/dev/null || true)
+[ "$rc" = 143 ] && [ "$(sclane "$G1")" = Active ] && [ "$(scsess "$G1")" = S-st ] && [ "$(scn "$G1" START)" = 1 ] && [ -e "$(scmem S-st "$G1")" ] \
+  && grep -q -F "${G1:0:8} started, interrupted after the record: in Active, lease this session's, START $(basename "$(dirname "$G1S")"); nothing undone" "$T/sc.err" \
+  && ! grep -q 'not started' "$T/sc.err" || scfail "13: TERM to start-card.sh alone during the record (rc $rc): want the start kept (Active, leased, one START) and said so"
+AS S-st "$SLS" release "$SB" "$G1" --model smoke >/dev/null
+ok "start-card.sh: a TERM to it alone while post-comment.sh runs: the record lands, the trap reads it from the board and keeps the start (Active, this session's lease, one START), and its stderr line names each from the board; exit 143"
+
+# 14. TERM to start-card.sh alone while its move runs: the move lands, the trap finds no START and undoes it: the card back in Approved
+# at its old order, no lease, no START, said so; exit 143
+G2=$(scard Approved "Start, TERM in the move"); G2O=$(scorder "$G2"); : > "$SG/hold-move-card"; scbg "$SB" "$G2"
+scin move-card || scfail "14: move-card.sh never ran"; kill -TERM "$SCBG"; sctrap; : > "$SG/go"; rc=0; wait "$SCBG" || rc=$?
+[ "$rc" = 143 ] && [ "$(sclane "$G2")" = Approved ] && [ "$(scorder "$G2")" = "$G2O" ] && ! grep -q '^claimed:' "$(scf "$G2")" && [ ! -e "$(scmem S-st "$G2")" ] \
+  && [ "$(scn "$G2" START)" = 0 ] && grep -q -F "${G2:0:8} not started: in Approved, lease none, no START by this call" "$T/sc.err" \
+  || scfail "14: TERM to start-card.sh alone during the move (rc $rc): want the card back in Approved at order $G2O, no lease, no START, said so"
+validate "$SB" >/dev/null || scfail "14: the board does not validate"
+ok "start-card.sh: a TERM to it alone while move-card.sh runs: the move lands, the trap finds no START and undoes it (back in Approved at its old order, no lease, no START), says so; exit 143"
+
+# 15. the undo keeps the pick order: two Approved cards on a board of their own, the top one's start fails at the record (its comments
+# folder read-only): its order unchanged, and arm-pass.sh still arms it first
+SB3="$T/Start Order Pipeline.lanework"; "$SK/lanework/scripts/found-board.sh" "$SB3" --index "$SK/lanework/templates/pipeline-index.md" \
+  --lanes "$SK/lanework/templates/pipeline-lanes.md" --var project=Acme --var verified='`make check`' --model smoke >/dev/null
+rm -rf "${SB3:?}/.schema"; cp -R "$VAL" "$SB3/.schema"
+O1=$(bfirst "$SK/work/scripts/file-card.sh" "$SB3" Approved "First in line" --body "$T/sc-b.md" --model smoke)
+O2=$(bfirst "$SK/work/scripts/file-card.sh" "$SB3" Approved "Second in line" --body "$T/sc-b.md" --model smoke)
+O1F=$(ls "$SB3"/*/"$O1"/index.md); O1O=$(sed -n '/^order: /{s///p;q;}' "$O1F"); mkdir "$(dirname "$O1F")/comments"; chmod a-w "$(dirname "$O1F")/comments"
+rc=0; AS S-st "$SCS" "$SB3" "$O1" --comment "$T/sc-start.md" --model smoke >/dev/null 2>"$T/sc.err" || rc=$?
+O1F=$(ls "$SB3"/*/"$O1"/index.md); chmod u+w "$(dirname "$O1F")/comments"
+AO=$("$SK/watch/scripts/arm-pass.sh" "$SB3" | awk -F'\t' '$1 == "arm" { print $3 }')
+[ "$rc" = 1 ] && [ "$(sed -n '/^order: /{s///p;q;}' "$O1F")" = "$O1O" ] && [ "$(basename "$(dirname "$(dirname "$O1F")")")" = "$(basename "$(dirname "$(lane_of "$SB3" Approved)")")" ] \
+  && ! grep -q '^claimed:' "$O1F" && [ "$AO" = "$O1" ] || scfail "15: a failed start of the top Approved card (rc $rc): want its order $O1O kept and arm-pass arming it, got '$AO'"
+validate "$SB3" >/dev/null || scfail "15: the board does not validate"
+ok "start-card.sh: a start of the top Approved card that fails at the record puts it back at its old order: arm-pass.sh still arms it first, not the card below"
+
+# 16. the move back fails (the record fails and Approved turns read-only): the card stays in Active under this call's lease, no START,
+# the failed move back and the kept lease said so on stderr
+G3=$(scard Approved "Start, no way back"); SAPP=$(dirname "$(lane_of "$SB" Approved)"); printf '%s' "$SAPP" > "$SG/fail-post-comment"
+rc=0; scbg "$SB" "$G3"; wait "$SCBG" || rc=$?; chmod u+w "$SAPP"
+[ "$rc" = 1 ] && [ "$(sclane "$G3")" = Active ] && [ "$(scsess "$G3")" = S-st ] && [ -e "$(scmem S-st "$G3")" ] && [ "$(scn "$G3" START)" = 0 ] \
+  && grep -q -E "${G3:0:8} not started: in Active, lease this session's, no START by this call \(the move back failed, exit [0-9]+: this call's lease not released, for the tidy-up\)" "$T/sc.err" \
+  || scfail "16: a failed move back (rc $rc): want the card in Active, this session's lease kept, no START, said so"
+AS S-st "$SMC" "$SB" "$G3" Approved --model smoke >/dev/null && AS S-st "$SLS" release "$SB" "$G3" --model smoke >/dev/null
+ok "start-card.sh: a move back that fails leaves the card in Active under this call's lease (the session that tidies it holds it), no START, and says so on stderr"
 }
 
 sec_merge() {
@@ -3396,9 +3465,12 @@ for p in ffffffff abcd0000 ABCD0000 '' 'abcd*'; do rc=0; "$MC" "$WB" "$p" Shapin
 rc=0; "$MC" "$WB" "$OW1" "No such lane" --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "move-card, missing lane: want exit 1, got $rc"; exit 1; }
 rc=0; "$MC" "$WB" "$ISS" Active --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 1 ] || { echo "move-card into its own lane: want exit 1, got $rc"; exit 1; }
 rc=0; "$MC" "$WB" "$OW1" Shaping --top --bottom --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "move-card --top --bottom: want exit 2, got $rc"; exit 1; }
+for oa in "--top --order 5" "--order 5 --bottom" "--order x" "--order 1.5.2" "--order"; do
+  rc=0; "$MC" "$WB" "$OW1" Shaping $oa --model smoke >/dev/null 2>&1 || rc=$?; [ "$rc" -eq 2 ] || { echo "move-card $oa: want exit 2, got $rc"; exit 1; }
+done
 refused move-card "$MC" "$WB" "$OW1" Shaping
 [ "$S11" = "$(sum "$WB")" ] || { echo "a refused move-card wrote something"; exit 1; }
-ok "move-card.sh: no match, two prefix matches, an uppercase, empty or glob prefix exit 2; a missing lane or its own lane exit 1; --top with --bottom and no model exit 2; nothing written"
+ok "move-card.sh: no match, two prefix matches, an uppercase, empty or glob prefix exit 2; a missing lane or its own lane exit 1; --top with --bottom, --order with either or with no number, and no model exit 2; nothing written"
 SH=$(lanedir "$WB" Shaping); PR=$(lanedir "$WB" Proposed); cp "$IDEAS/$OW2/index.md" "$T/mv2.md"
 "$MC" "$WB" "$OW1" Shaping --model smoke --name fixer --session smoke >/dev/null
 grep -qxF "modified: {at: $(atof "$SH/$OW1/index.md" modified), by: $BYF}" "$SH/$OW1/index.md" && grep -qxF 'created: {at: 2026-10-01T00:00:00Z}' "$SH/$OW1/index.md" || { echo "owner-filed card not stamped by the caller:"; cat "$SH/$OW1/index.md"; exit 1; }
