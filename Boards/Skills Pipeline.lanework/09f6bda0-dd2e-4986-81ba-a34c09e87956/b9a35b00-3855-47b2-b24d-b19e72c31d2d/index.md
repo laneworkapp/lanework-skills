@@ -3,8 +3,9 @@ schema: 1
 kind: card
 title: "Starting a card stakes its lease in one step; a missing lease is reported"
 order: 1024
+labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "watch", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-27T05:03:29Z, by: {name: claude, kind: agent, model: fable-5.2, session: "Lanework Pitwall"}}
-modified: {at: 2026-11-28T06:04:36Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
+modified: {at: 2026-11-28T06:04:44Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "lanework-skills Pitwall"}}
 claimed:
   by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
   until: 2026-11-28T06:34:34Z
