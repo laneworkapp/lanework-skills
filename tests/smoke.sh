@@ -2671,6 +2671,19 @@ scin move-card || scfail "14: move-card.sh never ran"; kill -TERM "$SCBG"; sctra
 validate "$SB" >/dev/null || scfail "14: the board does not validate"
 ok "start-card.sh: a TERM to it alone while move-card.sh runs: the move lands, the trap finds no START and undoes it (back in Approved at its old order, no lease, no START), says so; exit 143"
 
+# 14b. a second TERM while the undo's move back runs: the undo, once begun, finishes (the trap ignores INT, TERM and HUP): back in
+# Approved at its old order, no lease, no START, said so; exit 143. The stand-in is re-armed before the move goes on, so the move
+# back is held too; the second TERM lands before it goes on (the script gone, or given 2 s to go)
+G4=$(scard Approved "Start, TERM twice"); G4O=$(scorder "$G4"); : > "$SG/hold-move-card"; scbg "$SB" "$G4"
+scin move-card || scfail "14b: move-card.sh never ran"; kill -TERM "$SCBG"; sctrap; : > "$SG/hold-move-card"; : > "$SG/go"
+scin move-card || scfail "14b: the move back never ran"; kill -TERM "$SCBG" 2>/dev/null || true
+i=0; while kill -0 "$SCBG" 2>/dev/null && [ "$i" -lt 40 ]; do sleep 0.05; i=$((i + 1)); done; : > "$SG/go"; rc=0; wait "$SCBG" || rc=$?
+i=0; while [ "$(sclane "$G4")" = Active ] && [ "$i" -lt 200 ]; do sleep 0.05; i=$((i + 1)); done   # an orphaned move back, when the trap died
+[ "$rc" = 143 ] && [ "$(sclane "$G4")" = Approved ] && [ "$(scorder "$G4")" = "$G4O" ] && ! grep -q '^claimed:' "$(scf "$G4")" && [ ! -e "$(scmem S-st "$G4")" ] \
+  && [ "$(scn "$G4" START)" = 0 ] && grep -q -F "${G4:0:8} not started: in Approved, lease none, no START by this call" "$T/sc.err" \
+  || scfail "14b: a second TERM during the undo's move back (rc $rc): want the undo finished: Approved at order $G4O, no lease, no START, said so"
+ok "start-card.sh: a second TERM while the undo's move back runs: the undo finishes (back in Approved at its old order, no lease, no START) and says so; exit 143"
+
 # 15. the undo keeps the pick order: two Approved cards on a board of their own, the top one's start fails at the record (its comments
 # folder read-only): its order unchanged, and arm-pass.sh still arms it first
 SB3="$T/Start Order Pipeline.lanework"; "$SK/lanework/scripts/found-board.sh" "$SB3" --index "$SK/lanework/templates/pipeline-index.md" \
