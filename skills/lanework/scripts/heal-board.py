@@ -14,8 +14,9 @@ heal rule). `--name`/`--model` sign the records a heal posts. Idempotent: a seco
 nothing, and a record an interrupted run already posted is not posted again.
 `-h`/`--help` prints this text, exit 0.
 Which copy: the later heal version wins. A board whose `.schema/bin/lanework-heal.py` states this
-version or a later one on its line 2 (`# lanework-heal vN`) heals with its own; one stating an
-earlier version, or none, heals with this copy, which says so in one line on stderr.
+version or a later one on its line 2 (`# lanework-heal vN`, trailing blanks and a CR allowed) heals
+with its own; one stating an earlier version or none, or one that can't be read (or isn't a file),
+heals with this copy, which says so in one line on stderr.
 Exit 0 done (dry run or applied); exit 1 a card moved during the heal (message), or, at start, `templates/label-kinds.md` has no row for a reserved kind or a row that does not parse (message); exit 2 the board ships its own heal at
 this version or later and `--ignore-board-copy` is absent; exit 64 usage (unknown argument, no board or not a board,
 `--apply` without `--model`, `--apply` with an empty or reserved `--name`).
@@ -76,7 +77,7 @@ import uuid
 from datetime import datetime, timezone
 
 # The board heal's version this copy is ported from (its line 2, `# lanework-heal vN`). A board copy at
-# this version or later wins; repo CLAUDE.md names the same number.
+# this version or later wins.
 HEAL_VERSION = 6
 RESERVED_NAMES = {"anyone", "board", "healer", "shortcuts", "tracker"}
 FLOW_LIMIT = 120
@@ -1463,15 +1464,19 @@ def sign_board(board):
 
 
 def board_copy_version(path):
-    """The heal version a board's own copy states on its line 2 (`# lanework-heal vN`), or None."""
+    """(read, version) for a board's own copy. `read` is False for a path that is not a regular file
+    (never opened) or a file that can't be read. `version`: the number its line 2 states, exactly
+    `# lanework-heal v<digits>` once trailing blanks and a CR are stripped, else None."""
+    if not os.path.isfile(path):
+        return False, None
     try:
-        with open(path, encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace", newline="") as f:
             f.readline()
             line = f.readline()
     except OSError:
-        return None
-    m = re.fullmatch(r"# lanework-heal v([0-9]+)\s*", line)
-    return int(m.group(1)) if m else None
+        return False, None
+    m = re.fullmatch(r"# lanework-heal v([0-9]+)", line.rstrip(" \t\r\n\v\f"))
+    return True, (int(m.group(1)) if m else None)
 
 
 def main(argv):
@@ -1496,13 +1501,16 @@ def main(argv):
         return 64
     board = os.path.abspath(board)
     own = os.path.join(board, ".schema", "bin", "lanework-heal.py")
-    if os.path.isfile(own) and os.path.realpath(own) != os.path.realpath(__file__) and not args["ignore"]:
-        v = board_copy_version(own)
+    if os.path.lexists(own) and os.path.realpath(own) != os.path.realpath(__file__) and not args["ignore"]:
+        read, v = board_copy_version(own)
         if v is not None and v >= HEAL_VERSION:     # the later heal version wins: the board's, on a tie
             print("heal-board: this board ships its own heal at version %d: python3 %s (it wins; --ignore-board-copy to override)" % (v, emit_str(own)), file=sys.stderr)
             return 2
-        print("heal-board: this board's own heal states %s, older than this copy's %d: healing with this copy" % (
-            "version %d" % v if v is not None else "no version", HEAL_VERSION), file=sys.stderr)
+        if not read:
+            print("heal-board: could not read the version of this board's own heal, %s: healing with this copy" % emit_str(own), file=sys.stderr)
+        else:
+            print("heal-board: this board's own heal states %s, older than this copy's %d: healing with this copy" % (
+                "version %d" % v if v is not None else "no version", HEAL_VERSION), file=sys.stderr)
     if args["apply"]:
         if not args["model"]:
             print("heal-board: --apply needs --model (the restamp names who healed)", file=sys.stderr); return 64

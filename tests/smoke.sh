@@ -628,7 +628,7 @@ ok "heal's compact-collection matches the board's own heal (H17) byte for byte, 
 HV=$(sed -n 's/^HEAL_VERSION = \([0-9][0-9]*\)$/\1/p' "$HEAL")
 [ -n "$HV" ] && grep -q "\`lanework-heal v$HV\`" "$ROOT/CLAUDE.md" || hfail "heal-board.py's HEAL_VERSION (${HV:-none}) is not the lanework-heal stamp in CLAUDE.md"
 BHEAL="${SMOKE_BOARD_HEALER:-$ROOT/Boards/Skills Pipeline.lanework/.schema/bin/lanework-heal.py}"
-BHV=$(sed -n '2s/^# lanework-heal v\([0-9][0-9]*\)$/\1/p' "$BHEAL" 2>/dev/null || true); PAIR=""
+BHV=$(sed -n '2{s/[[:space:]]*$//;s/^# lanework-heal v\([0-9][0-9]*\)$/\1/p;}' "$BHEAL" 2>/dev/null || true); PAIR=""
 if [ -z "$BHV" ]; then echo "note: the board's healer is missing or states no heal version: the side-by-side heal cases are skipped"
 elif [ "$BHV" -lt "$HV" ]; then echo "note: the board's healer is at heal v$BHV, older than heal-board.py's v$HV: the side-by-side heal cases are skipped"
 elif [ "$BHV" -gt "$HV" ]; then echo "note: the board's healer is at heal v$BHV, ahead of heal-board.py's v$HV: port its rules by hand (read heal-board.py against the board's HEAL.md), then bump HEAL_VERSION and the stamp in CLAUDE.md; the side-by-side heal cases are skipped"
@@ -730,7 +730,20 @@ for v in $((HV - 1)) none "$HV" $((HV + 1)); do
   fi
 done
 rc=0; O=$("$HEAL" "$WC" --ignore-board-copy 2>"$T/wc.err") || rc=$?; [ "$rc" = 0 ] && [ ! -s "$T/wc.err" ] && grep -q ' H03 bare-icon ' <<<"$O" || hfail "which copy, --ignore-board-copy"
-ok "which copy: a board heal one version older or stating none heals with heal-board.py (one stderr line); the same or a later version is refused, exit 2, named; --ignore-board-copy runs regardless"
+# line 2 with a CR and trailing blanks reads as its version, as the sed readers above and release.sh read it
+printf '#!/usr/bin/env python3\r\n# lanework-heal v%s \r\n' "$HV" > "$WC/.schema/bin/lanework-heal.py"
+[ "$(sed -n '2{s/[[:space:]]*$//;s/^# lanework-heal v\([0-9][0-9]*\)$/\1/p;}' "$WC/.schema/bin/lanework-heal.py")" = "$HV" ] || hfail "which copy: the smoke reader misses a CRLF line 2"
+rc=0; O=$("$HEAL" "$WC" 2>"$T/wc.err") || rc=$?
+[ "$rc" = 2 ] && grep -q "^heal-board: this board ships its own heal at version $HV: " "$T/wc.err" && [ -z "$O" ] || hfail "which copy, a CRLF v$HV line 2: rc $rc, $(cat "$T/wc.err")"
+# a copy that can't be read, or a directory at its path (never opened): its own line, no claim about its version
+wrun() { rc=0; O=$("$HEAL" "$WC" 2>"$T/wc.err") || rc=$?; }
+wunread() { [ "$rc" = 0 ] && [ "$(cat "$T/wc.err")" = "heal-board: could not read the version of this board's own heal, \"$WC/.schema/bin/lanework-heal.py\": healing with this copy" ] \
+    && grep -q ' H03 bare-icon ' <<<"$O" || hfail "which copy, $1: rc $rc, $(cat "$T/wc.err")"; }
+if [ "$(id -u)" = 0 ]; then echo "note: running as root, which reads a mode-000 file: the unreadable-copy case is skipped"
+else printf '#!/usr/bin/env python3\n# lanework-heal v%s\n' $((HV + 3)) > "$WC/.schema/bin/lanework-heal.py"; chmod 000 "$WC/.schema/bin/lanework-heal.py"
+  wrun; chmod 644 "$WC/.schema/bin/lanework-heal.py"; wunread "a mode-000 copy"; fi   # the mode restored before any check can stop the run
+rm -f "$WC/.schema/bin/lanework-heal.py"; mkdir "$WC/.schema/bin/lanework-heal.py"; wrun; wunread "a directory at the path"; rmdir "$WC/.schema/bin/lanework-heal.py"
+ok "which copy: a board heal one version older or stating none heals with heal-board.py (one stderr line); the same or a later version, a CRLF line 2 included, is refused, exit 2, named; a copy that can't be read or a directory at its path heals with heal-board.py, saying it could not read the version; --ignore-board-copy runs regardless"
 AN="$T/anyone-heal"; cp -R "$T/icons-seed" "$AN"; S0=$(sum "$AN"); rc=0; "$HEAL" "$AN" --apply --name anyone --model test >/dev/null 2>"$T/an.err" || rc=$?
 [ "$rc" = 64 ] && grep -q 'anyone is reserved for the app' "$T/an.err" && [ "$S0" = "$(sum "$AN")" ] || hfail "--name anyone: rc $rc"
 ok "heal-board.py --apply --name anyone exits 64 and writes nothing"
@@ -3588,6 +3601,8 @@ W=$(rw); [ "$(grep -c "warning: the board's healer in" <<<"$W" || true)" -eq 2 ]
   || { echo "release.sh should warn for a board healer ahead of HEAL_VERSION (working tree and HEAD), then stop at its own check: $W"; exit 1; }
 printf '#!/usr/bin/env python3\n# lanework-heal v6\n' > "$RH"; rcommit heal6
 W=$(rw); { ! grep -q warning <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should not warn when the board's healer is at HEAL_VERSION: $W"; exit 1; }
+printf '#!/usr/bin/env python3\r\n# lanework-heal v7\r\n' > "$RH"; rcommit heal7crlf
+W=$(rw); [ "$(grep -c "warning: the board's healer in" <<<"$W" || true)" -eq 2 ] && grep -q "at heal v7, ahead of heal-board.py's v6" <<<"$W" || { echo "release.sh should read a CRLF line 2 and warn for v7: $W"; exit 1; }
 # a missing board folder, or a board CLAUDE.md missing from HEAD, is no reason for the advisory block to stop the script
 git -C "$R" rm -q -r --cached "Boards" >/dev/null && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m unboard && rm -rf "${R:?}/Boards"
 W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no board folder: $W"; exit 1; }

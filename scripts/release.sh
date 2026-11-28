@@ -22,7 +22,7 @@ BD="Boards/Skills Pipeline.lanework"
 ver() { grep -o -E "$1 v[0-9]+" | grep -o -E '[0-9]+$' | head -1 || true; }
 SG=$(cat CLAUDE.md 2>/dev/null | ver lanework-agent-guide || true); SS=$(cat CLAUDE.md 2>/dev/null | ver lanework-schema || true)
 SH=$(sed -n 's/^HEAL_VERSION = \([0-9][0-9]*\)$/\1/p' skills/lanework/scripts/heal-board.py 2>/dev/null || true)
-hv() { sed -n '2s/^# lanework-heal v\([0-9][0-9]*\)$/\1/p' || true; }   # a healer's version, from its line 2 on stdin
+hv() { sed -n '2{s/[[:space:]]*$//;s/^# lanework-heal v\([0-9][0-9]*\)$/\1/p;}' || true; }   # a healer's version, from its line 2 on stdin (trailing blanks and a CR allowed)
 for WHERE in "the working tree" HEAD; do
   if [ "$WHERE" = HEAD ]; then G=$(git show "HEAD:$BD/CLAUDE.md" 2>/dev/null | head -1 | ver lanework-agent-guide || true); N=$(git show "HEAD:$BD/.schema/VERSION" 2>/dev/null | head -1 | ver lanework-schema || true)
   else G=$(head -1 "$BD/CLAUDE.md" 2>/dev/null | ver lanework-agent-guide || true); N=$(head -1 "$BD/.schema/VERSION" 2>/dev/null | ver lanework-schema || true); fi
