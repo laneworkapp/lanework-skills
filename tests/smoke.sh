@@ -532,6 +532,9 @@ for k in stale-label single-kind bare-labels string-kind root-key root-key-dropp
   grep -q " $k " <<<"$O" || { echo "dry run did not list $k:"; echo "$O"; exit 1; }
 done
 [ "$S0" = "$(sum "$H")" ]; ok "heal dry run lists every kind of damage and writes nothing"
+HBAD=$(grep -v -E '^skip |^[0-9]+ repairs in ' <<<"$O" | grep -v -E '^([^ ]+/)?index\.md: H[0-9]{2} [a-z-]+ ' || true)
+[ -z "$HBAD" ] && [ "$(grep -c -E ': H[0-9]{2} ' <<<"$O")" -ge 13 ] || { echo "heal lines without the rule id (<file>: Hnn <code> <what>):"; echo "${HBAD:-$O}"; exit 1; }
+ok "every heal repair line carries its rule id: <file>: Hnn <code> <what>"
 "$HEAL" "$H" --apply --name fixer --model test >/dev/null; validate "$H" >/dev/null
 hfail() { echo "heal check failed: $1"; exit 1; }
 c() { sed -n '2,/^---$/p' "$HL/c0000000-0000-4000-8000-00000000000$1/index.md"; }
@@ -544,7 +547,7 @@ c 3 | grep -qF 'labels: [{text: "bug", kind: {type: "text", text: "Text", icon: 
 c 4 | grep -qF '{text: "Closed", rank: 2, kind: {type: "status"' || hfail string-kind
 for p in 'text: "High"' 'rank: 1' 'color: "#E07A1F"' 'glyph: "exclamationmark"' 'type: "priority"'; do
   c 5 | grep -qF "$p" || hfail "root-key ($p)"; done
-flowed "$HL/c0000000-0000-4000-8000-00000000000b/index.md" | grep -qF 'labels: [{text: High, rank: 1, color: "#E07A1F", icon: {glyph: exclamationmark}, kind: {type: priority' && grep -q 'c0000000-0000-4000-8000-00000000000b/index.md: root-key ' <<<"$O" || hfail root-key-mapping
+flowed "$HL/c0000000-0000-4000-8000-00000000000b/index.md" | grep -qF 'labels: [{text: High, rank: 1, color: "#E07A1F", icon: {glyph: exclamationmark}, kind: {type: priority' && grep -q 'c0000000-0000-4000-8000-00000000000b/index.md: H11 root-key ' <<<"$O" || hfail root-key-mapping
 ! c 5 | grep -q '^priority:' && ! c b | grep -q '^priority:' && ! c 6 | grep -q '^priority:' && c 6 | grep -q 'text: "Low"' && ! c 6 | grep -q Urgent \
   && grep -q 'because `labels` already carries a `priority` entry, `Low`' "$HL"/c*06/comments/*/index.md || hfail root-key-dropped
 c 7 | grep -qF '{text: "ux", kind: {type: "text"' && c 7 | grep -qF '{text: "star", icon: {glyph: "star"}, kind:' && ! c 7 | grep -q default || hfail text-kind/bare-glyph
@@ -553,10 +556,10 @@ c 8 | grep -qxF 'modified: {at: 2026-10-01T00:00:00Z, by: {name: claude}}' || hf
 c 8 | grep -qxF 'icon: {glyph: "star", color: "fern"}' && ! c 8 | grep -q 'iconColor\|modified-by' || hfail bare-icon/retired-key
 ! c 7 | grep -q modified-by && grep -q 'modified-by: someone' "$HL"/c*07/comments/*/index.md || hfail retired-key-record
 for n in 1 2 3 4 5 6 7 a; do c $n | grep -qxF "modified: $STAMP" || hfail "no restamp on card $n"; done
-c c | grep -qxF 'title: "Plain title"' && c c | grep -qxF '# a yaml comment the owner left' || hfail comment-line
+c c | grep -qxF 'title: Plain title' && c c | grep -qxF '# a yaml comment the owner left' || hfail comment-line   # H01: a readable plain title stays as written
 for n in 1 5; do f="${HL##*/}/c0000000-0000-4000-8000-00000000000$n/index.md"
   [ "$(awk 'n>=2{print} /^---$/{n++}' "$H/$f")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/heal-seed/$f")" ] || hfail "body of card $n"; done
-c a | grep -qxF 'title: "A long title over two lines"' || hfail title-fold
+cmp -s "$HL"/c*0a/index.md "$T/heal-seed/${HL##*/}"/c*0a/index.md && ! grep -q 'c0000000-0000-4000-8000-00000000000[ac]/index.md: H01 ' <<<"$O" || hfail title-left   # H01: a quoted title over two lines reads as one line of text
 sed -n '/^config:/,/^created:/p' "$H/index.md" | grep -q 'type: "priority"' && ! grep -q 'component' "$H/index.md" && ! grep -q 'default\|glyph: circle$\|value:' "$H/index.md" || hfail definition
 ok "heal --apply repairs each one and the board validates with no DEPRECATED line"
 grep -q "^modified: $STAMP$" "$HL"/c*08/comments/d*/index.md && grep -q 'type: alien' "$HL"/c*09/index.md && grep -q '^project: x$' "$HL"/c*09/index.md && grep -q "^modified: $STAMP$" "$HL"/c*09/index.md \
@@ -584,7 +587,7 @@ modified: $STAMP
 EOF
 HL="$HLs"; cp "$HL3"/c*0b/index.md "$T/block-seed.md"
 "$HEAL" "$H3" --apply --name fixer --model test >/dev/null; F3=$(ls "$HL3"/c*0b/index.md)
-grep -qxF 'title: "Block scalar, damage below it"' "$F3" && grep -qF 'labels: [{text: "bug"' "$F3" && [ "$(grep -c '^modified:' "$F3")" = 1 ] \
+grep -qxF 'title: Block scalar, damage below it' "$F3" && grep -qF 'labels: [{text: "bug"' "$F3" && [ "$(grep -c '^modified:' "$F3")" = 1 ] \
   && [ "$(sed -n '/^notes: |$/,/^  more$/p' "$F3")" = "$(printf 'notes: |\n  line one\n  ---\n  more')" ] \
   && [ "$(awk 'n>=2{print} /^---$/{n++}' "$F3")" = "$(awk 'n>=2{print} /^---$/{n++}' "$T/block-seed.md")" ] || hfail block-scalar
 ok "an indented --- inside a block scalar does not end the frontmatter; the labels below it heal"
@@ -593,17 +596,14 @@ rm -f "$H2/.schema/bin/lanework-heal.py"   # this case tests the skill's heal ag
 "$HEAL" "$H2" --apply --name fixer --model test >/dev/null
 V=$(python3 "$H2/.schema/bin/lanework-validate.py" "$H2"); grep -q '^failures    0 ' <<<"$V" && ! grep -q DEPRECATED <<<"$V" || { echo "$V"; exit 1; }
 ok "a board with its own .schema/ heals the same, against its own validator"
-cp -R "$VAL" "$H/.schema"; touch "$H/.schema/bin/lanework-heal.py"
-if "$HEAL" "$H" 2>/dev/null; then echo "skill copy ran where the board ships its own"; exit 1; fi
-ok "heal defers to the board's own .schema/bin/lanework-heal.py"
 
 # heal-board compact-collection (the board heal's H17): one card per layout case
 HY="$T/Layout.lanework"; layout_board "$HY"; cp -R "$HY" "$T/layout-seed"; HYL="$HY/aaaa0000-0000-4000-8000-0000000000a1"
 O=$("$HEAL" "$HY")
-for w in 'index.md: compact-collection config written in the compact form, 2 lines to 1' \
-  'c0000000-0000-4000-8000-0000000000a1/index.md: compact-collection labels written in the compact form, 6 lines to 1' \
-  'c0000000-0000-4000-8000-0000000000a2/index.md: compact-collection created written in the compact form, 3 lines to 1' \
-  'c0000000-0000-4000-8000-0000000000a6/index.md: compact-collection waiting written in the compact form, 4 lines to 1' \
+for w in 'index.md: H17 compact-collection config written in the compact form, 2 lines to 1' \
+  'c0000000-0000-4000-8000-0000000000a1/index.md: H17 compact-collection labels written in the compact form, 6 lines to 1' \
+  'c0000000-0000-4000-8000-0000000000a2/index.md: H17 compact-collection created written in the compact form, 3 lines to 1' \
+  'c0000000-0000-4000-8000-0000000000a6/index.md: H17 compact-collection waiting written in the compact form, 4 lines to 1' \
   '^4 repairs in 4 files'; do grep -q -- "$w" <<<"$O" || { echo "compact-collection dry run lacks: $w"; echo "$O"; exit 1; }; done
 "$HEAL" "$HY" --apply --name fixer --model test >/dev/null
 grep -qxF "config: {show-card-body: 3}   # the owner's note" "$HY/index.md" \
@@ -620,6 +620,120 @@ diff <(cd "$HY" && find . -type f | sort | xargs sed -E 's/^(created|modified): 
   <(cd "$HZ" && find . -type f | sort | xargs sed -E 's/^(created|modified): +/\1: /') >/dev/null \
   || { echo "skill heal and the board's lanework-heal.py disagree on compact-collection"; exit 1; }
 ok "heal's compact-collection matches the board's own heal (H17) byte for byte, stamp spacing aside"
+
+# heal-board.py is a hand port of the board's own heal at HEAL_VERSION (repo CLAUDE.md names it). The side-by-side cases heal one
+# throwaway board with each and compare the dry run, the files and the records; they run only when the board's healer
+# (SMOKE_BOARD_HEALER, else the Skills Pipeline board's) states that same version on its line 2. Older, missing or unreadable:
+# skipped with a note. Later: the drift note, and skipped. Each case also checks heal-board.py's own result directly, run or not.
+HV=$(sed -n 's/^HEAL_VERSION = \([0-9][0-9]*\)$/\1/p' "$HEAL")
+[ -n "$HV" ] && grep -q "\`lanework-heal v$HV\`" "$ROOT/CLAUDE.md" || hfail "heal-board.py's HEAL_VERSION (${HV:-none}) is not the lanework-heal stamp in CLAUDE.md"
+BHEAL="${SMOKE_BOARD_HEALER:-$ROOT/Boards/Skills Pipeline.lanework/.schema/bin/lanework-heal.py}"
+BHV=$(sed -n '2s/^# lanework-heal v\([0-9][0-9]*\)$/\1/p' "$BHEAL" 2>/dev/null || true); PAIR=""
+if [ -z "$BHV" ]; then echo "note: the board's healer is missing or states no heal version: the side-by-side heal cases are skipped"
+elif [ "$BHV" -lt "$HV" ]; then echo "note: the board's healer is at heal v$BHV, older than heal-board.py's v$HV: the side-by-side heal cases are skipped"
+elif [ "$BHV" -gt "$HV" ]; then echo "note: the board's healer is at heal v$BHV, ahead of heal-board.py's v$HV: port its rules by hand (read heal-board.py against the board's HEAL.md), then bump HEAL_VERSION and the stamp in CLAUDE.md; the side-by-side heal cases are skipped"
+else PAIR=1; fi
+# heal_records <board>: each comment's card and body, the script's name in the Run by line taken out
+heal_records() { (cd "$1" && find . -path '*/comments/*/index.md' | sort | while read -r f; do echo "${f%/comments/*}"; awk 'n>=2{print} /^---$/{n++}' "$f" | sed 's/^Run by `[a-z-]*\.py`/Run by X/'; done); }
+# heal_tree <board>: every file outside comments/, stamp spacing aside
+heal_tree() { (cd "$1" && find . -type f -not -path '*/comments/*' -not -name .plugin.lanework-signature | sort | while read -r f; do echo "== $f"; sed -E 's/^(created|modified): +/\1: /' "$f"; done); }
+# heal_pair <name> <seed function>: seeds $T/<name>-seed, heals a copy with heal-board.py (HPS: the board, HPO: its dry run); with PAIR, a
+# second copy with the board's healer, and the dry runs, the trees and the records must match
+heal_pair() { local s="$T/$1-seed" b="$T/$1-board" BO
+  "$2" "$s"; HPS="$T/$1-skill"; cp -R "$s" "$HPS"; HPO=$("$HEAL" "$HPS" --ignore-board-copy); "$HEAL" "$HPS" --apply --name fixer --model test --ignore-board-copy >/dev/null
+  [ -n "$PAIR" ] || return 0
+  cp -R "$s" "$b"; BO=$(python3 "$BHEAL" "$b"); python3 "$BHEAL" "$b" --apply --name fixer --model test >/dev/null
+  [ "$HPO" = "$BO" ] || { echo "$1: the dry runs differ (heal-board.py, then the board's):"; diff <(echo "$HPO") <(echo "$BO"); exit 1; }
+  diff <(heal_tree "$HPS") <(heal_tree "$b") || { echo "$1: the healed files differ"; exit 1; }
+  diff <(heal_records "$HPS") <(heal_records "$b") || { echo "$1: the records differ"; exit 1; }; }
+hst='{at: 2026-10-01T00:00:00Z, by: {name: claude, kind: agent, model: test}}'
+# hboard <dir> <board id suffix> <config line or ''> [<extra board lines>]: a board with one lane, aaaa...<suffix>1 (HPL)
+hboard() { HPL="$1/aaaa0000-0000-4000-8000-0000000000${2}1"; mkdir -p "$HPL"
+  printf -- '---\nschema: 1\nkind: board\ntitle: "Parity"\nid: aaaa0000-0000-4000-8000-0000000000%s0\n%s%s\ncreated:  %s\nmodified: %s\n---\nBody.\n' "$2" "${4:-}" "$3" "$hst" "$hst" > "$1/index.md"; }
+# hpcard <card suffix>, frontmatter lines on stdin: a card in HPL
+hpcard() { mkdir -p "$HPL/c0000000-0000-4000-8000-0000000000$1"; { printf -- '---\nschema: 1\nkind: card\n'; cat; printf 'created:  %s\nmodified: %s\n---\nBody.\n' "$hst" "$hst"; } > "$HPL/c0000000-0000-4000-8000-0000000000$1/index.md"; }
+# seed_icons: iconColor beside an icon mapping on the board, a lane and a card; an iconColor with no colour reading; a null title; a
+# single-quoted and a plain title; a bare glyph beside another icon, on a definition and on a label; a label's own rank and a kind subkey
+seed_icons() { hboard "$1" c 'config: {labels: [{kind: status, text: Status, glyph: circle, icon: {glyph: tag}, single: true, values: [{text: Open, rank: 1}]}]}' $'icon: {glyph: star, color: blue}\niconColor: red\n'
+  printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\nicon: {glyph: star, color: blue}\niconColor: red\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$hst" "$hst" > "$HPL/index.md"
+  printf 'title: "Icon colour"\nicon: {glyph: star, color: blue}\niconColor: red\n' | hpcard c1
+  printf 'title: "Rank and kind subkey"\nlabels: [{text: "bug", rank: 7, color: "#112233", kind: {type: "text", note: "k"}, icon: {glyph: bug, tint: x}}]\n' | hpcard c2
+  printf 'title: ~\n' | hpcard c3
+  printf "title: 'Single quoted'\nicon: {glyph: star}\niconColor: 12\n" | hpcard c4
+  printf 'title: Plain readable\nlabels: [{text: moon, glyph: star, icon: {glyph: moon}, kind: {type: text}}]\n' | hpcard c5; }
+# seed_roster: the retired config.priorities roster, an empty collapse-empty, root priority keys (one with a subkey no label carries),
+# and a definition value whose rank has no reading
+seed_roster() { hboard "$1" d $'config:\n  priorities: [{name: Hot, value: 1, color: red}, Cold]\n  collapse-empty:\n  labels: [{type: size, text: Size, values: [{text: S, rank: big}, {text: M, rank: 2}]}]'
+  printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$hst" "$hst" > "$HPL/index.md"
+  printf 'title: "Root priority"\npriority: Hot\n' | hpcard d1
+  printf 'title: "Root priority mapping"\npriority: {text: Cold, rank: 2, note: z}\n' | hpcard d2
+  printf 'title: "Unreadable rank"\nlabels: [{text: S, rank: 9, kind: {type: size, text: Size}}, {text: M, rank: 5, kind: {type: size, text: Size}}]\n' | hpcard d3; }
+# seed_odd_roster: a roster the conversion can't carry whole, and a collapse-empty with a value
+seed_odd_roster() { hboard "$1" e 'config: {priorities: [{name: Hot, value: x}, {name: Warm, glyph: sun}], collapse-empty: true}'
+  printf -- '---\nschema: 1\nkind: lane\ntitle: "Lane"\norder: 1024\ncreated:  %s\nmodified: %s\n---\nLane.\n' "$hst" "$hst" > "$HPL/index.md"; }
+seed_damaged() { cp -R "$T/heal-seed" "$1"; }
+hpc() { sed -n '2,/^---$/p' "$HPS"/*/c0000000-0000-4000-8000-0000000000$1/index.md; }
+hprec() { cat "$HPS"/*/c0000000-0000-4000-8000-0000000000$1/comments/*/index.md 2>/dev/null; }
+hpn() { ls "$HPS"/*/c0000000-0000-4000-8000-0000000000$1/comments 2>/dev/null | grep -c . || true; }
+
+heal_pair icons seed_icons; HPI="$HPS"; HPIO="$HPO"
+HPLN=${HPL##*/}; grep -qx 'iconColor: red' "$HPS/index.md" && cmp -s "$HPS/$HPLN/index.md" "$T/icons-seed/$HPLN/index.md" && grep -q '^skip index.md: iconColor would be dropped' <<<"$HPO" \
+  && grep -q "^skip $HPLN/index.md: iconColor would be dropped" <<<"$HPO" \
+  && hpc c1 | grep -qxF 'icon: {glyph: "star", color: "blue"}' && ! hpc c1 | grep -q iconColor && hprec c1 | grep -qF '`iconColor: red`' \
+  && hprec c4 | grep -qF '`iconColor: 12`' && hprec c4 | grep -q 'no reading as a colour' || hfail "H03 iconColor: left on the board and lane, recorded on a card"
+grep -q '^skip index.md: config.labels `status` has a bare glyph its icon would replace' <<<"$HPO" && grep -q 'glyph: "\{0,1\}circle' "$HPS/index.md" \
+  && hpc c5 | grep -qF 'icon: {glyph: "moon"}' && hprec c5 | grep -qF '{text: moon, glyph: star, icon: {glyph: moon}' || hfail "H05/H10 a bare glyph beside another icon: left on the board, recorded on a card"
+hpc c3 | grep -qx 'title: ~' && grep -q '^skip .*c0000000-0000-4000-8000-0000000000c3/index.md: title reads as null' <<<"$HPO" && hpc c4 | grep -qxF "title: 'Single quoted'" \
+  && hpc c5 | grep -qx 'title: Plain readable' && ! grep -q ' H01 ' <<<"$HPO" || hfail "H01: a null, single-quoted or readable plain title is no repair"
+hpc c2 | grep -qF 'kind: {type: "text", text: "Text", icon: {glyph: "tag"}, note: "k"}' && hpc c2 | grep -qF 'icon: {glyph: "bug", tint: "x"}' \
+  && hprec c2 | grep -qxF 'labels: [{text: "bug", rank: 7, color: "#112233", kind: {type: "text", note: "k"}, icon: {glyph: bug, tint: x}}]' \
+  && hprec c2 | grep -q 'took its stamps from this board.s `text` definition' && hprec c2 | grep -q '^created:  {at: .*name: fixer' || hfail "H13: a re-stamp that drops rank 7 is recorded first, and the kind and icon subkeys ride through"
+ok "heal: iconColor on the board and a lane is left (skip), on a card recorded; a shadowed bare glyph likewise; a null, single-quoted or plain title is left; a re-stamp quotes the card's labels line and keeps unknown subkeys${PAIR:+ (the same call as the board heal v$BHV)}"
+
+heal_pair roster seed_roster
+! grep -q 'priorities\|collapse-empty\|Urgent' "$HPS/index.md" && grep -qF 'values: [{text: "Hot", rank: 1, color: "red"}, {text: "Cold", rank: 2}]' "$HPS/index.md" \
+  && grep -q '^index.md: H15 config-priorities ' <<<"$HPO" && grep -q '^index.md: H16 config-collapse-empty ' <<<"$HPO" && ! grep -q ' H06 ' <<<"$HPO" \
+  && hpc d1 | grep -qF 'labels: [{text: "Hot", rank: 1, color: "red", kind: {type: "priority", text: "Priority", icon: {glyph: "flag"}}}]' && [ "$(hpn d1)" = 0 ] \
+  && hpc d2 | grep -qF '{text: "Cold", rank: 2, kind: {type: "priority"' && hprec d2 | grep -qxF 'priority: {text: Cold, rank: 2, note: z}' \
+  && hpc d3 | grep -qF '{text: "S", rank: 9, kind: {type: "size", text: "Size"}}' && ! grep -q 'H13 stale-label "S"' <<<"$HPO" || hfail "H15/H16/H11: roster, collapse-empty, root keys, an unreadable rank"
+ok "heal: config.priorities becomes the priority definition and the cards keep its rank and colour; an empty collapse-empty goes; a root key's other subkeys are recorded; a value with an unreadable rank stays foreign${PAIR:+ (the same call as the board heal v$BHV)}"
+
+heal_pair odd-roster seed_odd_roster
+cmp -s "$HPS/index.md" "$T/odd-roster-seed/index.md" && grep -q '^skip index.md: config.priorities would lose what it says' <<<"$HPO" \
+  && grep -q '^skip index.md: config.collapse-empty has a value' <<<"$HPO" && grep -q '^0 repairs in 0 files' <<<"$HPO" || hfail "H15/H16 skips"
+ok "heal: a roster it can't carry whole and a collapse-empty with a value are left as written, as skip lines${PAIR:+ (the same call as the board heal v$BHV)}"
+
+heal_pair damaged seed_damaged
+[ -z "$PAIR" ] || ok "heal: the damage board above heals as the board's heal v$BHV heals it: the same lines, files and records"
+
+# a rerun after an apply interrupted between its records and its files posts no second record
+for w in skill ${PAIR:+board}; do RR="$T/rerun-$w"; cp -R "$T/icons-seed" "$RR"
+  if [ "$w" = skill ]; then hh() { "$HEAL" "$@" --ignore-board-copy; }; else hh() { python3 "$BHEAL" "$@"; }; fi
+  hh "$RR" --apply --name fixer --model test >/dev/null
+  for f in "$T/icons-seed"/*/c*/index.md; do cp "$f" "$RR/${f#"$T/icons-seed/"}"; done   # the files back as before the apply: the records stay
+  hh "$RR" --apply --name fixer --model test >/dev/null
+  for n in c1 c2 c4 c5; do [ "$(ls "$RR"/*/c0000000-0000-4000-8000-0000000000$n/comments | grep -c .)" = 1 ] || hfail "rerun ($w): card $n holds a second record"; done
+  [ "$w" = board ] || diff <(heal_tree "$RR") <(heal_tree "$HPI") >/dev/null || hfail "rerun: the files differ from one clean apply"
+done
+ok "heal: a rerun after an interrupted apply finishes the files and posts no second record${PAIR:+ (as the board heal v$BHV does)}"
+
+# which copy: the later heal version wins. Stub board healers one version older, the same, one later, and stating none
+WC="$T/which-copy"; cp -R "$T/icons-seed" "$WC"; mkdir -p "$WC/.schema/bin"
+for v in $((HV - 1)) none "$HV" $((HV + 1)); do
+  if [ "$v" = none ]; then printf '#!/usr/bin/env python3\n# a board heal\n' > "$WC/.schema/bin/lanework-heal.py"; else printf '#!/usr/bin/env python3\n# lanework-heal v%s\n' "$v" > "$WC/.schema/bin/lanework-heal.py"; fi
+  rc=0; O=$("$HEAL" "$WC" 2>"$T/wc.err") || rc=$?
+  if [ "$v" = none ] || [ "$v" -lt "$HV" ]; then
+    want="heal-board: this board's own heal states $([ "$v" = none ] && echo 'no version' || echo "version $v"), older than this copy's $HV: healing with this copy"
+    [ "$rc" = 0 ] && [ "$(cat "$T/wc.err")" = "$want" ] && grep -q ' H03 bare-icon ' <<<"$O" || hfail "which copy, board heal $v: rc $rc, $(cat "$T/wc.err")"
+  else
+    [ "$rc" = 2 ] && grep -q "^heal-board: this board ships its own heal at version $v: python3 \".*/which-copy/.schema/bin/lanework-heal.py\" (it wins" "$T/wc.err" && [ -z "$O" ] || hfail "which copy, board heal v$v: rc $rc, $(cat "$T/wc.err")"
+  fi
+done
+rc=0; O=$("$HEAL" "$WC" --ignore-board-copy 2>"$T/wc.err") || rc=$?; [ "$rc" = 0 ] && [ ! -s "$T/wc.err" ] && grep -q ' H03 bare-icon ' <<<"$O" || hfail "which copy, --ignore-board-copy"
+ok "which copy: a board heal one version older or stating none heals with heal-board.py (one stderr line); the same or a later version is refused, exit 2, named; --ignore-board-copy runs regardless"
+AN="$T/anyone-heal"; cp -R "$T/icons-seed" "$AN"; S0=$(sum "$AN"); rc=0; "$HEAL" "$AN" --apply --name anyone --model test >/dev/null 2>"$T/an.err" || rc=$?
+[ "$rc" = 64 ] && grep -q 'anyone is reserved for the app' "$T/an.err" && [ "$S0" = "$(sum "$AN")" ] || hfail "--name anyone: rc $rc"
+ok "heal-board.py --apply --name anyone exits 64 and writes nothing"
 }
 
 sec_discovery() {
@@ -2639,7 +2753,7 @@ for r in "$HVR" ".trash/$HVT"; do
 done
 cp "$HVC/index.md" "$T/v114-card.md"; cp "$HVC/relations/.trash/$HVT/index.md" "$T/v114-trashed.md"
 O=$("$HEAL" "$HV")
-{ grep -q "^aaaa0000-0000-4000-8000-0000000000b1/c0000000-0000-4000-8000-0000000000b1/relations/$HVR/index.md: bare-stamp modified" <<<"$O" \
+{ grep -q "^aaaa0000-0000-4000-8000-0000000000b1/c0000000-0000-4000-8000-0000000000b1/relations/$HVR/index.md: H02 bare-stamp modified" <<<"$O" \
   && ! grep -q '\.trash' <<<"$O" && ! grep -q 'c0000000-0000-4000-8000-0000000000b1/index.md' <<<"$O" && grep -q '^1 repairs in 1 files' <<<"$O"; } \
   || { echo "heal on the v114 board:"; echo "$O"; exit 1; }
 "$HEAL" "$HV" --apply --name fixer --model test >/dev/null
@@ -3466,11 +3580,19 @@ W=$(rw); WC=$(grep -c 'warning: the board in' <<<"$W" || true)
 [ "$WC" -eq 2 ] && grep -q 'guide v11, schema v1; stamp guide v10, schema v1' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W" || { echo "release.sh should warn for the working tree and HEAD, then stop at its own check: $W"; exit 1; }
 printf 'stamp: lanework-agent-guide v11, lanework-schema v1\n' > "$R/CLAUDE.md"
 W=$(rw); { ! grep -q warning <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should not warn when the stamp is current: $W"; exit 1; }
+# the board's healer ahead of heal-board.py's HEAL_VERSION: the same warning, its own line; at the same version, none
+RH="$R/Boards/Skills Pipeline.lanework/.schema/bin/lanework-heal.py"; mkdir -p "$R/skills/lanework/scripts" "$(dirname "$RH")"; printf 'HEAL_VERSION = 6\n' > "$R/skills/lanework/scripts/heal-board.py"
+rcommit() { git -C "$R" add -A && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m "$1"; }
+printf '#!/usr/bin/env python3\n# lanework-heal v7\n' > "$RH"; rcommit heal7
+W=$(rw); [ "$(grep -c "warning: the board's healer in" <<<"$W" || true)" -eq 2 ] && grep -q "at heal v7, ahead of heal-board.py's v6" <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W" \
+  || { echo "release.sh should warn for a board healer ahead of HEAL_VERSION (working tree and HEAD), then stop at its own check: $W"; exit 1; }
+printf '#!/usr/bin/env python3\n# lanework-heal v6\n' > "$RH"; rcommit heal6
+W=$(rw); { ! grep -q warning <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should not warn when the board's healer is at HEAL_VERSION: $W"; exit 1; }
 # a missing board folder, or a board CLAUDE.md missing from HEAD, is no reason for the advisory block to stop the script
 git -C "$R" rm -q -r --cached "Boards" >/dev/null && git -C "$R" -c user.name=smoke -c user.email=smoke@example.com commit -q -m unboard && rm -rf "${R:?}/Boards"
 W=$(rw); { ! grep -q -i 'warning\|line [0-9]' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no board folder: $W"; exit 1; }
 rm -f "$R/CLAUDE.md"; W=$(rw); { ! grep -q -i 'warning\|line [0-9]\|No such' <<<"$W" && grep -q 'not on main' <<<"$W" && grep -q '^exit 1$' <<<"$W"; } || { echo "release.sh should reach its own check with no CLAUDE.md: $W"; exit 1; }
-ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp, stays quiet when not, and exits the same either way"
+ok "release.sh warns (working tree and HEAD) when the board is ahead of the stamp or its healer ahead of HEAL_VERSION, stays quiet when not, and exits the same either way"
 }
 
 sec_cite_as() {

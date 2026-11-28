@@ -4,7 +4,8 @@
 # Checks: on main, in sync with origin, no tracked changes outside the board folder (Lanework/, Boards/, or legacy Pitlane/), tag unused,
 # version not below plugin.json's, CHANGELOG.md carries a "Version <version>:" entry, smoke green.
 # Warns (stderr, never stops, never changes the exit code) when the Skills Pipeline board's guide or schema, in the
-# working tree or in HEAD, is ahead of the stamp in CLAUDE.md; runs before the checks above, in --dry-run too.
+# working tree or in HEAD, is ahead of the stamp in CLAUDE.md, or its healer (.schema/bin/lanework-heal.py, line 2) is
+# ahead of heal-board.py's HEAL_VERSION; runs before the checks above, in --dry-run too.
 # Then: version bump in plugin.json (a release commit, if it moved), annotated tag v<version>,
 # push main + tag, fast-forward the stable branch to the tag, GitHub release whose notes are the
 # CHANGELOG entries added since the previous tag. --dry-run checks, prints the notes, changes nothing.
@@ -16,15 +17,21 @@ die() { echo "release.sh: $*" >&2; exit 1; }
 [ -z "$DRY" ] || [ "$DRY" = --dry-run ] || die "unknown argument: $DRY"
 TAG="v$V"; M=.claude-plugin/plugin.json
 
-# advisory: board guide/schema ahead of the stamp in CLAUDE.md (working tree and HEAD); a warning, never a stop
+# advisory: board guide/schema ahead of the stamp in CLAUDE.md, board healer ahead of HEAL_VERSION (working tree and HEAD); a warning, never a stop
 BD="Boards/Skills Pipeline.lanework"
 ver() { grep -o -E "$1 v[0-9]+" | grep -o -E '[0-9]+$' | head -1 || true; }
 SG=$(cat CLAUDE.md 2>/dev/null | ver lanework-agent-guide || true); SS=$(cat CLAUDE.md 2>/dev/null | ver lanework-schema || true)
+SH=$(sed -n 's/^HEAL_VERSION = \([0-9][0-9]*\)$/\1/p' skills/lanework/scripts/heal-board.py 2>/dev/null || true)
+hv() { sed -n '2s/^# lanework-heal v\([0-9][0-9]*\)$/\1/p' || true; }   # a healer's version, from its line 2 on stdin
 for WHERE in "the working tree" HEAD; do
   if [ "$WHERE" = HEAD ]; then G=$(git show "HEAD:$BD/CLAUDE.md" 2>/dev/null | head -1 | ver lanework-agent-guide || true); N=$(git show "HEAD:$BD/.schema/VERSION" 2>/dev/null | head -1 | ver lanework-schema || true)
   else G=$(head -1 "$BD/CLAUDE.md" 2>/dev/null | ver lanework-agent-guide || true); N=$(head -1 "$BD/.schema/VERSION" 2>/dev/null | ver lanework-schema || true); fi
   if [ "${G:-0}" -gt "${SG:-0}" ] || [ "${N:-0}" -gt "${SS:-0}" ]; then
     echo "release.sh: warning: the board in $WHERE is ahead of the stamp in CLAUDE.md (guide v${G:-?}, schema v${N:-?}; stamp guide v${SG:-?}, schema v${SS:-?}): the skills may be unread against it" >&2
+  fi
+  if [ "$WHERE" = HEAD ]; then HB=$(git show "HEAD:$BD/.schema/bin/lanework-heal.py" 2>/dev/null | hv || true); else HB=$(hv 2>/dev/null < "$BD/.schema/bin/lanework-heal.py" || true); fi
+  if [ "${HB:-0}" -gt "${SH:-0}" ]; then
+    echo "release.sh: warning: the board's healer in $WHERE is at heal v$HB, ahead of heal-board.py's v${SH:-?}: the skills' healer lags it" >&2
   fi
 done
 
