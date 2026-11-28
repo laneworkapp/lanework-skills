@@ -17,10 +17,11 @@
 # lanework/scripts/lease.sh beside work; the stake refused (another session holds the card; lease.sh names it on stderr; a takeover
 # notice it posted stays).
 # Exit 3: this session's lease on the card is lost (lease.sh stake, move-card.sh or post-comment.sh said so; the Lease lost record is on the card).
-# Exit 1 after the stake: the move or the record failed (that script's message on stderr). The EXIT trap (also on a signal; a
-# SIGKILL skips it) waits out the step then running, then reads the board, never a flag. A comment new since the call began that
-# opens with F's first line = the start landed (a signal while post-comment.sh ran): card and lease kept, nothing undone. Else
-# undone, best effort: a card this call moved goes back to its source lane at its old order (move-card.sh --order), then a lease
+# Exit 1 after the stake: the move or the record failed (that script's message on stderr). A signal (INT, TERM, HUP): the signal's
+# code, stdout empty, the stderr line says whether the card started. The EXIT trap (also on a signal; a SIGKILL skips it) ignores
+# further INT, TERM and HUP, so an undo once begun finishes; it waits out the step then running, then reads the board, never a
+# flag. A comment new since the call began that opens with F's first line = the start landed (a signal while post-comment.sh
+# ran): card and lease kept, nothing undone. Else undone, best effort: a card this call moved goes back to its source lane at its old order (move-card.sh --order), then a lease
 # this call staked is released; one this session held before the call is kept, and so is this call's when the move back fails
 # (the session that tidies the card holds it). One stderr line, each clause read from the board then: started or not, the card's
 # lane, the lease, the START. So a failed start leaves no START without a lease and no lease of its own without a START, except a
@@ -93,6 +94,7 @@ my_start() { local d f id
 # leaves nothing of this session's: release then refuses another session's lease (exit 1), a lost one (3) or a usage it shares with
 # the stake (2), writing nothing, quiet
 cleanup() {
+  trap '' INT TERM HUP   # an undo once begun finishes: a second signal is ignored
   rm -f "${OUTF:-}"
   [ -z "$CHILD" ] || wait "$CHILD" 2>/dev/null || true   # a signal mid-step: the step finishes first, then the board is read
   [ -n "$STAKING" ] && [ -z "$LANDED" ] || return 0
