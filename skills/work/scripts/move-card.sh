@@ -128,7 +128,9 @@ if [ -n "$COMMENT" ]; then
 fi
 mv "$STAGE/index.md" "$CARD/index.md"
 mv "$CARD" "$DEST/$CID"
-[ -z "$UNSTAKED" ] || echo "move-card.sh: note: ${CID:0:8} went into $LANE_TITLE unstaked: this session holds no lease on it (never-held); start a card with work/scripts/start-card.sh" >&2
+# the note never changes the exit or stdout: a subshell ignoring SIGPIPE, its failure ignored, so a closed or broken stderr costs only
+# the note (a `{ ...; } 2>/dev/null` around it would send the note itself to /dev/null)
+[ -z "$UNSTAKED" ] || ( trap '' PIPE; echo "move-card.sh: note: ${CID:0:8} went into $LANE_TITLE unstaked: this session holds no lease on it (never-held); start a card with work/scripts/start-card.sh" >&2 ) || true
 VAL="$BOARD/.schema/bin/lanework-validate.py"
 if [ -f "$VAL" ]; then
   OUT=$(python3 -I "$VAL" "$DEST/$CID/index.md" 2>&1) && ! grep -q DEPRECATED <<<"$OUT" || { printf '%s\n' "$OUT" >&2; echo "move-card.sh: the card fails the board's validator: $DEST/$CID" >&2; exit 1; }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lint a board's threads and cards for lease collisions, and for a started card that carries no lease.
+# Lint a board's threads and cards for lease collisions, and for a card worked in a working lane with no lease.
 # Usage: lint-leases.sh <board dir>... [--since <ts>] [--first <n>] [--window <s>] [--grace <s>]
 # Read-only. One line per finding on stdout (sorted), exit 1 if any; silent exit 0 when clean; exit 2 (message on
 # stderr) on a missing path, a dir that is no board, a bad flag value, no board or a path it could not read
@@ -12,9 +12,10 @@
 #       a START without a session is skipped, and so is one whose plan line begins `shaping` (`START: shaping`, bold or not, any case, or the older `START (shaping)`; a handoff to the lead, not a second builder); the tag = the earlier session posted any comment after the later START)
 #   <card>: claimed until <ts> is <n>s lapsed   (until more than --grace seconds past, default 900; the whole board
 #       counts, flow or block form. A voided claim (until unreadable or over 35 min ahead) is not lapsed: skipped)
-#   <card>: started without a lease <comment id> <time>   (a card in a working lane, lib.sh WORKING_LANES (Active, Working), with no `claimed`
-#       and no `waiting` (an ask out), whose latest START (not a shaping one) carries a session: the START named.
-#       The whole board counts, as for lapsed. Fix: work/scripts/start-card.sh on it, which stakes and posts a fresh START)
+#   <card>: worked without a lease <comment id> <time>   (a card in a working lane, lib.sh WORKING_LANES (Active, Working), with no `claimed`
+#       and no `waiting` (an ask out), and an agent comment carrying a session: `created.by.kind` agent, a non-empty `created.by.session`,
+#       a name other than the app's board, healer and shortcuts. Its latest such comment is named, whatever its first line. A human's,
+#       a sessionless agent's and the app's comments count for nothing. The whole board counts, as for lapsed. Fix: work/scripts/start-card.sh)
 # A card is leased when it has a START (a session-less one too), or a lease-lost record, created at or after --since
 # (default: always). --first keeps the n leased cards with the earliest such comment, for the tally and the lost and
 # two-START findings; lapsed and no lease read every card. Several boards are counted together. Skips .trash, .log, .schema,
@@ -57,7 +58,7 @@ while [ $# -gt 0 ]; do
 done
 [ "$nb" -ge 1 ] || { echo "lint-leases.sh: no board given" >&2; echo "$USAGE" >&2; exit 2; }
 
-# Stage 1, one pass over each board's index.md files: C <card> <comment id> <created.at> <session> START|SHAPE|LOST|OTHER,
+# Stage 1, one pass over each board's index.md files: C <card> <comment id> <created.at> <session> START|SHAPE|LOST|OTHER <1: by an agent, not the app>,
 # K <card> <claimed.until> for a card with `claimed`, N <card> <1 when it has `waiting`, else 0> for every card, A <lane> for a working
 # lane. Fields are tab-separated; a missing value is empty.
 S1='
@@ -85,7 +86,10 @@ function emit(   rel, n, p, card, t, s, a, u, k) {
     k = "OTHER"
     if (first ~ startre) { f2 = tolower(first); k = (f2 ~ shapere) ? "SHAPE" : "START" }
     if (lost != "" && index(first, lost) == 1) k = "LOST"
-    printf "C\t%s\t%s\t%s\t%s\t%s\n", card, p[4], a, s, k
+    wk = 0; nm = ""
+    if (match(t, /name:[ \t]*("[^"]*"|\x27[^\x27]*\x27|[^,}\n]*)/)) { nm = substr(t, RSTART, RLENGTH); sub(/^name:[ \t]*/, "", nm); gsub(/^["\x27]|["\x27]$/, "", nm); sub(/[ \t]+$/, "", nm) }
+    if (t ~ /kind:[ \t]*["\x27]?agent["\x27]?[ \t]*([,}\n]|$)/ && tolower(nm) !~ /^(board|healer|shortcuts)$/) wk = 1
+    printf "C\t%s\t%s\t%s\t%s\t%s\t%d\n", card, p[4], a, s, k, wk
   }
 }
 BEGIN { board = ENVIRON["LL_BOARD"]; show = ENVIRON["LL_SHOW"]; lost = ENVIRON["LL_LOST"]; startre = ENVIRON["LL_START"]; shapere = ENVIRON["LL_SHAPE"]
@@ -121,7 +125,7 @@ function ep(s,   y, m, d, era, yoe, doy, doe) {
   return (era * 146097 + doe - 719468) * 86400 + substr(s, 12, 2) * 3600 + substr(s, 15, 2) * 60 + substr(s, 18, 2)
 }
 BEGIN { FS = "\t"; se = (since == "") ? 0 : ep(since) }
-$1 == "C" { c = $2; n = ++cn[c]; if (n == 1) cards[++nc] = c; cid[c, n] = $3; cats[c, n] = $4; cep[c, n] = ep($4); cs[c, n] = $5; ck[c, n] = $6 }
+$1 == "C" { c = $2; n = ++cn[c]; if (n == 1) cards[++nc] = c; cid[c, n] = $3; cats[c, n] = $4; cep[c, n] = ep($4); cs[c, n] = $5; ck[c, n] = $6; cw[c, n] = $7 }
 $1 == "K" { kc[++nk] = $2; ku[nk] = $3; kcl[$2] = 1 }
 $1 == "N" { nn_c[++nn] = $2; nn_w[$2] = $3 }
 $1 == "A" { wl[$2] = 1 }
@@ -171,8 +175,8 @@ END {
     c = nn_c[i]; if (nn_w[c] || (c in kcl)) continue
     ln = c; sub(/\/[^\/]*$/, "", ln); if (!(ln in wl)) continue
     bj = 0
-    for (j = 1; j <= cn[c]; j++) if (ck[c, j] == "START" && cep[c, j] != "" && (!bj || cep[c, j] > cep[c, bj] || (cep[c, j] == cep[c, bj] && cid[c, j] > cid[c, bj]))) bj = j
-    if (bj && cs[c, bj] != "") { print c ": started without a lease " cid[c, bj] " " cats[c, bj]; nu++ }
+    for (j = 1; j <= cn[c]; j++) if (cw[c, j] == 1 && cs[c, j] != "" && cep[c, j] != "" && (!bj || cep[c, j] > cep[c, bj] || (cep[c, j] == cep[c, bj] && cid[c, j] > cid[c, bj]))) bj = j
+    if (bj) { print c ": worked without a lease " cid[c, bj] " " cats[c, bj]; nu++ }
   }
   printf "leased cards: %d, lease lost: %d, two STARTs: %d, lapsed: %d, no lease: %d\n", kept, nl, n2, nlap, nu > "/dev/stderr"
 }'

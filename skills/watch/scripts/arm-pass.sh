@@ -16,9 +16,10 @@
 #   held     a valid lease: any lane but Done. Author `-`, paths = the minutes left, `<n>m`. Report-only.
 #   stale    a lapsed lease (past `until`): any lane but Done. Author `-`, paths = the minutes since `until`, `<n>m`.
 #            Report-only: never worked, never taken over, never released.
-#   unstaked a card in a working lane (lib.sh WORKING_LANES: Active, Working) with no lease row at all and no `waiting`, whose
-#            latest start record (lib.sh START_ERE, not a shaping one) carries a session: started, never staked. Author `-`,
-#            paths = that record's path. Report-only; the card's `arm` line still prints before it, as a start record is no claim.
+#   unstaked a card in a working lane (lib.sh WORKING_LANES: Active, Working) with no lease row at all and no `waiting`, with an
+#            agent comment carrying a session (`created.by.kind` agent, non-empty `created.by.session`, a name other than the
+#            app's board, healer, shortcuts), whatever its first line: worked, never staked. Author `-`, paths = the latest such
+#            comment's path. Report-only; the card's `arm` line still prints before it, as a comment is no claim.
 # Leases are read once, through the read-only `lease.sh list <board>`, and joined to cards by uuid. Its state column decides:
 # live = held, lapsed = stale, voided (the clock guard) or no row = no lease. No lease rule is restated here, and nothing is
 # written. `lease.sh list` needs no session id. If it fails or is missing, no lease is known, so nothing is armed or reported
@@ -51,12 +52,15 @@ fi
 has_waiting() { awk '{ sub(/\r$/, "") } NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { exit } fm && /^waiting:/ { f = 1; exit } END { exit !f }' "$1"; }
 title_of() { local t; t=$(strip_quotes "$(fm_value "$1" title)"); printf '%s' "${t:--}"; }
 
-# row <comment index.md>: "<at>|<author>|<in-reply-to>|<created.by.session>|<first body line>"
+# row <comment index.md>: "<at>|<author>|<in-reply-to>|<created.by.session of an agent other than the app, else empty>|<first body line>"
 row() {
   awk '
     function flush() { if (key == "created") { at = ""; if (match(blk, /at: *["\x27]?[^,}"\x27 ]+/)) { at = substr(blk, RSTART, RLENGTH); sub(/at: *["\x27]?/, "", at); sub(/\.[0-9]+Z$/, "Z", at) }
       who = (blk !~ /by:/ || blk ~ /kind: *["\x27]?human/) ? "owner" : (blk ~ /name: *["\x27]?board["\x27]?[ ,}]/ ? "board" : "agent")
-      if (match(blk, /session: *("[^"]*"|\x27[^\x27]*\x27|[^,}|]*)/)) { ses = substr(blk, RSTART, RLENGTH); sub(/^session: */, "", ses); gsub(/^["\x27]|["\x27]$/, "", ses); sub(/[ \t]+$/, "", ses); gsub(/\|/, "/", ses) } } key = ""; blk = "" }
+      if (match(blk, /session: *("[^"]*"|\x27[^\x27]*\x27|[^,}|]*)/)) { ses = substr(blk, RSTART, RLENGTH); sub(/^session: */, "", ses); gsub(/^["\x27]|["\x27]$/, "", ses); sub(/[ \t]+$/, "", ses); gsub(/\|/, "/", ses) }
+      b2 = blk; sub(/session: *("[^"]*"|\x27[^\x27]*\x27|[^,}|]*)/, "", b2); nm = ""
+      if (match(b2, /name: *("[^"]*"|\x27[^\x27]*\x27|[^,}]*)/)) { nm = substr(b2, RSTART, RLENGTH); sub(/^name: */, "", nm); gsub(/^["\x27]|["\x27]$/, "", nm); sub(/[ \t]+$/, "", nm) }
+      if (b2 !~ /kind: *["\x27]?agent["\x27]?([ ,}]|$)/ || tolower(nm) ~ /^(board|healer|shortcuts)$/) ses = "" } key = ""; blk = "" }
     BEGIN { n = 0 }
     { sub(/\r$/, "") }
     /^---[ \t]*$/ { n++; if (n == 2) { flush(); infm = 0 } next }
@@ -104,9 +108,7 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
     declare -a replies=()
     while IFS='|' read -r uuid path _ who rep ses first; do
       [ -n "$uuid" ] || continue
-      if [[ $first =~ $START_ERE ]]; then   # the latest start record, rows in time order; a shaping one is no builder's
-        fl=$(printf '%s' "$first" | tr 'A-Z' 'a-z'); [[ $fl =~ $SHAPE_ERE ]] || { st_sess=$ses; st_path="${path#"$BOARD"/}/index.md"; }
-      fi
+      [ -z "$ses" ] || { st_sess=$ses; st_path="${path#"$BOARD"/}/index.md"; }   # the latest agent comment with a session, rows in time order
       [ "$who" = board ] && continue   # the app'"'"'s move receipt: no reply
       [ "$who" = owner ] && { own_uuid=$uuid; own_path="${path#"$BOARD"/}/index.md"; }
       [ "$who" = agent ] && [ -n "$rep" ] && replies+=("$rep")
