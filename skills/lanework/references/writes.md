@@ -83,12 +83,12 @@ The board's `remote` (incl. `cadence`), a card's `remote`, a comment's `remote`,
 ## Healing
 
 - **When**: the validator fails or prints `DEPRECATED` on files you didn't write; a guide-version move retired a spelling; a board worked without the app. Heal before fixing by hand.
-- **Which copy**: the board's `.schema/bin/lanework-heal.py` when present (it wins: the app ships it), else `scripts/heal-board.py`. The skill's copy refuses to run where the board ships one.
+- **Which copy**: the later heal version wins. `scripts/heal-board.py` is a hand port of the app's healer (`HEAL_VERSION`). The board's `.schema/bin/lanework-heal.py` at that version or later (its line 2, `# lanework-heal vN`) → run it; `heal-board.py` exits 2 naming it. Older, or no version stated → `heal-board.py` heals, one stderr line saying so. `--ignore-board-copy` → `heal-board.py` regardless.
 - **Run**: `python3 scripts/heal-board.py <board>` → read the repair list (dry run, writes nothing) → `--apply --name <you> --model <model>` → validate. Commit the heal on its own.
-- **Dry run lists `stale-label` or `single-kind`** (board heal H13 / H14: they re-apply the board's definitions to existing cards) → `--apply` only on the owner's ask. The app never re-stamps cards when a definition changes.
-- **Repairs**: label stamps vs the board's `config.labels`, extra entries of a `single` kind, retired label and definition spellings, a reserved root `priority:` moved into `labels`, bare stamps, unquoted or multi-line titles, flat `icon`/`iconColor`, `modified-by`, non-compact layouts.
+- **Dry run lists `H13 stale-label` or `H14 single-kind`** (they re-apply the board's definitions to existing cards) → `--apply` only on the owner's ask. The app never re-stamps cards when a definition changes.
+- **Repairs**, one line each, `<file>: <rule id> <code> <what>` (ids from the board's `.schema/HEAL.md`): a title YAML can't read as one line (H01), bare stamps (H02), flat `icon`/`iconColor` (H03), `modified-by` (H04), retired definition spellings (H05), a missing `priority` definition (H06), retired label spellings (H07 to H10), a reserved root `priority:` moved into `labels` (H11, H12), label stamps vs `config.labels` (H13), extra entries of a `single` kind (H14), the retired `config.priorities` roster converted into the `priority` definition (H15), an empty `config.collapse-empty` removed (H16), non-compact layouts (H17).
 - **Whole board to currency** (lane bodies, pipeline sheet): the `heal` skill.
-- **Writes**: no `modified` restamp: a heal is upkeep, like the app's. A repair that drops a fact posts a record on the card, signed as you, before the file changes. `skip` lines = left for you by hand. Never `.trash/`, a foreign entry or an unknown key. A missing `by` stays missing: it means the owner.
+- **Writes**: no `modified` restamp: a heal is upkeep, like the app's. A repair that drops a value on a card posts a record on the card, signed as you, before the file changes; a rerun never posts it twice. The same value on a board, a lane or the board's settings has no thread: left as written, a `skip` line. `skip` lines = left for you by hand. Never `.trash/`, a foreign entry or an unknown key; unknown subkeys ride through a re-stamp. A missing `by` stays missing: it means the owner.
 
 ## Signature
 

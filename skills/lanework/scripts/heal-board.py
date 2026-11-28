@@ -4,53 +4,61 @@
 
     heal-board.py <board> [--apply --model M [--name N] [--session S]] [--ignore-board-copy]
 
-Dry run by default: one line per repair, `<file>: <code> <what>`, nothing written.
-`--apply` writes each repaired file (staged outside the board, then moved in). No `modified`
-is restamped: a heal is upkeep, not an edit (the app's own heal rule). `--name`/`--model`
-sign the records a heal posts. Idempotent: a second run finds nothing.
+A hand port of the board's own heal, `.schema/bin/lanework-heal.py`, at the heal version HEAL_VERSION
+names. Its catalog, `.schema/HEAL.md` beside it, is the specification: every repair is one of its
+rules and carries the rule id.
+Dry run by default: one line per repair, `<file>: <rule id> <code> <what>`, nothing written. A
+`skip <file>: <why>` line is left for a hand. `--apply` writes each repaired file (staged outside
+the board, then moved in). No `modified` is restamped: a heal is upkeep, not an edit (the app's own
+heal rule). `--name`/`--model` sign the records a heal posts. Idempotent: a second run finds
+nothing, and a record an interrupted run already posted is not posted again.
 `-h`/`--help` prints this text, exit 0.
-Exit 0 done (dry run or applied); exit 1 a card moved during the heal (message), or, at start, `templates/label-kinds.md` has no row for a reserved kind or a row that does not parse (message); exit 2 the board ships its own heal and
-`--ignore-board-copy` is absent; exit 64 usage (unknown argument, no board or not a board, `--apply` without `--model`,
-`--apply` with an empty or reserved `--name`).
+Which copy: the later heal version wins. A board whose `.schema/bin/lanework-heal.py` states this
+version or a later one on its line 2 (`# lanework-heal vN`) heals with its own; one stating an
+earlier version, or none, heals with this copy, which says so in one line on stderr.
+Exit 0 done (dry run or applied); exit 1 a card moved during the heal (message), or, at start, `templates/label-kinds.md` has no row for a reserved kind or a row that does not parse (message); exit 2 the board ships its own heal at
+this version or later and `--ignore-board-copy` is absent; exit 64 usage (unknown argument, no board or not a board,
+`--apply` without `--model`, `--apply` with an empty or reserved `--name`).
 
-Definitions healed against: the built-in `text` kind, plus the board's own
-`config.labels`.
+Definitions healed against: the built-in `text` kind, plus the board's own `config.labels` (its
+retired `config.priorities` read as its `priority` kind).
 
-Repairs (the board's agent guide, then the app's LabelHealing / lanework-migrate-labels where the guide is silent):
-  definition        a `config.labels` entry in a retired spelling: `kind:` for `type:`, a bare `glyph:`,
-                    the retired `default` kind, `value:` or a bare string in `values`
-  added-definition  the `priority` kind, when the board's cards use it and its vocabulary lacks it
-                    (the suggested one)
-  bare-labels       `labels: <scalar>`, or a bare string entry
-  string-kind       an entry's `kind: <name>` where the kind object belongs
-  text-kind         a free label with no `kind`, or the retired `default` kind
-  bare-glyph        a bare `glyph:` on an entry or its kind where `icon` belongs
-  root-key          the reserved root `priority:` key moved into `labels` (a root `component:` is an
-                    unknown key, left as written)
-  root-key-dropped  the same key, dropped: `labels` already carries an entry of that kind (it wins)
-  stale-label       a recognised entry whose stamps disagree with the current definition
-  single-kind       several entries of a `single` kind: the one a reader picks stays (the lowest `rank`,
-                    a ranked entry before an unranked one, a repeat counting once, the first in file
-                    order where ranks tie or none is ranked)
-  bare-stamp        `created`/`modified` as a bare timestamp, or `by` as a bare name
-  bare-icon         `icon: <glyph>` and `iconColor:` folded into the `icon` mapping (the mapping wins)
-  retired-key       `modified-by`: folded into `modified.by` when that has none; dropped when it
-                    names the same; else dropped with the name kept in a record on the card
-  title-quote       a `title` that is not double-quoted, or that carries a line break
-  compact-collection a list or mapping stored in another layout than the writer's compact form: one flow
-                    line while it fits 120 characters, else a block whose entries each stay on one line
-                    where theirs fits; a stamp always one line. Left alone: a key written twice, a comment
-                    line inside the value, a block scalar, an anchor, an alias or a tag
+Rules (`.schema/HEAL.md` has each one in full, with its before and after):
+  H01 title-quote       a `title` YAML cannot read as one line of text, or one carrying a line break
+  H02 bare-stamp        `created`/`modified` as a bare timestamp, or `by` as a bare name
+  H03 bare-icon         `icon: <glyph>` and `iconColor:` folded into the `icon` mapping (the mapping wins)
+  H04 retired-key       `modified-by`: folded into `modified.by`, dropped, or dropped with a record
+  H05 definition        a `config.labels` entry in a retired spelling
+  H06 added-definition  the `priority` kind, when the board's cards use it and its vocabulary lacks it
+  H07 bare-labels       `labels: <scalar>`, a bare string entry, or a `value:` entry
+  H08 string-kind       an entry's `kind: <name>` where the kind object belongs
+  H09 text-kind         a free label with no `kind`, or the retired `default` kind
+  H10 bare-glyph        a bare `glyph:` on an entry or its kind where `icon` belongs
+  H11 root-key          the reserved root `priority:` key moved into `labels` (a root `component:` is an
+                        unknown key, left as written)
+  H12 root-key-dropped  the same key, dropped: `labels` already carries an entry of that kind (it wins)
+  H13 stale-label       a recognised entry whose stamps disagree with the current definition
+  H14 single-kind       several entries of a `single` kind: the value readers show stays (the lowest
+                        `rank`, a ranked entry before an unranked one, a repeat counting once, the first
+                        in file order where ranks tie or none is ranked)
+  H15 config-priorities the retired `config.priorities` roster, converted into a `priority` definition
+  H16 config-collapse-empty the retired `config.collapse-empty`, removed when it holds no value
+  H17 compact-collection a list or mapping stored in another layout than the writer's compact form: one
+                        flow line while it fits 120 characters, else a block whose entries each stay on one
+                        line where theirs fits; a stamp always one line. Left alone: a key written twice, a
+                        comment line inside the value, a block scalar, an anchor, an alias or a tag
 
 Never touched: `.trash/`, `comments/.draft`, `comments/.trash`, `relations/.trash`, any key or
-entry not named above, and a foreign entry's stamps (a kind the definitions don't name, or a closed kind's
-unlisted value). The single-kind reduction counts every entry of a defined single kind,
-an unlisted value included, as the app's does.
+entry no rule names, and a foreign entry's stamps (a kind the definitions don't name, or a closed
+kind's unlisted value; a value whose `rank` has no reading drops out of its definition). The H14
+reduction counts every entry of a defined single kind, an unlisted value included, as the app's does.
 A missing `by` is not damage: it says the owner wrote the file, so no heal invents one.
-A repair that drops a fact (single-kind, root-key-dropped, retired-key) posts a comment on
-the card, signed as the running agent, quoting what was dropped; it posts before the file
-is rewritten. Listed as `skip`, never rewritten: a file that can't be read or parsed, a title
-carrying ` #` (YAML reads the rest as a comment: quote it by hand), a title that isn't a scalar.
+A repair that drops a value on a card (H03, H04's third case, H07 to H14) posts a comment on the
+card, signed as the running agent, quoting what was dropped; it posts before the file is rewritten.
+A value a repair would drop where no card can hold the record (a board or lane, and the board's own
+settings: H03, H04, H05, H15, H16) is left as written, as a `skip` line. Also listed as `skip`, never
+rewritten: a file that can't be read or parsed, a title that reads as null, carries ` #` (YAML reads
+the rest as a comment) or isn't a scalar.
 
 Every rewritten list or mapping comes back in the compact form, and a comment on its key's line
 stays on it. Known limitations: every string in it comes back double-quoted, untouched entries
@@ -67,6 +75,9 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 
+# The board heal's version this copy is ported from (its line 2, `# lanework-heal vN`). A board copy at
+# this version or later wins; repo CLAUDE.md names the same number.
+HEAL_VERSION = 6
 RESERVED_NAMES = {"anyone", "board", "healer", "shortcuts", "tracker"}
 FLOW_LIMIT = 120
 TEXT_KIND = {"type": "text", "text": "Text", "icon": {"glyph": "tag"}}
@@ -80,6 +91,9 @@ EMBEDDED_SUGGESTED = [
 RESERVED_KINDS = ("priority",)
 LABEL_KEYS = ("text", "rank", "color", "icon", "kind")
 KIND_KEYS = ("type", "text", "color", "icon")
+ICON_KEYS = ("glyph", "color")
+RETIRED_PRIORITIES = "priorities"           # H15: subkeys of `config` no build reads
+RETIRED_COLLAPSE_EMPTY = "collapse-empty"   # H16
 STAMP_KEYS = ("created", "modified")
 # compact-collection leaves alone a value holding what this reader doesn't model: a block scalar, an
 # anchor, an alias or a tag, tested on each line with its quoted strings taken out.
@@ -558,6 +572,45 @@ def is_text(v):
     return isinstance(v, str) and v.strip() != ""
 
 
+def is_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+DECIMAL = re.compile(r"[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?")
+
+
+def numeric_rank(v):
+    """CardLabels.numericRank: an int, a finite float, or a numeric string; None for anything else."""
+    if is_num(v):
+        return float(v) if float(v) == float(v) and abs(float(v)) != float("inf") else None
+    if isinstance(v, str):
+        # Swift's Double(String): plain decimal digits only, no spaces and no `_` separators
+        return float(v) if DECIMAL.fullmatch(v) else None
+    return None
+
+
+def bare_icon(icon):
+    """An icon's glyph and colour alone: what a definition stamps (its own unknown subkeys never travel)."""
+    if not isinstance(icon, dict):
+        return None
+    out = {k: icon[k] for k in ICON_KEYS if is_text(icon.get(k))}
+    return out or None
+
+
+def icon_extras(icon):
+    return {k: v for k, v in icon.items() if k not in ICON_KEYS} if isinstance(icon, dict) else {}
+
+
+def restamped(base, own):
+    """IconSpec.restamped: `base`'s glyph and colour, wearing `own`'s unknown subkeys."""
+    extras = icon_extras(own)
+    if not extras:
+        return bare_icon(base)
+    out = dict(bare_icon(base) or {})
+    out.update(extras)
+    return out
+
+
 def kind_quartet(defn):
     return {k: defn[k] for k in KIND_KEYS if defn.get(k) is not None}
 
@@ -595,27 +648,27 @@ def rename_key(m, old, new):
 
 
 def normalize_definition(e):
-    """One config.labels entry in the current spelling. Returns (entry, changed)."""
+    """H05: one config.labels entry in the current spelling. Returns (entry, changed)."""
     if not isinstance(e, dict):
         return e, False
     m, changed = dict(e), False
-    if "type" not in m and isinstance(m.get("kind"), str):
+    if "type" not in m and isinstance(m.get("kind"), str):          # `kind:` for `type:`
         m, changed = rename_key(m, "kind", "type"), True
-    f = fold_glyph(m)
+    f = fold_glyph(m)                                                # a bare glyph
     if f is not None:
         m, changed = f, True
-    r = rename_default(m)
+    r = rename_default(m)                                            # the retired `default` type
     if r is not None:
         m, changed = r, True
     if isinstance(m.get("values"), list):
         vals = []
         for v in m["values"]:
-            if is_text(v):
+            if is_text(v):                                           # a bare string value
                 vals.append({"text": v}); changed = True; continue
             if isinstance(v, dict):
-                if "text" not in v and isinstance(v.get("value"), str):
+                if "text" not in v and isinstance(v.get("value"), str):   # `value:` for `text:`
                     v = rename_key(v, "value", "text"); changed = True
-                f = fold_glyph(v)
+                f = fold_glyph(v)                                    # a bare glyph on a value
                 if f is not None:
                     v = f; changed = True
             vals.append(v)
@@ -623,22 +676,136 @@ def normalize_definition(e):
     return m, changed
 
 
+def roster_definition(levels):
+    """H15: the retired `config.priorities` roster as the `priority` definition it converts to
+    (LegacyPriorityRoster.migratedDefinition): the suggested kind's presentation, the levels' own
+    values. None when the roster is not a list."""
+    if not isinstance(levels, list):
+        return None
+    values = []
+    for n, lv in enumerate(levels):
+        if is_text(lv):
+            values.append({"text": lv.strip(), "rank": n + 1}); continue
+        if not isinstance(lv, dict) or not is_text(lv.get("name")):
+            continue
+        rank = n + 1
+        if lv.get("value") is not None:
+            rank = numeric_rank(lv["value"])
+            if rank is None:
+                continue                                             # a value with no numeric reading drops the level
+        v = {"text": lv["name"].strip(), "rank": rank}
+        if is_text(lv.get("color")):
+            v["color"] = lv["color"].strip()
+        values.append(v)
+    out = kind_quartet(next(s for s in EMBEDDED_SUGGESTED if s["type"] == "priority"))
+    out["single"] = True
+    out["values"] = values
+    return out
+
+
+def roster_keeps_all(levels):
+    """H15: whether converting the roster keeps every value it states: each level a name, or a mapping
+    of a `name` with a readable `value` and a text `color`, and nothing else."""
+    if not isinstance(levels, list):
+        return False
+    for lv in levels:
+        if is_text(lv):
+            continue
+        if not isinstance(lv, dict) or not is_text(lv.get("name")) or any(k not in ("name", "value", "color") for k in lv):
+            return False
+        if lv.get("value") is not None and numeric_rank(lv["value"]) is None:
+            return False
+        if lv.get("color") is not None and not is_text(lv["color"]):
+            return False
+    return True
+
+
+def same_reading(a, b):
+    """Two stated values read alike: numbers by value, text case-folded and trimmed."""
+    if is_num(a) or is_num(b):
+        return numeric_rank(a) is not None and numeric_rank(a) == numeric_rank(b)
+    if isinstance(a, str) and isinstance(b, str):
+        return canon(a) == canon(b)
+    return a == b
+
+
+def shadowed_glyph(m):
+    """H05, H10: a bare `glyph:` the fold would drop: an `icon` beside it that is not a mapping, or that
+    names another glyph of its own."""
+    if not (isinstance(m, dict) and isinstance(m.get("glyph"), str) and "icon" in m):
+        return False
+    icon = m["icon"]
+    return not (isinstance(icon, dict) and ("glyph" not in icon or same_reading(icon["glyph"], m["glyph"])))
+
+
+def definition_drops(e):
+    """H05: whether respelling the definition entry `e` drops a bare glyph, on it or on a value."""
+    vals = e.get("values") if isinstance(e, dict) and isinstance(e.get("values"), list) else []
+    return isinstance(e, dict) and (shadowed_glyph(e) or any(shadowed_glyph(v) for v in vals))
+
+
+def lost_stamps(item, out):
+    """H07-H11, H13: whether the rewrite `out` of a card's label entry `item` no longer says something
+    `item` wrote: its own text, rank, colour or icon, or its kind's text, colour or icon, each compared
+    as read (a re-cased text is the same text). `item` is in the current spelling (`normalize_entry`),
+    so a retired name renamed is not a loss; a bare glyph a fold drops is `shadowed_glyph`'s."""
+    def says(m, o):
+        o = o if isinstance(o, dict) else {}
+        o_icon = o.get("icon") if isinstance(o.get("icon"), dict) else {}
+        for k in ("text", "rank", "color"):
+            if m.get(k) is not None and not same_reading(m[k], o.get(k)):
+                return False
+        icon = m.get("icon")
+        if isinstance(icon, dict):
+            if any(icon.get(k) is not None and not same_reading(icon[k], o_icon.get(k)) for k in ICON_KEYS):
+                return False
+        elif icon is not None and not same_reading(icon, o_icon.get("glyph")):
+            return False
+        return m.get("glyph") is None or same_reading(m["glyph"], o_icon.get("glyph"))
+    if not isinstance(item, dict):
+        return False
+    m = dict(item)
+    if "text" not in m and isinstance(m.get("value"), str):
+        m["text"] = m["value"]
+    kind = item.get("kind")
+    k = {key: kind.get(key) for key in ("text", "color", "icon", "glyph")} if isinstance(kind, dict) else {}
+    own = {key: m.get(key) for key in ("text", "rank", "color", "icon", "glyph")}
+    return not says(own, out) or not says(k, out.get("kind") if isinstance(out, dict) else None)
+
+
 def definitions_of(entries):
-    """Parsed, normalized entries -> {canonical type: defn}, in order."""
+    """Parsed, normalized entries -> {canonical type: defn}, in order. A definition's own unknown
+    subkeys are dropped at read (LabelKindRoster), so none is ever stamped onto a card; a value whose
+    `rank` has no reading drops out, so its entries stay foreign."""
     out = {}
     for e in entries or []:
         if not (isinstance(e, dict) and is_text(e.get("type"))):
             continue
         d = {k: e.get(k) for k in KIND_KEYS}
+        d["icon"] = bare_icon(d["icon"])
+        if not is_text(d["text"]):
+            d["text"] = None
+        if not is_text(d["color"]):
+            d["color"] = None
         d["single"] = e.get("single") is True
         d["closed"] = "values" in e
         vals = []
         for n, v in enumerate(e.get("values") or [] if isinstance(e.get("values"), list) else []):
-            if isinstance(v, dict) and is_text(v.get("text")):
-                v = dict(v)
-                if not isinstance(v.get("rank"), (int, float)) or isinstance(v.get("rank"), bool):
-                    v["rank"] = n + 1
-                vals.append(v)
+            if not (isinstance(v, dict) and is_text(v.get("text"))):
+                continue
+            bare = {"text": v["text"].strip()}
+            if v.get("rank") is None:
+                bare["rank"] = n + 1
+            else:
+                r = numeric_rank(v["rank"])
+                if r is None:
+                    continue                                         # an unreadable rank drops the value
+                bare["rank"] = v["rank"] if is_num(v["rank"]) else r
+            if is_text(v.get("color")):
+                bare["color"] = v["color"].strip()
+            if bare_icon(v.get("icon")):
+                bare["icon"] = bare_icon(v["icon"])
+            vals.append(bare)
         d["values"] = vals
         out[canon(e["type"])] = d
     return out
@@ -651,20 +818,7 @@ def entry_of(item):
 
 
 def num(v):
-    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else v
-
-
-DECIMAL = re.compile(r"[-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?")
-
-
-def numeric_rank(v):
-    """CardLabels.numericRank: an int, a finite float, or a numeric string; None for anything else."""
-    if isinstance(v, (int, float)) and not isinstance(v, bool):
-        return float(v) if float(v) == float(v) and abs(float(v)) != float("inf") else None
-    if isinstance(v, str):
-        # Swift's Double(String): plain decimal digits only, no spaces and no `_` separators
-        return float(v) if DECIMAL.fullmatch(v) else None
-    return None
+    return float(v) if is_num(v) else v
 
 
 def spelled(n):
@@ -673,8 +827,10 @@ def spelled(n):
 
 
 def same(a, b):
-    """LabelValue equality: the five known keys, ranks compared as numbers."""
-    for k in LABEL_KEYS:
+    """LabelValue equality: every key, ranks compared as numbers."""
+    if set(a) != set(b):
+        return False
+    for k in a:
         x, y = a.get(k), b.get(k)
         if k == "rank":
             x, y = num(x), num(y)
@@ -697,23 +853,34 @@ def matched(label, d):
 
 
 def flattened(label, defs):
-    """LabelKindRoster.flattened: resolve the stamps against the definition; foreign comes back as is."""
+    """LabelKindRoster.flattened: resolve the stamps against the definition; foreign comes back as is.
+    Unknown subkeys ride along on the entry, on its kind and on its icon."""
     d = definition_for(label, defs)
     if d is None:
         return label
     m = matched(label, d) or {}
+    own_kind = label.get("kind") if isinstance(label.get("kind"), dict) else {}
     out = {"text": m.get("text", label["text"])}
     rank = (m.get("rank") if m.get("rank") is not None else label.get("rank")) if d["closed"] else None
     color = m.get("color") or d.get("color") or label.get("color")
-    icon = m.get("icon") or label.get("icon")
+    icon = restamped(m.get("icon") or label.get("icon"), label.get("icon"))
     if rank is not None:
         out["rank"] = rank
     if color is not None:
         out["color"] = color
     if icon is not None:
         out["icon"] = icon
-    out["kind"] = kind_quartet(d)
-    for k, v in label.items():               # unknown subkeys ride along after the five
+    kind = kind_quartet(d)
+    kind.pop("icon", None)
+    k_icon = restamped(d.get("icon"), own_kind.get("icon"))
+    if k_icon is not None:
+        kind["icon"] = k_icon
+    kind = {k: kind[k] for k in KIND_KEYS if k in kind}
+    for k, v in own_kind.items():            # the kind's own unknown subkeys, after its four
+        if k not in KIND_KEYS:
+            kind[k] = v
+    out["kind"] = kind
+    for k, v in label.items():               # the entry's own unknown subkeys, after its five
         if k not in LABEL_KEYS:
             out[k] = v
     return out
@@ -725,32 +892,59 @@ def recognised(label, defs):
 
 
 def normalize_entry(item):
-    """LegacySpelling.normalizedLabelEntry. Returns (entry, [codes])."""
-    if is_text(item):
-        return {"text": item, "kind": {"type": "text"}}, ["bare-labels", "text-kind"]
+    """LegacySpelling.normalizedLabelEntry. Returns (entry, [(rule, code)])."""
+    if is_text(item):                                                # H07 a bare string entry, H09 its kind
+        return {"text": item, "kind": {"type": "text"}}, [("H07", "bare-labels"), ("H09", "text-kind")]
     if not isinstance(item, dict):
         return item, []
     m, codes = dict(item), []
-    if "text" not in m and isinstance(m.get("value"), str):
-        m = rename_key(m, "value", "text"); codes.append("bare-labels")
-    f = fold_glyph(m)
+    if "text" not in m and isinstance(m.get("value"), str):          # H07 `value:` for `text:`
+        m = rename_key(m, "value", "text"); codes.append(("H07", "bare-labels"))
+    f = fold_glyph(m)                                                # H10 a bare glyph on the entry
     if f is not None:
-        m = f; codes.append("bare-glyph")
+        m = f; codes.append(("H10", "bare-glyph"))
     if isinstance(m.get("kind"), dict):
-        f = fold_glyph(m["kind"])
+        f = fold_glyph(m["kind"])                                    # H10 a bare glyph on its kind
         if f is not None:
-            m["kind"] = f; codes.append("bare-glyph")
-    if isinstance(m.get("kind"), str) and m["kind"].strip():
+            m["kind"] = f; codes.append(("H10", "bare-glyph"))
+    if isinstance(m.get("kind"), str) and m["kind"].strip():         # H08 a string kind
         name = m["kind"].strip()
         m["kind"] = {"type": "text"} if canon(name) == "default" else {"type": canon(name) if canon(name) in RESERVED_KINDS else name}
-        codes.append("string-kind")
+        codes.append(("H08", "string-kind"))
     if isinstance(m.get("kind"), dict):
-        r = rename_default(m["kind"])
+        r = rename_default(m["kind"])                                # H09 the retired `default` kind
         if r is not None:
-            m["kind"] = r; codes.append("text-kind")
-    elif "kind" not in m and is_text(m.get("text")):
-        m["kind"] = {"type": "text"}; codes.append("text-kind")
+            m["kind"] = r; codes.append(("H09", "text-kind"))
+    elif "kind" not in m and is_text(m.get("text")):                 # H09 a free label with no kind
+        m["kind"] = {"type": "text"}; codes.append(("H09", "text-kind"))
     return (m if codes else item), codes
+
+
+def effective_offset(t, entries):
+    """CardLabels.effectiveOffset: of the readable entries of kind `t`, the value readers show: the
+    lowest rank (a ranked entry before an unranked one), a repeated value counting once as first
+    written, the first in the file where ranks tie or none is ranked. `entries` is a list of
+    (position, entry); answers a position, or None."""
+    best, seen = None, set()
+    for pos, e in entries:
+        if canon(e["kind"]["type"]) != t:
+            continue
+        key = canon(e["kind"]["type"]) + "\x01" + canon(e["text"])
+        if key in seen:
+            continue
+        seen.add(key)
+        if best is None:
+            best = (pos, e); continue
+        a, b = numeric_rank(best[1].get("rank")), numeric_rank(e.get("rank"))
+        if (a is None and b is not None) or (a is not None and b is not None and b < a):
+            best = (pos, e)
+    return best[0] if best else None
+
+
+def plain_unreadable(text):
+    """H01: a plain title YAML cannot read as one line of text: a `: ` or a trailing `:` makes it a
+    mapping, and a leading `- `, `?`, `@`, `%`, backtick, `!`, `&` or `*` is an indicator."""
+    return ": " in text or text.endswith(":") or text == "-" or text.startswith("- ") or text[0] in "?@%`!&*"
 
 
 # ---------------------------------------------------------------- one document's heal
@@ -758,7 +952,7 @@ def normalize_entry(item):
 class Heal:
     def __init__(self, board, defs):
         self.board, self.defs = board, defs
-        self.repairs = []      # (relpath, code, detail)
+        self.repairs = []      # (relpath, rule, code, detail)
         self.skips = []
         self.writes = []       # (path, new text)
         self.records = []      # (card dir, comment body)
@@ -766,10 +960,12 @@ class Heal:
     def rel(self, path):
         return os.path.relpath(path, self.board)
 
-    def note(self, path, code, detail):
-        self.repairs.append((self.rel(path), code, detail))
+    def note(self, path, rule, code, detail):
+        self.repairs.append((self.rel(path), rule, code, detail))
 
     def heal_title(self, doc):
+        """H01 title-quote: only a title YAML can't read as one line of text is damage; one that reads,
+        whatever its quoting or folding, is left exactly as written."""
         ls = doc.raw_lines("title")
         if not ls:
             return False
@@ -784,29 +980,31 @@ class Heal:
             except ParseError:
                 self.skips.append((self.rel(doc.path), "title quote never closes: fix by hand"))
                 return False
-            if rest[j:].strip() or not (cont or re.search(r"[\r\n]", v)):
+            if rest[j:].strip() or not re.search(r"[\r\n]", v):
                 return False
             new = re.sub(r"\r\n|\n|\r", " ", v)
-            why = "line break flattened" if not cont else "one line"
+            why = "line break flattened"
         elif rest.startswith("'"):
-            try:
-                new, _ = read_single(rest, 0)
-            except ParseError:
-                return False
-            why = "single quotes"
+            return False
         elif rest[0] in "{[|>":
             self.skips.append((self.rel(doc.path), "title is not a scalar: fix by hand"))
+            return False
+        elif rest in ("~", "null", "Null", "NULL") or rest.startswith("#"):
+            self.skips.append((self.rel(doc.path), "title reads as null: write its text by hand"))
             return False
         elif re.search(r"\s#", rest):
             self.skips.append((self.rel(doc.path), "title carries ` #`, which YAML reads as a comment: quote it by hand"))
             return False
+        elif plain_unreadable(rest):
+            new, why = rest, "unquoted, and unreadable as plain YAML"
         else:
-            new, why = rest, "unquoted"
+            return False
         doc.set("title", ["title: " + emit_str(new)])
-        self.note(doc.path, "title-quote", folded + why + ": " + emit_str(new))
+        self.note(doc.path, "H01", "title-quote", folded + why + ": " + emit_str(new))
         return True
 
     def heal_stamps(self, doc):
+        """H02 bare-stamp."""
         changed = False
         for key in ("created", "modified"):
             if not doc.has(key):
@@ -822,18 +1020,27 @@ class Heal:
                 new = dict(v); new["by"] = {"name": v["by"]}
             if new is not v:
                 doc.set(key, [emit_stamp(key, new)])
-                self.note(doc.path, "bare-stamp", key + " written as the mapping")
+                self.note(doc.path, "H02", "bare-stamp", key + " written as the mapping")
                 changed = True
         return changed
 
     def heal_retired_keys(self, doc, facts):
-        """The flat `icon: <glyph>` / `iconColor:` pair into the mapping (the mapping wins per property),
-        and `modified-by` folded into `modified.by` (the map wins where both say something)."""
+        """H03 the flat `icon: <glyph>` / `iconColor:` pair into the mapping (the mapping wins per property),
+        then H04 `modified-by`."""
         changed = False
         icon = doc.get("icon") if doc.has("icon") else None
         color = doc.get("iconColor") if doc.has("iconColor") else None
         if is_text(icon) or (doc.has("iconColor") and (icon is None or isinstance(icon, dict))):
             new = {"glyph": icon} if is_text(icon) else dict(icon or {})
+            written = color is not None and not (isinstance(color, str) and not color.strip())
+            if written and not (is_text(color) and ("color" not in new or same_reading(new["color"], color))):
+                # the retired colour would be dropped: kept in a record on a card, left as written elsewhere
+                if card_of(self.board, doc.path) is None:
+                    self.skips.append((self.rel(doc.path), "iconColor would be dropped, and no card holds a record: left as written"))
+                    return self.heal_modified_by(doc, facts)
+                facts.append(("`iconColor: %s` in `%s`, because its `icon` mapping already names the colour %s, and the mapping wins." % (
+                    flow(color, plain_ok=True), self.rel(doc.path), flow(new["color"], plain_ok=True))) if is_text(color) else
+                    ("`iconColor: %s` in `%s`, which has no reading as a colour." % (flow(color, plain_ok=True), self.rel(doc.path))))
             if is_text(color) and "color" not in new:
                 new["color"] = color
             if new:
@@ -841,36 +1048,41 @@ class Heal:
             else:
                 doc.remove("icon")
             doc.remove("iconColor")
-            self.note(doc.path, "bare-icon", "icon written as the mapping %s" % flow(new))
+            self.note(doc.path, "H03", "bare-icon", "icon written as the mapping %s" % flow(new))
             changed = True
-        if doc.has("modified-by"):
-            who = doc.get("modified-by")
-            mod = doc.get("modified") if doc.has("modified") else None
-            by = mod.get("by") if isinstance(mod, dict) else None
-            if not is_text(who):
-                self.skips.append((self.rel(doc.path), "modified-by has no reading: left as written"))
-                return changed
-            if mod is not None and not isinstance(mod, dict):
-                return changed                     # a bare stamp: the next run, after bare-stamp, folds it
-            if by is None:
-                new = dict(mod or {}); new["by"] = {"name": who}
-                doc.set("modified", [emit_stamp("modified", new)])
-                self.note(doc.path, "retired-key", "modified-by %s folded into modified.by" % emit_str(who))
-            elif isinstance(by, dict) and by.get("name") == who:
-                self.note(doc.path, "retired-key", "modified-by dropped: modified.by already names %s" % emit_str(who))
-            else:
-                if card_of(self.board, doc.path) is None:
-                    self.skips.append((self.rel(doc.path), "modified-by differs from modified.by, and no card holds a record: left as written"))
-                    return changed
-                self.note(doc.path, "retired-key", "modified-by %s dropped, kept in a record: modified.by names someone else" % emit_str(who))
-                facts.append("`modified-by: %s` in `%s`, because its `modified.by` already names %s, and the map wins." % (
-                    who, self.rel(doc.path), flow(by, plain_ok=True)))
-            doc.remove("modified-by")
-            changed = True
-        return changed
+        return self.heal_modified_by(doc, facts) or changed
+
+    def heal_modified_by(self, doc, facts):
+        """H04 `modified-by` folded into `modified.by` (the map wins where both say something)."""
+        if not doc.has("modified-by"):
+            return False
+        who = doc.get("modified-by")
+        mod = doc.get("modified") if doc.has("modified") else None
+        by = mod.get("by") if isinstance(mod, dict) else None
+        if not is_text(who):
+            self.skips.append((self.rel(doc.path), "modified-by has no reading: left as written"))
+            return False
+        if mod is not None and not isinstance(mod, dict):
+            return False                       # a bare stamp: the next run, after H02, folds it
+        if by is None:                                                       # case 1: folded
+            new = dict(mod or {}); new["by"] = {"name": who}
+            doc.set("modified", [emit_stamp("modified", new)])
+            self.note(doc.path, "H04", "retired-key", "modified-by %s folded into modified.by" % emit_str(who))
+        elif isinstance(by, dict) and by.get("name") == who:                 # case 2: the same name
+            self.note(doc.path, "H04", "retired-key", "modified-by dropped: modified.by already names %s" % emit_str(who))
+        else:                                                                # case 3: dropped, recorded
+            if card_of(self.board, doc.path) is None:
+                self.skips.append((self.rel(doc.path), "modified-by differs from modified.by, and no card holds a record: left as written"))
+                return False
+            self.note(doc.path, "H04", "retired-key", "modified-by %s dropped, kept in a record: modified.by names someone else" % emit_str(who))
+            facts.append("`modified-by: %s` in `%s`, because its `modified.by` already names %s, and the map wins." % (
+                who, self.rel(doc.path), flow(by, plain_ok=True)))
+        doc.remove("modified-by")
+        return True
 
     def heal_config(self, doc, added):
-        """Board root: config.labels into the current spelling, plus the added definitions."""
+        """Board root: H05 config.labels into the current spelling, H15 the retired roster converted,
+        H06 the added definitions, H16 the retired collapse-empty."""
         cfg = doc.get("config") if doc.has("config") else None
         if cfg is not None and not isinstance(cfg, dict):
             if added:
@@ -883,38 +1095,76 @@ class Heal:
             out = []
             for e in entries:
                 n, c = normalize_definition(e)
+                if c and definition_drops(e):
+                    self.skips.append((self.rel(doc.path), "config.labels `%s` has a bare glyph its icon would replace, and a board has no thread to hold a record: left as written" % (
+                        e.get("type") or e.get("kind"))))
+                    out.append(e)
+                    continue
                 if c:
-                    self.note(doc.path, "definition", "config.labels `%s` into the current spelling" % (n.get("type") if isinstance(n, dict) else n))
+                    self.note(doc.path, "H05", "definition", "config.labels `%s` into the current spelling" % (n.get("type") if isinstance(n, dict) else n))
                     changed = True
                 out.append(n)
             entries = out
-        elif entries is not None and added:
+        elif entries is not None and (added or RETIRED_PRIORITIES in cfg):
             self.skips.append((self.rel(doc.path), "config.labels is not a list: definitions not added"))
             added = []
-        for d in added:
+            if RETIRED_PRIORITIES in cfg:
+                return changed
+        if RETIRED_PRIORITIES in cfg:                                        # H15
+            v = cfg[RETIRED_PRIORITIES]
+            roster = roster_definition(v)
+            listed = any(isinstance(e, dict) and is_text(e.get("type")) and canon(e["type"]) == "priority" for e in entries or [])
+            if v is not None and v != [] and (listed or not roster_keeps_all(v)):
+                # a roster the conversion can't carry whole is left as written: no thread holds a record
+                self.skips.append((self.rel(doc.path), "config.priorities would lose what it says, and a board has no thread to hold a record: left as written"))
+            else:
+                del cfg[RETIRED_PRIORITIES]
+                if roster is not None and not listed:
+                    entries = (entries or []) + [roster]
+                    self.note(doc.path, "H15", "config-priorities", "config.priorities converted into the `priority` definition")
+                else:
+                    self.note(doc.path, "H15", "config-priorities", "config.priorities removed: config.labels already defines `priority`" if listed
+                              else "config.priorities removed: it has no reading")
+                changed = True
+        for d in added:                                                      # H06
+            if any(isinstance(e, dict) and is_text(e.get("type")) and canon(e["type"]) == canon(d["type"]) for e in entries or []):
+                continue
             entries = (entries or []) + [d]
-            self.note(doc.path, "added-definition", "config.labels gains `%s`, which the board's cards use" % d["type"])
+            self.note(doc.path, "H06", "added-definition", "config.labels gains `%s`, which the board's cards use" % d["type"])
             changed = True
+        if RETIRED_COLLAPSE_EMPTY in cfg:                                    # H16
+            if cfg[RETIRED_COLLAPSE_EMPTY] is not None:
+                self.skips.append((self.rel(doc.path), "config.collapse-empty has a value, and a board has no thread to hold a record: left as written"))
+            else:
+                del cfg[RETIRED_COLLAPSE_EMPTY]
+                self.note(doc.path, "H16", "config-collapse-empty", "config.collapse-empty removed: no build reads it")
+                changed = True
         if not changed:
             return False
-        cfg["labels"] = entries
-        doc.set("config", emit_key("config", cfg))
+        if entries is not None:
+            cfg["labels"] = entries
+        if cfg:
+            doc.set("config", emit_key("config", cfg))
+        else:
+            doc.remove("config")
         return True
 
     def heal_labels(self, doc, card_dir):
-        changed, dropped_facts = False, []
+        changed, dropped_facts, restamped_facts = False, [], []
+        # what the card wrote, quoted in a record when a rewrite replaces any of it
+        written = (doc.raw_lines("labels") or []) + [l for key in RESERVED_KINDS for l in (doc.raw_lines(key) or [])]
         raw = doc.get("labels") if doc.has("labels") else None
         items = None
         if isinstance(raw, list):
             items = list(raw)
-        elif is_text(raw):
+        elif is_text(raw):                                                   # H07 `labels: <scalar>`
             items = [raw]
-            self.note(doc.path, "bare-labels", "labels: %s is a one-entry list" % emit_str(raw))
+            self.note(doc.path, "H07", "bare-labels", "labels: %s is a one-entry list" % emit_str(raw))
             changed = True
         elif raw is not None:
             self.skips.append((self.rel(doc.path), "labels is not a list: left as written"))
 
-        # reserved root keys -> labels entries
+        # H11 / H12: reserved root keys -> labels entries
         for key in RESERVED_KINDS:
             if not doc.has(key):
                 continue
@@ -922,7 +1172,7 @@ class Heal:
             if v is None:
                 continue
             listed = next((e for e in (items or []) if entry_of(normalize_entry(e)[0]) and canon(normalize_entry(e)[0]["kind"]["type"]) == key), None)
-            read = None
+            read, kept_whole = None, True
             if is_text(v):
                 read = flattened({"text": v.strip(), "kind": {"type": key}}, self.defs)
             elif isinstance(v, dict):
@@ -932,10 +1182,11 @@ class Heal:
                     d = self.defs.get(key)
                     read = {k: m[k] for k in ("text", "rank", "color", "icon") if m.get(k) is not None}
                     read["kind"] = kind_quartet(d) if d else {"type": key}
-            if listed is not None:
+                    kept_whole = not (lost_stamps(m, read) or shadowed_glyph(v) or any(k not in LABEL_KEYS for k in m))
+            if listed is not None:                                           # H12
                 said = read["text"] if read else flow(v)
                 doc.remove(key); changed = True
-                self.note(doc.path, "root-key-dropped", "%s: %s dropped, labels already carries %s" % (key, emit_str(said), emit_str(normalize_entry(listed)[0]["text"])))
+                self.note(doc.path, "H12", "root-key-dropped", "%s: %s dropped, labels already carries %s" % (key, emit_str(said), emit_str(normalize_entry(listed)[0]["text"])))
                 dropped_facts.append("`%s: %s` at the card's root, because `labels` already carries a `%s` entry, `%s`; that entry wins." % (key, flow(v), key, normalize_entry(listed)[0]["text"]))
                 continue
             if read is None:
@@ -944,14 +1195,16 @@ class Heal:
             if raw is not None and items is None:
                 self.skips.append((self.rel(doc.path), "%s left in place: labels is not a list" % key))
                 continue
-            items = (items or []) + [read]
+            items = (items or []) + [read]                                   # H11
+            if not kept_whole:                                               # the rest kept in a record
+                restamped_facts.append("`%s:` at the card's root moved into `labels` as `%s`, keeping its `text`, `rank`, `color` and `icon`; the rest of what it wrote is quoted above." % (key, read["text"]))
             doc.remove(key); changed = True
-            self.note(doc.path, "root-key", "%s: %s moved into labels" % (key, emit_str(read["text"])))
+            self.note(doc.path, "H11", "root-key", "%s: %s moved into labels" % (key, emit_str(read["text"])))
 
         if items is None:
             return changed, dropped_facts
 
-        # spellings, then stamps
+        # H07-H10 spellings, then H13 stamps
         out = []
         for item in items:
             n, codes = normalize_entry(item)
@@ -962,55 +1215,49 @@ class Heal:
                     continue
                 what = {"bare-labels": "written as a label map", "string-kind": "kind name written as the kind object",
                         "text-kind": "stamped with the `text` kind", "bare-glyph": "bare glyph folded into icon"}
-                for c in dict.fromkeys(codes):
+                for rule, c in dict.fromkeys(codes):
                     if c != "bare-labels" or not is_text(raw):
-                        self.note(doc.path, c, "%s %s" % (emit_str(f["text"]), what[c]))
+                        self.note(doc.path, rule, c, "%s %s" % (emit_str(f["text"]), what[c]))
+                if lost_stamps(n, f) or shadowed_glyph(item) or (isinstance(item, dict) and shadowed_glyph(item.get("kind"))):
+                    restamped_facts.append(self.restamp_fact(f))             # H07-H10: kept in a record
                 out.append(f)
                 changed = True
                 continue
-            if entry_of(item) and recognised(item, self.defs):
+            if entry_of(item) and recognised(item, self.defs):               # H13
                 f = flattened(item, self.defs)
                 if not same(f, item):
-                    self.note(doc.path, "stale-label", "%s re-stamped from the %s definition" % (emit_str(item["text"]), item["kind"]["type"]))
+                    self.note(doc.path, "H13", "stale-label", "%s re-stamped from the %s definition" % (emit_str(item["text"]), item["kind"]["type"]))
+                    if lost_stamps(item, f):                                 # kept in a record
+                        restamped_facts.append(self.restamp_fact(f))
                     out.append(f); changed = True
                     continue
             out.append(item)
 
-        # one value of each single kind: the one a reader picks (lowest rank, a ranked entry
-        # before an unranked one, a repeat counting once, the first in file order on a tie)
-        best, dup_keys = {}, {}
-        for item in out:
-            if entry_of(item):
-                t = canon(item["kind"]["type"])
-                d = self.defs.get(t)
-                if d and d["single"]:
-                    key = (t, canon(item["text"]))
-                    if key in dup_keys.setdefault(t, set()):
-                        continue
-                    dup_keys[t].add(key)
-                    cur = best.get(t)
-                    r, cr = numeric_rank(item.get("rank")), (numeric_rank(cur.get("rank")) if cur else None)
-                    ranked, cranked = r is not None, cr is not None
-                    if cur is None or (ranked and (not cranked or r < cr)):
-                        best[t] = item
-        kept, gone = [], {}
-        for item in out:
-            if entry_of(item):
-                t = canon(item["kind"]["type"])
-                d = self.defs.get(t)
-                if d and d["single"]:
-                    if item is not best[t]:
-                        gone.setdefault(t, []).append(item)
-                        continue
-            kept.append(item)
+        # H14: one value of each single kind, the one readers show
+        readable = [(n, item) for n, item in enumerate(out) if entry_of(item)]
+        survivors, gone = {}, {}
+        for n, item in readable:
+            t = canon(item["kind"]["type"])
+            d = self.defs.get(t)
+            if not (d and d["single"]):
+                continue
+            if t not in survivors:
+                survivors[t] = effective_offset(t, readable)
+            if survivors[t] != n:
+                gone.setdefault(t, []).append(n)
+        dropped = {n for ns in gone.values() for n in ns}
+        kept = [item for n, item in enumerate(out) if n not in dropped]
         if gone:
             changed = True
             for t, went in gone.items():
-                first = best[t]
-                names = ", ".join("`%s`" % w["text"] for w in went)
-                self.note(doc.path, "single-kind", "kept %s of single kind `%s`, dropped %s" % (emit_str(first["text"]), t, names))
-                dropped_facts.append("This board defines `%s` as a `single` kind, and this card carried %s of them in `labels`; the one a reader picks remains (the lowest `rank`, a ranked entry before an unranked one, a repeat counting once, the first in the list where ranks tie or none is ranked). Kept `%s`; dropped %s." % (t, spelled(len(went) + 1), first["text"], names))
-            dropped_facts.insert(0, "```yaml\n" + "\n".join(doc.raw_lines("labels") or []) + "\n```")
+                first = out[survivors[t]]
+                names = ", ".join("`%s`" % out[n]["text"] for n in went)
+                self.note(doc.path, "H14", "single-kind", "kept %s of single kind `%s`, dropped %s" % (emit_str(first["text"]), t, names))
+                dropped_facts.append("This board defines `%s` as a `single` kind, and this card carried %s of them in `labels`; the value readers show is what remains: the lowest `rank`, a repeated value counting once as first written, and the first in the list where ranks tie or none is ranked. Kept `%s`; dropped %s." % (t, spelled(len(went) + 1), first["text"], names))
+            if not restamped_facts:
+                dropped_facts.insert(0, "```yaml\n" + "\n".join(doc.raw_lines("labels") or []) + "\n```")
+        if restamped_facts:
+            dropped_facts[:0] = ["```yaml\n" + "\n".join(written) + "\n```"] + restamped_facts
         if changed:
             if kept:
                 doc.set("labels", emit_key("labels", kept))
@@ -1018,9 +1265,14 @@ class Heal:
                 doc.remove("labels")
         return changed, dropped_facts
 
+    @staticmethod
+    def restamp_fact(entry):
+        return "`%s` took its stamps from this board's `%s` definition, which replaced what the card wrote for it; the lines above are as the card wrote them." % (
+            entry["text"], entry["kind"]["type"])
+
     def heal_layout(self, doc):
-        """compact-collection: a list or mapping whose stored lines (blank and comment lines not counted)
-        number differently from the writer's compact form is rewritten in it."""
+        """H17 compact-collection: a list or mapping whose stored lines (blank and comment lines not
+        counted) number differently from the writer's compact form is rewritten in it."""
         changed = False
         for key in dict.fromkeys(k for k, _ in doc.spans if k is not None):
             ls = doc.raw_lines(key)
@@ -1039,7 +1291,7 @@ class Heal:
             if len(want) == len(content):
                 continue
             doc.set(key, want)
-            self.note(doc.path, "compact-collection", "%s written in the compact form, %d lines to %d" % (key, len(content), len(want)))
+            self.note(doc.path, "H17", "compact-collection", "%s written in the compact form, %d lines to %d" % (key, len(content), len(want)))
             changed = True
         return changed
 
@@ -1109,12 +1361,16 @@ def documents(board):
                 yield os.path.join(r, "index.md"), "relation"
 
 
-def config_labels(path, key):
+def config_of(path):
     try:
         cfg = Doc(path).get("config")
     except (OSError, ParseError, UnicodeDecodeError):
-        return []
-    entries = cfg.get(key) if isinstance(cfg, dict) else None
+        return {}
+    return cfg if isinstance(cfg, dict) else {}
+
+
+def config_labels(path, key):
+    entries = config_of(path).get(key)
     return [normalize_definition(e)[0] for e in entries] if isinstance(entries, list) else []
 
 
@@ -1175,6 +1431,14 @@ def post_record(board, card_dir, facts, at, by):
         "\n\nRun by `heal-board.py`. Nothing else changed and no `modified` was stamped: a heal is upkeep, not an edit.\n"
     text = "---\nschema: 1\nkind: comment\n" + emit_stamp("created", {"at": at, "by": by}) + "\n" + \
         emit_stamp("modified", {"at": at, "by": by}) + "\n---\n" + body
+    for existing in uuid_dirs(os.path.join(card_dir, "comments")):
+        try:
+            with open(os.path.join(existing, "index.md"), encoding="utf-8") as f:
+                posted = f.read().split("\n---\n", 1)
+        except (OSError, UnicodeDecodeError):
+            continue
+        if len(posted) == 2 and posted[1] == body:
+            return          # the same record from an interrupted run: never posted twice
     stage = tempfile.mkdtemp(prefix="lanework-heal-")
     try:
         os.makedirs(os.path.join(stage, cid))
@@ -1196,6 +1460,18 @@ def sign_board(board):
                        stderr=None if os.environ.get("LANEWORK_SIGNATURE_DEBUG") == "1" else subprocess.DEVNULL, timeout=60)
     except Exception:
         pass
+
+
+def board_copy_version(path):
+    """The heal version a board's own copy states on its line 2 (`# lanework-heal vN`), or None."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            f.readline()
+            line = f.readline()
+    except OSError:
+        return None
+    m = re.fullmatch(r"# lanework-heal v([0-9]+)\s*", line)
+    return int(m.group(1)) if m else None
 
 
 def main(argv):
@@ -1221,8 +1497,12 @@ def main(argv):
     board = os.path.abspath(board)
     own = os.path.join(board, ".schema", "bin", "lanework-heal.py")
     if os.path.isfile(own) and os.path.realpath(own) != os.path.realpath(__file__) and not args["ignore"]:
-        print("heal-board: this board ships its own heal: python3 %s (it wins; --ignore-board-copy to override)" % emit_str(own), file=sys.stderr)
-        return 2
+        v = board_copy_version(own)
+        if v is not None and v >= HEAL_VERSION:     # the later heal version wins: the board's, on a tie
+            print("heal-board: this board ships its own heal at version %d: python3 %s (it wins; --ignore-board-copy to override)" % (v, emit_str(own)), file=sys.stderr)
+            return 2
+        print("heal-board: this board's own heal states %s, older than this copy's %d: healing with this copy" % (
+            "version %d" % v if v is not None else "no version", HEAL_VERSION), file=sys.stderr)
     if args["apply"]:
         if not args["model"]:
             print("heal-board: --apply needs --model (the restamp names who healed)", file=sys.stderr); return 64
@@ -1231,10 +1511,14 @@ def main(argv):
 
     board_index = os.path.join(board, "index.md")
     board_defs = definitions_of(config_labels(board_index, "labels"))
+    if "priority" not in board_defs:                     # H15: the roster reads as the board's priority kind
+        roster = roster_definition(config_of(board_index).get(RETIRED_PRIORITIES))
+        if roster is not None:
+            board_defs.update(definitions_of([roster]))
     docs = list(documents(board))
     used = used_root_kinds(p for p, r in docs if r == "card")
     added = []
-    for s in SUGGESTED:                      # the suggested definition
+    for s in SUGGESTED:                      # H06: the suggested definition
         if s["type"] in used and s["type"] not in board_defs:
             added.append(s)
     defs = {}
@@ -1249,8 +1533,8 @@ def main(argv):
     for path, role in docs:
         h.heal_file(path, role, added if role == "board" else ())
 
-    for rel, code, detail in h.repairs:
-        print("%s: %s %s" % (rel, code, detail))
+    for rel, rule, code, detail in h.repairs:
+        print("%s: %s %s %s" % (rel, rule, code, detail))
     for rel, why in h.skips:
         print("skip %s: %s" % (rel, why))
     files = len({p for p, _ in h.writes})
