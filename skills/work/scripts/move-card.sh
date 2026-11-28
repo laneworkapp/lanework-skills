@@ -18,7 +18,8 @@
 # the card, or printed a DEPRECATED line (counts as failure).
 # The lease (lanework/references/writes.md § Lease), after the refusals above and before anything is
 # written: with CLAUDE_CODE_SESSION_ID set (never --session), `lanework/scripts/lease.sh check`. Held or
-# never held: move. Lost: lease.sh posts the Lease lost record; nothing moved, no --comment, exit 3
+# never held: move. Never held and the lane a working lane (lanework/scripts/lib.sh WORKING_LANES: Active, Working): one note on
+# stderr, once the card is in, that it went in unstaked; the move as ever (same exit, same stdout): start a card with start-card.sh. Lost: lease.sh posts the Lease lost record; nothing moved, no --comment, exit 3
 # (also exit 3 when post-comment.sh reports the lease lost for --comment).
 # No session id, or no lanework/scripts/lease.sh beside work (one note on stderr): no check. Another
 # check failure: exit 1, nothing written. No release here.
@@ -84,13 +85,14 @@ else
   ORDER=$(next_order "$DEST")
 fi
 
-LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"
+LEASE="$(dirname "${BASH_SOURCE[0]}")/../../lanework/scripts/lease.sh"; UNSTAKED=""
 if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ ! -f "$LEASE" ]; then
   echo "move-card.sh: note: no lanework/scripts/lease.sh beside work; the lease is not checked" >&2
 elif [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
   rc=0; "$LEASE" check "$BOARD" "$CID" --model "$MODEL" --name "$NAME" >/dev/null || rc=$?
   case $rc in
-    0|4) ;;
+    0) ;;
+    4) ! is_working_lane "$LANE_TITLE" || UNSTAKED=1 ;;   # the note, once the card is in
     3) echo "move-card.sh: this session's lease on ${CID:0:8} is lost (the Lease lost record is on the card); nothing moved" >&2; exit 3 ;;
     *) echo "move-card.sh: lease.sh check failed (exit $rc); nothing moved" >&2; exit 1 ;;
   esac
@@ -126,6 +128,7 @@ if [ -n "$COMMENT" ]; then
 fi
 mv "$STAGE/index.md" "$CARD/index.md"
 mv "$CARD" "$DEST/$CID"
+[ -z "$UNSTAKED" ] || echo "move-card.sh: note: ${CID:0:8} went into $LANE_TITLE unstaked: this session holds no lease on it (never-held); start a card with work/scripts/start-card.sh" >&2
 VAL="$BOARD/.schema/bin/lanework-validate.py"
 if [ -f "$VAL" ]; then
   OUT=$(python3 -I "$VAL" "$DEST/$CID/index.md" 2>&1) && ! grep -q DEPRECATED <<<"$OUT" || { printf '%s\n' "$OUT" >&2; echo "move-card.sh: the card fails the board's validator: $DEST/$CID" >&2; exit 1; }

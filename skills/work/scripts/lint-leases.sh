@@ -1,20 +1,23 @@
 #!/bin/bash
-# Lint a board's threads and cards for lease collisions.
+# Lint a board's threads and cards for lease collisions, and for a started card that carries no lease.
 # Usage: lint-leases.sh <board dir>... [--since <ts>] [--first <n>] [--window <s>] [--grace <s>]
 # Read-only. One line per finding on stdout (sorted), exit 1 if any; silent exit 0 when clean; exit 2 (message on
 # stderr) on a missing path, a dir that is no board, a bad flag value, no board or a path it could not read
 # (`lint-leases.sh: could not read <path>` on stderr, before the findings; what was read still prints). The tally always goes to stderr:
-#   leased cards: N, lease lost: a, two STARTs: b, lapsed: c
-# A comment's session is `created.by.session`; a START is a comment whose first line begins `START` or `**START`;
+#   leased cards: N, lease lost: a, two STARTs: b, lapsed: c, no lease: d
+# A comment's session is `created.by.session`; a START is a comment whose first line matches lib.sh START_ERE (`START` or `**START`);
 # a lease-lost record is a comment whose first line begins LEASE_LOST_PREFIX (lib.sh). Cards are lane/card folders.
 #   <card>: lease lost <comment id> <time>
 #   <card>: two STARTs <id> <id> <n>s apart [first session wrote again]   (two sessions, <= --window apart, default 1800;
 #       a START without a session is skipped, and so is one whose plan line begins `shaping` (`START: shaping`, bold or not, any case, or the older `START (shaping)`; a handoff to the lead, not a second builder); the tag = the earlier session posted any comment after the later START)
 #   <card>: claimed until <ts> is <n>s lapsed   (until more than --grace seconds past, default 900; the whole board
 #       counts, flow or block form. A voided claim (until unreadable or over 35 min ahead) is not lapsed: skipped)
+#   <card>: started without a lease <comment id> <time>   (a card in a working lane, lib.sh WORKING_LANES (Active, Working), with no `claimed`
+#       and no `waiting` (an ask out), whose latest START (not a shaping one) carries a session: the START named.
+#       The whole board counts, as for lapsed. Fix: work/scripts/start-card.sh on it, which stakes and posts a fresh START)
 # A card is leased when it has a START (a session-less one too), or a lease-lost record, created at or after --since
 # (default: always). --first keeps the n leased cards with the earliest such comment, for the tally and the lost and
-# two-START findings; lapsed reads every card. Several boards are counted together. Skips .trash, .log, .schema,
+# two-START findings; lapsed and no lease read every card. Several boards are counted together. Skips .trash, .log, .schema,
 # attachments; flow and block front matter, CRLF files. Symlinked boards, lanes and cards are followed. A board is counted
 # once however it is spelled (by its real folder); paths print as the caller spelled the first one.
 set -u
@@ -54,8 +57,9 @@ while [ $# -gt 0 ]; do
 done
 [ "$nb" -ge 1 ] || { echo "lint-leases.sh: no board given" >&2; echo "$USAGE" >&2; exit 2; }
 
-# Stage 1, one pass over each board's index.md files: C <card> <comment id> <created.at> <session> START|LOST|OTHER,
-# K <card> <claimed.until> for a card with `claimed`. Fields are tab-separated; a missing value is empty.
+# Stage 1, one pass over each board's index.md files: C <card> <comment id> <created.at> <session> START|SHAPE|LOST|OTHER,
+# K <card> <claimed.until> for a card with `claimed`, N <card> <1 when it has `waiting`, else 0> for every card, A <lane> for a working
+# lane. Fields are tab-separated; a missing value is empty.
 S1='
 function emit(   rel, n, p, card, t, s, a, u, k) {
   if (st < 2) return
@@ -66,7 +70,10 @@ function emit(   rel, n, p, card, t, s, a, u, k) {
     u = ""
     if (match(ltext, /until:[ \t]*["\x27]?[^",}\x27 \t\n]*/)) { u = substr(ltext, RSTART, RLENGTH); sub(/^until:[ \t]*["\x27]?/, "", u) }
     printf "K\t%s\t%s\n", card, u
-  } else if (n == 5 && p[3] == "comments" && p[5] == "index.md") {
+  }
+  if (n == 3 && p[3] == "index.md" && kind == "card") printf "N\t%s\t%d\n", card, wt
+  else if (n == 2 && p[2] == "index.md" && kind == "lane" && title != "" && index(work, "\n" title "\n")) printf "A\t%s\n", show_name(show) "/" p[1]
+  else if (n == 5 && p[3] == "comments" && p[5] == "index.md") {
     s = ""
     if (match(ctext, /session:[ \t]*("[^"]*"|\x27[^\x27]*\x27|[^,}\n]*)/)) {
       s = substr(ctext, RSTART, RLENGTH); sub(/^session:[ \t]*/, "", s); gsub(/^["\x27]|["\x27]$/, "", s); sub(/[ \t]+$/, "", s)
@@ -76,19 +83,23 @@ function emit(   rel, n, p, card, t, s, a, u, k) {
       a = substr(t, RSTART, RLENGTH); sub(/^.*at:[ \t]*["\x27]?/, "", a); sub(/\.[0-9]+Z$/, "Z", a)
     }
     k = "OTHER"
-    if (first ~ /^(\*\*)?START/) { f2 = tolower(first); k = (f2 ~ /^(\*\*)?start \(shaping\)/ || f2 ~ /^(\*\*)?start:[ \t]*shaping/) ? "SHAPE" : "START" }
+    if (first ~ startre) { f2 = tolower(first); k = (f2 ~ shapere) ? "SHAPE" : "START" }
     if (lost != "" && index(first, lost) == 1) k = "LOST"
     printf "C\t%s\t%s\t%s\t%s\t%s\n", card, p[4], a, s, k
   }
 }
-BEGIN { board = ENVIRON["LL_BOARD"]; show = ENVIRON["LL_SHOW"]; lost = ENVIRON["LL_LOST"] }
+BEGIN { board = ENVIRON["LL_BOARD"]; show = ENVIRON["LL_SHOW"]; lost = ENVIRON["LL_LOST"]; startre = ENVIRON["LL_START"]; shapere = ENVIRON["LL_SHAPE"]
+  work = "\n" ENVIRON["LL_WORK"] "\n" }
 { sub(/\r$/, "") }
-FNR == 1 { if (cur != "") emit(); cur = FILENAME; st = ($0 == "---") ? 1 : 0; ctext = ""; ltext = ""; first = ""; kind = ""; key = ""; next }
+FNR == 1 { if (cur != "") emit(); cur = FILENAME; st = ($0 == "---") ? 1 : 0; ctext = ""; ltext = ""; first = ""; kind = ""; key = ""; title = ""; wt = 0; next }
 st == 1 {
   if ($0 == "---") { st = 2; next }
   if ($0 ~ /^[^ \t#]/) {
     key = $0; sub(/:.*/, "", key)
     if (key == "kind") { kind = $0; sub(/^kind:[ \t]*/, "", kind); gsub(/["\x27 \t]/, "", kind) }
+    if (key == "title") { title = $0; sub(/^title:[ \t]*/, "", title); sub(/[ \t]+$/, "", title)
+      if (title ~ /^".*"$/ || title ~ /^\x27.*\x27$/) title = substr(title, 2, length(title) - 2) }
+    if (key == "waiting") wt = 1
   }
   if (key == "created") ctext = ctext "\n" $0
   else if (key == "claimed") ltext = ltext "\n" $0
@@ -97,7 +108,7 @@ st == 1 {
 st == 2 && $0 ~ /[^ \t]/ { first = $0; st = 3 }
 END { if (cur != "") emit() }'
 
-# Stage 2: the three findings from those records, then the tally on stderr.
+# Stage 2: the four findings from those records, then the tally on stderr.
 S2='
 function ep(s,   y, m, d, era, yoe, doy, doe) {
   if (s !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return ""
@@ -111,7 +122,9 @@ function ep(s,   y, m, d, era, yoe, doy, doe) {
 }
 BEGIN { FS = "\t"; se = (since == "") ? 0 : ep(since) }
 $1 == "C" { c = $2; n = ++cn[c]; if (n == 1) cards[++nc] = c; cid[c, n] = $3; cats[c, n] = $4; cep[c, n] = ep($4); cs[c, n] = $5; ck[c, n] = $6 }
-$1 == "K" { kc[++nk] = $2; ku[nk] = $3 }
+$1 == "K" { kc[++nk] = $2; ku[nk] = $3; kcl[$2] = 1 }
+$1 == "N" { nn_c[++nn] = $2; nn_w[$2] = $3 }
+$1 == "A" { wl[$2] = 1 }
 END {
   for (i = 1; i <= nc; i++) {
     c = cards[i]; q = 0; best = ""
@@ -154,7 +167,14 @@ END {
     u = ep(ku[i])
     if (u != "" && now - u > grace) { print kc[i] ": claimed until " ku[i] " is " (now - u) "s lapsed"; nlap++ }
   }
-  printf "leased cards: %d, lease lost: %d, two STARTs: %d, lapsed: %d\n", kept, nl, n2, nlap > "/dev/stderr"
+  for (i = 1; i <= nn; i++) {
+    c = nn_c[i]; if (nn_w[c] || (c in kcl)) continue
+    ln = c; sub(/\/[^\/]*$/, "", ln); if (!(ln in wl)) continue
+    bj = 0
+    for (j = 1; j <= cn[c]; j++) if (ck[c, j] == "START" && cep[c, j] != "" && (!bj || cep[c, j] > cep[c, bj] || (cep[c, j] == cep[c, bj] && cid[c, j] > cid[c, bj]))) bj = j
+    if (bj && cs[c, bj] != "") { print c ": started without a lease " cid[c, bj] " " cats[c, bj]; nu++ }
+  }
+  printf "leased cards: %d, lease lost: %d, two STARTs: %d, lapsed: %d, no lease: %d\n", kept, nl, n2, nlap, nu > "/dev/stderr"
 }'
 
 nowe=$(date -u +%s); unread=0
@@ -164,7 +184,7 @@ out=$(
   i=1
   while [ "$i" -le "$nb" ]; do
     eval "b=\$board_$i"
-    [ ! -s "$FD/$i" ] || LL_BOARD="$b" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" xargs -0 awk "$SHOW_NAME_AWK$S1" < "$FD/$i"
+    [ ! -s "$FD/$i" ] || LL_BOARD="$b" LL_SHOW="$b" LL_LOST="$LEASE_LOST_PREFIX" LL_START="$START_ERE" LL_SHAPE="$SHAPE_ERE" LL_WORK="$WORKING_LANES" xargs -0 awk "$SHOW_NAME_AWK$S1" < "$FD/$i"
     i=$((i + 1))
   done | awk -v since="$since" -v first="$first" -v window="$window" -v grace="$grace" -v now="$nowe" "$S2" | sort
 )

@@ -57,6 +57,20 @@ lane_by_title() {
   return 1
 }
 
+# WORKING_LANES: the titles of the lanes a card enters as a session starts building it, one per line (references/board-kinds.md:
+# pipeline Active, also a datapoint board's optional task lane; plan Working, claim-ticket.sh's). Exact title, as lane_by_title. Nothing
+# else is one: work in another agent lane (Shaping, Mockups, Drafting) is not started by a move. The note in work/scripts/move-card.sh,
+# the missing-lease finding in work/scripts/lint-leases.sh and watch/scripts/arm-pass.sh, and work/scripts/start-card.sh read it.
+WORKING_LANES=$'Active\nWorking'
+# is_working_lane <title>: 0 when the title is one of WORKING_LANES
+is_working_lane() { case $'\n'"$WORKING_LANES"$'\n' in *$'\n'"$1"$'\n'*) [ -n "$1" ] ;; *) return 1 ;; esac; }
+# working_lane <board>: path of the board's working lane, the first of WORKING_LANES it has; exit 1 when none
+working_lane() { local t; while IFS= read -r t; do lane_by_title "$1" "$t" && return 0; done <<<"$WORKING_LANES"; return 1; }
+# START_ERE, SHAPE_ERE: a START record (work/references/writing.md § START) is a comment whose first non-blank body line matches START_ERE,
+# and a shaping start one whose first line, lowercased, also matches SHAPE_ERE (a handoff, not a builder). Extended regexes for bash =~ and awk.
+START_ERE='^(\*\*)?START'
+SHAPE_ERE='^(\*\*)?start( \(shaping\)|:[[:blank:]]*shaping)'
+
 # next_order <lane>: bottom of the lane (max order + 1024, or 1024 when empty).
 next_order() {
   local f o max=""

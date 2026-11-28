@@ -7,7 +7,7 @@
 # lanework/references/board-kinds.md (a board's own lane bodies still win: a lane whose body says it's
 # out of scope is skipped by the watch).
 #
-# Prints one tab-separated line per card and kind, in reading order, seven fields
+# Prints one tab-separated line per card and kind, in reading order (a card's lines in the order below), seven fields
 # (<kind> <board folder> <card uuid> <lane title> <card title> <author> <paths>):
 #   comment  the card's newest owner comment has no agent comment `in-reply-to` it. Author `owner`,
 #            paths = that comment's path. Wins over arm on the same card.
@@ -16,6 +16,9 @@
 #   held     a valid lease: any lane but Done. Author `-`, paths = the minutes left, `<n>m`. Report-only.
 #   stale    a lapsed lease (past `until`): any lane but Done. Author `-`, paths = the minutes since `until`, `<n>m`.
 #            Report-only: never worked, never taken over, never released.
+#   unstaked a card in a working lane (lib.sh WORKING_LANES: Active, Working) with no lease row at all and no `waiting`, whose
+#            latest start record (lib.sh START_ERE, not a shaping one) carries a session: started, never staked. Author `-`,
+#            paths = that record's path. Report-only; the card's `arm` line still prints before it, as a start record is no claim.
 # Leases are read once, through the read-only `lease.sh list <board>`, and joined to cards by uuid. Its state column decides:
 # live = held, lapsed = stale, voided (the clock guard) or no row = no lease. No lease rule is restated here, and nothing is
 # written. `lease.sh list` needs no session id. If it fails or is missing, no lease is known, so nothing is armed or reported
@@ -44,13 +47,16 @@ else
   [ -f "$KINDS" ] || { echo "arm-pass.sh: no $KINDS: pass the agent lane titles" >&2; exit 2; }
   AGENT_LANES+="$(awk -F'|' '$3 ~ /^ *agent *$/ { t=$2; gsub(/^ +| +$/, "", t); print t }' "$KINDS")"$'\n'
 fi
+# has_waiting <index.md>: the front matter has a `waiting` key (flow or block, CRLF read)
+has_waiting() { awk '{ sub(/\r$/, "") } NR == 1 && $0 == "---" { fm = 1; next } fm && $0 == "---" { exit } fm && /^waiting:/ { f = 1; exit } END { exit !f }' "$1"; }
 title_of() { local t; t=$(strip_quotes "$(fm_value "$1" title)"); printf '%s' "${t:--}"; }
 
-# row <comment index.md>: "<at>|<author>|<in-reply-to>|<first body line>"
+# row <comment index.md>: "<at>|<author>|<in-reply-to>|<created.by.session>|<first body line>"
 row() {
   awk '
     function flush() { if (key == "created") { at = ""; if (match(blk, /at: *["\x27]?[^,}"\x27 ]+/)) { at = substr(blk, RSTART, RLENGTH); sub(/at: *["\x27]?/, "", at); sub(/\.[0-9]+Z$/, "Z", at) }
-      who = (blk !~ /by:/ || blk ~ /kind: *["\x27]?human/) ? "owner" : (blk ~ /name: *["\x27]?board["\x27]?[ ,}]/ ? "board" : "agent") } key = ""; blk = "" }
+      who = (blk !~ /by:/ || blk ~ /kind: *["\x27]?human/) ? "owner" : (blk ~ /name: *["\x27]?board["\x27]?[ ,}]/ ? "board" : "agent")
+      if (match(blk, /session: *("[^"]*"|\x27[^\x27]*\x27|[^,}|]*)/)) { ses = substr(blk, RSTART, RLENGTH); sub(/^session: */, "", ses); gsub(/^["\x27]|["\x27]$/, "", ses); sub(/[ \t]+$/, "", ses); gsub(/\|/, "/", ses) } } key = ""; blk = "" }
     BEGIN { n = 0 }
     { sub(/\r$/, "") }
     /^---[ \t]*$/ { n++; if (n == 2) { flush(); infm = 0 } next }
@@ -59,7 +65,7 @@ row() {
              else blk = blk " " $0
              next }
     n >= 2 && !got && $0 !~ /^[ \t\r]*$/ { first = $0; sub(/\r$/, "", first); got = 1 }
-    END { printf "%s|%s|%s|%s\n", at, who, rep, first }
+    END { printf "%s|%s|%s|%s|%s\n", at, who, rep, ses, first }
   ' "$1"
 }
 
@@ -94,10 +100,13 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
       cn="${c##*/}"; [ "${cn#.}" = "$cn" ] || continue   # a dot-folder (.draft)
       printf '%s|%s|%s\n' "$(basename "$c")" "$c" "$(row "$c/index.md")"
     done | awk -F'|' '{ print $3 "|" $0 }' | sort | cut -d'|' -f2-)
-    own_uuid=; own_path=
+    own_uuid=; own_path=; st_sess=; st_path=
     declare -a replies=()
-    while IFS='|' read -r uuid path _ who rep _; do
+    while IFS='|' read -r uuid path _ who rep ses first; do
       [ -n "$uuid" ] || continue
+      if [[ $first =~ $START_ERE ]]; then   # the latest start record, rows in time order; a shaping one is no builder's
+        fl=$(printf '%s' "$first" | tr 'A-Z' 'a-z'); [[ $fl =~ $SHAPE_ERE ]] || { st_sess=$ses; st_path="${path#"$BOARD"/}/index.md"; }
+      fi
       [ "$who" = board ] && continue   # the app'"'"'s move receipt: no reply
       [ "$who" = owner ] && { own_uuid=$uuid; own_path="${path#"$BOARD"/}/index.md"; }
       [ "$who" = agent ] && [ -n "$rep" ] && replies+=("$rep")
@@ -106,19 +115,22 @@ done | sort -n | while IFS=$'\t' read -r _ lane; do
     if [ -n "$LEASE_OK" ]; then
       lrow=$(printf '%s\n' "$LEASES" | awk -F'\t' -v u="$id" '$1 == u { print $4 "\t" $3; exit }')
       lstate="${lrow%%$'\t'*}"; lmins="${lrow#*$'\t'}"; lmins="${lmins%% *}"
-      case "$lstate" in live|lapsed) ;; *) lstate= ;; esac   # voided and no row: no lease
+      [ -n "$lrow" ] || lstate=none   # no row: no claimed at all (unstaked reads only this)
+      case "$lstate" in live|lapsed|none) ;; *) lstate= ;; esac   # voided: no lease
     fi
     answered=; for r in ${replies[@]+"${replies[@]}"}; do [ "$r" = "$own_uuid" ] && answered=1; done
     istop=; [ "$card" != "$topcard" ] || istop=1
     # the top card of Approved is the first by (rank, order), leased or not; the next never takes its place
     if [ -n "$own_uuid" ] && [ -z "$answered" ]; then
       printf 'comment\t%s\t%s\t%s\t%s\towner\t%s\n' "$NAME" "$id" "$lt" "$ct" "$own_path"
-    elif [ -n "$LEASE_OK" ] && [ -n "$agent" ] && [ -z "$lstate" ] && { [ "$lt" != Approved ] || [ -n "$istop" ]; }; then
+    elif [ -n "$LEASE_OK" ] && [ -n "$agent" ] && { [ -z "$lstate" ] || [ "$lstate" = none ]; } && { [ "$lt" != Approved ] || [ -n "$istop" ]; }; then
       printf 'arm\t%s\t%s\t%s\t%s\t-\t-\n' "$NAME" "$id" "$lt" "$ct"
     fi
     case "$lstate" in
       live) printf 'held\t%s\t%s\t%s\t%s\t-\t%sm\n' "$NAME" "$id" "$lt" "$ct" "$lmins" ;;
       lapsed) printf 'stale\t%s\t%s\t%s\t%s\t-\t%sm\n' "$NAME" "$id" "$lt" "$ct" "$lmins" ;;
+      none) if [ -n "$st_sess" ] && is_working_lane "$lt" && ! has_waiting "$card/index.md"; then
+          printf 'unstaked\t%s\t%s\t%s\t%s\t-\t%s\n' "$NAME" "$id" "$lt" "$ct" "$st_path"; fi ;;
     esac
   done
 done
