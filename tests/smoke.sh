@@ -1366,6 +1366,8 @@ for sv in "${SV[@]}"; do for k in name model session; do
   svcheck "resolve-ticket $k=$sv" "$BPL" PE "$PS/resolve-ticket.sh" "$BPL" "$ST2" --resolution "$T/bres.md" "${F[@]}"
   SC1=$(bfirst "$SK/work/scripts/file-card.sh" "$BSP" Approved "SV start" --body "$T/bt.md" --model smoke)
   svcheck "start-card $k=$sv" "$BSP" PE "$SCS" "$BSP" "$SC1" --comment "$T/bstart.md" "${F[@]}"
+  # released at once: a live timer renews after 1000 polls, a write that would land under the refusal loops' snapshots of BSP below
+  PE "$SK/lanework/scripts/lease.sh" release "$BSP" "$SC1" --model smoke >/dev/null 2>&1 || true
   # byte identity: the stamp's by is the same from a comment and from a card restamp
   SQ4=$(bq "SV same $k $sv"); SQD=$(dirname "$(bcard "$SQ4")"); ls "$SQD"/comments/*/index.md >/dev/null 2>&1 && C0=$(ls "$SQD"/comments/*/index.md) || C0=""
   # --ahead 3: file-question stamps its comments one and two seconds ahead, so a bare post-comment right after it is refused (one distinct second per comment)
