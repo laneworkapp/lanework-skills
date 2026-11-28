@@ -5,10 +5,10 @@ title: "Starting a card stakes its lease in one step; a missing lease is reporte
 order: 1024
 labels: [{text: "work", kind: {type: "skill", text: "Skill"}}, {text: "watch", kind: {type: "skill", text: "Skill"}}]
 created:  {at: 2026-11-27T05:03:29Z, by: {name: claude, kind: agent, model: fable-5.2, session: "Lanework Pitwall"}}
-modified: {at: 2026-11-28T13:35:09Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
+modified: {at: 2026-11-28T15:05:25Z, by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}}
 claimed:
   by: {name: claude, kind: agent, model: claude-fable-5-2, session: "8a1a40af-9f60-4879-984b-68b4c8585042"}
-  until: 2026-11-28T14:05:09Z
+  until: 2026-11-28T15:35:25Z
 ---
 ## Goal
 
